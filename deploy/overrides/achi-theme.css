@@ -1,0 +1,53 @@
+/* ACHI Scaffolding — theme overrides
+ *
+ * TIER 3 CUSTOMISATION. Read deploy/overrides/README.md before touching this.
+ *
+ * Injected into <head> by the proxy AFTER OpenConstructionERP's own stylesheet, so
+ * these win on cascade order without any upstream file being modified.
+ *
+ * WHY THIS FILE EXISTS: the partner pack's `branding.primary_color` does NOT theme the
+ * app. MANIFEST_REFERENCE.md claims it "replaces the CSS variable --oe-primary at boot";
+ * that variable does not exist in the bundle (0 occurrences in CSS, 0 in JS). It only
+ * tints one dismissible co-brand chip. Verified against 11.9.0.
+ *
+ * DO NOT override --ddc-sig / --ddc-origin / --__rev-c / --__lc-rev / --ddc-author.
+ * They are upstream provenance notices and TRADEMARK.md §6 requires retaining them.
+ */
+
+:root {
+  /* ACHI brand blue (#378ADD) — from the Frappe PWA manifest theme_color. */
+  --oe-blue:        #378ADD;
+  --oe-blue-hover:  #4E9AE4;
+  --oe-blue-active: #2C74C0;
+  --oe-blue-dark:   #2B5FA8;
+  --oe-blue-text:   #2B5FA8;
+  --oe-blue-subtle: #EEF5FD;
+  --oe-blue-ch:     55 138 221;   /* rgb triplet — Tailwind opacity utilities read this */
+}
+
+.dark {
+  --oe-blue:        #5C9FE6;
+  --oe-blue-hover:  #7CB4EC;
+  --oe-blue-active: #378ADD;
+  --oe-blue-dark:   #2B5FA8;
+  --oe-blue-text:   #A8CDF3;
+  --oe-blue-subtle: rgba(55, 138, 221, .15);
+  --oe-blue-ch:     92 159 230;
+}
+
+/* --- Sidebar in the brand colour ------------------------------------------
+ * The sidebar is NOT blue by default — it uses the neutral surface (--oe-bg /
+ * --oe-bg-secondary). Painting it brand-blue means targeting the element itself.
+ *
+ * UNVERIFIED: the exact selector was not confirmed against a rendered page (no
+ * browser available when this was written). Open DevTools, inspect the nav, and
+ * correct the selector below. Keep the change to *this* file.
+ */
+/*
+aside[class*="sidebar"], nav[class*="sidebar"] {
+  background: var(--oe-blue) !important;
+  color: var(--oe-text-inverse) !important;
+}
+aside[class*="sidebar"] a { color: rgb(255 255 255 / .86) !important; }
+aside[class*="sidebar"] a:hover { background: rgb(255 255 255 / .12) !important; }
+*/

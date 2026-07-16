@@ -16,10 +16,15 @@ Upstream ships ~2.9 releases/day from a single author who does not merge outside
 (README.md:1050). A fork would mean rebasing that forever with no way to contribute back.
 Instead we use two supported, declarative extension points:
 
-| Layer | Mechanism | What it sets |
-|---|---|---|
-| Partner pack | folder in `~/.openestimate/packs/` | co-brand chip, primary colour, currency, module policy |
-| Branding API | `PUT /api/v1/branding/` | browser tab title, in-app logo |
+| Tier | Mechanism | What it sets | Supported? |
+|---|---|---|---|
+| 1 | Partner pack — folder in `~/.openestimate/packs/` | co-brand chip, currency, module policy | yes |
+| 2 | Branding API — `PUT /api/v1/branding/` | browser tab title, in-app logo | yes |
+| 3 | CSS override injected at the proxy (`deploy/overrides/`) | colours, theme | **no — see its README** |
+| 4 | Editing upstream components | anything else | fork; don't |
+
+> The pack's `branding.primary_color` is **dead config** — the docs claim it replaces
+> `--oe-primary`, a variable that does not exist in the bundle. Colour theming is tier 3.
 
 Upgrading OCE = bump `OCE_VERSION` in `.env`, rebuild. No rebase. No conflicts.
 

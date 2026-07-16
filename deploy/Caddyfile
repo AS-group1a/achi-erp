@@ -1,10 +1,23 @@
 {$SITE_ADDRESS} {
 	encode gzip
 
+	# --- ACHI theme override (tier 3) -------------------------------------
+	# Serve our stylesheet, then rewrite </head> so it loads AFTER upstream's own
+	# CSS and wins on cascade. No upstream file is modified — OCE_VERSION still
+	# upgrades cleanly. See overrides/README.md.
+	handle /achi-theme.css {
+		root * /srv/overrides
+		file_server
+	}
+
+	replace {
+		"</head>" `<link rel="stylesheet" href="/achi-theme.css"></head>`
+	}
+
 	# Upstream documents three hard proxy requirements (deploy/docker/README.md):
-	#   1. body limit >= 2GB  — large CAD/PDF/point-cloud uploads
+	#   1. body limit >= 2GB — large CAD/PDF/point-cloud uploads
 	#   2. .mjs served as JavaScript — else the pdf.js worker never loads and the
-	#      take-off viewer renders blank
+	#      take-off viewer renders BLANK
 	#   3. WebSocket upgrade for /api/v1/notifications/ws and collaboration presence
 	# Caddy does (2) and (3) natively; (1) is unlimited unless capped.
 	request_body {

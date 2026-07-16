@@ -42,7 +42,11 @@ services:
     expose: ["8080"]
 
   caddy:
-    image: caddy:2-alpine
+    # Custom build: stock caddy has no response-rewrite, which we need to inject
+    # the ACHI stylesheet into <head>. See overrides/README.md.
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
     restart: unless-stopped
     depends_on: [app]
     ports: ["80:80", "443:443"]
@@ -50,6 +54,7 @@ services:
       SITE_ADDRESS: ${SITE_ADDRESS:?set to your domain, or :80 for IP-only}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./overrides:/srv/overrides:ro   # bind-mounted: edit CSS, restart caddy, no rebuild
       - caddydata:/data
       - caddyconfig:/config
 

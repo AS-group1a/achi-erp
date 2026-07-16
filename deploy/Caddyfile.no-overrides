@@ -1,0 +1,12 @@
+# Fallback: stock Caddy, no CSS injection. Use this if the replace-response
+# build breaks on a Caddy upgrade — you lose ACHI colours, not the app.
+# Swap in docker-compose.yml: image caddy:2-alpine, and mount this file.
+{$SITE_ADDRESS} {
+	encode gzip
+	request_body {
+		max_size 2GB
+	}
+	reverse_proxy app:8080 {
+		flush_interval -1
+	}
+}
