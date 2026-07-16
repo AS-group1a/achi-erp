@@ -1,0 +1,17 @@
+{$SITE_ADDRESS} {
+	encode gzip
+
+	# Upstream documents three hard proxy requirements (deploy/docker/README.md):
+	#   1. body limit >= 2GB  — large CAD/PDF/point-cloud uploads
+	#   2. .mjs served as JavaScript — else the pdf.js worker never loads and the
+	#      take-off viewer renders blank
+	#   3. WebSocket upgrade for /api/v1/notifications/ws and collaboration presence
+	# Caddy does (2) and (3) natively; (1) is unlimited unless capped.
+	request_body {
+		max_size 2GB
+	}
+
+	reverse_proxy app:8080 {
+		flush_interval -1     # don't buffer SSE (pack full-install streams progress)
+	}
+}

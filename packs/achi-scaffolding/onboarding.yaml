@@ -1,0 +1,26 @@
+# achi-scaffolding - first-login onboarding script (declarative).
+#
+# Replaces the default OnboardingWizard steps when this pack is active. Each
+# step is rendered by the frontend OnboardingWizard; `kind` maps to an existing
+# step renderer (intro | form | choice | external_link | summary). Edit freely.
+
+version: 2
+pack: achi-scaffolding
+estimated_minutes: 5
+
+steps:
+  - id: welcome
+    kind: intro
+    skippable: false
+    title_i18n:
+      en: "Welcome"
+    body_i18n:
+      en: "This OpenConstructionERP install is pre-configured by Achi Scaffolding. Replace these placeholder steps with your own onboarding flow."
+
+  - id: done
+    kind: summary
+    skippable: false
+    title_i18n:
+      en: "All set"
+    body_i18n:
+      en: "You are ready to start. Edit onboarding.yaml in this pack to customise these steps."

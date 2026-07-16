@@ -1,0 +1,6 @@
+# secrets — generated on the host by bootstrap.sh, never committed
+.env
+deploy/ssh/
+*.pem
+*_rsa
+*_ed25519
