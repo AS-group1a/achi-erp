@@ -26,6 +26,26 @@ asserts the loader can see it (so a silent drop fails the build, not production)
 
 `Base` adds `updated_at` automatically — don't declare it.
 
+## The log is the UI; the file is plumbing
+
+Nobody opens a file. A user logs a call:
+
+    Anthony Karam rings about a site in Hazmieh
+      -> POST /api/v1/achi/logs/     the only thing a human does
+      -> contact found or created    (bridge, deduped by email)
+      -> file found or opened        (his open file, else a new one)
+      -> log attached
+
+`POST /logs/` is therefore the entry point, not `POST /files/`. The files endpoints
+remain for the drawer and for corrections, but the capture path is the log.
+
+**File selection is deliberately dumb**: reuse the contact's most recent OPEN file,
+else create one. `new_file=true` forces a fresh one when a known contact rings about
+something unrelated. It will occasionally attach a call about a new site to an old
+open file — the fix is for the user to say so, not for us to guess by comparing
+addresses. The response reports `contact_created` / `file_created` so the UI can
+tell the user what happened underneath: files are invisible, not secret.
+
 ## The UI
 
 `modules/achi/ui/files.html`, served by our own router at **`/api/v1/achi/ui`**.

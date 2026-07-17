@@ -12,6 +12,9 @@ from app.dependencies import CurrentUserId, SessionDep
 from .manifest import manifest as MANIFEST
 from .schemas import (
     ContactFileCreate,
+    LogRowOut,
+    QuickLogCreate,
+    QuickLogOut,
     ContactFileListOut,
     ContactFileOut,
     ContactFileUpdate,
@@ -50,7 +53,7 @@ def ui() -> HTMLResponse:
     Every fetch it makes carries the bearer token and is authorised by the API
     routes below. Serving the shell to an anonymous browser leaks nothing.
     """
-    return HTMLResponse((_UI_DIR / "files.html").read_text(encoding="utf-8"))
+    return HTMLResponse((_UI_DIR / "log.html").read_text(encoding="utf-8"))
 
 
 @router.get("/info", response_model=ModuleInfo, summary="ACHI module info")
@@ -162,3 +165,63 @@ async def add_log(
     if f is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
     return FileLogOut.model_validate(await svc.add_log(f, data, user_id=user_id))
+
+
+# ── Quick capture: the log is the only thing a human uses ─────────────────
+
+
+@router.post(
+    "/logs/",
+    response_model=QuickLogOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log a call (creates the contact and file underneath)",
+    description=(
+        "The single entry point. Log that the phone rang; the contact is found or "
+        "created (deduped by email) and a file is found or opened for them. Nobody "
+        "should have to open a file by hand before writing down a call.\n\n"
+        "The log lands on the contact's most recent OPEN file, or a new one if they "
+        "have none. Pass new_file=true when a known contact rings about something "
+        "unrelated."
+    ),
+)
+async def quick_log(data: QuickLogCreate, session: SessionDep, user_id: CurrentUserId) -> QuickLogOut:
+    r = await ContactFileService(session).quick_log(data, user_id=user_id)
+    return QuickLogOut(
+        log=FileLogOut.model_validate(r["log"]),
+        file_id=r["file_id"],
+        file_number=r["file_number"],
+        file_created=r["file_created"],
+        contact_id=r["contact_id"],
+        contact_name=r["contact_name"],
+        contact_created=r["contact_created"],
+    )
+
+
+@router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
+async def list_logs(
+    session: SessionDep, _user_id: CurrentUserId, limit: int = Query(default=200, ge=1, le=1000)
+) -> list[LogRowOut]:
+    rows = await ContactFileService(session).list_logs(limit=limit)
+    out: list[LogRowOut] = []
+    for log, f, contact in rows:
+        name = None
+        if contact is not None:
+            name = " ".join(x for x in (contact.first_name, contact.last_name) if x).strip() or contact.company_name
+        out.append(
+            LogRowOut(
+                id=log.id,
+                log_type=log.log_type,
+                occurred_at=log.occurred_at,
+                description=log.description,
+                follow_up_date=log.follow_up_date,
+                created_at=log.created_at,
+                file_id=f.id,
+                file_number=f.file_number,
+                stage=f.stage,
+                status=f.status,
+                city=f.city,
+                contact_id=f.contact_id,
+                contact_name=name,
+            )
+        )
+    return out

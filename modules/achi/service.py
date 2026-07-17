@@ -12,7 +12,7 @@ from app.modules.contacts import bridge
 from app.modules.contacts.models import Contact
 
 from .models import ContactFile, FileLog
-from .schemas import ContactFileCreate, ContactFileUpdate, FileLogCreate, PersonIn
+from .schemas import ContactFileCreate, ContactFileUpdate, FileLogCreate, PersonIn, QuickLogCreate
 
 logger = logging.getLogger(__name__)
 
@@ -145,3 +145,113 @@ class ContactFileService:
         await self.session.commit()
         await self.session.refresh(log)
         return log
+
+    # ── Quick capture ─────────────────────────────────────────────────────
+
+    async def quick_log(self, data: QuickLogCreate, *, user_id: str | None) -> dict:
+        """Log a call; create the contact and file underneath it as needed.
+
+        This is the only entry point a human uses. Files are backend bookkeeping —
+        nobody should have to open one by hand before they can write down that the
+        phone rang.
+
+        File selection: reuse the contact's most recent OPEN file, else create one.
+        A second call about the same job lands on the same file; `new_file=True`
+        forces a fresh one when a known contact rings about something unrelated.
+
+        The rule is deliberately dumb. It will occasionally attach a call about a
+        new site to an old open file — the fix is for the user to say so
+        (`new_file`), not for us to guess by comparing addresses.
+        """
+        p = data.person
+        full_name = (p.company_name or "").strip() if p.is_company else " ".join(
+            x for x in (p.first_name, p.last_name) if x
+        ).strip()
+
+        before = await self._contact_exists(p.email)
+        contact = await bridge.ensure_contact_for_person(
+            self.session,
+            full_name=full_name,
+            email=p.email,
+            phone=p.mobile,
+            contact_type="lead",
+            module_tag=MODULE_TAG,
+            tenant_id=user_id,
+            custom_properties={"prefix": p.prefix, "is_company": p.is_company},
+        )
+        if p.is_company and not contact.company_name:
+            contact.company_name = p.company_name
+        contact_id = str(contact.id)
+
+        f = None if data.new_file else await self._open_file_for(contact_id)
+        file_created = f is None
+        if f is None:
+            site = data.site.model_dump() if data.site else {}
+            f = ContactFile(
+                file_number=await _next_file_number(self.session),
+                contact_id=contact_id,
+                subject=data.subject,
+                stage=data.stage,
+                owner_user_id=user_id,
+                tenant_id=user_id,
+                **site,
+            )
+            self.session.add(f)
+            await self.session.flush()
+
+        log = FileLog(
+            file_id=f.id,
+            created_by=user_id,
+            log_type=data.log_type,
+            occurred_at=data.occurred_at,
+            duration_seconds=data.duration_seconds,
+            description=data.description,
+            follow_up_date=data.follow_up_date,
+            follow_up_notes=data.follow_up_notes,
+        )
+        self.session.add(log)
+        await self.session.commit()
+        await self.session.refresh(log)
+        await self.session.refresh(f)
+
+        logger.info(
+            "achi: logged %s -> file %s (%s) contact %s (%s)",
+            data.log_type, f.file_number,
+            "new" if file_created else "existing", contact_id,
+            "new" if not before else "existing",
+        )
+        return {
+            "log": log, "file_id": f.id, "file_number": f.file_number,
+            "file_created": file_created, "contact_id": contact_id,
+            "contact_name": _display_name(contact), "contact_created": not before,
+        }
+
+    async def _contact_exists(self, email: str | None) -> bool:
+        """Did we already know this person? Asked BEFORE the bridge runs, because
+        afterwards the answer is always yes and the UI can't tell the user."""
+        if not (email or "").strip():
+            return False
+        row = await self.session.execute(
+            select(Contact.id).where(func.lower(Contact.primary_email) == email.strip().lower()).limit(1)
+        )
+        return row.scalar_one_or_none() is not None
+
+    async def _open_file_for(self, contact_id: str) -> ContactFile | None:
+        row = await self.session.execute(
+            select(ContactFile)
+            .where(ContactFile.contact_id == contact_id, ContactFile.status == "open")
+            .order_by(ContactFile.created_at.desc())
+            .limit(1)
+        )
+        return row.scalar_one_or_none()
+
+    async def list_logs(self, *, limit: int = 200) -> list[tuple]:
+        """Log rows joined to their file — one query, not N+1."""
+        q = (
+            select(FileLog, ContactFile, Contact)
+            .join(ContactFile, FileLog.file_id == ContactFile.id)
+            .outerjoin(Contact, ContactFile.contact_id == Contact.id)
+            .order_by(FileLog.created_at.desc())
+            .limit(limit)
+        )
+        return list((await self.session.execute(q)).all())

@@ -171,3 +171,71 @@ class ContactFileListOut(BaseModel):
     project_id: str | None
     assigned_to_user_id: str | None
     created_at: datetime
+
+
+# ── Quick capture: the log IS the UI ──────────────────────────────────────
+# A user logs a call. The contact and the file are created behind them; neither
+# is something anyone should have to think about, let alone create by hand.
+
+
+class SiteIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    country: str | None = Field(default=None, max_length=64)
+    district: str | None = Field(default=None, max_length=128)
+    city: str | None = Field(default=None, max_length=128)
+    street: str | None = Field(default=None, max_length=255)
+    site_location: str | None = None
+    maps_url: str | None = Field(default=None, max_length=1024)
+
+
+class QuickLogCreate(BaseModel):
+    """Log a call and let the file and contact appear underneath it."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    person: PersonIn
+    site: SiteIn | None = None
+
+    log_type: str = Field(default="inbound_call", pattern="^(%s)$" % "|".join(LOG_TYPES))
+    occurred_at: datetime | None = None
+    duration_seconds: int | None = Field(default=None, ge=0)
+    description: str = ""
+    follow_up_date: date | None = None
+    follow_up_notes: str = ""
+
+    subject: str = Field(default="", max_length=255)
+    stage: str = Field(default="prospect", pattern="^(%s)$" % "|".join(STAGES))
+    # Force a new file even if this contact already has one open — a second,
+    # unrelated enquiry from someone we already know.
+    new_file: bool = False
+
+
+class QuickLogOut(BaseModel):
+    """What the log UI needs back: the entry, plus where it landed."""
+
+    log: FileLogOut
+    file_id: str
+    file_number: str
+    file_created: bool
+    contact_id: str
+    contact_name: str | None
+    contact_created: bool
+
+
+class LogRowOut(BaseModel):
+    """A row in the log table — flat, joined, no client-side assembly."""
+
+    id: str
+    log_type: str
+    occurred_at: datetime | None
+    description: str
+    follow_up_date: date | None
+    created_at: datetime
+    file_id: str
+    file_number: str
+    stage: str
+    status: str
+    city: str | None
+    contact_id: str
+    contact_name: str | None

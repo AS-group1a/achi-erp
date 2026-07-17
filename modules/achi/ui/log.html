@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Client Files · Achi Scaffolding ERP</title>
+<title>Call Log · Achi Scaffolding ERP</title>
 <style>
   /* ACHI palette. Mirrors deploy/overrides/achi-theme.css — kept in sync by hand,
      because this page is served by our module and never sees upstream's stylesheet. */
@@ -57,7 +57,7 @@
 </head>
 <body>
 <header>
-  <strong>ACHI</strong><h1>Client Files</h1><div class="sp"></div>
+  <strong>ACHI</strong><h1>Call Log</h1><div class="sp"></div>
   <span class="who" id="who"></span>
 </header>
 
@@ -65,7 +65,7 @@
   <div class="err" id="err"></div>
 
   <div class="card">
-    <h2>Open a file</h2>
+    <h2>Log a call</h2>
     <div class="body">
       <div class="row">
         <div><label>Type</label>
@@ -75,29 +75,43 @@
         <div class="f" id="w-first"><label>First name</label><input id="first"></div>
         <div class="f" id="w-last"><label>Last name</label><input id="last"></div>
         <div class="f hide" id="w-co"><label>Company name</label><input id="co"></div>
+        <div class="f"><label>Mobile</label><input id="mobile" placeholder="+961…"></div>
+        <div class="f"><label>Email</label><input id="email" type="email" placeholder="matches existing contacts"></div>
       </div>
       <div class="row" style="margin-top:12px">
-        <div class="f"><label>Mobile</label><input id="mobile" placeholder="+961…"></div>
-        <div class="f"><label>Email</label><input id="email" type="email" placeholder="used to match existing contacts"></div>
-        <div class="f"><label>City</label><input id="city"></div>
-        <div class="f" style="flex:2 1 240px"><label>Subject</label><input id="subject" placeholder="Facade scaffolding — 6 floors"></div>
-        <div><button id="create">Open file</button></div>
+        <div><label>Call</label><select id="ltype">
+          <option value="inbound_call">Inbound call</option><option value="outbound_call">Outbound call</option>
+          <option value="quotation">Quotation</option><option value="field">Field</option>
+          <option value="job">Job</option><option value="transfer">Transfer</option><option value="note">Note</option>
+        </select></div>
+        <div class="f" style="flex:3 1 300px"><label>What was said</label><input id="desc" placeholder="Wants scaffolding for a villa rear facade…"></div>
+        <div class="f"><label>City / site</label><input id="city" placeholder="Hazmieh"></div>
+        <div class="f"><label>Follow-up</label><input id="fu" type="date"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="f" style="flex:2 1 260px"><label>Subject (new files only)</label><input id="subject" placeholder="Villa rear facade — Hazmieh"></div>
+        <div><label>&nbsp;</label><label style="text-transform:none;font-weight:400;color:var(--tx-2);display:flex;align-items:center;gap:6px;padding:8px 0">
+          <input type="checkbox" id="newfile" style="min-width:auto"> Separate job — force a new file</label></div>
+        <div style="flex:1"></div>
+        <div><button id="log">Log it</button></div>
+      </div>
+      <div class="muted" style="margin-top:10px;font-size:12px" id="hint">
+        The contact and the file are created for you. Repeat calls land on the same open file.
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Files <span class="muted" id="count"></span></h2>
+    <h2>Log <span class="muted" id="count"></span></h2>
     <div class="body" style="padding:12px 16px">
       <div class="row">
-        <div><label>Stage</label><select id="fstage"><option value="">All</option><option>prospect</option><option>lead</option><option>site_survey</option><option>measurements</option></select></div>
-        <div><label>Status</label><select id="fstatus"><option value="">All</option><option>open</option><option>scheduled</option><option>viewed</option><option>cancelled</option><option>done</option></select></div>
+        <div class="f" style="flex:2 1 220px"><label>Search</label><input id="q" placeholder="name, file, city, text…"></div>
         <div><button class="ghost" id="refresh">Refresh</button></div>
       </div>
     </div>
     <table>
-      <thead><tr><th>File</th><th>Contact</th><th>Subject</th><th>Stage</th><th>Status</th><th>City</th><th>Project</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="7" class="muted" style="padding:24px;text-align:center">Loading…</td></tr></tbody>
+      <thead><tr><th>When</th><th>Type</th><th>Contact</th><th>What was said</th><th>File</th><th>Stage</th><th>City</th><th>Follow-up</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="8" class="muted" style="padding:24px;text-align:center">Loading…</td></tr></tbody>
     </table>
   </div>
 </main>
@@ -129,33 +143,32 @@ const TOKEN = localStorage.getItem('oe_access_token');
 const API = '/api/v1/achi';
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-function fail(msg) { const e = $('err'); e.textContent = msg; e.style.display = 'block'; }
+const fail = m => { const e = $('err'); e.textContent = m; e.style.display = 'block'; };
 
 async function api(path, opts = {}) {
   const r = await fetch(API + path, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN, ...(opts.headers || {}) },
   });
-  if (r.status === 401) { fail('Session expired — open the main app, sign in, then reload this page.'); throw new Error('401'); }
+  if (r.status === 401) { fail('Session expired — open the main app, sign in, then reload.'); throw new Error('401'); }
   const body = await r.json().catch(() => ({}));
   if (!r.ok) {
-    // FastAPI validation errors arrive as a list of {loc,msg}; surface the message
-    // rather than "[object Object]", which is what tells you nothing at 5pm.
+    // FastAPI validation errors are a list of {loc,msg}. Show the message, not
+    // "[object Object]" — that's what tells you nothing at 5pm.
     const d = body.detail;
     throw new Error(Array.isArray(d) ? d.map(x => x.msg).join('; ') : (d || r.status));
   }
   return body;
 }
 
-// ── Person vs company: swap which name fields are shown/required ────────
+// Person vs company: swap which name fields apply.
 $('isco').onchange = () => {
   const co = $('isco').value === '1';
   ['w-prefix','w-first','w-last'].forEach(i => $(i).classList.toggle('hide', co));
   $('w-co').classList.toggle('hide', !co);
 };
 
-$('create').onclick = async () => {
+$('log').onclick = async () => {
   $('err').style.display = 'none';
   const co = $('isco').value === '1';
   const person = co
@@ -164,41 +177,61 @@ $('create').onclick = async () => {
         first_name: $('first').value.trim() || null, last_name: $('last').value.trim() || null };
   person.mobile = $('mobile').value.trim() || null;
   person.email = $('email').value.trim() || null;
+
+  const city = $('city').value.trim();
   try {
-    await api('/files/', { method: 'POST', body: JSON.stringify({
-      person, subject: $('subject').value.trim(), city: $('city').value.trim() || null, stage: 'prospect',
+    const r = await api('/logs/', { method: 'POST', body: JSON.stringify({
+      person,
+      site: city ? { city, country: 'Lebanon' } : null,
+      log_type: $('ltype').value,
+      description: $('desc').value.trim(),
+      follow_up_date: $('fu').value || null,
+      subject: $('subject').value.trim(),
+      new_file: $('newfile').checked,
     })});
-    ['co','first','last','mobile','email','city','subject'].forEach(i => $(i).value = '');
+    // Tell the user what happened underneath — files are invisible, not secret.
+    const bits = [];
+    bits.push(r.contact_created ? 'new contact' : 'existing contact');
+    bits.push(r.file_created ? `new file ${r.file_number}` : `file ${r.file_number}`);
+    $('hint').innerHTML = `Logged for <strong>${esc(r.contact_name)}</strong> — ${esc(bits.join(' · '))}`;
+    ['co','first','last','mobile','email','desc','city','subject','fu'].forEach(i => $(i).value = '');
+    $('newfile').checked = false;
     load();
   } catch (e) { fail(e.message); }
 };
 
-function pill(v, p) { return `<span class="pill ${p}${v}">${esc(v)}</span>`; }
+const pill = (v, p) => `<span class="pill ${p}${v}">${esc(v)}</span>`;
+const when = s => esc(String(s || '').slice(0, 16).replace('T', ' '));
+
+let ROWS = [];
+function render() {
+  const q = $('q').value.trim().toLowerCase();
+  const rows = q
+    ? ROWS.filter(r => [r.contact_name, r.file_number, r.city, r.description, r.log_type]
+        .some(v => String(v || '').toLowerCase().includes(q)))
+    : ROWS;
+  $('count').textContent = `· ${rows.length}`;
+  $('rows').innerHTML = rows.length ? rows.map(r => `
+    <tr data-file="${r.file_id}">
+      <td class="mono">${when(r.occurred_at || r.created_at)}</td>
+      <td>${pill(r.log_type.replace('_',' '), 'st-')}</td>
+      <td><strong>${esc(r.contact_name || '—')}</strong></td>
+      <td>${esc(r.description) || '<span class="muted">—</span>'}</td>
+      <td class="mono">${esc(r.file_number)}</td>
+      <td>${pill(r.stage, 's-')}</td>
+      <td>${esc(r.city) || '<span class="muted">—</span>'}</td>
+      <td>${r.follow_up_date ? '<span class="pill st-open">' + esc(r.follow_up_date) + '</span>' : '<span class="muted">—</span>'}</td>
+    </tr>`).join('')
+    : '<tr><td colspan="8" class="muted" style="padding:24px;text-align:center">No calls logged yet.</td></tr>';
+  $('rows').querySelectorAll('tr[data-file]').forEach(tr => tr.onclick = () => openFile(tr.dataset.file));
+}
 
 async function load() {
-  const q = new URLSearchParams();
-  if ($('fstage').value) q.set('stage', $('fstage').value);
-  if ($('fstatus').value) q.set('status', $('fstatus').value);
-  try {
-    const rows = await api('/files/?' + q);
-    $('count').textContent = `· ${rows.length}`;
-    $('rows').innerHTML = rows.length ? rows.map(r => `
-      <tr data-id="${r.id}">
-        <td class="mono">${esc(r.file_number)}</td>
-        <td><strong>${esc(r.contact_name || '—')}</strong></td>
-        <td>${esc(r.subject) || '<span class="muted">—</span>'}</td>
-        <td>${pill(r.stage, 's-')}</td>
-        <td>${pill(r.status, 'st-')}</td>
-        <td>${esc(r.city) || '<span class="muted">—</span>'}</td>
-        <td>${r.project_id ? '<span class="pill st-done">converted</span>' : '<span class="muted">—</span>'}</td>
-      </tr>`).join('')
-      : '<tr><td colspan="7" class="muted" style="padding:24px;text-align:center">No files yet.</td></tr>';
-    $('rows').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => open(tr.dataset.id));
-  } catch (e) { fail(e.message); }
+  try { ROWS = await api('/logs/'); render(); } catch (e) { fail(e.message); }
 }
 
 let current = null;
-async function open(id) {
+async function openFile(id) {
   try {
     const f = await api('/files/' + id);
     current = f;
@@ -221,7 +254,7 @@ function renderLogs(logs) {
   $('d-logs').innerHTML = logs.length
     ? logs.slice().sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''))
         .map(l => `<div class="log">
-          <div class="t">${esc(l.log_type)} · ${esc((l.occurred_at || l.created_at || '').slice(0,16).replace('T',' '))}
+          <div class="t">${esc(l.log_type)} · ${when(l.occurred_at || l.created_at)}
           ${l.follow_up_date ? ' · follow-up ' + esc(l.follow_up_date) : ''}</div>
           <div>${esc(l.description) || '<span class="muted">—</span>'}</div>
         </div>`).join('')
@@ -239,13 +272,13 @@ $('l-add').onclick = async () => {
     $('l-desc').value = ''; $('l-fu').value = '';
     const f = await api('/files/' + current.id);
     current = f; renderLogs(f.logs || []);
+    load();
   } catch (e) { fail(e.message); }
 };
 
 $('d-close').onclick = () => $('dlg').close();
 $('refresh').onclick = load;
-$('fstage').onchange = load;
-$('fstatus').onchange = load;
+$('q').oninput = render;   // client-side: the list is small and already loaded
 
 if (!TOKEN) fail('Not signed in. Open the main app, sign in, then reload this page.');
 else { api('/info').then(i => $('who').textContent = `${i.module} v${i.version}`).catch(() => {}); load(); }
