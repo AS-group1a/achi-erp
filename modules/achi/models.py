@@ -1,63 +1,59 @@
 """ACHI tables.
 
-Everything is namespaced ``achi_*``. Schema is built by create_all (main.py:2553),
-not migrations, and drift is healed additively only — a collision with an upstream
-``oe_*`` table would be painful to unpick.
+Domain shape (this is the bit to get right):
+
+    Contact ──has──> File(s)          an enquiry: prospect -> lead -> survey -> measurements
+       │
+       └─ becomes a Client ──has──> Project(s)     the actual work, in OCE's own oe_projects
+
+A **file belongs to a contact**, never to a client — clients have projects. One
+contact may hold several files (two separate enquiries, a year apart). The file
+closes by converting into an OCE Project.
+
+Identity (name, company, email, phone) lives on the CONTACT and is NOT duplicated
+here: contacts/bridge.py states the Contact table is "the canonical store for
+person data". The file holds only what is true of *this enquiry*.
+
+Everything is namespaced ``achi_*``. Schema is create_all (main.py:2553), healed
+additively only — a collision with an upstream ``oe_*`` table would be painful.
 """
 
 from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
 
-class ClientFile(Base):
-    """A file opened for a person or company before they are a client.
+class ContactFile(Base):
+    """An enquiry opened against a contact, before there is any project."""
 
-    Deliberately mirrors the Frappe `CRM Log`: identity lives INLINE on the file
-    (prefix/first/last/company/mobile/email) rather than as a link, because a file
-    is opened *before* the person exists anywhere else — "they open a file for you,
-    but you aren't a student yet".
-
-    NOT linked to a project. Upstream's oe_phonelog forces a NOT-NULL project_id,
-    which is why we don't use it: a prospect has no project. Ownership is a user.
-
-    ``contact_id`` is the bridge back to OCE's canonical directory and is nullable
-    on purpose — the row exists even if the contact sync ever fails.
-    """
-
-    __tablename__ = "achi_client_file"
+    __tablename__ = "achi_contact_file"
     __table_args__ = (
-        Index("ix_achi_client_file_stage_status", "stage", "status"),
-        Index("ix_achi_client_file_owner", "owner_user_id"),
+        Index("ix_achi_contact_file_stage_status", "stage", "status"),
+        Index("ix_achi_contact_file_owner", "owner_user_id"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     file_number: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
 
-    # ── Identity, carried inline ──────────────────────────────────────────
-    # is_company decides whether company_name or first/last is the display name.
-    # Frappe answered this with `prefix` + `company_name`; same idea, explicit flag.
-    is_company: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    prefix: Mapped[str | None] = mapped_column(String(16), nullable=True)   # Mr/Ms/Mrs/Dr/Eng/Arch
-    first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    last_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # The owner of the file. NOT NULL: a file without a contact is meaningless —
+    # "contacts have files". No FK constraint to oe_contacts_contact: a hard FK
+    # would couple our schema to theirs, and create_all offers no migration path
+    # if they rename the table.
+    contact_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
 
-    mobile: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
-    tel: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-
-    # ── Funnel ────────────────────────────────────────────────────────────
-    # prospect -> lead -> site_survey -> measurements -> client (mirrors Frappe)
+    # prospect -> lead -> site_survey -> measurements  (mirrors the Frappe CRM Log)
+    # There is deliberately no "client" stage: becoming a client is not a file
+    # state, it is the file converting into a project.
     stage: Mapped[str] = mapped_column(String(32), nullable=False, default="prospect")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
 
-    # ── Where the work is ─────────────────────────────────────────────────
+    # This enquiry's site — a contact's second file may be a different address,
+    # which is exactly why this lives on the file and not the contact.
     country: Mapped[str | None] = mapped_column(String(64), nullable=True)
     district: Mapped[str | None] = mapped_column(String(128), nullable=True)
     city: Mapped[str | None] = mapped_column(String(128), nullable=True)
@@ -65,29 +61,23 @@ class ClientFile(Base):
     site_location: Mapped[str | None] = mapped_column(Text, nullable=True)
     maps_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-    # ── Links out ─────────────────────────────────────────────────────────
-    # Set by contacts/bridge.py::ensure_contact_for_person. No FK constraint: a
-    # hard FK to an upstream table would couple our schema to theirs, and
-    # create_all gives us no migration path if they rename it.
-    contact_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    # The outcome. Set when the contact becomes a client and the work is real:
+    # the file converts into an OCE project (oe_projects_project). Nullable —
+    # most files never convert, and that is the point of tracking them.
+    project_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    converted_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     owner_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     assigned_to_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+    subject: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     logs: Mapped[list["FileLog"]] = relationship(
         back_populates="file", cascade="all, delete-orphan", lazy="selectin"
     )
-
-    @property
-    def display_name(self) -> str:
-        if self.is_company:
-            return (self.company_name or "").strip() or "(unnamed company)"
-        parts = [self.prefix, self.first_name, self.last_name]
-        return " ".join(p for p in parts if p) or "(unnamed)"
 
 
 class FileLog(Base):
@@ -98,7 +88,7 @@ class FileLog(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     file_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("achi_client_file.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36), ForeignKey("achi_contact_file.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # inbound_call | outbound_call | quotation | field | job | transfer | note
@@ -113,4 +103,4 @@ class FileLog(Base):
     created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    file: Mapped[ClientFile] = relationship(back_populates="logs")
+    file: Mapped[ContactFile] = relationship(back_populates="logs")

@@ -8,15 +8,16 @@ from app.dependencies import CurrentUserId, SessionDep
 
 from .manifest import manifest as MANIFEST
 from .schemas import (
-    ClientFileCreate,
-    ClientFileListOut,
-    ClientFileOut,
-    ClientFileUpdate,
+    ContactFileCreate,
+    ContactFileListOut,
+    ContactFileOut,
+    ContactFileUpdate,
+    FileConvertRequest,
     FileLogCreate,
     FileLogOut,
     ModuleInfo,
 )
-from .service import ClientFileService
+from .service import ContactFileService
 
 router = APIRouter()
 
@@ -31,57 +32,89 @@ def info() -> ModuleInfo:
     )
 
 
-# ── Client files ──────────────────────────────────────────────────────────
+async def _out(svc: ContactFileService, f) -> ContactFileOut:
+    o = ContactFileOut.model_validate(f)
+    o.contact_name = await svc.name_for(f.contact_id)
+    return o
 
 
 @router.post(
     "/files/",
-    response_model=ClientFileOut,
+    response_model=ContactFileOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Open a client file",
+    summary="Open a file against a contact",
     description=(
-        "Opens a file for a person or company before they are a client, and mirrors "
-        "them into OCE's contact directory via the contacts bridge (deduping by "
-        "email). Not linked to a project — a prospect has no project."
+        "Contacts have files; clients have projects. Pass an existing contact_id, or a "
+        "`person` to find/create one (deduped by email via the contacts bridge). The file "
+        "records this enquiry — not the person, whose details live in the contact directory."
     ),
 )
-async def create_file(data: ClientFileCreate, session: SessionDep, user_id: CurrentUserId) -> ClientFileOut:
-    f = await ClientFileService(session).create(data, user_id=user_id)
-    return ClientFileOut.model_validate(f)
+async def create_file(data: ContactFileCreate, session: SessionDep, user_id: CurrentUserId) -> ContactFileOut:
+    svc = ContactFileService(session)
+    try:
+        f = await svc.create(data, user_id=user_id)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+    return await _out(svc, f)
 
 
-@router.get("/files/", response_model=list[ClientFileListOut], summary="List client files")
+@router.get("/files/", response_model=list[ContactFileListOut], summary="List files")
 async def list_files(
     session: SessionDep,
     _user_id: CurrentUserId,
     stage: str | None = Query(default=None),
     status_: str | None = Query(default=None, alias="status"),
+    contact_id: str | None = Query(default=None, description="All files for one contact"),
     limit: int = Query(default=200, ge=1, le=1000),
-) -> list[ClientFileListOut]:
-    rows = await ClientFileService(session).list(stage=stage, status=status_, limit=limit)
-    return [ClientFileListOut.model_validate(r) for r in rows]
+) -> list[ContactFileListOut]:
+    svc = ContactFileService(session)
+    rows = await svc.list(stage=stage, status=status_, contact_id=contact_id, limit=limit)
+    out = []
+    for r in rows:
+        o = ContactFileListOut.model_validate(r)
+        o.contact_name = await svc.name_for(r.contact_id)
+        out.append(o)
+    return out
 
 
-@router.get("/files/{file_id}", response_model=ClientFileOut, summary="Get a client file")
-async def get_file(file_id: str, session: SessionDep, _user_id: CurrentUserId) -> ClientFileOut:
-    f = await ClientFileService(session).get(file_id)
-    if f is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
-    return ClientFileOut.model_validate(f)
-
-
-@router.patch("/files/{file_id}", response_model=ClientFileOut, summary="Update a client file")
-async def update_file(
-    file_id: str, data: ClientFileUpdate, session: SessionDep, _user_id: CurrentUserId
-) -> ClientFileOut:
-    svc = ClientFileService(session)
+@router.get("/files/{file_id}", response_model=ContactFileOut, summary="Get a file")
+async def get_file(file_id: str, session: SessionDep, _user_id: CurrentUserId) -> ContactFileOut:
+    svc = ContactFileService(session)
     f = await svc.get(file_id)
     if f is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
-    return ClientFileOut.model_validate(await svc.update(f, data))
+    return await _out(svc, f)
 
 
-# ── Logs ──────────────────────────────────────────────────────────────────
+@router.patch("/files/{file_id}", response_model=ContactFileOut, summary="Update a file")
+async def update_file(
+    file_id: str, data: ContactFileUpdate, session: SessionDep, _user_id: CurrentUserId
+) -> ContactFileOut:
+    svc = ContactFileService(session)
+    f = await svc.get(file_id)
+    if f is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    return await _out(svc, await svc.update(f, data))
+
+
+@router.post(
+    "/files/{file_id}/convert/",
+    response_model=ContactFileOut,
+    summary="Convert a file to a project (the contact becomes a client)",
+    description=(
+        "Records the outcome: the file closes onto an existing OCE project and the "
+        "contact is promoted from lead to client. The project itself is OCE's — we "
+        "don't create it, project setup has its own rules."
+    ),
+)
+async def convert_file(
+    file_id: str, data: FileConvertRequest, session: SessionDep, _user_id: CurrentUserId
+) -> ContactFileOut:
+    svc = ContactFileService(session)
+    f = await svc.get(file_id)
+    if f is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    return await _out(svc, await svc.convert(f, data.project_id))
 
 
 @router.post(
@@ -93,7 +126,7 @@ async def update_file(
 async def add_log(
     file_id: str, data: FileLogCreate, session: SessionDep, user_id: CurrentUserId
 ) -> FileLogOut:
-    svc = ClientFileService(session)
+    svc = ContactFileService(session)
     f = await svc.get(file_id)
     if f is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")

@@ -4,6 +4,12 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+# No "client" stage: becoming a client isn't a file state, it's the file
+# converting into a project.
+STAGES = ("prospect", "lead", "site_survey", "measurements")
+STATUSES = ("open", "scheduled", "viewed", "cancelled", "done")
+LOG_TYPES = ("inbound_call", "outbound_call", "quotation", "field", "job", "transfer", "note")
+
 
 class ModuleInfo(BaseModel):
     module: str
@@ -11,24 +17,44 @@ class ModuleInfo(BaseModel):
     company: str
     note: str
 
-STAGES = ("prospect", "lead", "site_survey", "measurements", "client")
-STATUSES = ("open", "scheduled", "viewed", "cancelled", "done")
-LOG_TYPES = ("inbound_call", "outbound_call", "quotation", "field", "job", "transfer", "note")
 
+class PersonIn(BaseModel):
+    """Who the file is for.
 
-class ClientFileCreate(BaseModel):
+    Only used to FIND or CREATE the contact — none of this is stored on the file.
+    Identity belongs to the contact directory (contacts/bridge.py: "the canonical
+    store for person data").
+    """
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
     is_company: bool = False
-    prefix: str | None = Field(default=None, max_length=16)
+    prefix: str | None = Field(default=None, max_length=16)      # Mr/Ms/Mrs/Dr/Eng/Arch
     first_name: str | None = Field(default=None, max_length=128)
     last_name: str | None = Field(default=None, max_length=128)
     company_name: str | None = Field(default=None, max_length=255)
-
     mobile: str | None = Field(default=None, max_length=32)
-    tel: str | None = Field(default=None, max_length=32)
     email: str | None = Field(default=None, max_length=255)
 
+    @model_validator(mode="after")
+    def _require_a_name(self) -> "PersonIn":
+        if self.is_company:
+            if not (self.company_name or "").strip():
+                raise ValueError("company_name is required when is_company is true")
+        elif not ((self.first_name or "").strip() or (self.last_name or "").strip()):
+            raise ValueError("first_name or last_name is required when is_company is false")
+        return self
+
+
+class ContactFileCreate(BaseModel):
+    """Open a file. Either name an existing contact, or describe the person."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    contact_id: str | None = Field(default=None, max_length=36)
+    person: PersonIn | None = None
+
+    subject: str = Field(default="", max_length=255)
     stage: str = Field(default="prospect", pattern="^(%s)$" % "|".join(STAGES))
     status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
 
@@ -43,26 +69,16 @@ class ClientFileCreate(BaseModel):
     notes: str = ""
 
     @model_validator(mode="after")
-    def _require_a_name(self) -> "ClientFileCreate":
-        """A file must be findable by a human. Enforce the name that matches is_company."""
-        if self.is_company:
-            if not (self.company_name or "").strip():
-                raise ValueError("company_name is required when is_company is true")
-        elif not ((self.first_name or "").strip() or (self.last_name or "").strip()):
-            raise ValueError("first_name or last_name is required when is_company is false")
+    def _one_of(self) -> "ContactFileCreate":
+        if not self.contact_id and not self.person:
+            raise ValueError("provide either contact_id (existing contact) or person (to find/create one)")
         return self
 
 
-class ClientFileUpdate(BaseModel):
+class ContactFileUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    prefix: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    company_name: str | None = None
-    mobile: str | None = None
-    tel: str | None = None
-    email: str | None = None
+    subject: str | None = None
     stage: str | None = Field(default=None, pattern="^(%s)$" % "|".join(STAGES))
     status: str | None = Field(default=None, pattern="^(%s)$" % "|".join(STATUSES))
     country: str | None = None
@@ -73,6 +89,14 @@ class ClientFileUpdate(BaseModel):
     maps_url: str | None = None
     assigned_to_user_id: str | None = None
     notes: str | None = None
+
+
+class FileConvertRequest(BaseModel):
+    """The contact becomes a client: the file converts into an OCE project."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    project_id: str = Field(..., max_length=36, description="An existing oe_projects project")
 
 
 class FileLogCreate(BaseModel):
@@ -101,20 +125,13 @@ class FileLogOut(BaseModel):
     created_at: datetime
 
 
-class ClientFileOut(BaseModel):
+class ContactFileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
     file_number: str
-    display_name: str
-    is_company: bool
-    prefix: str | None
-    first_name: str | None
-    last_name: str | None
-    company_name: str | None
-    mobile: str | None
-    tel: str | None
-    email: str | None
+    contact_id: str
+    subject: str
     stage: str
     status: str
     country: str | None
@@ -123,16 +140,19 @@ class ClientFileOut(BaseModel):
     street: str | None
     site_location: str | None
     maps_url: str | None
-    contact_id: str | None
+    project_id: str | None
+    converted_at: datetime | None
     owner_user_id: str | None
     assigned_to_user_id: str | None
     notes: str
     created_at: datetime
     logs: list[FileLogOut] = []
+    # joined from the contact directory for display; not stored on the file
+    contact_name: str | None = None
 
 
-class ClientFileListOut(BaseModel):
-    """Deliberately flat and small — this is what a table renders.
+class ContactFileListOut(BaseModel):
+    """Flat and small — this is what a table renders.
 
     The Frappe list view needed 1,368 lines of JS because it rebuilt a grid by
     hand. The data was never the problem; don't let it become one here.
@@ -142,13 +162,12 @@ class ClientFileListOut(BaseModel):
 
     id: str
     file_number: str
-    display_name: str
-    is_company: bool
+    contact_id: str
+    contact_name: str | None = None
+    subject: str
     stage: str
     status: str
-    mobile: str | None
-    email: str | None
     city: str | None
-    contact_id: str | None
+    project_id: str | None
     assigned_to_user_id: str | None
     created_at: datetime
