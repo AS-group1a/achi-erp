@@ -74,9 +74,21 @@ aside.oe-sidebar,
   --oe-border:          rgba(255, 255, 255, .18);
   --oe-border-light:    rgba(255, 255, 255, .12);
 
-  /* Active/hover accents need to read against blue, not disappear into it. */
-  --oe-blue:            #ffffff;
-  --oe-blue-ch:         255 255 255;
+  /* Hover/active accent — MUST NOT be #ffffff.
+   *
+   * Several sidebar controls do `hover:bg-oe-blue hover:text-white`:
+   *   - the collapse chevron: hover:border-oe-blue hover:bg-oe-blue hover:text-white
+   *   - icon tiles:           group-hover:bg-oe-blue group-hover:text-white
+   * Setting --oe-blue to white therefore paints white-on-white and the control
+   * vanishes on hover. That was a real bug, reported as a "white flash".
+   *
+   * #3D6BC4 measures 5.12:1 against white text (WCAG AA) while staying distinct
+   * from the #284F9E ground. Do not raise the lightness without re-checking:
+   * #4A7FD4 looks punchier but drops to 3.98:1 and fails AA. */
+  --oe-blue:            #3D6BC4;
+  --oe-blue-ch:         61 107 196;
+  --oe-blue-hover:      #4A7FD4;
+  --oe-blue-active:     #2F62B8;
   --oe-blue-subtle:     rgba(255, 255, 255, .16);
   --oe-blue-text:       #ffffff;
 }
@@ -108,5 +120,24 @@ aside.oe-sidebar a[href*="t.me/datadrivenconstruction"],
 
 /* Collapse the now-empty wrapper (and its divider) rather than leave a gap. */
 aside.oe-sidebar div:has(> a[href*="datadrivenconstruction"]) {
+  display: none !important;
+}
+
+/* --- Hide upstream's module-marketing cards from the sidebar footer --------
+ * Confirmed in DevTools:
+ *   <div class="pt-2 pb-1 px-3"><a href="/modules/developer-guide">Add module</a></div>
+ *   <div class="pt-1 pb-3 px-3"><button aria-haspopup="dialog">Request a custom module</button></div>
+ *
+ * The first is matched by href — specific and stable. The second has no href, so
+ * it is matched by its sparkles icon plus aria-haspopup: still far more stable
+ * than its Tailwind classes ("pt-1 pb-3 px-3" is generic and used elsewhere).
+ * :has() takes the wrapper so no padding is left behind.
+ *
+ * "Request a custom module" opens a dialog that sends a request to the VENDOR,
+ * not to us. It has no place in ACHI's sidebar. The developer guide stays
+ * reachable at /modules/developer-guide for whoever is building modules/achi/.
+ */
+aside.oe-sidebar div:has(> a[href="/modules/developer-guide"]),
+aside.oe-sidebar div:has(> button[aria-haspopup="dialog"]:has(svg.lucide-sparkles)) {
   display: none !important;
 }
