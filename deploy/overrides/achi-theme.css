@@ -188,12 +188,25 @@ aside.oe-sidebar button[title="Add your logo or company name"],
   display: none !important;
 }
 
-/* 3. Replace the hardcoded credit. font-size:0 collapses the "by" text node and
+/* 3. Lay the logo and credit side by side. Upstream renders both as block-level
+ *    (img.block + span.mt-1.block) so they stack vertically; flex puts them in a
+ *    row and mt-1 has to go or the credit sits low. */
+aside.oe-sidebar button[aria-label="Customise branding"],
+[data-testid="app-sidebar"] button[aria-label="Customise branding"] {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* 4. Replace the hardcoded credit. font-size:0 collapses the "by" text node and
  *    the nested Open/Construction/ERP spans (they inherit it); ::after restores a
  *    real size for our own text. */
 aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child,
 [data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child {
   font-size: 0 !important;
+  margin-top: 0 !important;     /* kill upstream's mt-1, which stacked it below */
+  flex: 0 1 auto;
+  min-width: 0;                 /* let `truncate` still work inside the flex row */
 }
 aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child::after,
 [data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child::after {
