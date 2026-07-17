@@ -34,9 +34,15 @@ Upgrading OCE = bump `OCE_VERSION` in `.env`, rebuild. No rebase. No conflicts.
 ## Layout
 
 ```
-packs/achi-scaffolding/   the pack + apply-branding.sh   (see its README)
-deploy/                   Dockerfile, compose, Caddy, bootstrap  (see its README)
+modules/achi/             ACHI's own code — the erp_next_custom equivalent  (see modules/README.md)
+packs/achi-scaffolding/   branding pack + apply-branding.sh                 (see its README)
+deploy/                   Dockerfile, compose, Caddy, bootstrap             (see its README)
+deploy/overrides/         tier-3 CSS theme overrides                        (see its README)
 ```
+
+**`modules/achi/` is where the team works.** The loader discovers modules on the filesystem,
+so our code is a first-class module with its own router, tables and business logic — and
+upstream stays stock. Verified live on 11.9.0: router mounted at `/api/v1/achi`, table created.
 
 ## Deploy
 

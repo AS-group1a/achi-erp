@@ -11,6 +11,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install --no-cache-dir "openconstructionerp==${OCE_VERSION}"
 
+# --- ACHI's own module -------------------------------------------------------
+# The loader scans app/modules/ on the filesystem (MODULES_DIR is hardcoded to the
+# installed package; there is no entry-point or env-var path for modules, unlike
+# packs). So our module is copied in at build time. This is still NOT a fork:
+# upstream's own files are untouched and OCE_VERSION upgrades cleanly.
+# The python path is resolved rather than hardcoded so a base-image python bump
+# doesn't silently drop the module.
+COPY modules/achi /tmp/achi
+RUN APP_DIR="$(python -c 'import app, pathlib; print(pathlib.Path(app.__file__).parent)')"     && cp -r /tmp/achi "$APP_DIR/modules/achi"     && rm -rf /tmp/achi     && python -c "from app.core.module_loader import module_loader; assert any(m.name=='oe_achi' for m in module_loader.discover()), 'oe_achi not discovered'; print('oe_achi discovered OK')"
+
 # Pack discovery ignores --data-dir and always resolves to ~/.openestimate
 # (app/core/module_state.py::_resolve_data_dir — the SQLite branch is dead since
 # v6.6.0). HOME must therefore be a mounted volume or the pack vanishes on recreate.
