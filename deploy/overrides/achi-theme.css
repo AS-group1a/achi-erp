@@ -15,24 +15,27 @@
  */
 
 :root {
-  /* ACHI brand blue (#378ADD) — from the Frappe PWA manifest theme_color. */
-  --oe-blue:        #378ADD;
-  --oe-blue-hover:  #4E9AE4;
-  --oe-blue-active: #2C74C0;
-  --oe-blue-dark:   #2B5FA8;
-  --oe-blue-text:   #2B5FA8;
-  --oe-blue-subtle: #EEF5FD;
-  --oe-blue-ch:     55 138 221;   /* rgb triplet — Tailwind opacity utilities read this */
+  /* ACHI navy #284F9E — sampled from logo.png (86.8% of pixels, all four corners).
+   * NB: the Frappe PWA manifest declares theme_color #378ADD, a much lighter blue
+   * that does NOT match the logo. The logo is authoritative here so the mark blends
+   * into the sidebar; the manifest is worth reconciling separately. */
+  --oe-blue:        #284F9E;
+  --oe-blue-hover:  #305FB8;
+  --oe-blue-active: #1F3F80;
+  --oe-blue-dark:   #1B366D;
+  --oe-blue-text:   #1F3F80;
+  --oe-blue-subtle: #EDF1F9;
+  --oe-blue-ch:     40 79 158;    /* rgb triplet — Tailwind opacity utilities read this */
 }
 
 .dark {
-  --oe-blue:        #5C9FE6;
-  --oe-blue-hover:  #7CB4EC;
-  --oe-blue-active: #378ADD;
-  --oe-blue-dark:   #2B5FA8;
-  --oe-blue-text:   #A8CDF3;
-  --oe-blue-subtle: rgba(55, 138, 221, .15);
-  --oe-blue-ch:     92 159 230;
+  --oe-blue:        #5B82D4;
+  --oe-blue-hover:  #7A9CE0;
+  --oe-blue-active: #284F9E;
+  --oe-blue-dark:   #1F3F80;
+  --oe-blue-text:   #AFC4EC;
+  --oe-blue-subtle: rgba(40, 79, 158, .18);
+  --oe-blue-ch:     91 130 212;
 }
 
 /* --- Sidebar in the brand colour ------------------------------------------
@@ -54,11 +57,14 @@
  */
 aside.oe-sidebar,
 [data-testid="app-sidebar"] {
-  --oe-bg-ch:            55 138 221;              /* ACHI #378ADD as rgb triplet */
-  --oe-bg:              #378ADD;
-  --oe-bg-secondary-ch:  44 116 192;              /* hover/nested surfaces, one step darker */
-  --oe-bg-tertiary-ch:   44 116 192;
-  --oe-bg-elevated-ch:   44 116 192;
+  --oe-bg-ch:            40 79 158;               /* EXACTLY logo.png's background (#284F9E)
+                                                   * so the logo square dissolves into the
+                                                   * sidebar instead of sitting on a tile. */
+  --oe-bg:              #284F9E;
+  --oe-bg-secondary-ch:  48 95 184;               /* nested surfaces: one step lighter, so
+                                                   * depth reads on a dark ground */
+  --oe-bg-tertiary-ch:   48 95 184;
+  --oe-bg-elevated-ch:   48 95 184;
 
   /* Text and borders must invert or the sidebar is unreadable on blue. */
   --oe-text-primary:    #ffffff;
