@@ -36,18 +36,41 @@
 }
 
 /* --- Sidebar in the brand colour ------------------------------------------
- * The sidebar is NOT blue by default — it uses the neutral surface (--oe-bg /
- * --oe-bg-secondary). Painting it brand-blue means targeting the element itself.
+ * Confirmed against a rendered page (DevTools):
+ *   <aside class="oe-sidebar relative flex h-full w-sidebar flex-col bg-surface-primary"
+ *          data-testid="app-sidebar" data-tour="sidebar">
  *
- * UNVERIFIED: the exact selector was not confirmed against a rendered page (no
- * browser available when this was written). Open DevTools, inspect the nav, and
- * correct the selector below. Keep the change to *this* file.
+ * .bg-surface-primary resolves to:
+ *     background-color: rgb(var(--oe-bg-ch) / var(--tw-bg-opacity, 1))
+ *
+ * --oe-bg-ch is the GLOBAL surface (255 255 255). Overriding it in :root would
+ * paint the whole app blue. So we RESCOPE it to the sidebar subtree instead:
+ * CSS custom properties inherit, so redefining --oe-bg-ch on the <aside> repaints
+ * the sidebar and everything inside it, and leaves the rest of the app alone.
+ *
+ * No !important, no specificity war, no component selectors beyond the element
+ * itself. If upstream renames --oe-bg-ch this degrades to the default white
+ * sidebar — visibly wrong, not broken.
  */
-/*
-aside[class*="sidebar"], nav[class*="sidebar"] {
-  background: var(--oe-blue) !important;
-  color: var(--oe-text-inverse) !important;
+aside.oe-sidebar,
+[data-testid="app-sidebar"] {
+  --oe-bg-ch:            55 138 221;              /* ACHI #378ADD as rgb triplet */
+  --oe-bg:              #378ADD;
+  --oe-bg-secondary-ch:  44 116 192;              /* hover/nested surfaces, one step darker */
+  --oe-bg-tertiary-ch:   44 116 192;
+  --oe-bg-elevated-ch:   44 116 192;
+
+  /* Text and borders must invert or the sidebar is unreadable on blue. */
+  --oe-text-primary:    #ffffff;
+  --oe-text-secondary:  rgba(255, 255, 255, .80);
+  --oe-text-tertiary:   rgba(255, 255, 255, .64);
+  --oe-text-quaternary: rgba(255, 255, 255, .55);
+  --oe-border:          rgba(255, 255, 255, .18);
+  --oe-border-light:    rgba(255, 255, 255, .12);
+
+  /* Active/hover accents need to read against blue, not disappear into it. */
+  --oe-blue:            #ffffff;
+  --oe-blue-ch:         255 255 255;
+  --oe-blue-subtle:     rgba(255, 255, 255, .16);
+  --oe-blue-text:       #ffffff;
 }
-aside[class*="sidebar"] a { color: rgb(255 255 255 / .86) !important; }
-aside[class*="sidebar"] a:hover { background: rgb(255 255 255 / .12) !important; }
-*/
