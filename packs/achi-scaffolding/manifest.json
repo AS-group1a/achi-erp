@@ -53,7 +53,7 @@
     "accent_color": null,
     "favicon_path": "favicon.png",
     "logo_path": "logo.png",
-    "powered_by_text": null
+    "powered_by_text": "Achi Scaffolding ERP"
   },
   "demo_template_ids": [],
   "onboarding_script_path": "onboarding.yaml",

@@ -63,6 +63,25 @@ Caps worth knowing (both asserted in the script rather than left to fail silentl
 - `logo_data_url` — the frontend drops a cached logo over **4,194,304 chars** back to `null`
   on reload. Ours is ~63.8k, well clear.
 
+## Traps
+
+**`powered_by_text: ""` does not clear the line.** Empty string is falsy, so the server falls
+back to `"Powered by OpenConstructionERP · In partnership with {partner_name}"`. Use a real
+string. Ours is `"Achi Scaffolding ERP"`.
+
+**Only ever keep ONE copy of the pack.** Discovery matches on `slug`, so a stale duplicate
+elsewhere on the box can win and silently serve old branding — `rescan` will happily report
+success while returning the wrong colours. The repo is the source of truth; the runtime dir is a
+**copy**, never hand-edited:
+
+```bash
+rm -rf ~/.openestimate/packs/achi-scaffolding
+cp -r packs/achi-scaffolding ~/.openestimate/packs/
+```
+
+**Tokens expire after 60 minutes.** A stale token returns `{"detail":"Invalid or expired
+token"}`, which looks exactly like "the change didn't work" if you don't read the response body.
+
 ## Known limits
 
 - **First paint** briefly shows the stock `<title>` from the static `index.html` before React

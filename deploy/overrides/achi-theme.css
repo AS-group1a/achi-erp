@@ -80,3 +80,33 @@ aside.oe-sidebar,
   --oe-blue-subtle:     rgba(255, 255, 255, .16);
   --oe-blue-text:       #ffffff;
 }
+
+/* --- Hide upstream's community links in the sidebar footer -----------------
+ * Confirmed in DevTools:
+ *   <div class="pt-2 pb-1 flex flex-col items-center gap-1">
+ *     <a href="https://github.com/datadrivenconstruction/OpenConstructionERP" …>
+ *     <a href="https://t.me/datadrivenconstruction" …>
+ *
+ * Targeted by HREF, not by class. The Tailwind classes here ("pt-2 pb-1 flex
+ * flex-col items-center gap-1") are generic and appear all over the app — matching
+ * them would hide things at random on upgrade. The vendor's own URLs are specific
+ * and far more stable.
+ *
+ * :has() collapses the wrapper too, so we don't leave its pt-2/pb-1 padding and a
+ * stray gradient divider floating in the footer.
+ *
+ * LEGAL: these are community links, not legal notices. The About page (/about) is
+ * untouched and still carries upstream's copyright and licence — AGPL §5(d) wants
+ * Appropriate Legal Notices to keep being displayed, and TRADEMARK.md §6 requires
+ * retaining notices. Do not "tidy away" /about.
+ */
+aside.oe-sidebar a[href*="github.com/datadrivenconstruction"],
+aside.oe-sidebar a[href*="t.me/datadrivenconstruction"],
+[data-testid="app-sidebar"] a[href*="datadrivenconstruction"] {
+  display: none !important;
+}
+
+/* Collapse the now-empty wrapper (and its divider) rather than leave a gap. */
+aside.oe-sidebar div:has(> a[href*="datadrivenconstruction"]) {
+  display: none !important;
+}
