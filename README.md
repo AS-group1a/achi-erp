@@ -1,5 +1,8 @@
 # ACHI Scaffolding ERP
 
+> **Making a change? Read [CONTRIBUTING.md](./CONTRIBUTING.md) first.**
+> It covers the four ways to customise without forking, and the ten gotchas that cost us time.
+
 Deployment and branding for **Achi Scaffolding ERP**, built on OpenConstructionERP.
 
 ## The key decision: we do not fork
