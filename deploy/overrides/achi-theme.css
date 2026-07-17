@@ -74,23 +74,30 @@ aside.oe-sidebar,
   --oe-border:          rgba(255, 255, 255, .18);
   --oe-border-light:    rgba(255, 255, 255, .12);
 
-  /* Hover/active accent — MUST NOT be #ffffff.
+  /* Accent. --oe-blue-ch is read by BOTH .text-oe-blue and .bg-oe-blue, which on a
+   * dark sidebar want opposite things. Count the consumers before choosing:
    *
-   * Several sidebar controls do `hover:bg-oe-blue hover:text-white`:
-   *   - the collapse chevron: hover:border-oe-blue hover:bg-oe-blue hover:text-white
-   *   - icon tiles:           group-hover:bg-oe-blue group-hover:text-white
-   * Setting --oe-blue to white therefore paints white-on-white and the control
-   * vanishes on hover. That was a real bug, reported as a "white flash".
+   *   TEXT / BORDER / WASH (wants LIGHT) — the active nav row, aria-current="page":
+   *       border-oe-blue  bg-oe-blue/[0.14]  text-oe-blue
+   *     plus the pin button's hover:text-oe-blue and the chevron's text-oe-blue/60.
+   *   SOLID BACKGROUND (wants DARK) — exactly ONE element: the collapse button's
+   *       hover:bg-oe-blue hover:text-white
    *
-   * #3D6BC4 measures 5.12:1 against white text (WCAG AA) while staying distinct
-   * from the #284F9E ground. Do not raise the lightness without re-checking:
-   * #4A7FD4 looks punchier but drops to 3.98:1 and fails AA. */
-  --oe-blue:            #3D6BC4;
-  --oe-blue-ch:         61 107 196;
-  --oe-blue-hover:      #4A7FD4;
-  --oe-blue-active:     #2F62B8;
+   * So: light wins the variable, and the single exception is overridden below.
+   *
+   * #E3EDFB measured against the navy ground:
+   *     text on the active row (bg-oe-blue/[0.14] -> #4265AB) : 4.83:1  PASS AA
+   *     text on plain navy                                    : 6.58:1  PASS AA
+   * #C7DBF7 fails at 4.17:1 on the row — the 14% wash lightens row and text
+   * together, so contrast between them barely improves as you go lighter. Pure
+   * white passes but makes the active row indistinguishable from inactive ones.
+   * Re-measure before changing. */
+  --oe-blue:            #E3EDFB;
+  --oe-blue-ch:         227 237 251;
+  --oe-blue-hover:      #FFFFFF;
+  --oe-blue-active:     #C7DBF7;
   --oe-blue-subtle:     rgba(255, 255, 255, .16);
-  --oe-blue-text:       #ffffff;
+  --oe-blue-text:       #E3EDFB;
 }
 
 /* --- Hide upstream's community links in the sidebar footer -----------------
@@ -140,4 +147,16 @@ aside.oe-sidebar div:has(> a[href*="datadrivenconstruction"]) {
 aside.oe-sidebar div:has(> a[href="/modules/developer-guide"]),
 aside.oe-sidebar div:has(> button[aria-haspopup="dialog"]:has(svg.lucide-sparkles)) {
   display: none !important;
+}
+
+/* --- The one element that needs --oe-blue as a SOLID background -------------
+ * <button aria-label="Collapse sidebar" class="… hover:bg-oe-blue hover:text-white …">
+ * With --oe-blue light (correct for the active nav row), this would paint white
+ * text on a near-white pill and the chevron would vanish — the "white flash".
+ * #3D6BC4 gives 5.12:1 against white text (WCAG AA).
+ */
+aside.oe-sidebar button[aria-label="Collapse sidebar"]:hover,
+[data-testid="app-sidebar"] button[aria-label="Collapse sidebar"]:hover {
+  background-color: #3D6BC4 !important;
+  border-color:     #3D6BC4 !important;
 }
