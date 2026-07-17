@@ -160,3 +160,48 @@ aside.oe-sidebar button[aria-label="Collapse sidebar"]:hover,
   background-color: #3D6BC4 !important;
   border-color:     #3D6BC4 !important;
 }
+
+/* --- Branding widget: kill the highlight, the pen, and the hardcoded credit ---
+ *
+ * IMPORTANT: "by OpenConstructionERP" here is NOT branding.powered_by_text. It is
+ * HARDCODED JSX in the component (index-*.js, function Cw):
+ *     children: ["by", " ", <span>"Open"<span>Construction</span><span>ERP</span></span>]
+ * No pack setting, no API field, and no config reaches it. CSS or a fork are the
+ * only options — so we blank the text and print our own with ::after.
+ *
+ * TRADEMARK.md §4 requires replacing DDC marks in a modified product's UI, so this
+ * is the required direction, not merely cosmetic. /about still carries upstream's
+ * copyright and licence (AGPL §5(d)) — that stays.
+ */
+
+/* 1. No hover highlight on the logo (upstream: hover:bg-surface-secondary/40). */
+aside.oe-sidebar button[aria-label="Customise branding"]:hover,
+[data-testid="app-sidebar"] button[aria-label="Customise branding"]:hover {
+  background-color: transparent !important;
+}
+
+/* 2. Hide the pen. Its aria-label is identical to the logo button's, so it is
+ *    matched on `title`, which is unique to it. NOTE: clicking the LOGO still
+ *    opens the same branding dialog — this hides the button, not the feature. */
+aside.oe-sidebar button[title="Add your logo or company name"],
+[data-testid="app-sidebar"] button[title="Add your logo or company name"] {
+  display: none !important;
+}
+
+/* 3. Replace the hardcoded credit. font-size:0 collapses the "by" text node and
+ *    the nested Open/Construction/ERP spans (they inherit it); ::after restores a
+ *    real size for our own text. */
+aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child,
+[data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child {
+  font-size: 0 !important;
+}
+aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child::after,
+[data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child::after {
+  content: "by ACHI Scaffolding";
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, .58);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
