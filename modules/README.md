@@ -26,6 +26,27 @@ asserts the loader can see it (so a silent drop fails the build, not production)
 
 `Base` adds `updated_at` automatically — don't declare it.
 
+## The UI
+
+`modules/achi/ui/files.html`, served by our own router at **`/api/v1/achi/ui`**.
+
+Why not a page in OCE's frontend: their UI ships **pre-built inside the pip wheel**
+(`app/_frontend_dist`). Adding a page to it means forking the repo and building their
+whole frontend ourselves — Node 22, ~8 GB RAM, three.js/Cesium/ag-grid/pdf.js — and
+owning that pipeline forever. Measured separately: the *merge* is free (a route added to
+`App.tsx` merged 205 upstream commits with **zero conflicts**), but the *build* is not.
+
+Being on the same origin as the SPA is what makes this work: the page reads the JWT the
+SPA already stored at `localStorage['oe_access_token']`, so there is no second login.
+
+Known trade-off: **it is not in their sidebar.** A sidebar link needs `App.tsx`, which
+needs the frontend build. Bookmark the URL, or take that fork when the pipeline is worth
+it. The page is deliberately unauthenticated — it is a static shell containing no data;
+every fetch it makes carries the bearer token and is authorised by the API.
+
+Keep `ui/files.html`'s palette in sync with `deploy/overrides/achi-theme.css` by hand.
+This page never sees upstream's stylesheet, so the variables can't be shared.
+
 ## Rules for us
 
 **Namespace every table `achi_*`.** Schema is built by `create_all`, not migrations, and drift

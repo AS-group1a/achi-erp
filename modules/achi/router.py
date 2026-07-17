@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 
 from app.dependencies import CurrentUserId, SessionDep
 
@@ -20,6 +23,34 @@ from .schemas import (
 from .service import ContactFileService
 
 router = APIRouter()
+
+_UI_DIR = Path(__file__).parent / "ui"
+
+
+@router.get(
+    "/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="Client Files UI",
+)
+def ui() -> HTMLResponse:
+    """Serve our own page from our own module.
+
+    Why here and not in OCE's frontend: their UI ships pre-built inside the pip
+    wheel (app/_frontend_dist), so adding a page to it means forking the repo and
+    building their whole frontend ourselves — Node 22, ~8GB RAM, three.js/Cesium/
+    ag-grid — and owning that pipeline forever. Serving our own HTML from our own
+    router costs nothing and touches no upstream file.
+
+    Being on the same origin as the SPA is what makes it work: the page reads the
+    JWT the SPA already stored under localStorage['oe_access_token'], so there is
+    no second login and no token plumbing.
+
+    NOTE: deliberately unauthenticated — it is a static shell with no data in it.
+    Every fetch it makes carries the bearer token and is authorised by the API
+    routes below. Serving the shell to an anonymous browser leaks nothing.
+    """
+    return HTMLResponse((_UI_DIR / "files.html").read_text(encoding="utf-8"))
 
 
 @router.get("/info", response_model=ModuleInfo, summary="ACHI module info")
