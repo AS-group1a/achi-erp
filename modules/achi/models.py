@@ -93,10 +93,16 @@ class FileLog(Base):
 
     # inbound_call | outbound_call | quotation | field | job | transfer | note
     log_type: Mapped[str] = mapped_column(String(32), nullable=False, default="note")
+    # Lead | Site Surveys | Measurements Take Off | Estimation | Quotation | Jobs
+    # (the Frappe crm_log "Category" column). Free-form; the UI offers the set.
+    category: Mapped[str | None] = mapped_column(String(64), nullable=True)
     occurred_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    # The Frappe crm_log "Updates" column — running notes distinct from the
+    # original description.
+    updates: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     follow_up_date: Mapped[str | None] = mapped_column(Date, nullable=True)
     follow_up_notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
 

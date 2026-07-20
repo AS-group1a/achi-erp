@@ -34,19 +34,28 @@ rm -rf "$APP_DIR/modules/achi"
 cp -r modules/achi "$APP_DIR/modules/achi"
 echo "Injected modules/achi -> $APP_DIR/modules/achi"
 
-# 4. inject the ACHI theme (tier-3 CSS) the way Caddy does in prod
+# 4. inject the ACHI theme (CSS) + sidebar nav (JS), the way Caddy does in prod
 DIST="$APP_DIR/_frontend_dist"
 cp deploy/overrides/achi-theme.css "$DIST/achi-theme.css"
+cp deploy/overrides/achi-nav.js  "$DIST/achi-nav.js"
 "$PY" - "$DIST/index.html" <<'PY'
 import sys
 p = sys.argv[1]
 html = open(p, encoding="utf-8").read()
-link = '<link rel="stylesheet" href="/achi-theme.css">'
-if link not in html and "</head>" in html:
-    open(p, "w", encoding="utf-8").write(html.replace("</head>", link + "</head>", 1))
-    print("Injected ACHI theme link")
+tags = [
+    '<link rel="stylesheet" href="/achi-theme.css">',
+    '<script src="/achi-nav.js?v=4" defer></script>',
+]
+changed = False
+for t in tags:
+    if t not in html and "</head>" in html:
+        html = html.replace("</head>", t + "</head>", 1)
+        changed = True
+if changed:
+    open(p, "w", encoding="utf-8").write(html)
+    print("Injected ACHI theme + nav")
 else:
-    print("ACHI theme link already present")
+    print("ACHI theme + nav already present")
 PY
 
 # 4b. install the partner pack (file-level; "apply" happens once via brand-local.sh)

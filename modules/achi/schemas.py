@@ -103,11 +103,41 @@ class FileLogCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     log_type: str = Field(default="note", pattern="^(%s)$" % "|".join(LOG_TYPES))
+    category: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str = ""
+    updates: str = ""
     follow_up_date: date | None = None
     follow_up_notes: str = ""
+
+
+class ContactPatch(BaseModel):
+    """Inline-edit the file's linked contact (name / company / phone / email)."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    prefix: str | None = Field(default=None, max_length=16)
+    first_name: str | None = Field(default=None, max_length=128)
+    last_name: str | None = Field(default=None, max_length=128)
+    company_name: str | None = Field(default=None, max_length=255)
+    mobile: str | None = Field(default=None, max_length=32)
+    email: str | None = Field(default=None, max_length=255)
+
+
+class FileLogUpdate(BaseModel):
+    """Edit an existing log entry in place (inline grid edits)."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    log_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(LOG_TYPES))
+    category: str | None = Field(default=None, max_length=64)
+    occurred_at: datetime | None = None
+    duration_seconds: int | None = Field(default=None, ge=0)
+    description: str | None = None
+    updates: str | None = None
+    follow_up_date: date | None = None
+    follow_up_notes: str | None = None
 
 
 class FileLogOut(BaseModel):
@@ -198,9 +228,11 @@ class QuickLogCreate(BaseModel):
     site: SiteIn | None = None
 
     log_type: str = Field(default="inbound_call", pattern="^(%s)$" % "|".join(LOG_TYPES))
+    category: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str = ""
+    updates: str = ""
     follow_up_date: date | None = None
     follow_up_notes: str = ""
 
@@ -224,18 +256,40 @@ class QuickLogOut(BaseModel):
 
 
 class LogRowOut(BaseModel):
-    """A row in the log table — flat, joined, no client-side assembly."""
+    """A row in the log table — flat, joined, no client-side assembly.
+
+    Enriched with the contact + file fields the grid columns need, so the table
+    renders without any per-row lookups.
+    """
 
     id: str
     log_type: str
+    category: str | None = None
     occurred_at: datetime | None
     description: str
+    updates: str = ""
     follow_up_date: date | None
+    follow_up_notes: str = ""
     created_at: datetime
     file_id: str
     file_number: str
     stage: str
     status: str
+    subject: str = ""
+    # site (from the file)
+    site_location: str | None = None
     city: str | None
+    district: str | None = None
+    street: str | None = None
+    country: str | None = None
+    maps_url: str | None = None
+    owner: str | None = None
+    # contact (from the canonical directory)
     contact_id: str
     contact_name: str | None
+    prefix: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    mobile: str | None = None
+    email: str | None = None

@@ -5,283 +5,360 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Call Log · Achi Scaffolding ERP</title>
 <style>
-  /* ACHI palette. Mirrors deploy/overrides/achi-theme.css — kept in sync by hand,
-     because this page is served by our module and never sees upstream's stylesheet. */
   :root{
-    --navy:#284F9E; --navy-d:#1F3F80; --accent:#3D6BC4; --light:#E3EDFB;
-    --bg:#fff; --bg-2:#f5f5f7; --bd:#d2d2d7; --bd-l:#e8e8ed;
-    --tx:#1d1d1f; --tx-2:#5b5e66; --tx-3:#8a8f98;
-    --r:8px; --sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+    --navy:#284F9E; --navy-d:#1F3F80; --navy-2:#305FB8; --accent:#3D6BC4; --light:#E3EDFB;
+    --bd:#dfe4ec; --hair:#eef1f6; --tx:#1d1d1f; --tx-2:#5b5e66; --tx-3:#8a8f98;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--tx);background:var(--bg-2)}
-  header{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px}
+  body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--tx);background:#f5f5f7}
+  header{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px}
   header h1{font-size:16px;font-weight:600}
   header .sp{flex:1}
   header .who{font-size:12px;opacity:.75}
-  main{max-width:1200px;margin:20px auto;padding:0 16px}
-  .card{background:#fff;border:1px solid var(--bd-l);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:16px}
-  .card h2{font-size:13px;font-weight:600;color:var(--tx-2);padding:12px 16px;border-bottom:1px solid var(--bd-l)}
-  .body{padding:16px}
-  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
-  label{display:block;font-size:11px;font-weight:600;color:var(--tx-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
-  input,select,textarea{font:inherit;padding:7px 9px;border:1px solid var(--bd);border-radius:6px;background:#fff;min-width:0}
-  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
-  .f{flex:1 1 160px}
-  button{font:inherit;font-weight:600;padding:8px 14px;border:0;border-radius:99px;background:var(--navy);color:#fff;cursor:pointer}
-  button:hover{background:var(--accent)}
-  button.ghost{background:transparent;color:var(--navy);border:1px solid var(--bd)}
-  button.ghost:hover{background:var(--light)}
-  table{width:100%;border-collapse:collapse}
-  th{text-align:left;font-size:11px;font-weight:600;color:var(--tx-3);text-transform:uppercase;letter-spacing:.4px;padding:8px 12px;border-bottom:1px solid var(--bd-l)}
-  td{padding:9px 12px;border-bottom:1px solid var(--bd-l);vertical-align:middle}
-  tr:last-child td{border-bottom:0}
-  tbody tr{cursor:pointer}
-  tbody tr:hover{background:var(--light)}
-  .pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--bg-2);color:var(--tx-2);white-space:nowrap}
-  .s-prospect{background:#eef2f9;color:#3a4a6b}.s-lead{background:#e6f0fd;color:#1e4b8f}
-  .s-site_survey{background:#fff4e0;color:#8a5a12}.s-measurements{background:#e9f6ee;color:#1a6b3c}
-  .st-open{background:#e6f0fd;color:#1e4b8f}.st-done{background:#e9f6ee;color:#1a6b3c}
-  .st-cancelled{background:#fdeaea;color:#8f2020}
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--tx-2)}
+  main{max-width:1360px;margin:18px auto;padding:0 16px 60px}
+  .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none}
+
+  .kpis{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+  .kpi{flex:1 1 180px;border-radius:14px;padding:15px 18px;color:#fff;transition:transform .15s ease}
+  .kpi:hover{transform:translateY(-2px)}
+  .kpi.btn{cursor:pointer}
+  .kpi .n{font-size:28px;font-weight:900;line-height:1.05}
+  .kpi .l{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+  .kpi .s{font-size:11px;opacity:.82}
+  .k1{background:#0176d3}.k2{background:#032d60}.k3{background:#014486}.k4{background:#0e7490}
+  .kpi.on{outline:3px solid rgba(255,255,255,.55);outline-offset:-3px}
+
+  .shell{background:#fff;border:1px solid var(--bd);border-radius:14px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
+  .nav{display:flex;align-items:center;gap:12px;background:var(--navy);padding:11px 16px;flex-wrap:wrap}
+  .cnt{font-size:11px;font-weight:800;color:rgba(255,255,255,.7)}
+  .pt{position:relative;display:inline-flex;background:rgba(0,0,0,.2);border-radius:99px;padding:4px}
+  .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:99px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
+  .pill-tab{position:relative;z-index:1;border:0;background:transparent;padding:7px 15px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.58);cursor:pointer;white-space:nowrap;font-family:inherit}
+  .pill-tab:hover{color:rgba(255,255,255,.88)}
+  .pill-tab.on{color:var(--navy);font-weight:800}
+  .search{margin-left:auto;height:32px;width:200px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
+  .search::placeholder{color:rgba(255,255,255,.42)}
+
+  .tscroll{overflow:auto;height:var(--bh,58vh)}
+  table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+  thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  tbody td{height:40px;padding:0 12px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  tbody td.wide{max-width:340px}
+  tbody tr.data:nth-child(even) td{background:#f8faff}
+  tbody tr.data:hover td{background:#eef4fd}
+  .num{width:46px;text-align:center}
+  .rn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:8px;background:#eff6ff;color:var(--navy);font-weight:800;font-size:11px}
+  tbody tr.data:hover .rn{background:var(--navy);color:#fff}
+  .dt{font-variant-numeric:tabular-nums;color:#334155}
+  .mt{color:#9ca3af}
+  .name{font-weight:700;color:#111827}
+  .lnk{color:var(--navy);text-decoration:none}.lnk:hover{text-decoration:underline}
+  .ph{font-variant-numeric:tabular-nums}
+  .wa{display:inline-block;margin-left:6px;font-size:10px;font-weight:800;color:#15803d;background:#e7f5ee;border-radius:6px;padding:1px 6px;text-decoration:none}
+  .avatar{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#334f8a;color:#fff;font-size:10px;font-weight:800}
+  .badge{display:inline-flex;align-items:center;padding:3px 11px;border-radius:99px;font-size:11px;font-weight:800;white-space:nowrap;border:1px solid transparent;text-transform:capitalize}
+  .b-open{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
+  .b-scheduled{background:#ece9f5;color:#3e3794;border-color:#c5bde8}
+  .b-viewed{background:#e0f5f5;color:#0a5f6e;border-color:#8dd5d8}
+  .b-cancelled{background:#f3f3f3;color:#706e6b;border-color:#c9c7c5}
+  .b-done{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
+  .tag{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;background:#f1f5f9;color:#475569;text-transform:capitalize;white-space:nowrap}
+  td.ed{cursor:text}
+  td.ed:hover{box-shadow:inset 0 0 0 1.5px #bfdbfe}
+  td.sel{cursor:pointer}
+  /* inline editor never grows the cell: fills it exactly */
+  .cellinput{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:2px solid #2563eb;border-radius:4px;padding:2px 5px;outline:none;background:#fff;display:block}
+  select.cellinput{padding:2px 3px}
+  .empty{padding:20px 14px;text-align:center;color:#9ca3af}
+
+  /* draft rows: top permanent + appended bottom ones */
+  tr.draft td{background:#f2f6fd;border-bottom:1px solid #cdddf5}
+  tr.draft.dtop td{border-bottom:2px solid #cdddf5}
+  tr.draft .din{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:1px solid #cfd9e8;border-radius:5px;padding:2px 6px;background:#fff}
+  tr.draft select.din{padding:2px 3px}
+  tr.draft .din:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(40,79,158,.15)}
+  .addbtn2{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--navy);color:#fff;font-weight:900;font-size:16px;border:0;cursor:pointer;line-height:1;padding:0}
+  .addbtn2:hover{background:var(--navy-2)}
+  .rmbtn{width:24px;height:24px;border-radius:7px;border:0;background:#fde8e8;color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
+  .rmbtn:hover{background:#f7c9c9}
+
+  /* bottom drag strip to resize the table height */
+  .vrz{height:12px;cursor:row-resize;background:linear-gradient(#fff,#eef2f8);border-top:1px solid #e7edf6;display:flex;align-items:center;justify-content:center}
+  .vrz::after{content:'';width:40px;height:3px;border-radius:3px;background:#c2cddf}
+  body.resizing{cursor:row-resize!important;user-select:none!important}
+
+  /* back-to-top FAB (cloned from the tabbed grid) */
+  .totop{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:50%;background:var(--navy);color:#fff;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28);display:none;align-items:center;justify-content:center;font-size:20px;line-height:1;z-index:60;transition:transform .15s ease,opacity .15s ease;opacity:0}
+  .totop.show{display:inline-flex;opacity:1}
+  .totop:hover{transform:translateY(-2px);background:var(--navy-2)}
   .muted{color:var(--tx-3)}
-  .err{background:#fdeaea;color:#8f2020;padding:10px 14px;border-radius:6px;margin-bottom:12px;display:none}
-  dialog{border:0;border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.2);padding:0;max-width:640px;width:92%}
-  dialog::backdrop{background:rgba(0,0,0,.4)}
-  dialog .body{max-height:70vh;overflow:auto}
-  .foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--bd-l)}
-  .log{border-left:2px solid var(--bd);padding:6px 0 6px 12px;margin-bottom:10px}
-  .log .t{font-size:11px;color:var(--tx-3)}
-  .hide{display:none}
 </style>
 </head>
 <body>
-<header>
-  <strong>ACHI</strong><h1>Call Log</h1><div class="sp"></div>
-  <span class="who" id="who"></span>
-</header>
+<header><strong>ACHI</strong><h1>Call Log</h1><div class="sp"></div><span class="who" id="who"></span></header>
 
 <main>
   <div class="err" id="err"></div>
 
-  <div class="card">
-    <h2>Log a call</h2>
-    <div class="body">
-      <div class="row">
-        <div><label>Type</label>
-          <select id="isco"><option value="0">Person</option><option value="1">Company</option></select></div>
-        <div class="f" id="w-prefix"><label>Title</label>
-          <select id="prefix"><option value=""></option><option>Mr.</option><option>Ms.</option><option>Mrs.</option><option>Dr.</option><option>Eng.</option><option>Arch.</option></select></div>
-        <div class="f" id="w-first"><label>First name</label><input id="first"></div>
-        <div class="f" id="w-last"><label>Last name</label><input id="last"></div>
-        <div class="f hide" id="w-co"><label>Company name</label><input id="co"></div>
-        <div class="f"><label>Mobile</label><input id="mobile" placeholder="+961…"></div>
-        <div class="f"><label>Email</label><input id="email" type="email" placeholder="matches existing contacts"></div>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <div><label>Call</label><select id="ltype">
-          <option value="inbound_call">Inbound call</option><option value="outbound_call">Outbound call</option>
-          <option value="quotation">Quotation</option><option value="field">Field</option>
-          <option value="job">Job</option><option value="transfer">Transfer</option><option value="note">Note</option>
-        </select></div>
-        <div class="f" style="flex:3 1 300px"><label>What was said</label><input id="desc" placeholder="Wants scaffolding for a villa rear facade…"></div>
-        <div class="f"><label>City / site</label><input id="city" placeholder="Hazmieh"></div>
-        <div class="f"><label>Follow-up</label><input id="fu" type="date"></div>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <div class="f" style="flex:2 1 260px"><label>Subject (new files only)</label><input id="subject" placeholder="Villa rear facade — Hazmieh"></div>
-        <div><label>&nbsp;</label><label style="text-transform:none;font-weight:400;color:var(--tx-2);display:flex;align-items:center;gap:6px;padding:8px 0">
-          <input type="checkbox" id="newfile" style="min-width:auto"> Separate job — force a new file</label></div>
-        <div style="flex:1"></div>
-        <div><button id="log">Log it</button></div>
-      </div>
-      <div class="muted" style="margin-top:10px;font-size:12px" id="hint">
-        The contact and the file are created for you. Repeat calls land on the same open file.
-      </div>
-    </div>
+  <div class="kpis">
+    <div class="kpi k1"><div class="n" id="k-total">0</div><div class="l">Total Logs</div><div class="s">all time</div></div>
+    <div class="kpi k2 btn" id="k-open-card"><div class="n" id="k-open">0</div><div class="l">Open</div><div class="s">click to filter</div></div>
+    <div class="kpi k3"><div class="n" id="k-month">0</div><div class="l">This Month</div><div class="s">log entries</div></div>
+    <div class="kpi k4"><div class="n" id="k-done">0</div><div class="l">Done</div><div class="s">completed</div></div>
   </div>
 
-  <div class="card">
-    <h2>Log <span class="muted" id="count"></span></h2>
-    <div class="body" style="padding:12px 16px">
-      <div class="row">
-        <div class="f" style="flex:2 1 220px"><label>Search</label><input id="q" placeholder="name, file, city, text…"></div>
-        <div><button class="ghost" id="refresh">Refresh</button></div>
+  <div class="shell">
+    <div class="nav">
+      <span class="cnt" id="count">· 0</span>
+      <div class="pt" id="tabs">
+        <span class="pt-ind" id="ind"></span>
+        <button class="pill-tab on" data-tab="0">Log Details</button>
+        <button class="pill-tab" data-tab="1">Contact Info</button>
+        <button class="pill-tab" data-tab="2">Site</button>
+        <button class="pill-tab" data-tab="3">Notes &amp; Outcome</button>
       </div>
+      <input class="search" id="q" placeholder="Search name, file, city, text…">
     </div>
-    <table>
-      <thead><tr><th>When</th><th>Type</th><th>Contact</th><th>What was said</th><th>File</th><th>Stage</th><th>City</th><th>Follow-up</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="8" class="muted" style="padding:24px;text-align:center">Loading…</td></tr></tbody>
-    </table>
+    <div class="tscroll" id="touter">
+      <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
+    </div>
+    <div class="vrz" id="vrz" title="Drag to resize table height"></div>
   </div>
 </main>
 
-<dialog id="dlg">
-  <h2 style="padding:14px 16px;border-bottom:1px solid var(--bd-l);font-size:15px" id="d-title">File</h2>
-  <div class="body">
-    <div id="d-meta" style="margin-bottom:16px"></div>
-    <h2 style="padding:0 0 8px;border:0">Add a log</h2>
-    <div class="row">
-      <div><label>Type</label><select id="l-type">
-        <option value="inbound_call">Inbound call</option><option value="outbound_call">Outbound call</option>
-        <option value="quotation">Quotation</option><option value="field">Field</option>
-        <option value="job">Job</option><option value="transfer">Transfer</option><option value="note">Note</option>
-      </select></div>
-      <div class="f" style="flex:3 1 260px"><label>Description</label><input id="l-desc"></div>
-      <div><label>Follow-up</label><input id="l-fu" type="date"></div>
-      <div><button id="l-add">Add</button></div>
-    </div>
-    <hr style="border:0;border-top:1px solid var(--bd-l);margin:16px 0">
-    <div id="d-logs"></div>
-  </div>
-  <div class="foot"><button class="ghost" id="d-close">Close</button></div>
-</dialog>
+<button class="totop" id="totop" title="Back to top">&#8963;</button>
 
 <script>
-// Same origin as the SPA, so we read the token it already stored. No second login.
-const TOKEN = localStorage.getItem('oe_access_token');
-const API = '/api/v1/achi';
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fail = m => { const e = $('err'); e.textContent = m; e.style.display = 'block'; };
-
-async function api(path, opts = {}) {
-  const r = await fetch(API + path, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN, ...(opts.headers || {}) },
-  });
-  if (r.status === 401) { fail('Session expired — open the main app, sign in, then reload.'); throw new Error('401'); }
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    // FastAPI validation errors are a list of {loc,msg}. Show the message, not
-    // "[object Object]" — that's what tells you nothing at 5pm.
-    const d = body.detail;
-    throw new Error(Array.isArray(d) ? d.map(x => x.msg).join('; ') : (d || r.status));
+function getToken(){
+  const isJwt = s => typeof s==='string' && /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
+  const direct = localStorage.getItem('oe_access_token');
+  if(isJwt(direct)) return direct;
+  for(const store of [localStorage, sessionStorage]){
+    for(let i=0;i<store.length;i++){ const v=store.getItem(store.key(i));
+      if(isJwt(v)) return v;
+      if(v && v[0]==='{'){ try{ const o=JSON.parse(v); const c=o.access_token||o.token||(o.state&&(o.state.access_token||o.state.token)); if(isJwt(c)) return c; }catch(e){} } }
   }
+  return null;
+}
+const TOKEN=getToken();
+const API='/api/v1/achi';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
+const clearErr=()=>{$('err').style.display='none';};
+const STATUSES=['open','scheduled','viewed','cancelled','done'],
+      TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
+      CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'];
+const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+
+async function api(path,opts={}){
+  const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
+  if(r.status===401){ fail('Session expired — open the main app on this exact host, sign in, then reload.'); throw new Error('401'); }
+  const body=await r.json().catch(()=>({}));
+  if(!r.ok){ const d=body.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
   return body;
 }
+function fmtDT(s){ const d=new Date(s); if(isNaN(d))return String(s||'').slice(0,16).replace('T',' ');
+  const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+const badge=s=>`<span class="badge b-${esc(s)}">${esc(s)}</span>`;
+const tagv=v=>v?`<span class="tag">${esc(label(v))}</span>`:'<span class="mt">—</span>';
+const dash=v=>v?esc(v):'<span class="mt">—</span>';
+const selOpts=(o,v)=>o.map(x=>`<option value="${x}"${x===v?' selected':''}>${esc(label(x))}</option>`).join('');
+function phone(m){ if(!m)return '<span class="mt">—</span>'; const d=m.replace(/[^0-9]/g,''); return `<span class="ph">${esc(m)}</span><a class="wa" href="https://wa.me/${d}" target="_blank" rel="noreferrer">WA</a>`; }
+function avatar(id){ if(!id)return '<span class="mt">—</span>'; return `<span class="avatar" title="${esc(id)}">${esc(String(id).slice(0,2).toUpperCase())}</span>`; }
 
-// Person vs company: swap which name fields apply.
-$('isco').onchange = () => {
-  const co = $('isco').value === '1';
-  ['w-prefix','w-first','w-last'].forEach(i => $(i).classList.toggle('hide', co));
-  $('w-co').classList.toggle('hide', !co);
-};
+/* columns: full CRM Log List set. tab=null → always. edit.target: file|log|contact */
+const COLS=[
+  {k:'num',    h:'#',              tab:null, cls:'num', w:46},
+  {k:'when',   h:'Date & Time',    tab:null, w:150},
+  {k:'status', h:'Status',         tab:null, w:120, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
+  {k:'prefix', h:'Pre',            tab:0, w:70,  draft:'text', edit:{kind:'text',target:'contact',field:'prefix',val:r=>r.prefix||''}},
+  {k:'first',  h:'First',          tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
+  {k:'last',   h:'Last',           tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
+  {k:'company',h:'Company',        tab:0, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+  {k:'desc',   h:'Description',    tab:0, w:320, wide:true, draft:'text', edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
+  {k:'location',h:'Location',      tab:0, w:170, draft:'text', edit:{kind:'text',target:'file',field:'site_location',val:r=>r.site_location||''}},
+  {k:'owner',  h:'Owner',          tab:0, w:80},
+  {k:'type',   h:'Call Type',      tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
+  {k:'category',h:'Category',      tab:0, w:170, draft:'select', edit:{kind:'category',target:'log',field:'category',val:r=>r.category||''}},
+  {k:'mobile', h:'Mobile',         tab:1, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+  {k:'email',  h:'Email',          tab:1, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
+  {k:'maps',   h:'Maps',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
+  {k:'country',h:'Country',        tab:2, w:110, draft:'text', edit:{kind:'text',target:'file',field:'country',val:r=>r.country||''}},
+  {k:'district',h:'District',      tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'district',val:r=>r.district||''}},
+  {k:'city',   h:'City',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'city',val:r=>r.city||''}},
+  {k:'street', h:'Street',         tab:2, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
+  {k:'updates',h:'Updates',        tab:3, w:300, wide:true, draft:'text', edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
+  {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
+  {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
+];
+const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
+function cellHTML(c,r,i){switch(c.k){
+  case 'num': return `<span class="rn">${i+1}</span>`;
+  case 'when': return `<span class="dt">${esc(fmtDT(r.occurred_at||r.created_at))}</span>`;
+  case 'status': return badge(r.status);
+  case 'prefix': return dash(r.prefix);
+  case 'first': return dash(r.first_name);
+  case 'last': return dash(r.last_name);
+  case 'company': return dash(r.company_name);
+  case 'desc': return r.description?esc(r.description):'<span class="mt">—</span>';
+  case 'location': return dash(r.site_location);
+  case 'owner': return avatar(r.owner);
+  case 'type': return tagv(r.log_type);
+  case 'category': return tagv(r.category);
+  case 'mobile': return phone(r.mobile);
+  case 'email': return r.email?`<a class="lnk" href="mailto:${esc(r.email)}">${esc(r.email)}</a>`:'<span class="mt">—</span>';
+  case 'maps': return r.maps_url?`<a class="lnk" href="${esc(r.maps_url)}" target="_blank" rel="noreferrer">Open ↗</a>`:'<span class="mt">—</span>';
+  case 'country': return dash(r.country);
+  case 'district': return dash(r.district);
+  case 'city': return dash(r.city);
+  case 'street': return dash(r.street);
+  case 'updates': return r.updates?esc(r.updates):'<span class="mt">—</span>';
+  case 'followup': return r.follow_up_date?`<span class="badge b-scheduled">${esc(r.follow_up_date)}</span>`:'<span class="mt">—</span>';
+  case 'funotes': return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
+}}
 
-$('log').onclick = async () => {
-  $('err').style.display = 'none';
-  const co = $('isco').value === '1';
-  const person = co
-    ? { is_company: true, company_name: $('co').value.trim() }
-    : { is_company: false, prefix: $('prefix').value || null,
-        first_name: $('first').value.trim() || null, last_name: $('last').value.trim() || null };
-  person.mobile = $('mobile').value.trim() || null;
-  person.email = $('email').value.trim() || null;
+let ROWS=[], openOnly=false, activeTab=0;
+let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
 
-  const city = $('city').value.trim();
-  try {
-    const r = await api('/logs/', { method: 'POST', body: JSON.stringify({
-      person,
-      site: city ? { city, country: 'Lebanon' } : null,
-      log_type: $('ltype').value,
-      description: $('desc').value.trim(),
-      follow_up_date: $('fu').value || null,
-      subject: $('subject').value.trim(),
-      new_file: $('newfile').checked,
-    })});
-    // Tell the user what happened underneath — files are invisible, not secret.
-    const bits = [];
-    bits.push(r.contact_created ? 'new contact' : 'existing contact');
-    bits.push(r.file_created ? `new file ${r.file_number}` : `file ${r.file_number}`);
-    $('hint').innerHTML = `Logged for <strong>${esc(r.contact_name)}</strong> — ${esc(bits.join(' · '))}`;
-    ['co','first','last','mobile','email','desc','city','subject','fu'].forEach(i => $(i).value = '');
-    $('newfile').checked = false;
-    load();
-  } catch (e) { fail(e.message); }
-};
+function stats(){ const now=new Date();
+  const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
+  $('k-total').textContent=ROWS.length; $('k-open').textContent=ROWS.filter(r=>r.status==='open').length;
+  $('k-month').textContent=m; $('k-done').textContent=ROWS.filter(r=>r.status==='done').length; }
+function buildHead(){ $('thead').innerHTML=COLS.map(c=>`<th data-tab="${c.tab??''}" class="${c.cls||''}" style="width:${c.w}px">${c.h}</th>`).join(''); }
 
-const pill = (v, p) => `<span class="pill ${p}${v}">${esc(v)}</span>`;
-const when = s => esc(String(s || '').slice(0, 16).replace('T', ' '));
+function draftCell(c,dp,st){
+  if(c.k==='num') return dp==='d'
+    ? `<button class="addbtn2" data-add title="Add empty rows below">+</button>`
+    : `<button class="rmbtn" data-rm="${dp}" title="Remove row">&times;</button>`;
+  if(c.k==='when') return `<span class="mt">now</span>`;
+  if(c.k==='status') return `<span class="mt">open</span>`;
+  if(c.k==='owner') return `<span class="mt">you</span>`;
+  const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
+  if(c.draft==='select'){ const o=c.k==='type'?TYPES:CATEGORIES; const blank=c.k==='category'?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
+  if(c.draft==='date') return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" type="date" value="${v}">`;
+  if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}">`; }
+  return `<span class="mt">—</span>`;
+}
+function draftRowHTML(dp,st,isTop){ return `<tr class="draft ${isTop?'dtop':''}">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.wide?'wide':''}">${draftCell(c,dp,st)}</td>`).join('')}</tr>`; }
 
-let ROWS = [];
-function render() {
-  const q = $('q').value.trim().toLowerCase();
-  const rows = q
-    ? ROWS.filter(r => [r.contact_name, r.file_number, r.city, r.description, r.log_type]
-        .some(v => String(v || '').toLowerCase().includes(q)))
-    : ROWS;
-  $('count').textContent = `· ${rows.length}`;
-  $('rows').innerHTML = rows.length ? rows.map(r => `
-    <tr data-file="${r.file_id}">
-      <td class="mono">${when(r.occurred_at || r.created_at)}</td>
-      <td>${pill(r.log_type.replace('_',' '), 'st-')}</td>
-      <td><strong>${esc(r.contact_name || '—')}</strong></td>
-      <td>${esc(r.description) || '<span class="muted">—</span>'}</td>
-      <td class="mono">${esc(r.file_number)}</td>
-      <td>${pill(r.stage, 's-')}</td>
-      <td>${esc(r.city) || '<span class="muted">—</span>'}</td>
-      <td>${r.follow_up_date ? '<span class="pill st-open">' + esc(r.follow_up_date) + '</span>' : '<span class="muted">—</span>'}</td>
-    </tr>`).join('')
-    : '<tr><td colspan="8" class="muted" style="padding:24px;text-align:center">No calls logged yet.</td></tr>';
-  $('rows').querySelectorAll('tr[data-file]').forEach(tr => tr.onclick = () => openFile(tr.dataset.file));
+function dataRowHTML(r,i){ return `<tr class="data" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
+  COLS.map(c=>{
+    const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
+    const cls=[c.cls||'',c.wide?'wide':'',c.edit?(['status','type','category'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${ed}>${cellHTML(c,r,i)}</td>`;
+  }).join('')
+}</tr>`; }
+
+function render(){
+  const q=$('q').value.trim().toLowerCase();
+  let rows=openOnly?ROWS.filter(r=>r.status==='open'):ROWS;
+  if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category].some(v=>String(v||'').toLowerCase().includes(q)));
+  $('count').textContent=`· ${rows.length}`;
+  const body=[
+    draftRowHTML('d',topDraft,true),
+    rows.length?rows.map(dataRowHTML).join(''):`<tr><td colspan="${COLS.length}" class="empty">No calls yet — type in the highlighted row; Enter moves to the next field, Enter on the last saves. The + adds more empty rows below.</td></tr>`,
+    bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false)).join(''),
+  ].join('');
+  $('rows').innerHTML=body;
 }
 
-async function load() {
-  try { ROWS = await api('/logs/'); render(); } catch (e) { fail(e.message); }
+/* ── draft interactions (delegated once) ── */
+function stateFor(dp){ return dp==='d'?topDraft:bottomDrafts[+dp.slice(1)]; }
+function draftInputs(dp){ return [...$('rows').querySelectorAll(`.din[data-dp="${dp}"]`)]; }
+function addBottomRow(){ bottomDrafts.push({}); render(); const ins=draftInputs('b'+(bottomDrafts.length-1)); if(ins[0]){ins[0].focus();ins[0].scrollIntoView({inline:'start',block:'nearest'});} }
+function removeBottomRow(dp){ bottomDrafts.splice(+dp.slice(1),1); render(); }
+function draftPayload(st){
+  const first=(st.first||'').trim(),last=(st.last||'').trim(),company=(st.company||'').trim();
+  const isCo=!!company&&!first&&!last;
+  const person=isCo?{is_company:true,company_name:company,mobile:st.mobile||null,email:st.email||null}
+    :{is_company:false,prefix:st.prefix||null,first_name:first||null,last_name:last||null,company_name:company||null,mobile:st.mobile||null,email:st.email||null};
+  const hasSite=st.country||st.district||st.city||st.street||st.maps||st.location;
+  return {person,site:hasSite?{country:st.country||'Lebanon',district:st.district||null,city:st.city||null,street:st.street||null,maps_url:st.maps||null,site_location:st.location||null}:null,
+    log_type:st.type||'inbound_call',category:st.category||null,description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
+}
+async function commitDraft(dp){
+  const st=stateFor(dp); if(!st) return;
+  if(!(st.first||'').trim() && !(st.last||'').trim() && !(st.company||'').trim()){ const el=$(dp+'-first'); if(el)el.focus(); return; }
+  try{
+    await api('/logs/',{method:'POST',body:JSON.stringify(draftPayload(st))});
+    if(dp==='d') topDraft={}; else bottomDrafts.splice(+dp.slice(1),1);
+    await load();
+  }catch(e){ fail(e.message); }
+}
+$('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.dp){ const st=stateFor(el.dataset.dp); if(st) st[el.dataset.dk]=el.value; } });
+$('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
+  if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
+    if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
+$('rows').addEventListener('click',e=>{ const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
+  const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
+  const td=e.target.closest('td[data-edit]'); if(td && td.closest('tr.data')){ if(!e.target.closest('a')) openEditor(td); } });
+
+/* ── inline editor for existing rows (single-cell, no re-render, Enter advances) ── */
+function nextEditableInRow(td){ let n=td.nextElementSibling; while(n){ if(n.hasAttribute('data-edit')) return n; n=n.nextElementSibling; } return null; }
+function refreshCell(td){ const tr=td.closest('tr'); const r=ROWS.find(x=>x.id===tr.dataset.log); const c=COLS.find(x=>x.k===td.dataset.k); if(r&&c){ td.innerHTML=cellHTML(c,r,+tr.dataset.i); } }
+function openEditor(td){
+  if(td.querySelector('input,select')) return;
+  const kind=td.dataset.kind, val=td.dataset.val||'', field=td.dataset.field, target=td.dataset.target;
+  const tr=td.closest('tr'), logId=tr.dataset.log, fileId=tr.dataset.file;
+  let el;
+  if(kind==='status'||kind==='type'||kind==='category'){ el=document.createElement('select'); el.className='cellinput';
+    el.innerHTML=(kind==='category'?'<option value=""></option>':'')+selOpts(kind==='status'?STATUSES:kind==='type'?TYPES:CATEGORIES,val); }
+  else { el=document.createElement('input'); el.className='cellinput'; el.type=kind==='date'?'date':'text'; el.value=val; }
+  td.innerHTML=''; td.appendChild(el); el.focus();
+  if(el.tagName==='SELECT'){ try{ el.showPicker(); }catch(e){} }   // open on one click
+  else if(el.select){ el.select(); }
+  let ran=false;
+  const finish=async(save,advance)=>{ if(ran)return; ran=true;
+    const nv=el.value;
+    if(save && nv!==val){ try{
+      if(target==='file'){ await api('/files/'+fileId,{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
+      else if(target==='contact'){ await api('/files/'+fileId+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
+      else { await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
+      // mirror into the local row (contact/file fields shared across a file's logs)
+      ROWS.forEach(r=>{ if((target==='log'&&r.id===logId)||(target!=='log'&&r.file_id===fileId)) r[field]=nv; });
+      td.dataset.val=nv; clearErr(); stats();
+    }catch(e){ fail(e.message); } }
+    refreshCell(td);
+    if(advance){ const nx=nextEditableInRow(td); if(nx){ nx.scrollIntoView({inline:'center',block:'nearest'}); openEditor(nx); } }
+  };
+  el.addEventListener('blur',()=>finish(true,false));
+  el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ev.preventDefault();finish(true,true);} else if(ev.key==='Escape'){ran=true;refreshCell(td);} });
+  if(el.tagName==='SELECT') el.addEventListener('change',()=>finish(true,false));
 }
 
-let current = null;
-async function openFile(id) {
-  try {
-    const f = await api('/files/' + id);
-    current = f;
-    $('d-title').textContent = `${f.file_number} · ${f.contact_name || ''}`;
-    $('d-meta').innerHTML = `
-      <div class="row">
-        <div>${pill(f.stage,'s-')}</div><div>${pill(f.status,'st-')}</div>
-        <div class="muted">${esc(f.subject || '')}</div>
-      </div>
-      <div class="muted" style="margin-top:8px;font-size:12px">
-        ${esc([f.street, f.city, f.country].filter(Boolean).join(', ')) || 'No location'}
-        ${f.project_id ? ' · converted to a project' : ''}
-      </div>`;
-    renderLogs(f.logs || []);
-    $('dlg').showModal();
-  } catch (e) { fail(e.message); }
-}
+async function load(){ try{ ROWS=await api('/logs/'); stats(); render(); }catch(e){ fail(e.message); } }
 
-function renderLogs(logs) {
-  $('d-logs').innerHTML = logs.length
-    ? logs.slice().sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''))
-        .map(l => `<div class="log">
-          <div class="t">${esc(l.log_type)} · ${when(l.occurred_at || l.created_at)}
-          ${l.follow_up_date ? ' · follow-up ' + esc(l.follow_up_date) : ''}</div>
-          <div>${esc(l.description) || '<span class="muted">—</span>'}</div>
-        </div>`).join('')
-    : '<div class="muted">No logs yet.</div>';
-}
+/* tabs = scroll positions */
+const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
+function moveInd(b){ ind.style.left=b.offsetLeft+'px'; ind.style.width=b.offsetWidth+'px'; }
+function firstThForTab(n){ return $('thead').querySelector(`th[data-tab="${n}"]`); }
+function scrollToTab(n){ const th=firstThForTab(n); if(th) outer.scrollTo({left:n===0?0:th.offsetLeft-8,behavior:'smooth'}); setActivePill(n); }
+function setActivePill(n){ activeTab=n; tabsEl.querySelectorAll('.pill-tab').forEach(b=>{const on=+b.dataset.tab===n;b.classList.toggle('on',on);if(on)moveInd(b);}); }
+function tabFromScroll(){ const x=outer.scrollLeft+60; let best=0; [0,1,2,3].forEach(n=>{const th=firstThForTab(n); if(th&&th.offsetLeft<=x) best=n;}); if(best!==activeTab) setActivePill(best); }
+tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dataset.tab));
+let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('show',outer.scrollTop>200); if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
+$('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
+window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
+$('k-open-card').onclick=()=>{ openOnly=!openOnly; $('k-open-card').classList.toggle('on',openOnly); render(); };
+$('q').oninput=render;
 
-$('l-add').onclick = async () => {
-  if (!current) return;
-  try {
-    await api(`/files/${current.id}/logs/`, { method: 'POST', body: JSON.stringify({
-      log_type: $('l-type').value,
-      description: $('l-desc').value.trim(),
-      follow_up_date: $('l-fu').value || null,
-    })});
-    $('l-desc').value = ''; $('l-fu').value = '';
-    const f = await api('/files/' + current.id);
-    current = f; renderLogs(f.logs || []);
-    load();
-  } catch (e) { fail(e.message); }
-};
+/* bottom drag strip resizes table height (persisted) */
+(function(){
+  const saved=+localStorage.getItem('achi_bh'); if(saved>160) outer.style.setProperty('--bh',saved+'px');
+  $('vrz').addEventListener('pointerdown',e=>{
+    const start={y:e.clientY,h:outer.getBoundingClientRect().height}; document.body.classList.add('resizing');
+    const mv=ev=>{ const h=Math.max(180,Math.min(1400,start.h+(ev.clientY-start.y))); outer.style.setProperty('--bh',h+'px'); };
+    const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); document.body.classList.remove('resizing');
+      localStorage.setItem('achi_bh',Math.round(outer.getBoundingClientRect().height)); };
+    window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+  });
+})();
 
-$('d-close').onclick = () => $('dlg').close();
-$('refresh').onclick = load;
-$('q').oninput = render;   // client-side: the list is small and already loaded
-
-if (!TOKEN) fail('Not signed in. Open the main app, sign in, then reload this page.');
-else { api('/info').then(i => $('who').textContent = `${i.module} v${i.version}`).catch(() => {}); load(); }
+/* boot */
+buildHead(); setActivePill(0); render();
+if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
+else { api('/info').then(i=>$('who').textContent=`${i.module} v${i.version}`).catch(()=>{}); load(); }
 </script>
 </body>
 </html>

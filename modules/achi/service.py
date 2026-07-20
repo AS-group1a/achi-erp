@@ -146,6 +146,45 @@ class ContactFileService:
         await self.session.refresh(log)
         return log
 
+    async def get_log(self, log_id: str) -> FileLog | None:
+        return await self.session.get(FileLog, log_id)
+
+    async def update_contact(self, file: ContactFile, data) -> None:
+        """Inline-edit the file's linked canonical contact (name/company/phone/…).
+
+        Contact identity is owned by the Contacts directory, but the grid lets the
+        front desk fix a typo without leaving the log. Only the sent fields change.
+        """
+        c = await self.session.get(Contact, file.contact_id)
+        if c is None:
+            return
+        d = data.model_dump(exclude_unset=True)
+        if "first_name" in d:
+            c.first_name = d["first_name"] or None
+        if "last_name" in d:
+            c.last_name = d["last_name"] or None
+        if "company_name" in d:
+            c.company_name = d["company_name"] or None
+        if "email" in d:
+            c.primary_email = (d["email"] or "").strip().lower() or None
+        if "mobile" in d:
+            c.primary_phone = d["mobile"] or None
+        if "prefix" in d:
+            props = dict(c.custom_properties or {})
+            bucket = dict(props.get(MODULE_TAG.split("_", 1)[0]) or {})
+            bucket["prefix"] = d["prefix"] or None
+            props[MODULE_TAG.split("_", 1)[0]] = bucket
+            c.custom_properties = props
+        await self.session.commit()
+
+    async def update_log(self, log: FileLog, data) -> FileLog:
+        """Apply only the fields the caller sent (inline grid edits one cell)."""
+        for k, v in data.model_dump(exclude_unset=True).items():
+            setattr(log, k, v)
+        await self.session.commit()
+        await self.session.refresh(log)
+        return log
+
     # ── Quick capture ─────────────────────────────────────────────────────
 
     async def quick_log(self, data: QuickLogCreate, *, user_id: str | None) -> dict:
@@ -203,9 +242,11 @@ class ContactFileService:
             file_id=f.id,
             created_by=user_id,
             log_type=data.log_type,
+            category=data.category,
             occurred_at=data.occurred_at,
             duration_seconds=data.duration_seconds,
             description=data.description,
+            updates=data.updates,
             follow_up_date=data.follow_up_date,
             follow_up_notes=data.follow_up_notes,
         )
