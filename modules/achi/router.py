@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
 
 from app.dependencies import CurrentUserId, SessionDep
@@ -220,6 +220,16 @@ async def update_log(
     if log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
     return FileLogOut.model_validate(await svc.update_log(log, data))
+
+
+@router.delete("/logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a log entry")
+async def delete_log(log_id: str, session: SessionDep, _user_id: CurrentUserId) -> Response:
+    svc = ContactFileService(session)
+    log = await svc.get_log(log_id)
+    if log is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
+    await svc.delete_log(log)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")

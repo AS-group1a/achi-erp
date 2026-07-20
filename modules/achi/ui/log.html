@@ -38,6 +38,22 @@
   .pill-tab.on{color:var(--navy);font-weight:800}
   .search{margin-left:auto;height:32px;width:200px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
   .search::placeholder{color:rgba(255,255,255,.42)}
+  /* toolbar select-all + delete (ported from the tabbed grid) */
+  .tb-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .15s,border-color .15s,max-width .18s,opacity .18s}
+  .tb-selall{border:1.5px solid rgba(255,255,255,.55);background:rgba(255,255,255,.12);color:#fff}
+  .tb-selall:hover{background:rgba(255,255,255,.22);border-color:#fff}
+  .tb-selall.on{background:#fff;color:var(--navy);border-color:#fff}
+  .tb-selall svg{width:14px;height:14px}
+  .tb-del{border:1.5px solid rgba(252,165,165,.45);background:rgba(255,255,255,.1);color:#fca5a5;opacity:0;pointer-events:none;max-width:0;overflow:hidden;padding-left:0;padding-right:0;border-width:0}
+  .tb-del.on{opacity:1;pointer-events:all;max-width:200px;padding:7px 13px;border-width:1.5px}
+  .tb-del:hover{background:rgba(239,68,68,.25);border-color:#fca5a5;color:#fff}
+  .tb-del svg{width:13px;height:13px}
+  .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
+  /* selected rows */
+  td.num{cursor:pointer}
+  tbody tr.data.sel-row td{background:#dbeafe !important}
+  tbody tr.data.sel-row:hover td{background:#bfdbfe !important}
+  .sel-row .rn{background:var(--navy);color:#fff}
 
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
@@ -128,6 +144,8 @@
   <div class="shell">
     <div class="nav">
       <span class="cnt" id="count">· 0</span>
+      <button class="tb-btn tb-selall" id="btn-selall" type="button">Select all</button>
+      <button class="tb-btn tb-del" id="btn-del" type="button">Delete <span class="tb-cnt" id="del-count">0</span></button>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
         <button class="pill-tab on" data-tab="0">Log Details</button>
@@ -173,6 +191,8 @@ const SVG={
   copy:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="8" height="9" rx="1.2"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h7a1 1 0 011 1v2"/></svg>`,
   check:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 6,12 14,4"/></svg>`,
   up:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,10 8,6 12,10"/></svg>`,
+  selall:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2.5"/><polyline points="5,8 7,10 11,6"/></svg>`,
+  trash:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,4 14,4"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/><path d="M6 7v5m4-5v5"/><rect x="3" y="4" width="10" height="9" rx="1.5"/></svg>`,
   wa:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`,
 };
 
@@ -247,6 +267,7 @@ function cellHTML(c,r,i){switch(c.k){
 
 let ROWS=[], openOnly=false, activeTab=0;
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
+let selected=new Set();             // selected log ids
 
 function stats(){ const now=new Date();
   const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
@@ -269,7 +290,7 @@ function draftCell(c,dp,st){
 }
 function draftRowHTML(dp,st,isTop){ return `<tr class="draft ${isTop?'dtop':''}">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.wide?'wide':''}">${draftCell(c,dp,st)}</td>`).join('')}</tr>`; }
 
-function dataRowHTML(r,i){ return `<tr class="data" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
+function dataRowHTML(r,i){ return `<tr class="data${selected.has(r.id)?' sel-row':''}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
     const cls=[c.cls||'',c.wide?'wide':'',c.edit?(['status','type','category'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
@@ -288,6 +309,32 @@ function render(){
     bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false)).join(''),
   ].join('');
   $('rows').innerHTML=body;
+  updateToolbar();
+}
+
+/* ── row selection (ported from the tabbed grid) ── */
+function toggleSelect(id){
+  if(selected.has(id)) selected.delete(id); else selected.add(id);
+  const tr=$('rows').querySelector(`tr.data[data-log="${id}"]`);
+  if(tr) tr.classList.toggle('sel-row',selected.has(id));
+  updateToolbar();
+}
+function visibleRows(){ return [...$('rows').querySelectorAll('tr.data')]; }
+function selectAllToggle(){
+  const trs=visibleRows(); const allSel=trs.length>0 && trs.every(tr=>selected.has(tr.dataset.log));
+  trs.forEach(tr=>{ if(allSel){selected.delete(tr.dataset.log);tr.classList.remove('sel-row');} else {selected.add(tr.dataset.log);tr.classList.add('sel-row');} });
+  updateToolbar();
+}
+function updateToolbar(){
+  const n=selected.size; const del=$('btn-del'); if(del){ del.classList.toggle('on',n>0); $('del-count').textContent=n; }
+  const sa=$('btn-selall'); const trs=visibleRows();
+  if(sa) sa.classList.toggle('on', trs.length>0 && trs.every(tr=>selected.has(tr.dataset.log)));
+}
+async function deleteSelected(){
+  const ids=[...selected]; if(!ids.length) return;
+  if(!confirm(`Delete ${ids.length} log${ids.length>1?'s':''}? This cannot be undone.`)) return;
+  try{ for(const id of ids){ await api('/logs/'+id,{method:'DELETE'}); } selected.clear(); await load(); }
+  catch(e){ fail(e.message); }
 }
 
 /* ── draft interactions (delegated once) ── */
@@ -320,6 +367,7 @@ $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&
 $('rows').addEventListener('click',e=>{ const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
   const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
   const cp=e.target.closest('[data-copy]'); if(cp){ try{navigator.clipboard.writeText(cp.dataset.copy);}catch(_){} cp.classList.add('copied'); cp.innerHTML=SVG.check; setTimeout(()=>{cp.classList.remove('copied');cp.innerHTML=SVG.copy;},1000); return; }
+  const numTd=e.target.closest('td.num'); if(numTd && numTd.closest('tr.data')){ toggleSelect(numTd.closest('tr.data').dataset.log); return; }
   const td=e.target.closest('td[data-edit]'); if(td && td.closest('tr.data')){ if(!e.target.closest('a,button')) openEditor(td); } });
 
 /* ── Maps hover preview (ported from the tabbed grid) ── */
@@ -446,6 +494,10 @@ $('q').oninput=render;
 
 /* boot */
 $('totop').innerHTML=SVG.up;
+$('btn-selall').innerHTML=SVG.selall+'<span>Select all</span>';
+$('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
+$('btn-selall').onclick=selectAllToggle;
+$('btn-del').onclick=deleteSelected;
 buildHead(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
