@@ -19,8 +19,10 @@ from .schemas import (
     ContactFileOut,
     ContactFileUpdate,
     FileConvertRequest,
+    ContactPatch,
     FileLogCreate,
     FileLogOut,
+    FileLogUpdate,
     ModuleInfo,
 )
 from .service import ContactFileService
@@ -197,6 +199,29 @@ async def quick_log(data: QuickLogCreate, session: SessionDep, user_id: CurrentU
     )
 
 
+@router.patch("/files/{file_id}/contact", summary="Edit the file's linked contact (inline)")
+async def update_contact(
+    file_id: str, data: ContactPatch, session: SessionDep, _user_id: CurrentUserId
+) -> dict:
+    svc = ContactFileService(session)
+    f = await svc.get(file_id)
+    if f is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    await svc.update_contact(f, data)
+    return {"ok": True}
+
+
+@router.patch("/logs/{log_id}", response_model=FileLogOut, summary="Edit a log entry (inline)")
+async def update_log(
+    log_id: str, data: FileLogUpdate, session: SessionDep, _user_id: CurrentUserId
+) -> FileLogOut:
+    svc = ContactFileService(session)
+    log = await svc.get_log(log_id)
+    if log is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
+    return FileLogOut.model_validate(await svc.update_log(log, data))
+
+
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
 async def list_logs(
     session: SessionDep, _user_id: CurrentUserId, limit: int = Query(default=200, ge=1, le=1000)
@@ -204,24 +229,50 @@ async def list_logs(
     rows = await ContactFileService(session).list_logs(limit=limit)
     out: list[LogRowOut] = []
     for log, f, contact in rows:
-        name = None
+        name = first = last = prefix = None
+        company = mobile = email = None
         if contact is not None:
-            name = " ".join(x for x in (contact.first_name, contact.last_name) if x).strip() or contact.company_name
+            first, last = contact.first_name, contact.last_name
+            name = " ".join(x for x in (first, last) if x).strip() or contact.company_name
+            company = contact.company_name
+            mobile = contact.primary_phone
+            email = contact.primary_email
+            # prefix (Mr/Ms/…) is stashed in the contact's module bucket by the bridge
+            for v in (contact.custom_properties or {}).values():
+                if isinstance(v, dict) and v.get("prefix"):
+                    prefix = v["prefix"]
+                    break
         out.append(
             LogRowOut(
                 id=log.id,
                 log_type=log.log_type,
+                category=log.category,
                 occurred_at=log.occurred_at,
                 description=log.description,
+                updates=log.updates,
                 follow_up_date=log.follow_up_date,
+                follow_up_notes=log.follow_up_notes,
                 created_at=log.created_at,
                 file_id=f.id,
                 file_number=f.file_number,
                 stage=f.stage,
                 status=f.status,
+                subject=f.subject or "",
+                site_location=f.site_location,
                 city=f.city,
+                district=f.district,
+                street=f.street,
+                country=f.country,
+                maps_url=f.maps_url,
+                owner=f.owner_user_id,
                 contact_id=f.contact_id,
                 contact_name=name,
+                prefix=prefix,
+                first_name=first,
+                last_name=last,
+                company_name=company,
+                mobile=mobile,
+                email=email,
             )
         )
     return out
