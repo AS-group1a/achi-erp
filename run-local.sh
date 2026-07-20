@@ -39,23 +39,28 @@ DIST="$APP_DIR/_frontend_dist"
 cp deploy/overrides/achi-theme.css "$DIST/achi-theme.css"
 cp deploy/overrides/achi-nav.js  "$DIST/achi-nav.js"
 "$PY" - "$DIST/index.html" <<'PY'
-import sys
+import re, sys
 p = sys.argv[1]
-html = open(p, encoding="utf-8").read()
+html = orig = open(p, encoding="utf-8").read()
+NAV_V = "8"
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css">',
-    '<script src="/achi-nav.js?v=8" defer></script>',
+    '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,
 ]
-changed = False
-for t in tags:
-    if t not in html and "</head>" in html:
-        html = html.replace("</head>", t + "</head>", 1)
-        changed = True
-if changed:
+# Strip any copy we injected before, INCLUDING an older ?v= cache-buster, then
+# re-add the current tags. Matching on the exact tag string instead meant a
+# version bump did not recognise the old tag as ours, so it stacked a second
+# <script> beside it and achi-nav.js ran twice (two click listeners, two
+# MutationObservers) for anyone who had run this script at an earlier version.
+html = re.sub(r'<link rel="stylesheet" href="/achi-theme\.css"\s*/?>', '', html)
+html = re.sub(r'<script src="/achi-nav\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
+if "</head>" in html:
+    html = html.replace("</head>", "".join(tags) + "</head>", 1)
+if html != orig:
     open(p, "w", encoding="utf-8").write(html)
-    print("Injected ACHI theme + nav")
+    print("Injected ACHI theme + nav (v%s)" % NAV_V)
 else:
-    print("ACHI theme + nav already present")
+    print("ACHI theme + nav already present (v%s)" % NAV_V)
 PY
 
 # 4b. install the partner pack (file-level; "apply" happens once via brand-local.sh)
