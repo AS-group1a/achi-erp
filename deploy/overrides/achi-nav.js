@@ -15,7 +15,8 @@
   var ID = 'achi-nav-log';
   var EMBED = 'achi-embed';
   var LABEL = 'Call Log';
-  var HREF = '/api/v1/achi/ui';
+  var HREF = '/api/v1/achi/ui';   // iframe source (served by our router)
+  var ROUTE = '/call-log';         // the pretty URL we show in the address bar
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }
   function projectFilesLink() {
@@ -37,36 +38,68 @@
     el.setAttribute('title', t);
   }
 
-  // Dock to the RIGHT of the sidebar, full height. Top is aligned to the very
-  // top of the sidebar column so there is no gap above the embed.
-  function positionEmbed(f) {
+  // The content region = the SPA's <main> (falls back to the sidebar's widest
+  // sibling, then to the sidebar's right edge). Measuring <main> keeps the embed
+  // exactly where a page would render — no gap, not floating over the header.
+  function contentRect() {
+    var m = document.querySelector('main, [role="main"]');
+    if (m) { var r = m.getBoundingClientRect(); if (r.width > 300 && r.height > 160) return r; }
     var sb = sidebarEl();
-    var left = 220, top = 0;
-    if (sb) { var r = sb.getBoundingClientRect(); left = Math.max(0, Math.round(r.right)); top = Math.max(0, Math.round(r.top)); }
-    f.style.left = left + 'px';
-    f.style.top = top + 'px';
-    f.style.width = (window.innerWidth - left) + 'px';
-    f.style.height = (window.innerHeight - top) + 'px';
+    if (sb && sb.parentElement) {
+      var best = null, kids = sb.parentElement.children;
+      for (var i = 0; i < kids.length; i++) { var el = kids[i]; if (el === sb) continue; var rr = el.getBoundingClientRect(); if (rr.width > 300 && rr.height > 160 && (!best || rr.width > best.width)) best = rr; }
+      if (best) return best;
+      var sr = sb.getBoundingClientRect();
+      return { left: sr.right, top: sr.top, width: window.innerWidth - sr.right, height: window.innerHeight - sr.top };
+    }
+    return { left: 220, top: 0, width: window.innerWidth - 220, height: window.innerHeight };
   }
-  function showEmbed() {
+  function positionEmbed(f) {
+    var c = contentRect();
+    f.style.left = Math.round(c.left) + 'px';
+    f.style.top = Math.round(c.top) + 'px';
+    f.style.width = Math.round(c.width) + 'px';
+    f.style.height = Math.round(c.height) + 'px';
+  }
+  // Full-screen cover shown INSTANTLY on a hard load of /call-log, so the SPA's
+  // 404 never flashes before the embed is ready. Removed when the iframe loads.
+  function showCover() {
+    if (document.getElementById('achi-cover')) return;
+    var c = document.createElement('div');
+    c.id = 'achi-cover';
+    c.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#f5f5f7;display:flex;align-items:center;justify-content:center;color:#284F9E;font:600 13px -apple-system,Segoe UI,sans-serif';
+    c.textContent = 'Loading Call Log…';
+    (document.body || document.documentElement).appendChild(c);
+    setTimeout(hideCover, 6000);   // never get stuck if the iframe stalls
+  }
+  function hideCover() { var c = document.getElementById('achi-cover'); if (c) c.remove(); }
+
+  function showEmbed(pushUrl) {
     var f = document.getElementById(EMBED);
     if (!f) {
       f = document.createElement('iframe');
       f.id = EMBED; f.src = HREF; f.setAttribute('title', 'ACHI Call Log');
       f.style.cssText = 'position:fixed;border:0;z-index:50;background:#f5f5f7';
+      f.onload = hideCover;
       document.body.appendChild(f);
     }
+    if (pushUrl && location.pathname !== ROUTE) { try { history.pushState({ achi: 1 }, '', ROUTE); } catch (e) {} }
     positionEmbed(f);
     f.style.display = 'block';
+    var link = document.getElementById(ID); if (link) link.setAttribute('aria-current', 'page');
   }
-  function hideEmbed() { var f = document.getElementById(EMBED); if (f) f.style.display = 'none'; }
+  function hideEmbed() {
+    var f = document.getElementById(EMBED); if (f) f.style.display = 'none';
+    hideCover();
+    var link = document.getElementById(ID); if (link) link.removeAttribute('aria-current');
+  }
 
   function inject() {
     if (document.getElementById(ID)) return;
     var pf = projectFilesLink();
     if (!pf) return;
     var link = pf.cloneNode(true);
-    link.id = ID; link.setAttribute('href', HREF);
+    link.id = ID; link.setAttribute('href', ROUTE);
     link.removeAttribute('aria-current');
     link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
     setLabel(link, LABEL);
@@ -78,15 +111,23 @@
     var a = e.target.closest && e.target.closest('a');
     if (!a) return;
     var href = a.getAttribute('href') || '';
-    var ours = a.id === ID || href === HREF || href.indexOf('/api/v1/achi/ui') !== -1;
-    if (ours) { e.preventDefault(); e.stopImmediatePropagation(); showEmbed(); return; }
-    if (a.closest('nav, aside, [class*="sidebar" i]')) hideEmbed();
+    var ours = a.id === ID || href === ROUTE || href === HREF;
+    if (ours) { e.preventDefault(); e.stopImmediatePropagation(); showEmbed(true); return; }
+    if (a.closest('nav, aside, [class*="sidebar" i]')) hideEmbed();   // real navigation elsewhere
   }, true);
 
-  window.addEventListener('resize', function () { var f = document.getElementById(EMBED); if (f && f.style.display !== 'none') positionEmbed(f); });
-  window.addEventListener('popstate', hideEmbed);
+  // On a hard load straight to /call-log, cover the 404 flash immediately.
+  if (location.pathname === ROUTE) showCover();
 
-  var obs = new MutationObserver(inject);
+  // Keep the embed in sync with the URL: /call-log shows it, anything else hides.
+  function syncToUrl() { if (location.pathname === ROUTE) showEmbed(false); else hideEmbed(); }
+  window.addEventListener('popstate', syncToUrl);
+  function reposition() { var f = document.getElementById(EMBED); if (f && f.style.display !== 'none') positionEmbed(f); }
+  window.addEventListener('resize', reposition);
+  window.addEventListener('scroll', reposition, true);
+
+  var obs = new MutationObserver(function () { inject(); if (location.pathname === ROUTE) showEmbed(false); });
   obs.observe(document.documentElement, { childList: true, subtree: true });
-  if (document.readyState !== 'loading') inject(); else document.addEventListener('DOMContentLoaded', inject);
+  function boot() { inject(); syncToUrl(); }
+  if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();
