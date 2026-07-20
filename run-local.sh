@@ -44,7 +44,7 @@ p = sys.argv[1]
 html = open(p, encoding="utf-8").read()
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css">',
-    '<script src="/achi-nav.js?v=4" defer></script>',
+    '<script src="/achi-nav.js?v=8" defer></script>',
 ]
 changed = False
 for t in tags:
