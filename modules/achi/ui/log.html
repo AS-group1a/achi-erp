@@ -284,7 +284,7 @@ function render(){
   $('count').textContent=`· ${rows.length}`;
   const body=[
     draftRowHTML('d',topDraft,true),
-    rows.length?rows.map(dataRowHTML).join(''):`<tr><td colspan="${COLS.length}" class="empty">No calls yet — type in the highlighted row; Enter moves to the next field, Enter on the last saves. The + adds more empty rows below.</td></tr>`,
+    rows.length?rows.map(dataRowHTML).join(''):`<tr><td colspan="${COLS.length}" class="empty">No calls yet — type in the highlighted row; Enter moves to the next field, Enter on the last saves. The + (or Shift+R) adds more empty rows below.</td></tr>`,
     bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false)).join(''),
   ].join('');
   $('rows').innerHTML=body;
@@ -356,6 +356,32 @@ function showMapsPopup(anchor,url){ ensureMapsPopup(); const c=mapsCoords(url);
   mapsPopup.classList.add('vis'); positionPopup(mapsPopup,anchor); }
 $('rows').addEventListener('mouseover',e=>{ const b=e.target.closest('.maps-btn'); if(b){ clearTimeout(mapsTimer); showMapsPopup(b,b.dataset.mapurl); } });
 $('rows').addEventListener('mouseout',e=>{ const b=e.target.closest('.maps-btn'); if(b){ mapsTimer=setTimeout(hideMapsPopup,150); } });
+
+/* ── shortcut: Shift+R adds a row ──────────────────────────────────────────
+ * Ported from erp_next_custom/public/js/core/grid/tabbed_grid.js
+ * (_installAddRowShortcut). Same contract: one document-level capture-phase
+ * listener that CLICKS the visible "+" button rather than calling addBottomRow()
+ * directly, so the shortcut and the mouse share one code path. Accepts the
+ * physical KeyR as well as the produced "r"/"R" so it survives non-QWERTY layouts.
+ */
+function isTypingTarget(t){
+  if(!t) return false;
+  if(t.isContentEditable) return true;
+  const tag=(t.tagName||'').toUpperCase();
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return true;
+  return !!(t.closest && t.closest('input,textarea,select,[contenteditable]'));
+}
+document.addEventListener('keydown',e=>{
+  if(!e.shiftKey||e.ctrlKey||e.metaKey||e.altKey) return;                 // plain Shift+R only
+  if(e.code!=='KeyR' && String(e.key||'').toLowerCase()!=='r') return;    // layout-proof
+  if(e.repeat) return;                                                    // ignore held-key repeat
+  if(isTypingTarget(e.target)) return;                                    // not while typing a draft cell
+  if($('rows').querySelector('.cellinput')) return;                       // not while an inline editor is open
+  const btn=$('rows').querySelector('[data-add]');
+  if(!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  btn.click();
+},true);
 
 /* ── inline editor for existing rows (single-cell, no re-render, Enter advances) ── */
 function nextEditableInRow(td){ let n=td.nextElementSibling; while(n){ if(n.hasAttribute('data-edit')) return n; n=n.nextElementSibling; } return null; }
