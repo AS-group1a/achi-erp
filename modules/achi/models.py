@@ -106,7 +106,46 @@ class FileLog(Base):
     follow_up_date: Mapped[str | None] = mapped_column(Date, nullable=True)
     follow_up_notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
 
+    # The sketch drawn in the description popup — a JSON array of shapes, exactly
+    # the payload the canvas tool round-trips. Stored as text, never queried into:
+    # to us it is opaque, and giving it structure would tie our schema to the
+    # drawing tool's internals. ``has_drawing`` is the cheap flag the grid reads
+    # to light up the Drawing button without shipping the whole blob in a list.
+    drawing: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    has_drawing: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
     created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     file: Mapped[ContactFile] = relationship(back_populates="logs")
+    attachments: Mapped[list["LogAttachment"]] = relationship(
+        back_populates="log", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class LogAttachment(Base):
+    """A file attached to a log entry from the description popup.
+
+    The bytes live in the platform storage backend (``app.core.storage``), not in
+    the row: it already abstracts local-disk vs S3, so an operator who points
+    STORAGE_BACKEND at a bucket gets our attachments there for free. The row holds
+    only the key plus what the UI needs to render a list without a HEAD per file.
+    """
+
+    __tablename__ = "achi_log_attachment"
+    __table_args__ = (Index("ix_achi_log_attachment_log", "log_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    log_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("achi_file_log.id", ondelete="CASCADE"), nullable=False
+    )
+
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False, default="application/octet-stream")
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+
+    uploaded_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    log: Mapped[FileLog] = relationship(back_populates="attachments")

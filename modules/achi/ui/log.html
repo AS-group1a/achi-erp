@@ -92,6 +92,49 @@
   .totop.show{display:inline-flex;opacity:1}
   .totop:hover{transform:translateY(-2px);background:var(--navy-2)}
   .muted{color:var(--tx-3)}
+
+  /* description popup — ported from the frappe grid's note workspace, same blue/white */
+  .pg-note-workspace{position:fixed;inset:0;z-index:2147482400;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  .pg-note-workspace-box{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:18px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .pg-note-workspace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
+  .pg-note-workspace-title{font-size:16px;font-weight:800;letter-spacing:.02em}
+  .pg-note-workspace-sub{margin-top:3px;font-size:11.5px;color:rgba(255,255,255,.76)}
+  .pg-note-workspace-head-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .pg-note-head-tool{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid rgba(255,255,255,.34);border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+  .pg-note-head-tool:hover,.pg-note-head-tool.has-content{background:#fff;color:#1e3f85}
+  .pg-note-head-tool:disabled{opacity:.55;cursor:wait}
+  .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
+  .pg-note-workspace-body{padding:20px 22px;overflow:auto;background:#f7faff}
+  .pg-note-workspace-label{display:block;margin-bottom:7px;color:#1e3f85;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .pg-note-workspace-text{width:100%;min-height:210px;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
+  .pg-note-workspace-text:focus{border-color:#284f9e;box-shadow:0 0 0 3px rgba(40,79,158,.12)}
+  .pg-note-files{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+  .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:9px;background:#fff;color:#334155;font-size:12px}
+  .pg-note-file a{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#1e3f85;text-decoration:none}
+  .pg-note-file a:hover{text-decoration:underline}
+  .pg-note-file-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .pg-note-file-pending{color:#64748b;font-size:10.5px;white-space:nowrap}
+  .pg-note-file-del{width:20px;height:20px;border:0;border-radius:6px;background:#fde8e8;color:#c0392b;font-weight:900;font-size:12px;line-height:1;cursor:pointer;padding:0}
+  .pg-note-file-del:hover{background:#f7c9c9}
+  .pg-note-workspace-status{min-height:18px;margin-top:10px;color:#64748b;font-size:11.5px}
+  .pg-note-workspace-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid #dce6f5;background:#fff}
+  .pg-note-workspace-hint{color:#718096;font-size:11px}
+  .pg-note-workspace-actions{display:flex;gap:9px}
+  .pg-note-cancel,.pg-note-save{height:36px;padding:0 18px;border-radius:9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .pg-note-cancel{border:1.5px solid #cbd9f1;background:#fff;color:#1e3f85}
+  .pg-note-save{border:0;background:#1e3f85;color:#fff;box-shadow:0 4px 12px rgba(30,63,133,.22)}
+  .pg-note-save:disabled{opacity:.55;cursor:wait}
+  /* cell markers so a row shows it carries files or a sketch without opening it */
+  .cellmark{margin-left:6px;font-size:10px;color:#1e3f85;opacity:.75}
+  @media(max-width:640px){
+    .pg-note-workspace{padding:10px}
+    .pg-note-workspace-head{align-items:flex-start;flex-wrap:wrap}
+    .pg-note-workspace-head-actions{order:3;width:100%;margin-left:0}
+    .pg-note-head-tool{flex:1;justify-content:center}
+    .pg-note-workspace-foot{align-items:flex-end}
+    .pg-note-workspace-hint{max-width:150px}
+    .pg-note-workspace-text{min-height:180px}
+  }
 </style>
 </head>
 <body>
@@ -128,6 +171,8 @@
 
 <button class="totop" id="totop" title="Back to top">&#8963;</button>
 
+<!-- the canvas drawing tool behind the popup's Drawing button; served by our own router -->
+<script src="/api/v1/achi/ui/drawing.js?v=2"></script>
 <script>
 function getToken(){
   const isJwt = s => typeof s==='string' && /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
@@ -166,6 +211,11 @@ const dash=v=>v?esc(v):'<span class="mt">—</span>';
 const selOpts=(o,v)=>o.map(x=>`<option value="${x}"${x===v?' selected':''}>${esc(label(x))}</option>`).join('');
 function phone(m){ if(!m)return '<span class="mt">—</span>'; const d=m.replace(/[^0-9]/g,''); return `<span class="ph">${esc(m)}</span><a class="wa" href="https://wa.me/${d}" target="_blank" rel="noreferrer">WA</a>`; }
 function avatar(id){ if(!id)return '<span class="mt">—</span>'; return `<span class="avatar" title="${esc(id)}">${esc(String(id).slice(0,2).toUpperCase())}</span>`; }
+/* files/sketch live behind the description popup — mark the cell so a row shows it has them */
+function marks(r){ let s='';
+  if(r.attachment_count>0) s+=`<span class="cellmark" title="${r.attachment_count} file(s) attached">&#128206;${r.attachment_count}</span>`;
+  if(r.has_drawing) s+='<span class="cellmark" title="Has a drawing">&#9998;</span>';
+  return s; }
 
 /* columns: full CRM Log List set. tab=null → always. edit.target: file|log|contact */
 const COLS=[
@@ -176,7 +226,7 @@ const COLS=[
   {k:'first',  h:'First',          tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
   {k:'last',   h:'Last',           tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
   {k:'company',h:'Company',        tab:0, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
-  {k:'desc',   h:'Description',    tab:0, w:320, wide:true, draft:'text', edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
+  {k:'desc',   h:'Description',    tab:0, w:320, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
   {k:'location',h:'Location',      tab:0, w:170, draft:'text', edit:{kind:'text',target:'file',field:'site_location',val:r=>r.site_location||''}},
   {k:'owner',  h:'Owner',          tab:0, w:80},
   {k:'type',   h:'Call Type',      tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
@@ -188,9 +238,9 @@ const COLS=[
   {k:'district',h:'District',      tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'district',val:r=>r.district||''}},
   {k:'city',   h:'City',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'city',val:r=>r.city||''}},
   {k:'street', h:'Street',         tab:2, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
-  {k:'updates',h:'Updates',        tab:3, w:300, wide:true, draft:'text', edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
+  {k:'updates',h:'Updates',        tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
   {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
-  {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
+  {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
 ];
 const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 function cellHTML(c,r,i){switch(c.k){
@@ -201,7 +251,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
   case 'company': return dash(r.company_name);
-  case 'desc': return r.description?esc(r.description):'<span class="mt">—</span>';
+  case 'desc': return (r.description?esc(r.description):'<span class="mt">—</span>')+marks(r);
   case 'location': return dash(r.site_location);
   case 'owner': return avatar(r.owner);
   case 'type': return tagv(r.log_type);
@@ -237,7 +287,7 @@ function draftCell(c,dp,st){
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
   if(c.draft==='select'){ const o=c.k==='type'?TYPES:CATEGORIES; const blank=c.k==='category'?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
   if(c.draft==='date') return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" type="date" value="${v}">`;
-  if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}">`; }
+  if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; const note=c.note?' data-note="1" readonly title="Open notes, files, and drawing"':''; return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${note}>`; }
   return `<span class="mt">—</span>`;
 }
 function draftRowHTML(dp,st,isTop){ return `<tr class="draft ${isTop?'dtop':''}">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.wide?'wide':''}">${draftCell(c,dp,st)}</td>`).join('')}</tr>`; }
@@ -281,7 +331,16 @@ async function commitDraft(dp){
   const st=stateFor(dp); if(!st) return;
   if(!(st.first||'').trim() && !(st.last||'').trim() && !(st.company||'').trim()){ const el=$(dp+'-first'); if(el)el.focus(); return; }
   try{
-    await api('/logs/',{method:'POST',body:JSON.stringify(draftPayload(st))});
+    const made=await api('/logs/',{method:'POST',body:JSON.stringify(draftPayload(st))});
+    const logId=made&&made.log&&made.log.id;
+    if(logId&&st.__drawing){ await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({drawing:st.__drawing})}); }
+    if(logId&&st.__pendingFiles&&st.__pendingFiles.length){
+      for(const f of st.__pendingFiles){
+        const fd=new FormData(); fd.append('file',f,f.name);
+        const r=await fetch(`${API}/logs/${logId}/attachments`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+        if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||`Could not upload ${f.name}`); }
+      }
+    }
     if(dp==='d') topDraft={}; else bottomDrafts.splice(+dp.slice(1),1);
     await load();
   }catch(e){ fail(e.message); }
@@ -292,6 +351,7 @@ $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('rows').addEventListener('click',e=>{ const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
   const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
+  const dn=e.target.closest('.din[data-note]'); if(dn){ openDraftNoteWorkspace(dn); return; }
   const td=e.target.closest('td[data-edit]'); if(td && td.closest('tr.data')){ if(!e.target.closest('a')) openEditor(td); } });
 
 /* ── inline editor for existing rows (single-cell, no re-render, Enter advances) ── */
@@ -299,6 +359,8 @@ function nextEditableInRow(td){ let n=td.nextElementSibling; while(n){ if(n.hasA
 function refreshCell(td){ const tr=td.closest('tr'); const r=ROWS.find(x=>x.id===tr.dataset.log); const c=COLS.find(x=>x.k===td.dataset.k); if(r&&c){ td.innerHTML=cellHTML(c,r,+tr.dataset.i); } }
 function openEditor(td){
   if(td.querySelector('input,select')) return;
+  const col=COLS.find(c=>c.k===td.dataset.k);
+  if(col&&col.note){ openNoteWorkspace(td,col); return; }   // long text gets the popup, not a 30px input
   const kind=td.dataset.kind, val=td.dataset.val||'', field=td.dataset.field, target=td.dataset.target;
   const tr=td.closest('tr'), logId=tr.dataset.log, fileId=tr.dataset.file;
   let el;
@@ -325,6 +387,194 @@ function openEditor(td){
   el.addEventListener('blur',()=>finish(true,false));
   el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ev.preventDefault();finish(true,true);} else if(ev.key==='Escape'){ran=true;refreshCell(td);} });
   if(el.tagName==='SELECT') el.addEventListener('change',()=>finish(true,false));
+}
+
+/* ── description popup: notes + files + drawing ──────────────────────────
+   Ported from the frappe grid's note workspace so the two look and behave the
+   same. Simpler here in one way: this only ever opens on a saved row, so there
+   is none of frappe's "persist the draft first" dance — the log id already
+   exists by the time a cell is clickable. */
+function openNoteWorkspace(td,col){
+  const tr=td.closest('tr'), logId=tr.dataset.log, field=td.dataset.field;
+  const row=ROWS.find(r=>r.id===logId)||{};
+  const oldVal=td.dataset.val||'';
+  const pendingFiles=[];
+  let attached=[], saving=false;
+
+  document.querySelector('.pg-note-workspace')?.remove();
+
+  const ov=document.createElement('div');
+  ov.className='pg-note-workspace'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+  ov.innerHTML=`
+    <div class="pg-note-workspace-box">
+      <div class="pg-note-workspace-head">
+        <div><div class="pg-note-workspace-title">${esc(col.h)}</div><div class="pg-note-workspace-sub">Notes, documents, PDFs, images, and drawing</div></div>
+        <div class="pg-note-workspace-head-actions">
+          <button type="button" class="pg-note-head-tool pg-note-upload"><span>&#128206;</span> Files</button>
+          <button type="button" class="pg-note-head-tool pg-note-drawing"><span>&#9998;</span> Drawing</button>
+          <button type="button" class="pg-note-workspace-close" aria-label="Close">&times;</button>
+        </div>
+      </div>
+      <div class="pg-note-workspace-body">
+        <label class="pg-note-workspace-label">Notes</label>
+        <textarea class="pg-note-workspace-text" placeholder="Add your notes here…">${esc(oldVal)}</textarea>
+        <div class="pg-note-files"></div>
+        <div class="pg-note-workspace-status"></div>
+      </div>
+      <div class="pg-note-workspace-foot">
+        <div class="pg-note-workspace-hint">Enter saves and continues &middot; Shift+Enter adds a line</div>
+        <div class="pg-note-workspace-actions"><button type="button" class="pg-note-cancel">Cancel</button><button type="button" class="pg-note-save">Save &amp; Continue</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const q=s=>ov.querySelector(s);
+  const ta=q('.pg-note-workspace-text'), filesEl=q('.pg-note-files'), statusEl=q('.pg-note-workspace-status'),
+        saveBtn=q('.pg-note-save'), drawBtn=q('.pg-note-drawing');
+  const close=()=>ov.remove();
+
+  function renderFiles(){
+    const a=attached.map(f=>`<div class="pg-note-file"><a href="#" data-open="${esc(f.id)}">${esc(f.filename)}</a><span class="pg-note-file-right"><span class="pg-note-file-pending">${fmtSize(f.size_bytes)}</span><button type="button" class="pg-note-file-del" data-del="${esc(f.id)}" title="Remove">&times;</button></span></div>`);
+    const p=pendingFiles.map((f,i)=>`<div class="pg-note-file"><span>${esc(f.name)}</span><span class="pg-note-file-right"><span class="pg-note-file-pending">Ready to upload</span><button type="button" class="pg-note-file-del" data-pending="${i}" title="Remove">&times;</button></span></div>`);
+    filesEl.innerHTML=a.concat(p).join('')||'<div class="pg-note-file"><span>No files attached yet</span></div>';
+  }
+  const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
+
+  /* The API is bearer-only — there is no cookie session, so a plain href would
+     401. Fetch the bytes with the token and hand the browser a blob instead. */
+  async function openAttachment(id){
+    const r=await fetch(`${API}/attachments/${id}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+    if(!r.ok) throw new Error('Could not open the file');
+    const url=URL.createObjectURL(await r.blob());
+    window.open(url,'_blank','noreferrer');
+    setTimeout(()=>URL.revokeObjectURL(url),60000);   // the new tab needs it to still be alive
+  }
+
+  async function loadFiles(){
+    try{ attached=await api(`/logs/${logId}/attachments`); if(ov.isConnected) renderFiles(); }
+    catch(e){ statusEl.textContent=e.message; }
+  }
+
+  async function persistNote(){
+    const nv=ta.value;
+    if(nv===td.dataset.val) return nv;
+    await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({[field]:nv})});
+    td.dataset.val=nv;
+    ROWS.forEach(r=>{ if(r.id===logId) r[field]=nv; });
+    return nv;
+  }
+
+  async function saveAndContinue(){
+    if(saving) return;
+    saving=true; saveBtn.disabled=true; drawBtn.disabled=true; statusEl.textContent='Saving…';
+    try{
+      await persistNote();
+      if(pendingFiles.length){
+        statusEl.textContent=`Uploading ${pendingFiles.length} file${pendingFiles.length===1?'':'s'}…`;
+        for(const f of pendingFiles){
+          const fd=new FormData(); fd.append('file',f,f.name);
+          const r=await fetch(`${API}/logs/${logId}/attachments`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+          if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||`Could not upload ${f.name}`); }
+        }
+        const row=ROWS.find(r=>r.id===logId);
+        if(row) row.attachment_count=(row.attachment_count||0)+pendingFiles.length;
+        pendingFiles.length=0;
+      }
+      clearErr(); close(); refreshCell(td);
+      const nx=nextEditableInRow(td);
+      if(nx){ nx.scrollIntoView({inline:'center',block:'nearest'}); openEditor(nx); }
+    }catch(e){
+      saving=false; saveBtn.disabled=false; drawBtn.disabled=false;
+      statusEl.textContent=e.message||'Save failed. Please try again.';
+    }
+  }
+
+  q('.pg-note-upload').addEventListener('click',()=>{
+    const inp=document.createElement('input');
+    inp.type='file'; inp.multiple=true; inp.accept='.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*';
+    inp.addEventListener('change',()=>{ pendingFiles.push(...Array.from(inp.files||[])); renderFiles(); },{once:true});
+    inp.click();
+  });
+
+  filesEl.addEventListener('click',async e=>{
+    const link=e.target.closest('[data-open]');
+    if(link){ e.preventDefault();
+      try{ await openAttachment(link.dataset.open); }catch(err){ statusEl.textContent=err.message; }
+      return; }
+    const btn=e.target.closest('[data-del],[data-pending]'); if(!btn) return;
+    if(btn.dataset.pending!==undefined){ pendingFiles.splice(+btn.dataset.pending,1); renderFiles(); return; }
+    const id=btn.dataset.del; btn.disabled=true;
+    try{
+      const r=await fetch(`${API}/attachments/${id}`,{method:'DELETE',headers:{Authorization:'Bearer '+TOKEN}});
+      if(!r.ok) throw new Error('Could not remove the file');
+      attached=attached.filter(f=>f.id!==id); renderFiles();
+      const row=ROWS.find(x=>x.id===logId); if(row) row.attachment_count=attached.length;
+    }catch(err){ btn.disabled=false; statusEl.textContent=err.message; }
+  });
+
+  drawBtn.addEventListener('click',async()=>{
+    if(saving) return;
+    if(typeof achi_drawing==='undefined'){ statusEl.textContent='Drawing tool is unavailable.'; return; }
+    saving=true; drawBtn.disabled=true; saveBtn.disabled=true; statusEl.textContent='Preparing drawing…';
+    let initial='';
+    try{ await persistNote(); initial=(await api(`/logs/${logId}/drawing`)).drawing||''; }
+    catch(e){ statusEl.textContent=e.message||'Could not open the drawing.'; drawBtn.disabled=false; saveBtn.disabled=false; saving=false; return; }
+    ov.style.display='none';   // hidden, not destroyed: the notes come back untouched
+    achi_drawing.open({
+      title:`Drawing — ${col.h}`,
+      initial,
+      async onSave(json,hasShapes){
+        await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({drawing:json})});
+        const row=ROWS.find(r=>r.id===logId); if(row) row.has_drawing=hasShapes?1:0;
+        drawBtn.classList.toggle('has-content',!!hasShapes);
+        statusEl.textContent=hasShapes?'Drawing saved.':'Drawing cleared.';
+      },
+      onClose(){
+        if(!ov.isConnected) return;
+        ov.style.display='flex'; drawBtn.disabled=false; saveBtn.disabled=false; saving=false;
+        requestAnimationFrame(()=>ta.focus());
+      },
+    });
+  });
+
+  q('.pg-note-workspace-close').addEventListener('click',close);
+  q('.pg-note-cancel').addEventListener('click',close);
+  ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(); });
+  ta.addEventListener('keydown',e=>{ e.stopPropagation();
+    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); saveAndContinue(); } });
+  ov.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagation(); close(); } });
+  saveBtn.addEventListener('click',saveAndContinue);
+
+  drawBtn.classList.toggle('has-content',!!row.has_drawing);
+  renderFiles(); loadFiles();
+  requestAnimationFrame(()=>{ ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); });
+}
+
+/* The highlighted entry row is not in the database yet. Frappe still opens its
+   note workspace there, so keep files and drawing on the draft state and flush
+   them immediately after POST /logs/ gives the row a real log id. */
+function openDraftNoteWorkspace(input){
+  const dp=input.dataset.dp, key=input.dataset.dk, st=stateFor(dp); if(!st) return;
+  const col=COLS.find(c=>c.k===key)||{h:'Notes'};
+  st.__pendingFiles=st.__pendingFiles||[];
+  document.querySelector('.pg-note-workspace')?.remove();
+  const ov=document.createElement('div'); ov.className='pg-note-workspace'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+  ov.innerHTML=`<div class="pg-note-workspace-box">
+    <div class="pg-note-workspace-head"><div><div class="pg-note-workspace-title">${esc(col.h)}</div><div class="pg-note-workspace-sub">Notes, documents, PDFs, images, and drawing</div></div><div class="pg-note-workspace-head-actions"><button type="button" class="pg-note-head-tool pg-note-upload"><span>&#128206;</span> Files</button><button type="button" class="pg-note-head-tool pg-note-drawing"><span>&#9998;</span> Drawing</button><button type="button" class="pg-note-workspace-close" aria-label="Close">&times;</button></div></div>
+    <div class="pg-note-workspace-body"><label class="pg-note-workspace-label">Notes</label><textarea class="pg-note-workspace-text" placeholder="Add your notes here…">${esc(st[key]||'')}</textarea><div class="pg-note-files"></div><div class="pg-note-workspace-status">Files and drawing will upload when this row is saved.</div></div>
+    <div class="pg-note-workspace-foot"><div class="pg-note-workspace-hint">Enter saves and continues &middot; Shift+Enter adds a line</div><div class="pg-note-workspace-actions"><button type="button" class="pg-note-cancel">Cancel</button><button type="button" class="pg-note-save">Save &amp; Continue</button></div></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const q=s=>ov.querySelector(s), ta=q('.pg-note-workspace-text'), files=q('.pg-note-files'), draw=q('.pg-note-drawing');
+  const renderFiles=()=>{ files.innerHTML=st.__pendingFiles.map((f,i)=>`<div class="pg-note-file"><span>${esc(f.name)}</span><span class="pg-note-file-right"><span class="pg-note-file-pending">Ready to upload</span><button type="button" class="pg-note-file-del" data-pending="${i}" title="Remove">&times;</button></span></div>`).join('')||'<div class="pg-note-file"><span>No files attached yet</span></div>'; };
+  const close=()=>ov.remove();
+  const save=()=>{ st[key]=ta.value; input.value=ta.value; close(); const ins=draftInputs(dp), i=ins.indexOf(input); if(i>=0&&ins[i+1]) ins[i+1].focus(); };
+  q('.pg-note-upload').onclick=()=>{ const pick=document.createElement('input'); pick.type='file'; pick.multiple=true; pick.accept='.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*'; pick.onchange=()=>{ st.__pendingFiles.push(...Array.from(pick.files||[])); renderFiles(); }; pick.click(); };
+  files.onclick=e=>{ const b=e.target.closest('[data-pending]'); if(b){ st.__pendingFiles.splice(+b.dataset.pending,1); renderFiles(); } };
+  draw.onclick=()=>{ if(typeof achi_drawing==='undefined') return; ov.style.display='none'; achi_drawing.open({title:`Drawing — ${col.h}`,initial:st.__drawing||'',onSave(json){st.__drawing=json;draw.classList.add('has-content');},onClose(){if(ov.isConnected){ov.style.display='flex';requestAnimationFrame(()=>ta.focus());}}}); };
+  q('.pg-note-workspace-close').onclick=close; q('.pg-note-cancel').onclick=close; q('.pg-note-save').onclick=save;
+  ov.onmousedown=e=>{if(e.target===ov)close();}; ta.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();save();}};
+  draw.classList.toggle('has-content',!!st.__drawing); renderFiles(); requestAnimationFrame(()=>ta.focus());
 }
 
 async function load(){ try{ ROWS=await api('/logs/'); stats(); render(); }catch(e){ fail(e.message); } }

@@ -15,7 +15,7 @@
   var ID = 'achi-nav-log';
   var EMBED = 'achi-embed';
   var LABEL = 'Call Log';
-  var HREF = '/api/v1/achi/ui';
+  var HREF = '/api/v1/achi/ui?v=2';
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }
   function projectFilesLink() {
