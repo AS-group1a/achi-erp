@@ -62,15 +62,16 @@
   .kpi.on{outline:3px solid rgba(255,255,255,.55);outline-offset:-3px}
 
   .shell{background:#fff;border:1px solid var(--bd);border-radius:14px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
-  .nav{display:flex;align-items:center;gap:12px;background:var(--navy);padding:11px 16px;flex-wrap:wrap}
-  .nav-actions{display:flex;align-items:center;gap:8px}
+  .nav{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;background:var(--navy);padding:11px 16px}
+  .nav-actions{display:flex;align-items:center;gap:8px;justify-self:start}
+  .nav-right{display:flex;align-items:center;gap:10px;justify-self:end;min-width:0}
   .cnt{font-size:11px;font-weight:800;color:rgba(255,255,255,.7)}
-  .pt{position:relative;display:inline-flex;background:rgba(0,0,0,.2);border-radius:99px;padding:4px}
+  .pt{position:relative;display:inline-flex;justify-self:center;background:rgba(0,0,0,.2);border-radius:99px;padding:4px}
   .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:99px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
   .pill-tab{position:relative;z-index:1;border:0;background:transparent;padding:7px 15px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.58);cursor:pointer;white-space:nowrap;font-family:inherit}
   .pill-tab:hover{color:rgba(255,255,255,.88)}
   .pill-tab.on{color:var(--navy);font-weight:800}
-  .search{margin-left:auto;height:32px;width:200px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
+  .search{height:32px;width:200px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
   .search::placeholder{color:rgba(255,255,255,.42)}
   .tb-add{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:99px;background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22);transition:transform .15s,box-shadow .15s}
   .tb-add:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.28)}
@@ -246,7 +247,6 @@
 
   <div class="shell">
     <div class="nav">
-      <span class="cnt" id="count">· 0</span>
       <div class="nav-actions">
         <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
         <button class="tb-select" id="select-all" type="button" aria-pressed="false" title="Select or unselect all rows"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5 8l2 2 4-4"/></svg><span id="select-all-label">Select All</span></button>
@@ -259,8 +259,10 @@
         <button class="pill-tab" data-tab="2">Site</button>
         <button class="pill-tab" data-tab="3">Notes &amp; Outcome</button>
       </div>
-      <span class="cnt" id="count">· 0</span>
-      <input class="search" id="q" placeholder="Search name, file, city, text…">
+      <div class="nav-right">
+        <span class="cnt" id="count">· 0</span>
+        <input class="search" id="q" placeholder="Search name, file, city, text…">
+      </div>
     </div>
     <div class="tscroll" id="touter">
       <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
@@ -1029,9 +1031,10 @@ async function load(){ try{ ROWS=await api('/logs/'); stats(); render(); }catch(
 const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
 function moveInd(b){ ind.style.left=b.offsetLeft+'px'; ind.style.width=b.offsetWidth+'px'; }
 function firstThForTab(n){ return $('thead').querySelector(`th[data-tab="${n}"]`); }
-function scrollToTab(n){ const th=firstThForTab(n); if(th) outer.scrollTo({left:n===0?0:th.offsetLeft-8,behavior:'smooth'}); setActivePill(n); }
+function maxHorizontalScroll(){ return Math.max(0,outer.scrollWidth-outer.clientWidth); }
+function scrollToTab(n){ const th=firstThForTab(n); if(th) outer.scrollTo({left:n===0?0:n===3?maxHorizontalScroll():th.offsetLeft-8,behavior:'smooth'}); setActivePill(n); }
 function setActivePill(n){ activeTab=n; tabsEl.querySelectorAll('.pill-tab').forEach(b=>{const on=+b.dataset.tab===n;b.classList.toggle('on',on);if(on)moveInd(b);}); }
-function tabFromScroll(){ const x=outer.scrollLeft+60; let best=0; [0,1,2,3].forEach(n=>{const th=firstThForTab(n); if(th&&th.offsetLeft<=x) best=n;}); if(best!==activeTab) setActivePill(best); }
+function tabFromScroll(){ const max=maxHorizontalScroll(); let best=0; if(max>0&&outer.scrollLeft>=max-2) best=3; else{const x=outer.scrollLeft+60;[0,1,2,3].forEach(n=>{const th=firstThForTab(n);if(th&&th.offsetLeft<=x)best=n;});} if(best!==activeTab)setActivePill(best); }
 tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dataset.tab));
 let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('show',outer.scrollTop>200); if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
 $('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
