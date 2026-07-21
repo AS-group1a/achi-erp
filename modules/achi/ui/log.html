@@ -742,7 +742,9 @@ function ensureMapsPopup(){ if(mapsPopup)return; mapsPopup=document.createElemen
 function hideMapsPopup(){ if(mapsPopup) mapsPopup.classList.remove('vis'); }
 function mapsCoords(url){ const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/];
   for(const p of pats){ const m=String(url||'').match(p); if(m) return {lat:parseFloat(m[1]),lng:parseFloat(m[2])}; } return null; }
-function positionPopup(pop,anchor){ const r=anchor.getBoundingClientRect(); const pw=248,ph=190; let left=r.left, top=r.bottom+6;
+// measure rather than hardcode: the popup box changed width with the OSM embed,
+// and a stale constant here silently mis-flips it at the viewport edge
+function positionPopup(pop,anchor){ const r=anchor.getBoundingClientRect(); const pw=pop.offsetWidth||240, ph=pop.offsetHeight||190; let left=r.left, top=r.bottom+6;
   if(left+pw>window.innerWidth-8) left=window.innerWidth-pw-8; if(top+ph>window.innerHeight-8) top=r.top-ph-6;
   pop.style.left=Math.max(8,left)+'px'; pop.style.top=Math.max(8,top)+'px'; }
 /* OSM embed, ported from erp_next_custom tabbed_grid.js (_renderMapsEmbed).
