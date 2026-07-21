@@ -311,11 +311,6 @@
       if (l) l.removeAttribute('aria-current');
     }
   }
-  // One iframe, reused: switching entries swaps its src rather than stacking
-  // frames, so only one of our pages is ever alive.
-  function showEmbed(entry, pushUrl) {
-    if (!entry) return;
-
   // The SPA's router knows none of our routes, so it resolves each as a 404 and
   // sets document.title to "Page not found | <app>". The cover hides the visual
   // 404; without this the tab still advertised an error on a page that works.
@@ -347,6 +342,12 @@
     });
     titleObs.observe(el, { childList: true, characterData: true, subtree: true });
   }
+
+  // One iframe, reused: switching entries swaps its src rather than stacking
+  // frames, so only one of our pages is ever alive.
+  function showEmbed(entry, pushUrl) {
+    if (!entry) return;
+
 
     var f = document.getElementById(EMBED);
     if (!f) {
