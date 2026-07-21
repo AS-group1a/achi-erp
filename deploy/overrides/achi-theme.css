@@ -100,6 +100,20 @@ aside.oe-sidebar,
   --oe-blue-text:       #E3EDFB;
 }
 
+/* Module links are reordered by achi-nav.js. Keep the drag affordance subtle:
+ * the whole row remains the handle, with a clear lift state while moving. */
+aside.oe-sidebar li.achi-sidebar-draggable,
+[data-testid="app-sidebar"] li.achi-sidebar-draggable {
+  cursor: grab;
+}
+aside.oe-sidebar li.achi-sidebar-dragging,
+[data-testid="app-sidebar"] li.achi-sidebar-dragging {
+  cursor: grabbing;
+  opacity: .58;
+  outline: 1px dashed rgba(255,255,255,.72);
+  outline-offset: -2px;
+}
+
 /* --- Hide upstream's community links in the sidebar footer -----------------
  * Confirmed in DevTools:
  *   <div class="pt-2 pb-1 flex flex-col items-center gap-1">
