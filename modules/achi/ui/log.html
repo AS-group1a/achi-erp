@@ -227,7 +227,13 @@ const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
-      CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'];
+      CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
+      /* "Pre" pulldown, ported from erp_next_custom tabbed_grid.js (#pg-cm-pre).
+         Same option set and order. Upstream marks both Eng and Arch `selected`
+         and then overrides it with selPre.value; that default is per-column
+         (architect columns default to "Arch"), so on a general call log the
+         blank stays the default here. */
+      PREFIXES=['Mr','Ms','Mrs','Dr','Eng','Arch'];
 const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 const SVG={
   pin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
@@ -263,7 +269,7 @@ const COLS=[
   {k:'num',    h:'#',              tab:null, cls:'num', w:46},
   {k:'when',   h:'Date & Time',    tab:null, w:150},
   {k:'status', h:'Status',         tab:null, w:120, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
-  {k:'prefix', h:'Pre',            tab:0, w:70,  draft:'text', edit:{kind:'text',target:'contact',field:'prefix',val:r=>r.prefix||''}},
+  {k:'prefix', h:'Pre',            tab:0, w:70,  draft:'select', edit:{kind:'prefix',target:'contact',field:'prefix',val:r=>r.prefix||''}},
   {k:'first',  h:'First',          tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
   {k:'last',   h:'Last',           tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
   {k:'company',h:'Company',        tab:0, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
@@ -329,7 +335,7 @@ function draftCell(c,dp,st,rowNumber){
   if(c.k==='status') return `<span class="mt">open</span>`;
   if(c.k==='owner') return `<span class="mt">you</span>`;
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
-  if(c.draft==='select'){ const o=c.k==='type'?TYPES:CATEGORIES; const blank=c.k==='category'?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
+  if(c.draft==='select'){ const o=c.k==='type'?TYPES:c.k==='prefix'?PREFIXES:CATEGORIES; const blank=(c.k==='category'||c.k==='prefix')?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
   if(c.draft==='date') return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" type="date" value="${v}">`;
   if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; const note=c.note?' data-note="1" readonly title="Open notes, files, and drawing"':''; return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${note}>`; }
   return `<span class="mt">—</span>`;
@@ -345,7 +351,7 @@ function draftRowHTML(dp,st,isTop,rowNumber){
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=[c.cls||'',c.wide?'wide':'',c.edit?(['status','type','category'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
+    const cls=[c.cls||'',c.wide?'wide':'',c.edit?(['status','type','category','prefix'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}</td>`;
   }).join('')
@@ -505,8 +511,8 @@ function openEditor(td){
   const kind=td.dataset.kind, val=td.dataset.val||'', field=td.dataset.field, target=td.dataset.target;
   const tr=td.closest('tr'), logId=tr.dataset.log, fileId=tr.dataset.file;
   let el;
-  if(kind==='status'||kind==='type'||kind==='category'){ el=document.createElement('select'); el.className='cellinput';
-    el.innerHTML=(kind==='category'?'<option value=""></option>':'')+selOpts(kind==='status'?STATUSES:kind==='type'?TYPES:CATEGORIES,val); }
+  if(kind==='status'||kind==='type'||kind==='category'||kind==='prefix'){ el=document.createElement('select'); el.className='cellinput';
+    el.innerHTML=((kind==='category'||kind==='prefix')?'<option value=""></option>':'')+selOpts(kind==='status'?STATUSES:kind==='type'?TYPES:kind==='prefix'?PREFIXES:CATEGORIES,val); }
   else { el=document.createElement('input'); el.className='cellinput'; el.type=kind==='date'?'date':'text'; el.value=val; }
   td.innerHTML=''; td.appendChild(el); el.focus();
   if(el.tagName==='SELECT'){ try{ el.showPicker(); }catch(e){} }   // open on one click
