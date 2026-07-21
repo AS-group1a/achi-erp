@@ -267,9 +267,13 @@ class QuickLogOut(BaseModel):
     file_id: str
     file_number: str
     file_created: bool
-    contact_id: str
-    contact_name: str | None
-    contact_created: bool
+    # None when the row had no phone or email: we do not put unreachable names in
+    # the contacts directory. The typed identity is kept on the file instead.
+    contact_id: str | None = None
+    contact_name: str | None = None
+    contact_created: bool = False
+    # Set when a company was named alongside a person — it gets its own contact.
+    company_contact_id: str | None = None
 
 
 class LogRowOut(BaseModel):
