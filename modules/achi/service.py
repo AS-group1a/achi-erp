@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.storage import get_storage_backend
@@ -144,7 +144,9 @@ class ContactFileService:
             q = q.where(ContactFile.contact_id == contact_id)
         return list((await self.session.execute(q)).scalars().all())
 
-    async def name_for(self, contact_id: str) -> str | None:
+    async def name_for(self, contact_id: str | None) -> str | None:
+        if not contact_id:   # rows with no phone/email have no contact
+            return None
         return _display_name(await self.session.get(Contact, contact_id))
 
     async def update(self, f: ContactFile, data: ContactFileUpdate) -> ContactFile:
@@ -164,7 +166,7 @@ class ContactFileService:
         f.project_id = project_id
         f.converted_at = datetime.now(timezone.utc)
         f.status = "done"
-        contact = await self.session.get(Contact, f.contact_id)
+        contact = await self.session.get(Contact, f.contact_id) if f.contact_id else None
         if contact is not None:
             contact.contact_type = "client"
         await self.session.commit()
@@ -313,32 +315,37 @@ class ContactFileService:
         (`new_file`), not for us to guess by comparing addresses.
         """
         p = data.person
-        full_name = (p.company_name or "").strip() if p.is_company else " ".join(
-            x for x in (p.first_name, p.last_name) if x
-        ).strip()
+        first = (p.first_name or "").strip()
+        last = (p.last_name or "").strip()
+        company = (p.company_name or "").strip()
+        phone = (p.mobile or "").strip()
+        email = (p.email or "").strip()
 
-        before = await self._contact_exists(p.email)
-        contact = await bridge.ensure_contact_for_person(
-            self.session,
-            full_name=full_name,
-            email=p.email,
-            phone=p.mobile,
-            contact_type="lead",
-            module_tag=MODULE_TAG,
-            tenant_id=user_id,
-            custom_properties={"prefix": p.prefix, "is_company": p.is_company},
+        before = await self._contact_exists(email)
+        person_contact, company_contact = await self._resolve_contacts(
+            first=first, last=last, company=company, phone=phone, email=email,
+            prefix=p.prefix, user_id=user_id,
         )
-        if p.is_company and not contact.company_name:
-            contact.company_name = p.company_name
-        contact_id = str(contact.id)
+        # The file hangs off the person when there is one, otherwise the company.
+        primary = person_contact or company_contact
+        contact_id = str(primary.id) if primary is not None else None
 
-        f = None if data.new_file else await self._open_file_for(contact_id)
+        f = None if (data.new_file or contact_id is None) else await self._open_file_for(contact_id)
         file_created = f is None
         if f is None:
             site = data.site.model_dump() if data.site else {}
             f = ContactFile(
                 file_number=await _next_file_number(self.session),
                 contact_id=contact_id,
+                company_contact_id=str(company_contact.id) if company_contact is not None else None,
+                # Keep what was typed regardless — a row with no contact details
+                # still has to show who it is about.
+                lead_prefix=p.prefix or None,
+                lead_first_name=first or None,
+                lead_last_name=last or None,
+                lead_company=company or None,
+                lead_mobile=phone or None,
+                lead_email=email or None,
                 subject=data.subject,
                 stage=data.stage,
                 owner_user_id=user_id,
@@ -379,8 +386,129 @@ class ContactFileService:
         return {
             "log": log, "file_id": f.id, "file_number": f.file_number,
             "file_created": file_created, "contact_id": contact_id,
-            "contact_name": _display_name(contact), "contact_created": not before,
+            # Falls back to what was typed when no Contact was created (no phone/email).
+            "contact_name": _display_name(primary) or " ".join(x for x in (first, last) if x).strip() or company or None,
+            "contact_created": primary is not None and not before,
+            "company_contact_id": str(company_contact.id) if company_contact is not None else None,
         }
+
+    async def _find_contact(
+        self, *, email: str = "", phone: str = "", company: str = "", tenant_id: str | None = None
+    ) -> Contact | None:
+        """Find an existing directory contact by email, then phone, then company.
+
+        The bridge only dedupes on email, which would create a fresh row on every
+        call for a phone-only or company-only contact. Matching phone and company
+        name too is what stops the directory filling with duplicates.
+        """
+        scope = []
+        if tenant_id is not None:
+            scope.append(or_(Contact.tenant_id == tenant_id, Contact.created_by == tenant_id))
+
+        async def _one(pred):
+            q = select(Contact).where(pred, Contact.is_active.is_(True), *scope)
+            return (await self.session.execute(q.order_by(Contact.created_at.desc()).limit(1))).scalar_one_or_none()
+
+        if email:
+            hit = await _one(func.lower(Contact.primary_email) == email.lower())
+            if hit is not None:
+                return hit
+        if phone:
+            hit = await _one(Contact.primary_phone == phone)
+            if hit is not None:
+                return hit
+        return None
+
+    async def _find_company_contact(self, company: str, tenant_id: str | None) -> Contact | None:
+        """The company's OWN contact: matching company name and no person name.
+
+        Requiring the name to be empty is what keeps a person who merely *works*
+        at the company (their contact carries company_name too) from being
+        mistaken for the company itself.
+        """
+        scope = []
+        if tenant_id is not None:
+            scope.append(or_(Contact.tenant_id == tenant_id, Contact.created_by == tenant_id))
+        q = (
+            select(Contact)
+            .where(
+                func.lower(Contact.company_name) == company.lower(),
+                Contact.is_active.is_(True),
+                or_(Contact.first_name.is_(None), Contact.first_name == ""),
+                or_(Contact.last_name.is_(None), Contact.last_name == ""),
+                *scope,
+            )
+            .order_by(Contact.created_at.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(q)).scalar_one_or_none()
+
+    async def _resolve_contacts(
+        self, *, first: str, last: str, company: str, phone: str, email: str,
+        prefix: str | None, user_id: str | None,
+    ) -> tuple[Contact | None, Contact | None]:
+        """Who gets a directory Contact for this row.
+
+        Rules:
+          * No phone and no email -> no contact at all. A name we cannot reach is
+            not a contact; it stays on the file as typed.
+          * A person name + reachable -> a person contact.
+          * A company named -> its OWN separate contact, so "Anthony Karam / ASKII"
+            yields two contacts, not one row with a company field.
+          * The person keeps the phone/email; the company only takes them when
+            there is no person to own them.
+        """
+        if not (phone or email):
+            return None, None
+
+        person = None
+        if first or last:
+            person = await self._find_contact(email=email, phone=phone, tenant_id=user_id)
+            if person is None:
+                person = Contact(
+                    contact_type="lead",
+                    first_name=first or None,
+                    last_name=last or None,
+                    company_name=company or None,
+                    primary_email=email.lower() or None,
+                    primary_phone=phone or None,
+                    module_tags=[MODULE_TAG],
+                    custom_properties={MODULE_TAG.split("_", 1)[0]: {"prefix": prefix, "is_company": False}},
+                    tenant_id=user_id,
+                    created_by=user_id,
+                )
+                self.session.add(person)
+            else:
+                if not person.first_name and first:
+                    person.first_name = first
+                if not person.last_name and last:
+                    person.last_name = last
+                if not person.primary_email and email:
+                    person.primary_email = email.lower()
+                if not person.primary_phone and phone:
+                    person.primary_phone = phone
+
+        org = None
+        if company:
+            org = await self._find_company_contact(company, user_id)
+            if org is not None and person is not None and org is person:
+                org = None  # never let the person double as their own company
+            if org is None:
+                org = Contact(
+                    contact_type="lead",
+                    company_name=company,
+                    # Only inherit the contact details when nobody else owns them.
+                    primary_email=(email.lower() or None) if person is None else None,
+                    primary_phone=(phone or None) if person is None else None,
+                    module_tags=[MODULE_TAG],
+                    custom_properties={MODULE_TAG.split("_", 1)[0]: {"is_company": True}},
+                    tenant_id=user_id,
+                    created_by=user_id,
+                )
+                self.session.add(org)
+
+        await self.session.flush()
+        return person, org
 
     async def _contact_exists(self, email: str | None) -> bool:
         """Did we already know this person? Asked BEFORE the bridge runs, because

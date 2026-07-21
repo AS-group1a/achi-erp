@@ -96,7 +96,9 @@ def info() -> ModuleInfo:
 
 async def _out(svc: ContactFileService, f) -> ContactFileOut:
     o = ContactFileOut.model_validate(f)
-    o.contact_name = await svc.name_for(f.contact_id)
+    # No contact when the row had no phone/email — fall back to what was typed.
+    o.contact_name = (await svc.name_for(f.contact_id)) if f.contact_id else (
+        " ".join(x for x in (f.lead_first_name, f.lead_last_name) if x).strip() or f.lead_company or None)
     return o
 
 
@@ -222,6 +224,7 @@ async def quick_log(data: QuickLogCreate, session: SessionDep, user_id: CurrentU
         contact_id=r["contact_id"],
         contact_name=r["contact_name"],
         contact_created=r["contact_created"],
+        company_contact_id=r.get("company_contact_id"),
     )
 
 
@@ -380,11 +383,13 @@ async def list_logs(
     counts = await svc.attachment_counts([log.id for log, _f, _c in rows])
     out: list[LogRowOut] = []
     for log, f, contact in rows:
-        name = first = last = prefix = None
+        # A row only has a Contact when a phone or email was given. Without one the
+        # identity lives on the file exactly as it was typed, so fall back to that
+        # rather than showing a blank row.
+        first = last = prefix = None
         company = mobile = email = None
         if contact is not None:
             first, last = contact.first_name, contact.last_name
-            name = " ".join(x for x in (first, last) if x).strip() or contact.company_name
             company = contact.company_name
             mobile = contact.primary_phone
             email = contact.primary_email
@@ -393,6 +398,13 @@ async def list_logs(
                 if isinstance(v, dict) and v.get("prefix"):
                     prefix = v["prefix"]
                     break
+        first = first or f.lead_first_name
+        last = last or f.lead_last_name
+        prefix = prefix or f.lead_prefix
+        company = company or f.lead_company
+        mobile = mobile or f.lead_mobile
+        email = email or f.lead_email
+        name = " ".join(x for x in (first, last) if x).strip() or company
         out.append(
             LogRowOut(
                 id=log.id,
@@ -419,6 +431,7 @@ async def list_logs(
                 maps_url=f.maps_url,
                 owner=f.owner_user_id,
                 contact_id=f.contact_id,
+                company_contact_id=f.company_contact_id,
                 contact_name=name,
                 prefix=prefix,
                 first_name=first,

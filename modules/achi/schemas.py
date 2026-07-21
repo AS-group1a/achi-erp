@@ -177,7 +177,7 @@ class ContactFileOut(BaseModel):
 
     id: str
     file_number: str
-    contact_id: str
+    contact_id: str | None = None
     subject: str
     stage: str
     status: str
@@ -209,7 +209,7 @@ class ContactFileListOut(BaseModel):
 
     id: str
     file_number: str
-    contact_id: str
+    contact_id: str | None = None
     contact_name: str | None = None
     subject: str
     stage: str
@@ -268,9 +268,13 @@ class QuickLogOut(BaseModel):
     file_id: str
     file_number: str
     file_created: bool
-    contact_id: str
-    contact_name: str | None
-    contact_created: bool
+    # None when the row had no phone or email: we do not put unreachable names in
+    # the contacts directory. The typed identity is kept on the file instead.
+    contact_id: str | None = None
+    contact_name: str | None = None
+    contact_created: bool = False
+    # Set when a company was named alongside a person — it gets its own contact.
+    company_contact_id: str | None = None
 
 
 class LogRowOut(BaseModel):
@@ -306,9 +310,11 @@ class LogRowOut(BaseModel):
     country: str | None = None
     maps_url: str | None = None
     owner: str | None = None
-    # contact (from the canonical directory)
-    contact_id: str
-    contact_name: str | None
+    # contact (from the canonical directory; None when the row had no phone/email,
+    # in which case the name fields below come from the file as typed)
+    contact_id: str | None = None
+    company_contact_id: str | None = None
+    contact_name: str | None = None
     prefix: str | None = None
     first_name: str | None = None
     last_name: str | None = None
