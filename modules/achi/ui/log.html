@@ -595,10 +595,16 @@ function draftPayload(st){
   return {person,site:hasSite?{country:st.country||'Lebanon',district:st.district||null,city:st.city||null,street:st.street||null,maps_url:st.maps||null,site_location:st.location||null}:null,
     log_type:st.type||'inbound_call',category:st.category||null,description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
 }
+const committing=new Set();
+/* A row is saveable the moment it has an identity: a first name or a company.
+   Everything else on the row is optional and can be filled in afterwards. */
+function draftIsSaveable(st){ return !!((st.first||'').trim() || (st.company||'').trim() || (st.last||'').trim()); }
 async function commitDraft(dp){
   const st=stateFor(dp); if(!st) return;
   if(!validEmail(st.email)){ showInvalidEmail($(dp+'-email')); return; }
-  if(!(st.first||'').trim() && !(st.last||'').trim() && !(st.company||'').trim()){ const el=$(dp+'-first'); if(el)el.focus(); return; }
+  if(!draftIsSaveable(st)){ const el=$(dp+'-first'); if(el)el.focus(); return; }
+  if(committing.has(dp)) return;
+  committing.add(dp);
   try{
     const made=await api('/logs/',{method:'POST',body:JSON.stringify(draftPayload(st))});
     const logId=made&&made.log&&made.log.id;
@@ -613,7 +619,49 @@ async function commitDraft(dp){
     if(dp==='d') topDraft={}; else bottomDrafts.splice(+dp.slice(1),1);
     await load();
   }catch(e){ fail(e.message); }
+  finally{ committing.delete(dp); }
 }
+
+/* Flush saveable drafts on the way out (refresh, navigation, or the embed being
+   hidden). Uses keepalive so the request survives the page going away — a normal
+   fetch would be cancelled mid-flight. Fire-and-forget: there is no page left to
+   report an error to, and losing typed work is the worse failure. */
+function flushDrafts(){
+  if(!TOKEN) return;
+  const list=[['d',topDraft]].concat(bottomDrafts.map((st,i)=>['b'+i,st]));
+  for(const [dp,st] of list){
+    if(!st||!draftIsSaveable(st)||committing.has(dp)) continue;
+    committing.add(dp);
+    // No UI left to correct a bad email — drop it rather than lose the whole row.
+    if(!validEmail(st.email)) st.email='';
+    try{
+      fetch(API+'/logs/',{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
+        body:JSON.stringify(draftPayload(st))});
+    }catch(_){}
+  }
+  topDraft={}; bottomDrafts.length=0;
+}
+window.addEventListener('pagehide',flushDrafts);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushDrafts(); });
+window.addEventListener('message',e=>{ if(e&&e.data&&e.data.type==='achi-flush') flushDrafts(); });
+
+/* Auto-save: leaving a draft row saves it as soon as it has a name or company.
+   Moving between fields inside the same row, opening the country picker, or
+   opening the notes workspace are not "leaving" — those keep the row open. */
+$('rows').addEventListener('focusout',e=>{
+  const el=e.target;
+  if(!(el.classList&&el.classList.contains('din'))) return;
+  const tr=el.closest('tr.draft'), dp=el.dataset&&el.dataset.dp;
+  if(!tr||!dp) return;
+  setTimeout(()=>{
+    const a=document.activeElement;
+    if(a&&a.closest&&(a.closest('tr.draft')===tr||a.closest('.cc-drop')||a.closest('.pg-note-workspace'))) return;
+    if(document.querySelector('.pg-note-workspace')) return;   // workspace open for this row
+    const st=stateFor(dp);
+    if(st&&draftIsSaveable(st)) commitDraft(dp);
+  },140);
+});
 $('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.dataset.dp))return;
   const st=stateFor(el.dataset.dp); if(!st)return;
   if(el.dataset.dk==='prefix' && el.value===PREFIX_ADD){   // sentinel, never stored

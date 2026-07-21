@@ -89,7 +89,12 @@
     var link = document.getElementById(ID); if (link) link.setAttribute('aria-current', 'page');
   }
   function hideEmbed() {
-    var f = document.getElementById(EMBED); if (f) f.style.display = 'none';
+    var f = document.getElementById(EMBED);
+    if (f) {
+      // Tell the page to save any half-typed draft rows before it goes away.
+      try { f.contentWindow.postMessage({ type: 'achi-flush' }, location.origin); } catch (e) {}
+      f.style.display = 'none';
+    }
     hideCover();
     var link = document.getElementById(ID); if (link) link.removeAttribute('aria-current');
   }
