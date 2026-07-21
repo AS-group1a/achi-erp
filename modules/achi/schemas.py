@@ -244,6 +244,7 @@ class QuickLogCreate(BaseModel):
     person: PersonIn
     site: SiteIn | None = None
 
+    status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
     log_type: str = Field(default="inbound_call", pattern="^(%s)$" % "|".join(LOG_TYPES))
     category: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None

@@ -353,6 +353,11 @@ class ContactFileService:
             self.session.add(f)
             await self.session.flush()
 
+        # The grid captures file status on the same draft row as the call. This
+        # also intentionally reopens/updates a reused file when the user chooses
+        # a different status for the new entry.
+        f.status = data.status
+
         log = FileLog(
             file_id=f.id,
             created_by=user_id,
