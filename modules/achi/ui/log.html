@@ -30,6 +30,7 @@
 
   .shell{background:#fff;border:1px solid var(--bd);border-radius:14px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
   .nav{display:flex;align-items:center;gap:12px;background:var(--navy);padding:11px 16px;flex-wrap:wrap}
+  .nav-actions{display:flex;align-items:center;gap:8px}
   .cnt{font-size:11px;font-weight:800;color:rgba(255,255,255,.7)}
   .pt{position:relative;display:inline-flex;background:rgba(0,0,0,.2);border-radius:99px;padding:4px}
   .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:99px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
@@ -38,6 +39,13 @@
   .pill-tab.on{color:var(--navy);font-weight:800}
   .search{margin-left:auto;height:32px;width:200px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
   .search::placeholder{color:rgba(255,255,255,.42)}
+  .tb-add{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:99px;background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22);transition:transform .15s,box-shadow .15s}
+  .tb-add:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.28)}
+  .tb-add-plus{font-size:17px;line-height:1}
+  .tb-select{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid rgba(255,255,255,.55);border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,transform .12s}
+  .tb-select:hover{background:rgba(255,255,255,.22);border-color:#fff;transform:translateY(-1px)}
+  .tb-select.on{background:#fff;color:var(--navy);border-color:#fff}
+  .tb-select svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
@@ -47,8 +55,12 @@
   tbody tr.data:nth-child(even) td{background:#f8faff}
   tbody tr.data:hover td{background:#eef4fd}
   .num{width:46px;text-align:center}
+  tbody tr.selectable-row td.num{cursor:pointer;user-select:none;padding:0}
   .rn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:8px;background:#eff6ff;color:var(--navy);font-weight:800;font-size:11px}
-  tbody tr.data:hover .rn{background:var(--navy);color:#fff}
+  tbody tr.selectable-row:hover .rn{background:var(--navy);color:#fff}
+  tbody tr.selectable-row.row-selected td{background:#dbeafe!important}
+  tbody tr.selectable-row.row-selected:hover td{background:#bfdbfe!important}
+  tbody tr.selectable-row.row-selected .rn{background:var(--navy);color:#fff}
   .dt{font-variant-numeric:tabular-nums;color:#334155}
   .mt{color:#9ca3af}
   .name{font-weight:700;color:#111827}
@@ -170,7 +182,10 @@
 
   <div class="shell">
     <div class="nav">
-      <span class="cnt" id="count">· 0</span>
+      <div class="nav-actions">
+        <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
+        <button class="tb-select" id="select-all" type="button" aria-pressed="false" title="Select or unselect all rows"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5 8l2 2 4-4"/></svg><span id="select-all-label">Select All</span></button>
+      </div>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
         <button class="pill-tab on" data-tab="0">Log Details</button>
@@ -178,6 +193,7 @@
         <button class="pill-tab" data-tab="2">Site</button>
         <button class="pill-tab" data-tab="3">Notes &amp; Outcome</button>
       </div>
+      <span class="cnt" id="count">· 0</span>
       <input class="search" id="q" placeholder="Search name, file, city, text…">
     </div>
     <div class="tscroll" id="touter">
@@ -296,6 +312,7 @@ function cellHTML(c,r,i){switch(c.k){
 }}
 
 let ROWS=[], openOnly=false, activeTab=0;
+const selectedRows=new Set();
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
 
 function stats(){ const now=new Date();
@@ -304,10 +321,8 @@ function stats(){ const now=new Date();
   $('k-month').textContent=m; $('k-done').textContent=ROWS.filter(r=>r.status==='done').length; }
 function buildHead(){ $('thead').innerHTML=COLS.map(c=>`<th data-tab="${c.tab??''}" class="${c.cls||''}" style="width:${c.w}px">${c.h}</th>`).join(''); }
 
-function draftCell(c,dp,st){
-  if(c.k==='num') return dp==='d'
-    ? `<button class="addbtn2" data-add title="Add empty rows below">+</button>`
-    : `<button class="rmbtn" data-rm="${dp}" title="Remove row">&times;</button>`;
+function draftCell(c,dp,st,rowNumber){
+  if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
   // Frappe's CRM Log draft rows show the actual creation value as
   // DD/MM/YYYY HH:MM instead of the relative placeholder "now".
   if(c.k==='when') return `<span class="dt">${esc(fmtDT(new Date()))}</span>`;
@@ -319,33 +334,63 @@ function draftCell(c,dp,st){
   if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; const note=c.note?' data-note="1" readonly title="Open notes, files, and drawing"':''; return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${note}>`; }
   return `<span class="mt">—</span>`;
 }
-function draftRowHTML(dp,st,isTop){ return `<tr class="draft ${isTop?'dtop':''}">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.wide?'wide':''}">${draftCell(c,dp,st)}</td>`).join('')}</tr>`; }
+function draftRowHTML(dp,st,isTop,rowNumber){
+  const key=`draft:${dp}`, selected=selectedRows.has(key)?' row-selected':'';
+  return `<tr class="draft selectable-row ${isTop?'dtop':''}${selected}" data-row-key="${key}">${COLS.map(c=>{
+    const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
+    return `<td data-tab="${c.tab??''}" class="${[c.cls||'',c.wide?'wide':''].join(' ').trim()}" ${select}>${draftCell(c,dp,st,rowNumber)}</td>`;
+  }).join('')}</tr>`;
+}
 
-function dataRowHTML(r,i){ return `<tr class="data" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
+function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
     const cls=[c.cls||'',c.wide?'wide':'',c.edit?(['status','type','category'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${ed}>${cellHTML(c,r,i)}</td>`;
+    const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}</td>`;
   }).join('')
 }</tr>`; }
+
+function visibleSelectableRows(){ return [...$('rows').querySelectorAll('tr.selectable-row')]; }
+function refreshSelectionButton(){
+  const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
+  $('select-all').classList.toggle('on',all);
+  $('select-all').setAttribute('aria-pressed',String(all));
+  $('select-all-label').textContent=all?'Unselect All':'Select All';
+}
+function toggleRowSelection(tr,force){
+  const id=tr.dataset.rowKey, on=force===undefined?!selectedRows.has(id):force;
+  if(on) selectedRows.add(id); else selectedRows.delete(id);
+  tr.classList.toggle('row-selected',on);
+  refreshSelectionButton();
+}
 
 function render(){
   const q=$('q').value.trim().toLowerCase();
   let rows=openOnly?ROWS.filter(r=>r.status==='open'):ROWS;
   if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category].some(v=>String(v||'').toLowerCase().includes(q)));
   $('count').textContent=`· ${rows.length}`;
+  let rowNumber=1;
   const body=[
-    draftRowHTML('d',topDraft,true),
-    rows.length?rows.map(dataRowHTML).join(''):`<tr><td colspan="${COLS.length}" class="empty">No calls yet — type in the highlighted row; Enter moves to the next field, Enter on the last saves. The + (or Shift+R) adds more empty rows below.</td></tr>`,
-    bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false)).join(''),
+    draftRowHTML('d',topDraft,true,rowNumber++),
+    rows.length?rows.map((r,i)=>dataRowHTML(r,i,rowNumber++)).join(''):'',
+    bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false,rowNumber++)).join(''),
   ].join('');
   $('rows').innerHTML=body;
+  refreshSelectionButton();
 }
 
 /* ── draft interactions (delegated once) ── */
 function stateFor(dp){ return dp==='d'?topDraft:bottomDrafts[+dp.slice(1)]; }
 function draftInputs(dp){ return [...$('rows').querySelectorAll(`.din[data-dp="${dp}"]`)]; }
-function addBottomRow(){ bottomDrafts.push({}); render(); const ins=draftInputs('b'+(bottomDrafts.length-1)); if(ins[0]){ins[0].focus();ins[0].scrollIntoView({inline:'start',block:'nearest'});} }
+function addBottomRow(){
+  // Keep the user's horizontal position on the row-number column. Focusing the
+  // first editable field (Pre) made the browser scroll the grid sideways.
+  const left=$('touter').scrollLeft;
+  bottomDrafts.push({});
+  render();
+  $('touter').scrollLeft=left;
+}
 function removeBottomRow(dp){ bottomDrafts.splice(+dp.slice(1),1); render(); }
 function draftPayload(st){
   const first=(st.first||'').trim(),last=(st.last||'').trim(),company=(st.company||'').trim();
@@ -378,7 +423,13 @@ $('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dat
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
   if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
-$('rows').addEventListener('click',e=>{ const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
+$('add-row').addEventListener('click',addBottomRow);
+$('select-all').addEventListener('click',()=>{
+  const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
+  rows.forEach(tr=>toggleRowSelection(tr,!all));
+  refreshSelectionButton();
+});
+$('rows').addEventListener('click',e=>{ const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); return; }
   const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
   const dn=e.target.closest('.din[data-note]'); if(dn){ openDraftNoteWorkspace(dn); return; }
   const cp=e.target.closest('[data-copy]'); if(cp){ try{navigator.clipboard.writeText(cp.dataset.copy);}catch(_){} cp.classList.add('copied'); cp.innerHTML=SVG.check; setTimeout(()=>{cp.classList.remove('copied');cp.innerHTML=SVG.copy;},1000); return; }
@@ -439,7 +490,7 @@ document.addEventListener('keydown',e=>{
   if(e.repeat) return;                                                    // ignore held-key repeat
   if(isTypingTarget(e.target)) return;                                    // not while typing a draft cell
   if($('rows').querySelector('.cellinput')) return;                       // not while an inline editor is open
-  const btn=$('rows').querySelector('[data-add]');
+  const btn=$('add-row');
   if(!btn) return;
   e.preventDefault(); e.stopPropagation();
   btn.click();
