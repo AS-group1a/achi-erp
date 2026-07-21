@@ -21,7 +21,8 @@ services:
 
   app:
     build:
-      context: .
+      context: ..
+      dockerfile: deploy/Dockerfile
       args:
         OCE_VERSION: ${OCE_VERSION:-11.9.0}
     restart: unless-stopped

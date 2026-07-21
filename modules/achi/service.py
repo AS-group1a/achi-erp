@@ -2,19 +2,52 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.storage import get_storage_backend
 from app.modules.contacts import bridge
 from app.modules.contacts.models import Contact
 
-from .models import ContactFile, FileLog
+from .models import ContactFile, FileLog, LogAttachment
 from .schemas import ContactFileCreate, ContactFileUpdate, FileLogCreate, PersonIn, QuickLogCreate
 
 logger = logging.getLogger(__name__)
+
+_UNSAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _safe_filename(name: str) -> str:
+    """Reduce an uploaded name to a storage-key-safe tail.
+
+    The key already carries a UUID directory, so this only has to be inert — it is
+    not an identity. The display name the user sees comes from the row, unchanged.
+    """
+    cleaned = _UNSAFE_NAME.sub("_", (name or "").strip()).strip("._") or "file"
+    return cleaned[:120]
+
+
+def _drawing_has_shapes(payload: str) -> bool:
+    """True when the canvas JSON actually holds something.
+
+    The tool saves ``{"version":…,"shapes":[…],"scale":…}``; a bare list is the
+    older shape and still reads. We look only for a non-empty shape list — the
+    rest of the blob is the tool's business, not ours.
+
+    Malformed JSON counts as empty rather than raising: the flag is a UI hint, and
+    a bad blob should not be able to fail the save that carries it.
+    """
+    try:
+        doc = json.loads(payload or "[]")
+    except (ValueError, TypeError):
+        return False
+    shapes = doc.get("shapes") if isinstance(doc, dict) else doc
+    return isinstance(shapes, list) and bool(shapes)
 
 # Our tag in Contact.module_tags. bridge.py: "third-party modules adding their own
 # tag value just work - there is no registry check."
@@ -184,11 +217,83 @@ class ContactFileService:
 
     async def update_log(self, log: FileLog, data) -> FileLog:
         """Apply only the fields the caller sent (inline grid edits one cell)."""
-        for k, v in data.model_dump(exclude_unset=True).items():
+        d = data.model_dump(exclude_unset=True)
+        # has_drawing is ours to decide, not the client's: derive it from the
+        # payload so the flag can never disagree with the blob it describes.
+        if "drawing" in d:
+            d["drawing"] = d["drawing"] or ""
+            d["has_drawing"] = 1 if _drawing_has_shapes(d["drawing"]) else 0
+        for k, v in d.items():
             setattr(log, k, v)
         await self.session.commit()
         await self.session.refresh(log)
         return log
+
+    # ── Attachments (the Files button in the description popup) ────────────
+
+    async def list_attachments(self, log_id: str) -> list[LogAttachment]:
+        q = (
+            select(LogAttachment)
+            .where(LogAttachment.log_id == log_id)
+            .order_by(LogAttachment.created_at)
+        )
+        return list((await self.session.execute(q)).scalars())
+
+    async def add_attachment(
+        self, log: FileLog, *, filename: str, content_type: str, content: bytes, user_id: str | None
+    ) -> LogAttachment:
+        """Store the bytes, then record the row.
+
+        Storage first: an orphaned blob is invisible and costs disk, whereas a row
+        pointing at a key that was never written is a broken download link the user
+        sees. Failing the write aborts before anything is committed.
+        """
+        att = LogAttachment(
+            log_id=log.id,
+            filename=filename,
+            content_type=content_type or "application/octet-stream",
+            size_bytes=len(content),
+            storage_key="",
+            uploaded_by=user_id,
+        )
+        att.storage_key = f"achi/logs/{log.id}/{att.id}/{_safe_filename(filename)}"
+        await get_storage_backend().put(att.storage_key, content)
+        self.session.add(att)
+        await self.session.commit()
+        await self.session.refresh(att)
+        return att
+
+    async def get_attachment(self, attachment_id: str) -> LogAttachment | None:
+        return await self.session.get(LogAttachment, attachment_id)
+
+    async def read_attachment(self, att: LogAttachment) -> bytes:
+        return await get_storage_backend().get(att.storage_key)
+
+    async def delete_attachment(self, att: LogAttachment) -> None:
+        """Row first, then the blob.
+
+        The opposite order to upload, and for the same reason: whichever half is
+        left behind should be the invisible one. A delete that removes the row but
+        leaks the blob is tidy from the user's side; the reverse is a dead link.
+        """
+        key = att.storage_key
+        await self.session.delete(att)
+        await self.session.commit()
+        try:
+            await get_storage_backend().delete(key)
+        except Exception:  # noqa: BLE001 - the row is gone; a stale blob is not worth a 500
+            logger.warning("ACHI: could not delete attachment blob %s", key, exc_info=True)
+
+    async def attachment_counts(self, log_ids: list[str]) -> dict[str, int]:
+        """Attachment count per log — one grouped query, not one per row."""
+        if not log_ids:
+            return {}
+        q = (
+            select(LogAttachment.log_id, func.count(LogAttachment.id))
+            .where(LogAttachment.log_id.in_(log_ids))
+            .group_by(LogAttachment.log_id)
+        )
+        return {log_id: n for log_id, n in (await self.session.execute(q)).all()}
 
     # ── Quick capture ─────────────────────────────────────────────────────
 

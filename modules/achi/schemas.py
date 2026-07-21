@@ -138,6 +138,22 @@ class FileLogUpdate(BaseModel):
     updates: str | None = None
     follow_up_date: date | None = None
     follow_up_notes: str | None = None
+    # The canvas JSON from the description popup. ``has_drawing`` is derived in
+    # the service from the payload, never trusted from the client.
+    drawing: str | None = None
+
+
+class AttachmentOut(BaseModel):
+    """One file attached to a log — what the popup's file list renders."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    log_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
 
 
 class FileLogOut(BaseModel):
@@ -151,6 +167,7 @@ class FileLogOut(BaseModel):
     description: str
     follow_up_date: date | None
     follow_up_notes: str
+    has_drawing: int = 0
     created_by: str | None
     created_at: datetime
 
@@ -270,6 +287,10 @@ class LogRowOut(BaseModel):
     updates: str = ""
     follow_up_date: date | None
     follow_up_notes: str = ""
+    # Indicators the grid needs to mark a description cell without fetching the
+    # blob or the attachment rows per line.
+    has_drawing: int = 0
+    attachment_count: int = 0
     created_at: datetime
     file_id: str
     file_number: str

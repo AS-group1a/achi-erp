@@ -15,7 +15,7 @@
   var ID = 'achi-nav-log';
   var EMBED = 'achi-embed';
   var LABEL = 'Call Log';
-  var HREF = '/api/v1/achi/ui';   // iframe source (served by our router)
+  var HREF = '/api/v1/achi/ui?v=2'; // iframe source; version busts the service-worker cache
   var ROUTE = '/call-log';         // the pretty URL we show in the address bar
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }

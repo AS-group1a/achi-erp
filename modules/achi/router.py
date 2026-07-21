@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
 from app.dependencies import CurrentUserId, SessionDep
 
 from .manifest import manifest as MANIFEST
 from .schemas import (
+    AttachmentOut,
     ContactFileCreate,
     LogRowOut,
     QuickLogCreate,
@@ -55,7 +57,31 @@ def ui() -> HTMLResponse:
     Every fetch it makes carries the bearer token and is authorised by the API
     routes below. Serving the shell to an anonymous browser leaks nothing.
     """
-    return HTMLResponse((_UI_DIR / "log.html").read_text(encoding="utf-8"))
+    return HTMLResponse(
+        (_UI_DIR / "log.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/ui/drawing.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Drawing tool for the description popup",
+)
+def ui_drawing_js() -> PlainTextResponse:
+    """The canvas drawing tool, served beside the page that loads it.
+
+    Kept out of log.html because it is a thousand lines of canvas logic that has
+    nothing to say about the log grid, and because a separate file is cacheable.
+    Same reasoning as ``ui()``: unauthenticated, because it is inert code with no
+    data in it — every call it triggers goes through the authorised routes below.
+    """
+    return PlainTextResponse(
+        (_UI_DIR / "drawing.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 
 @router.get("/info", response_model=ModuleInfo, summary="ACHI module info")
@@ -232,11 +258,126 @@ async def delete_log(log_id: str, session: SessionDep, _user_id: CurrentUserId) 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.get("/logs/{log_id}/drawing", summary="The log's drawing (canvas JSON)")
+async def get_drawing(log_id: str, session: SessionDep, _user_id: CurrentUserId) -> dict:
+    """Fetched only when the popup opens the drawing, never with the list.
+
+    The blob is unbounded; shipping it on every row of /logs/ would make the grid
+    pay for a feature almost no row uses. The list carries `has_drawing` instead.
+    """
+    log = await ContactFileService(session).get_log(log_id)
+    if log is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
+    return {"drawing": log.drawing or "", "has_drawing": log.has_drawing}
+
+
+# ── Attachments: the Files button in the description popup ────────────────
+
+# Large enough for the scans and site photos this is actually for, small enough
+# that a mis-drop cannot fill the disk. Enforced after the read, so the limit is
+# on real bytes rather than a Content-Length the client controls.
+_MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+
+
+@router.get(
+    "/logs/{log_id}/attachments",
+    response_model=list[AttachmentOut],
+    summary="Files attached to a log",
+)
+async def list_attachments(
+    log_id: str, session: SessionDep, _user_id: CurrentUserId
+) -> list[AttachmentOut]:
+    svc = ContactFileService(session)
+    if await svc.get_log(log_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
+    return [AttachmentOut.model_validate(a) for a in await svc.list_attachments(log_id)]
+
+
+@router.post(
+    "/logs/{log_id}/attachments",
+    response_model=AttachmentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Attach a file to a log",
+)
+async def add_attachment(
+    log_id: str,
+    session: SessionDep,
+    user_id: CurrentUserId,
+    file: UploadFile = File(...),
+) -> AttachmentOut:
+    svc = ContactFileService(session)
+    log = await svc.get_log(log_id)
+    if log is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Empty file")
+    if len(content) > _MAX_ATTACHMENT_BYTES:
+        raise HTTPException(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            f"File is larger than {_MAX_ATTACHMENT_BYTES // (1024 * 1024)} MB",
+        )
+
+    att = await svc.add_attachment(
+        log,
+        filename=file.filename or "file",
+        content_type=file.content_type or "application/octet-stream",
+        content=content,
+        user_id=user_id,
+    )
+    return AttachmentOut.model_validate(att)
+
+
+@router.get(
+    "/attachments/{attachment_id}/download",
+    include_in_schema=False,
+    summary="Download an attached file",
+)
+async def download_attachment(
+    attachment_id: str, session: SessionDep, _user_id: CurrentUserId
+) -> Response:
+    svc = ContactFileService(session)
+    att = await svc.get_attachment(attachment_id)
+    if att is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    try:
+        content = await svc.read_attachment(att)
+    except FileNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment bytes are missing") from e
+    return Response(
+        content,
+        media_type=att.content_type,
+        # inline: PDFs and images are the point of attaching them — the browser
+        # should show them. RFC 5987 encoding keeps user-supplied names out of
+        # the header syntax while preserving Unicode names when the file is saved.
+        headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(att.filename, safe='')}"},
+    )
+
+
+@router.delete(
+    "/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove an attached file",
+)
+async def delete_attachment(
+    attachment_id: str, session: SessionDep, _user_id: CurrentUserId
+) -> Response:
+    svc = ContactFileService(session)
+    att = await svc.get_attachment(attachment_id)
+    if att is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    await svc.delete_attachment(att)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
 async def list_logs(
     session: SessionDep, _user_id: CurrentUserId, limit: int = Query(default=200, ge=1, le=1000)
 ) -> list[LogRowOut]:
-    rows = await ContactFileService(session).list_logs(limit=limit)
+    svc = ContactFileService(session)
+    rows = await svc.list_logs(limit=limit)
+    counts = await svc.attachment_counts([log.id for log, _f, _c in rows])
     out: list[LogRowOut] = []
     for log, f, contact in rows:
         name = first = last = prefix = None
@@ -262,6 +403,8 @@ async def list_logs(
                 updates=log.updates,
                 follow_up_date=log.follow_up_date,
                 follow_up_notes=log.follow_up_notes,
+                has_drawing=log.has_drawing,
+                attachment_count=counts.get(log.id, 0),
                 created_at=log.created_at,
                 file_id=f.id,
                 file_number=f.file_number,
