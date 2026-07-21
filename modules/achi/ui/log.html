@@ -941,6 +941,45 @@ function openEditor(td){
   const kind=td.dataset.kind, val=td.dataset.val||'', field=td.dataset.field, target=td.dataset.target;
   const tr=td.closest('tr'), logId=tr.dataset.log, fileId=tr.dataset.file;
   let el;
+
+  if(field==='mobile'){
+    const raw=String(val||'').trim();
+    let iso=DEFAULT_ISO, dial=DEFAULT_DIAL, num='';
+    for(const [cIso,_,cDial] of COUNTRIES){
+      if(raw.startsWith(cDial)){ iso=cIso; dial=cDial; num=raw.slice(cDial.length).trim(); break; }
+    }
+    if(!num && raw.startsWith('+')){
+      const m=raw.match(/^\+(\d{1,3})/);
+      if(m){ dial='+'+m[1]; num=raw.slice(m[0].length).trim(); }
+    }
+    if(!num) num=raw.replace(/^\+\d{1,3}/,'').trim();
+    const wrap=document.createElement('div'); wrap.className='tel-wrap';
+    const ccBtn=document.createElement('button'); ccBtn.type='button'; ccBtn.className='tel-cc'; ccBtn.dataset.dp='mobile-inline';
+    ccBtn.innerHTML=`<img src="${flagSrc(iso)}" alt=""><span class="cc">${esc(dial)}</span>${SVG.chev}`;
+    el=document.createElement('input'); el.className='cellinput tel-num'; el.type='text'; el.value=num; el.placeholder='70 123 456';
+    wrap.appendChild(ccBtn); wrap.appendChild(el); td.innerHTML=''; td.appendChild(wrap);
+    el.focus(); el.select();
+    let ran=false;
+    const finish=async(save,advance)=>{ if(ran)return;
+      const cc=(ccBtn.querySelector('.cc')?.textContent||DEFAULT_DIAL).trim()||DEFAULT_DIAL;
+      const nv=save?`${cc}${el.value.trim().replace(/[^\d]/g,'')}`:val;
+      if(save&&field==='email'&&!validEmail(nv)){showInvalidEmail(el);return;}
+      ran=true;
+      if(save && nv!==val){ try{
+        if(target==='file'){ await api('/files/'+fileId,{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
+        else if(target==='contact'){ await api('/files/'+fileId+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
+        else { await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
+        ROWS.forEach(r=>{ if((target==='log'&&r.id===logId)||(target!=='log'&&r.file_id===fileId)) r[field]=nv; });
+        td.dataset.val=nv; clearErr(); stats();
+      }catch(e){ fail(e.message); } }
+      refreshCell(td);
+      if(advance){ const nx=nextEditableInRow(td); if(nx){ nx.scrollIntoView({inline:'center',block:'nearest'}); openEditor(nx); } }
+    };
+    el.addEventListener('blur',e=>{ if(e.relatedTarget && (e.relatedTarget.closest('.tel-cc')||e.relatedTarget.closest('.cc-drop'))) return; finish(true,false); });
+    el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ev.preventDefault();finish(true,true);} else if(ev.key==='Escape'){ran=true;refreshCell(td);} });
+    return;
+  }
+
   const frappeSelect=kind==='status'||kind==='type'||kind==='category'||kind==='prefix';
   if(frappeSelect){ el=document.createElement('input');el.type='text';el.readOnly=true;el.className='cellinput pg-select-input';el.dataset.selectValue=val;el.value=(kind==='category'||kind==='type'||kind==='status')?label(val):val; }
   else { el=document.createElement('input'); el.className='cellinput'; el.type=field==='email'?'email':kind==='date'?'date':'text'; el.value=val; }
