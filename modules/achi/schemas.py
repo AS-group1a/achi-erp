@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 # No "client" stage: becoming a client isn't a file state, it's the file
 # converting into a project.
@@ -34,7 +34,7 @@ class PersonIn(BaseModel):
     last_name: str | None = Field(default=None, max_length=128)
     company_name: str | None = Field(default=None, max_length=255)
     mobile: str | None = Field(default=None, max_length=32)
-    email: str | None = Field(default=None, max_length=255)
+    email: EmailStr | None = Field(default=None, max_length=255)
 
     @model_validator(mode="after")
     def _require_a_name(self) -> "PersonIn":
@@ -122,7 +122,7 @@ class ContactPatch(BaseModel):
     last_name: str | None = Field(default=None, max_length=128)
     company_name: str | None = Field(default=None, max_length=255)
     mobile: str | None = Field(default=None, max_length=32)
-    email: str | None = Field(default=None, max_length=255)
+    email: EmailStr | None = Field(default=None, max_length=255)
 
 
 class FileLogUpdate(BaseModel):
