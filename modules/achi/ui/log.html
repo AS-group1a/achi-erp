@@ -143,12 +143,14 @@
   .map-copy svg{width:12px;height:12px}
   .map-copy:hover{background:#dbeafe}
   .map-copy.copied{border-color:#16a34a;background:#dcfce7;color:#16a34a}
-  .maps-popup{position:fixed;z-index:2147482100;background:#fff;border-radius:12px;border:1.5px solid #e8e8f0;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;width:248px;opacity:0;transition:opacity .15s;pointer-events:none}
+  .maps-popup{position:fixed;z-index:2147482100;background:#fff;border-radius:12px;border:1.5px solid #e8e8f0;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;width:240px;opacity:0;transition:opacity .15s;pointer-events:none}
   .maps-popup.vis{opacity:1;pointer-events:all}
-  .maps-popup-inner{position:relative;width:248px;height:160px;background:#e9eef4;overflow:hidden}
-  .mt-tile{position:absolute;width:256px;height:256px;display:block}
-  .maps-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);color:#ef4444;pointer-events:none}
-  .maps-pin svg{width:24px;height:24px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+  .maps-popup-inner{position:relative}
+  .maps-popup iframe{width:240px;height:160px;border:none;display:block}
+  /* expand affordance, ported from .pg-popup-expand */
+  .popup-expand{position:absolute;top:6px;left:6px;width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.88);border:1.5px solid #e8e8f0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;color:#6b7280;transition:background .12s,color .12s,border-color .12s;padding:0}
+  .popup-expand:hover{background:#eff6ff;color:#2563eb;border-color:#2563eb}
+  .popup-expand svg{width:13px;height:13px}
   .maps-popup-fallback{padding:14px 12px;font-size:12px;color:#6b7280;white-space:normal;word-break:break-all}
   .maps-popup-url{padding:7px 12px;font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f0f0f5}
   td.ed{cursor:text}
@@ -743,30 +745,43 @@ function mapsCoords(url){ const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\
 function positionPopup(pop,anchor){ const r=anchor.getBoundingClientRect(); const pw=248,ph=190; let left=r.left, top=r.bottom+6;
   if(left+pw>window.innerWidth-8) left=window.innerWidth-pw-8; if(top+ph>window.innerHeight-8) top=r.top-ph-6;
   pop.style.left=Math.max(8,left)+'px'; pop.style.top=Math.max(8,top)+'px'; }
-// Build a small slippy map from OSM tiles centered on the point (CSP allows
-// https images; the tile server returns PNGs). ~4 tiles cover the 248x160 box.
-function tileMap(lat,lng){
-  const z=15, W=248, H=160, n=Math.pow(2,z);
-  const wx=((lng+180)/360)*n*256;
-  const s=Math.sin(lat*Math.PI/180);
-  const wy=(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*n*256;
-  const tlX=wx-W/2, tlY=wy-H/2;
-  let out='';
-  for(let tx=Math.floor(tlX/256); tx*256<tlX+W; tx++){
-    for(let ty=Math.floor(tlY/256); ty*256<tlY+H; ty++){
-      if(ty<0||ty>=n) continue;
-      const xx=((tx%n)+n)%n;
-      out+=`<img class="mt-tile" src="https://tile.openstreetmap.org/${z}/${xx}/${ty}.png" style="left:${Math.round(tx*256-tlX)}px;top:${Math.round(ty*256-tlY)}px" alt="" referrerpolicy="no-referrer">`;
-    }
-  }
-  return out;
-}
+/* OSM embed, ported from erp_next_custom tabbed_grid.js (_renderMapsEmbed).
+ * Replaces the hand-stitched tile grid: openstreetmap.org/export/embed.html
+ * renders the map itself, so the preview pans and zooms and OSM draws the
+ * marker — no manual Mercator projection and no pin overlay to keep centred.
+ * d is the bbox half-span; upstream uses .004 for the hover card and .01 for
+ * the expanded modal. */
+const mapEmbed=(lat,lng,d)=>`https://www.openstreetmap.org/export/embed.html?bbox=${lng-d},${lat-d},${lng+d},${lat+d}&layer=mapnik&marker=${lat},${lng}`;
 function showMapsPopup(anchor,url){ ensureMapsPopup(); const c=mapsCoords(url);
-  if(c){ mapsPopup.innerHTML=`<div class="maps-popup-inner">${tileMap(c.lat,c.lng)}<span class="maps-pin">${SVG.pin}</span></div><div class="maps-popup-url">${esc(url)}</div>`; }
+  if(c){ mapsPopup.innerHTML=`<div class="maps-popup-inner">`
+      +`<iframe src="${esc(mapEmbed(c.lat,c.lng,0.004))}" loading="lazy" referrerpolicy="no-referrer"></iframe>`
+      +`<button type="button" class="popup-expand" data-mapexp data-lat="${c.lat}" data-lng="${c.lng}" title="Expand map">${SVG.expand}</button>`
+      +`</div><div class="maps-popup-url">${esc(url)}</div>`; }
   else { mapsPopup.innerHTML=`<div class="maps-popup-fallback">${esc(url)}</div>`; }
   mapsPopup.classList.add('vis'); positionPopup(mapsPopup,anchor); }
+/* Expand modal (upstream _openExpandModal, type "maps"): same embed at a wider
+   bbox. Reuses the note workspace's overlay so there is one modal style. */
+function openMapModal(lat,lng){
+  document.querySelector('.pg-note-workspace')?.remove();
+  hideMapsPopup();
+  const ov=document.createElement('div');
+  ov.className='pg-note-workspace'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+  ov.innerHTML=`<div class="pg-note-workspace-box" style="width:min(760px,calc(100vw - 32px))">
+    <div class="pg-note-workspace-head"><div class="pg-note-workspace-title">Map Preview</div>
+      <div class="pg-note-workspace-head-actions"><button type="button" class="pg-note-workspace-close" data-mapclose aria-label="Close">&times;</button></div></div>
+    <iframe src="${esc(mapEmbed(lat,lng,0.01))}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:min(60vh,460px);border:none;display:block"></iframe>
+  </div>`;
+  const close=()=>{ ov.remove(); document.removeEventListener('keydown',onKey,true); };
+  const onKey=e=>{ if(e.key==='Escape'){ e.stopPropagation(); close(); } };
+  ov.addEventListener('mousedown',e=>{ if(e.target===ov||e.target.closest('[data-mapclose]')) close(); });
+  document.addEventListener('keydown',onKey,true);
+  document.body.appendChild(ov);
+}
 $('rows').addEventListener('mouseover',e=>{ const b=e.target.closest('.maps-btn'); if(b){ clearTimeout(mapsTimer); showMapsPopup(b,b.dataset.mapurl); } });
 $('rows').addEventListener('mouseout',e=>{ const b=e.target.closest('.maps-btn'); if(b){ mapsTimer=setTimeout(hideMapsPopup,150); } });
+// the popup is appended to document.body, so the grid's delegation never sees it
+document.addEventListener('click',e=>{ const x=e.target.closest&&e.target.closest('[data-mapexp]');
+  if(x){ e.preventDefault(); openMapModal(parseFloat(x.dataset.lat),parseFloat(x.dataset.lng)); } });
 
 /* ── shortcut: Shift+R adds a row ──────────────────────────────────────────
  * Ported from erp_next_custom/public/js/core/grid/tabbed_grid.js
