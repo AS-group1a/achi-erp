@@ -260,7 +260,34 @@ const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
-      CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'];
+      CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
+      /* "Pre" pulldown, ported from erp_next_custom tabbed_grid.js (#pg-cm-pre).
+         Same option set and order. Upstream marks both Eng and Arch `selected`
+         and then overrides it with selPre.value; that default is per-column
+         (architect columns default to "Arch"), so on a general call log the
+         blank stays the default here. */
+      PREFIXES=['Mr','Ms','Mrs','Dr','Eng','Arch'];
+/* Custom prefixes. The backend stores prefix as a free string (ContactPatch caps
+   it at 16), so a new option needs no API change — only somewhere to remember it.
+   Kept in localStorage beside achi_bh; that means per-browser, NOT shared across
+   the team. A shared list would need a real endpoint. */
+const PREFIX_KEY='achi_prefixes', PREFIX_ADD='__add__';
+const customPrefixes=()=>{ try{ const a=JSON.parse(localStorage.getItem(PREFIX_KEY)||'[]');
+  return Array.isArray(a)?a.filter(x=>typeof x==='string'&&x.trim()):[]; }catch(e){ return []; } };
+const allPrefixes=()=>[...PREFIXES,...customPrefixes().filter(x=>!PREFIXES.includes(x))];
+/* Options are built here rather than via selOpts() because these values are
+   user-typed: they must be escaped in the value attribute, and shown verbatim
+   instead of run through label()'s capitalisation. */
+const prefixOpts=v=>'<option value=""></option>'
+  +allPrefixes().map(x=>`<option value="${esc(x)}"${x===v?' selected':''}>${esc(x)}</option>`).join('')
+  +`<option value="${PREFIX_ADD}">＋ Add new…</option>`;
+function addPrefix(){
+  const v=(window.prompt('New prefix (max 16 characters):')||'').trim();
+  if(!v) return null;
+  if(v.length>16){ fail('Prefix must be 16 characters or fewer.'); return null; }
+  if(!allPrefixes().includes(v)) localStorage.setItem(PREFIX_KEY,JSON.stringify([...customPrefixes(),v]));
+  clearErr(); return v;
+}
 const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 const SVG={
   pin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
@@ -328,7 +355,7 @@ const COLS=[
   {k:'num',    h:'#',              tab:null, cls:'num', w:46},
   {k:'when',   h:'Date & Time',    tab:null, w:150},
   {k:'status', h:'Status',         tab:null, w:120, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
-  {k:'prefix', h:'Pre',            tab:0, w:70,  draft:'text', edit:{kind:'text',target:'contact',field:'prefix',val:r=>r.prefix||''}},
+  {k:'prefix', h:'Pre',            tab:0, w:70,  draft:'select', edit:{kind:'prefix',target:'contact',field:'prefix',val:r=>r.prefix||''}},
   {k:'first',  h:'First',          tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
   {k:'last',   h:'Last',           tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
   {k:'company',h:'Company',        tab:0, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
@@ -395,7 +422,9 @@ function draftCell(c,dp,st,rowNumber){
   if(c.k==='status') return `<span class="mt">open</span>`;
   if(c.k==='owner') return `<span class="mt">you</span>`;
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
-  if(c.draft==='select'){ const o=c.k==='type'?TYPES:CATEGORIES; const blank=c.k==='category'?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
+  if(c.draft==='select'){
+    if(c.k==='prefix') return `<select class="din" id="${id}" data-dp="${dp}" data-dk="prefix">${prefixOpts(st.prefix||'')}</select>`;
+    const o=c.k==='type'?TYPES:CATEGORIES; const blank=c.k==='category'?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
   if(c.draft==='date') return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" type="date" value="${v}">`;
   if(c.draft==='tel'){ const iso=st.iso||DEFAULT_ISO, dial=st.dial||DEFAULT_DIAL;
     return `<span class="tel-wrap"><button type="button" class="tel-cc" data-dp="${dp}" title="Country code"><img src="${flagSrc(iso)}" alt=""><span class="cc">${esc(dial)}</span>${SVG.chev}</button>`
@@ -415,7 +444,7 @@ function draftRowHTML(dp,st,isTop,rowNumber){
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
+    const cls=[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
     return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
@@ -515,7 +544,13 @@ async function commitDraft(dp){
     await load();
   }catch(e){ fail(e.message); }
 }
-$('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.dp){ const st=stateFor(el.dataset.dp); if(st) st[el.dataset.dk]=el.value; } });
+$('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.dataset.dp))return;
+  const st=stateFor(el.dataset.dp); if(!st)return;
+  if(el.dataset.dk==='prefix' && el.value===PREFIX_ADD){   // sentinel, never stored
+    st.prefix=addPrefix()||''; const dp=el.dataset.dp; render();
+    const s=document.getElementById(dp+'-prefix'); if(s) s.focus();
+    return; }
+  st[el.dataset.dk]=el.value; });
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
   if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
@@ -643,14 +678,19 @@ function openEditor(td){
   const kind=td.dataset.kind, val=td.dataset.val||'', field=td.dataset.field, target=td.dataset.target;
   const tr=td.closest('tr'), logId=tr.dataset.log, fileId=tr.dataset.file;
   let el;
-  if(kind==='status'||kind==='type'||kind==='category'){ el=document.createElement('select'); el.className='cellinput';
-    el.innerHTML=(kind==='category'?'<option value=""></option>':'')+selOpts(kind==='status'?STATUSES:kind==='type'?TYPES:CATEGORIES,val); }
+  if(kind==='status'||kind==='type'||kind==='category'||kind==='prefix'){ el=document.createElement('select'); el.className='cellinput';
+    el.innerHTML=kind==='prefix'?prefixOpts(val)
+      :(kind==='category'?'<option value=""></option>':'')+selOpts(kind==='status'?STATUSES:kind==='type'?TYPES:CATEGORIES,val); }
   else { el=document.createElement('input'); el.className='cellinput'; el.type=kind==='date'?'date':'text'; el.value=val; }
   td.innerHTML=''; td.appendChild(el); el.focus();
   if(el.tagName==='SELECT'){ try{ el.showPicker(); }catch(e){} }   // open on one click
   else if(el.select){ el.select(); }
   let ran=false;
-  const finish=async(save,advance)=>{ if(ran)return; ran=true;
+  const finish=async(save,advance)=>{ if(ran)return;
+    // window.prompt() blurs the select, which would otherwise commit the "＋ Add
+    // new…" sentinel as a real prefix. Refuse it and leave the editor open.
+    if(el.value===PREFIX_ADD) return;
+    ran=true;
     const nv=el.value;
     if(save && nv!==val){ try{
       if(target==='file'){ await api('/files/'+fileId,{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
@@ -665,7 +705,10 @@ function openEditor(td){
   };
   el.addEventListener('blur',()=>finish(true,false));
   el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ev.preventDefault();finish(true,true);} else if(ev.key==='Escape'){ran=true;refreshCell(td);} });
-  if(el.tagName==='SELECT') el.addEventListener('change',()=>finish(true,false));
+  if(el.tagName==='SELECT') el.addEventListener('change',()=>{
+    if(kind==='prefix' && el.value===PREFIX_ADD){
+      const v=addPrefix(); el.innerHTML=prefixOpts(v||val); el.value=v||val; el.focus(); return; }
+    finish(true,false); });
 }
 
 /* ── description popup: notes + files + drawing ──────────────────────────
