@@ -177,7 +177,7 @@ class ContactFileOut(BaseModel):
 
     id: str
     file_number: str
-    contact_id: str
+    contact_id: str | None = None
     subject: str
     stage: str
     status: str
@@ -209,7 +209,7 @@ class ContactFileListOut(BaseModel):
 
     id: str
     file_number: str
-    contact_id: str
+    contact_id: str | None = None
     contact_name: str | None = None
     subject: str
     stage: str
@@ -310,9 +310,11 @@ class LogRowOut(BaseModel):
     country: str | None = None
     maps_url: str | None = None
     owner: str | None = None
-    # contact (from the canonical directory)
-    contact_id: str
-    contact_name: str | None
+    # contact (from the canonical directory; None when the row had no phone/email,
+    # in which case the name fields below come from the file as typed)
+    contact_id: str | None = None
+    company_contact_id: str | None = None
+    contact_name: str | None = None
     prefix: str | None = None
     first_name: str | None = None
     last_name: str | None = None

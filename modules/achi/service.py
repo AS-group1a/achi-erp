@@ -144,7 +144,9 @@ class ContactFileService:
             q = q.where(ContactFile.contact_id == contact_id)
         return list((await self.session.execute(q)).scalars().all())
 
-    async def name_for(self, contact_id: str) -> str | None:
+    async def name_for(self, contact_id: str | None) -> str | None:
+        if not contact_id:   # rows with no phone/email have no contact
+            return None
         return _display_name(await self.session.get(Contact, contact_id))
 
     async def update(self, f: ContactFile, data: ContactFileUpdate) -> ContactFile:
@@ -164,7 +166,7 @@ class ContactFileService:
         f.project_id = project_id
         f.converted_at = datetime.now(timezone.utc)
         f.status = "done"
-        contact = await self.session.get(Contact, f.contact_id)
+        contact = await self.session.get(Contact, f.contact_id) if f.contact_id else None
         if contact is not None:
             contact.contact_type = "client"
         await self.session.commit()

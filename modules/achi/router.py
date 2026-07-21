@@ -96,7 +96,9 @@ def info() -> ModuleInfo:
 
 async def _out(svc: ContactFileService, f) -> ContactFileOut:
     o = ContactFileOut.model_validate(f)
-    o.contact_name = await svc.name_for(f.contact_id)
+    # No contact when the row had no phone/email — fall back to what was typed.
+    o.contact_name = (await svc.name_for(f.contact_id)) if f.contact_id else (
+        " ".join(x for x in (f.lead_first_name, f.lead_last_name) if x).strip() or f.lead_company or None)
     return o
 
 
@@ -429,6 +431,7 @@ async def list_logs(
                 maps_url=f.maps_url,
                 owner=f.owner_user_id,
                 contact_id=f.contact_id,
+                company_contact_id=f.company_contact_id,
                 contact_name=name,
                 prefix=prefix,
                 first_name=first,
