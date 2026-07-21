@@ -17,6 +17,39 @@
   header .who{font-size:12px;opacity:.75}
   main{margin:0;padding:16px 18px 40px}
   .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none}
+  .feedback{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;padding:72px 20px 20px;background:rgba(15,35,75,.24);backdrop-filter:blur(2px)}
+  .feedback-box{width:min(430px,calc(100vw - 32px));overflow:hidden;border:1px solid #d8e3f3;border-top:4px solid var(--navy);border-radius:18px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.18),0 4px 14px rgba(15,23,42,.08)}
+  .feedback-head{padding:14px 20px;border-bottom:1px solid #dce6f5;background:linear-gradient(135deg,#edf4ff 0%,#f7faff 58%,#fff 100%);color:#1e3f85;font-size:16px;font-weight:800}
+  .feedback-body{padding:20px;color:#334155;font-size:13.5px;line-height:1.65}
+  .feedback-foot{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #eef2f7;background:#f8fafc}
+  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:9px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
+  .email-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;cursor:pointer;padding:3px 0;text-decoration:none}
+  .email-btn:hover{text-decoration:underline}
+  .email-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .draft-email{display:flex;align-items:center;gap:5px;width:100%}
+  .draft-email .din{min-width:0;flex:1}
+  .draft-compose{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px;border:1.5px solid #bfdbfe;border-radius:50%;background:#eff6ff;color:var(--navy);cursor:pointer;padding:0}
+  .draft-compose:hover{background:#dbeafe}
+  .draft-compose[hidden]{display:none}
+  .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
+  @keyframes compose-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+  .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
+  .compose-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;letter-spacing:.02em}
+  .compose-title svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .compose-close{width:28px;height:28px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:19px;line-height:1;cursor:pointer}
+  .compose-close:hover{background:rgba(255,255,255,.32)}
+  .compose-row{display:flex;align-items:center;min-height:44px;padding:0 20px;border-bottom:1px solid #f0f0f5}
+  .compose-label{width:64px;flex-shrink:0;color:#9ca3af;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .compose-recipient{display:inline-flex;align-items:center;padding:5px 10px;border:1.5px solid #bfdbfe;border-radius:99px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:500}
+  .compose-subject{flex:1;border:0;outline:0;background:transparent;color:#111827;font:inherit;font-size:13px}
+  .compose-subject::placeholder,.compose-body::placeholder{color:#d1d5db}
+  .compose-body{display:block;width:100%;min-height:210px;padding:16px 20px;border:0;outline:0;resize:none;color:#374151;font:inherit;font-size:13px;line-height:1.7}
+  .compose-foot{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1.5px solid #e8e8f0;background:#f6f9fe}
+  .compose-send{padding:8px 22px;border:0;border-radius:99px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
+  .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:99px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .compose-mailto:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
 
   .kpis{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
   .kpi{flex:1 1 180px;border-radius:14px;padding:15px 18px;color:#fff;transition:transform .15s ease}
@@ -225,11 +258,27 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
+const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
+function showInvalidEmail(input){
+  input&&input.classList.add('email-invalid');
+  const existing=document.querySelector('.feedback');
+  if(existing) return;
+  const modal=document.createElement('div');
+  modal.className='feedback'; modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.setAttribute('aria-labelledby','feedback-title');
+  modal.innerHTML='<div class="feedback-box"><div class="feedback-head" id="feedback-title">Invalid Email</div><div class="feedback-body">Please Enter a valid Email address</div><div class="feedback-foot"><button class="feedback-ok" type="button">OK</button></div></div>';
+  document.body.appendChild(modal);
+  const close=()=>{ modal.remove(); if(input&&input.isConnected){ input.focus(); input.select&&input.select(); } };
+  modal.querySelector('.feedback-ok').onclick=close;
+  modal.onmousedown=e=>{ if(e.target===modal) close(); };
+  modal.onkeydown=e=>{ if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();close();} };
+  requestAnimationFrame(()=>modal.querySelector('.feedback-ok').focus());
+}
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'];
 const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 const SVG={
+  mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
   pin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
   copy:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="8" height="9" rx="1.2"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h7a1 1 0 011 1v2"/></svg>`,
   check:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 6,12 14,4"/></svg>`,
@@ -252,6 +301,20 @@ const dash=v=>v?esc(v):'<span class="mt">—</span>';
 const selOpts=(o,v)=>o.map(x=>`<option value="${x}"${x===v?' selected':''}>${esc(label(x))}</option>`).join('');
 function phone(m){ if(!m)return '<span class="mt">—</span>'; const d=m.replace(/[^0-9]/g,''); return `<span class="ph">${esc(m)}</span><a class="wa" href="https://wa.me/${d}" target="_blank" rel="noreferrer" title="WhatsApp">${SVG.wa}</a>`; }
 function avatar(id){ if(!id)return '<span class="mt">—</span>'; return `<span class="avatar" title="${esc(id)}">${esc(String(id).slice(0,2).toUpperCase())}</span>`; }
+function openEmailCompose(email){
+  document.querySelector('.compose')?.remove();
+  const panel=document.createElement('section'); panel.className='compose'; panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
+  panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div><button class="compose-close" type="button" aria-label="Close message">&times;</button></div><div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div><div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div><textarea class="compose-body" placeholder="Write your message…"></textarea><div class="compose-foot"><button class="compose-send" type="button">Send</button><button class="compose-mailto" type="button">Open in mail app</button></div>`;
+  document.body.appendChild(panel);
+  const close=()=>{panel.remove();document.removeEventListener('keydown',onKey);};
+  const onKey=e=>{if(e.key==='Escape')close();};
+  const openMail=()=>{const subject=panel.querySelector('.compose-subject').value.trim(),body=panel.querySelector('.compose-body').value.trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
+  panel.querySelector('.compose-close').onclick=close;
+  panel.querySelector('.compose-send').onclick=openMail;
+  panel.querySelector('.compose-mailto').onclick=openMail;
+  document.addEventListener('keydown',onKey);
+  requestAnimationFrame(()=>panel.querySelector('.compose-subject').focus());
+}
 /* files/sketch live behind the description popup — mark the cell so a row shows it has them */
 function marks(r){ let s='';
   if(r.attachment_count>0) s+=`<span class="cellmark" title="${r.attachment_count} file(s) attached">&#128206;${r.attachment_count}</span>`;
@@ -298,7 +361,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'type': return tagv(r.log_type);
   case 'category': return tagv(r.category);
   case 'mobile': return phone(r.mobile);
-  case 'email': return r.email?`<a class="lnk" href="mailto:${esc(r.email)}">${esc(r.email)}</a>`:'<span class="mt">—</span>';
+  case 'email': return r.email?`<button class="email-btn" type="button" data-compose-email="${esc(r.email)}" title="Compose email">${SVG.mail}<span>${esc(r.email)}</span></button>`:'<span class="mt">—</span>';
   case 'maps': return r.maps_url
     ? `<span class="maps-cell"><a class="maps-btn" href="${esc(r.maps_url)}" target="_blank" rel="noreferrer" data-mapurl="${esc(r.maps_url)}"><span class="pin">${SVG.pin}</span><span>Open in Maps</span></a><button class="map-copy" data-copy="${esc(r.maps_url)}" title="Copy link">${SVG.copy}</button></span>`
     : '<span class="mt">—</span>';
@@ -331,7 +394,7 @@ function draftCell(c,dp,st,rowNumber){
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
   if(c.draft==='select'){ const o=c.k==='type'?TYPES:CATEGORIES; const blank=c.k==='category'?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
   if(c.draft==='date') return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" type="date" value="${v}">`;
-  if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; const note=c.note?' data-note="1" readonly title="Open notes, files, and drawing"':''; return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${note}>`; }
+  if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; const note=c.note?' data-note="1" readonly title="Open notes, files, and drawing"':''; const type=c.k==='email'?' type="email" inputmode="email" autocomplete="email"':''; const input=`<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${type}${note}>`; return c.k==='email'?`<span class="draft-email">${input}<button class="draft-compose" type="button" data-draft-compose="${id}" title="Compose email"${validEmail(st[c.k])&&st[c.k]?'':' hidden'}>${SVG.mail}</button></span>`:input; }
   return `<span class="mt">—</span>`;
 }
 function draftRowHTML(dp,st,isTop,rowNumber){
@@ -403,6 +466,7 @@ function draftPayload(st){
 }
 async function commitDraft(dp){
   const st=stateFor(dp); if(!st) return;
+  if(!validEmail(st.email)){ showInvalidEmail($(dp+'-email')); return; }
   if(!(st.first||'').trim() && !(st.last||'').trim() && !(st.company||'').trim()){ const el=$(dp+'-first'); if(el)el.focus(); return; }
   try{
     const made=await api('/logs/',{method:'POST',body:JSON.stringify(draftPayload(st))});
@@ -419,10 +483,11 @@ async function commitDraft(dp){
     await load();
   }catch(e){ fail(e.message); }
 }
-$('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.dp){ const st=stateFor(el.dataset.dp); if(st) st[el.dataset.dk]=el.value; } });
+$('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.dp){ const st=stateFor(el.dataset.dp); if(st) st[el.dataset.dk]=el.value; if(el.dataset.dk==='email'){const valid=validEmail(el.value);if(valid)el.classList.remove('email-invalid');const button=el.closest('.draft-email')?.querySelector('.draft-compose');if(button)button.hidden=!(el.value.trim()&&valid); } } });
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
-  if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
+  if(e.key==='Enter'){ e.preventDefault(); if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
+$('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='email'&&!validEmail(el.value))showInvalidEmail(el);});
 $('add-row').addEventListener('click',addBottomRow);
 $('select-all').addEventListener('click',()=>{
   const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
@@ -430,6 +495,8 @@ $('select-all').addEventListener('click',()=>{
   refreshSelectionButton();
 });
 $('rows').addEventListener('click',e=>{ const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); return; }
+  const email=e.target.closest('[data-compose-email]'); if(email){ openEmailCompose(email.dataset.composeEmail); return; }
+  const draftEmail=e.target.closest('[data-draft-compose]'); if(draftEmail){const input=$(draftEmail.dataset.draftCompose);if(input&&validEmail(input.value)&&input.value.trim())openEmailCompose(input.value.trim());return;}
   const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
   const dn=e.target.closest('.din[data-note]'); if(dn){ openDraftNoteWorkspace(dn); return; }
   const cp=e.target.closest('[data-copy]'); if(cp){ try{navigator.clipboard.writeText(cp.dataset.copy);}catch(_){} cp.classList.add('copied'); cp.innerHTML=SVG.check; setTimeout(()=>{cp.classList.remove('copied');cp.innerHTML=SVG.copy;},1000); return; }
@@ -507,13 +574,15 @@ function openEditor(td){
   let el;
   if(kind==='status'||kind==='type'||kind==='category'){ el=document.createElement('select'); el.className='cellinput';
     el.innerHTML=(kind==='category'?'<option value=""></option>':'')+selOpts(kind==='status'?STATUSES:kind==='type'?TYPES:CATEGORIES,val); }
-  else { el=document.createElement('input'); el.className='cellinput'; el.type=kind==='date'?'date':'text'; el.value=val; }
+  else { el=document.createElement('input'); el.className='cellinput'; el.type=field==='email'?'email':kind==='date'?'date':'text'; el.value=val; }
   td.innerHTML=''; td.appendChild(el); el.focus();
   if(el.tagName==='SELECT'){ try{ el.showPicker(); }catch(e){} }   // open on one click
   else if(el.select){ el.select(); }
   let ran=false;
-  const finish=async(save,advance)=>{ if(ran)return; ran=true;
+  const finish=async(save,advance)=>{ if(ran)return;
     const nv=el.value;
+    if(save&&field==='email'&&!validEmail(nv)){showInvalidEmail(el);return;}
+    ran=true;
     if(save && nv!==val){ try{
       if(target==='file'){ await api('/files/'+fileId,{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
       else if(target==='contact'){ await api('/files/'+fileId+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})}); }
