@@ -44,7 +44,23 @@ class ContactFile(Base):
     # "contacts have files". No FK constraint to oe_contacts_contact: a hard FK
     # would couple our schema to theirs, and create_all offers no migration path
     # if they rename the table.
-    contact_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    # Nullable on purpose: a row is only linked to a directory Contact when we
+    # actually have a way to reach someone (phone or email). A name with no
+    # contact details is not a contact — it would be junk in the directory — so
+    # the typed identity is kept on the file instead (lead_* below).
+    contact_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    # When a company is named alongside a person, the company gets its OWN
+    # contact and is linked here; contact_id stays the person.
+    company_contact_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+    # What the user typed. Always stored, so the grid can show the row whether or
+    # not a Contact was created, and so we know what was entered at the time.
+    lead_prefix: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    lead_first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    lead_last_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    lead_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lead_mobile: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    lead_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # prospect -> lead -> site_survey -> measurements  (mirrors the Frappe CRM Log)
     # There is deliberately no "client" stage: becoming a client is not a file
