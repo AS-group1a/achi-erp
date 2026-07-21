@@ -558,20 +558,40 @@ function render(){
 
 /* Delete the selected rows. Uses the shared selectedRows set (keys are `log:<id>`)
    so it stays in step with the select-all / row-number selection. */
+/* Draft rows are selectable too, and their keys are `draft:<dp>` rather than
+   `log:<id>`. Deleting has to tell them apart: a saved row is deleted through the
+   API, an unsaved draft row is simply discarded. Sending a draft key to
+   DELETE /logs/ 404s and used to abort the whole batch, deleting nothing. */
+const logKeys=()=>[...selectedRows].filter(k=>String(k).startsWith('log:'));
+const draftKeys=()=>[...selectedRows].filter(k=>String(k).startsWith('draft:'));
 function refreshDeleteButton(){
-  const n=selectedRows.size, del=$('btn-del');
+  const n=logKeys().length+draftKeys().length, del=$('btn-del');
   if(del){ del.classList.toggle('on', n>0); const c=$('del-count'); if(c) c.textContent=n; }
 }
 async function deleteSelected(){
-  const ids=[...selectedRows].map(k=>String(k).replace(/^log:/,''));
-  if(!ids.length) return;
-  if(!confirm(`Delete ${ids.length} log${ids.length>1?'s':''}? This cannot be undone.`)) return;
-  try{
-    for(const id of ids){ await api('/logs/'+id,{method:'DELETE'}); }
-    selectedRows.clear();
-    await load();
-    refreshDeleteButton();
-  }catch(e){ fail(e.message); }
+  const logs=logKeys(), drafts=draftKeys();
+  const n=logs.length+drafts.length;
+  if(!n) return;
+  if(!confirm(`Delete ${n} row${n>1?'s':''}? This cannot be undone.`)) return;
+  clearErr();
+  const failed=[];
+  for(const k of logs){
+    const id=String(k).slice(4);
+    try{ await api('/logs/'+id,{method:'DELETE'}); selectedRows.delete(k); }
+    catch(e){ failed.push(e.message); }          // keep going; one bad row must not stop the rest
+  }
+  // Unsaved draft rows: discard them locally. Bottom rows are spliced high index
+  // first so earlier removals don't shift the ones still to go.
+  const idx=[];
+  for(const k of drafts){
+    const dp=String(k).slice(6);
+    selectedRows.delete(k);
+    if(dp==='d') topDraft={}; else idx.push(+dp.slice(1));
+  }
+  idx.sort((a,b)=>b-a).forEach(i=>bottomDrafts.splice(i,1));
+  await load();
+  refreshDeleteButton();
+  if(failed.length) fail(`Could not delete ${failed.length} row(s): ${failed[0]}`);
 }
 
 /* ── draft interactions (delegated once) ── */
