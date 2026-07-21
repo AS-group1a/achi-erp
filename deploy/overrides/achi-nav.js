@@ -99,6 +99,17 @@
     var link = document.getElementById(ID); if (link) link.removeAttribute('aria-current');
   }
 
+  function normalizeHref(h) {
+    if (!h) return '';
+    return (h.split('?')[0] || '').replace(/\/+$|^\/+/, '').toLowerCase();
+  }
+  function findSidebarLink(predicate) {
+    var a = links();
+    for (var i = 0; i < a.length; i++) {
+      if (predicate(a[i])) return a[i];
+    }
+    return null;
+  }
   function inject() {
     if (document.getElementById(ID)) return;
     var pf = projectFilesLink();
@@ -109,6 +120,35 @@
     link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
     setLabel(link, LABEL);
     pf.parentNode.insertBefore(link, pf.nextSibling);
+
+    var callLogLink = document.getElementById(ID);
+    if (!callLogLink) return;
+
+    var crmSrc = findSidebarLink(function (el) {
+      var href = el.getAttribute('href') || '';
+      var text = (el.textContent || '').trim().toLowerCase();
+      return normalizeHref(href) === 'crm' || text === 'crm' || text === 'commercial';
+    });
+    if (crmSrc && !document.getElementById('achi-nav-crm')) {
+      var crmDup = crmSrc.cloneNode(true);
+      crmDup.id = 'achi-nav-crm';
+      crmDup.removeAttribute('aria-current');
+      crmDup.classList.remove('active', 'router-link-active', 'router-link-exact-active');
+      callLogLink.parentNode.insertBefore(crmDup, callLogLink.nextSibling);
+    }
+
+    var contactsSrc = findSidebarLink(function (el) {
+      var href = el.getAttribute('href') || '';
+      var text = (el.textContent || '').trim().toLowerCase();
+      return normalizeHref(href) === 'contacts' || text === 'contacts' || text === 'communications';
+    });
+    if (contactsSrc && !document.getElementById('achi-nav-contacts')) {
+      var contactsDup = contactsSrc.cloneNode(true);
+      contactsDup.id = 'achi-nav-contacts';
+      contactsDup.removeAttribute('aria-current');
+      contactsDup.classList.remove('active', 'router-link-active', 'router-link-exact-active');
+      callLogLink.parentNode.insertBefore(contactsDup, callLogLink.nextSibling.nextSibling);
+    }
   }
 
   // ONE global capture listener handles show + hide, regardless of re-renders.
