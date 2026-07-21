@@ -65,7 +65,6 @@
   .nav{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;background:var(--navy);padding:11px 16px}
   .nav-actions{display:flex;align-items:center;gap:8px;justify-self:start}
   .nav-right{display:flex;align-items:center;gap:10px;justify-self:end;min-width:0}
-  .cnt{font-size:11px;font-weight:800;color:rgba(255,255,255,.7)}
   .pt{position:relative;display:inline-flex;justify-self:center;background:rgba(0,0,0,.2);border-radius:99px;padding:4px}
   .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:99px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
   .pill-tab{position:relative;z-index:1;border:0;background:transparent;padding:7px 15px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.58);cursor:pointer;white-space:nowrap;font-family:inherit}
@@ -266,7 +265,6 @@
         <button class="pill-tab" data-tab="3">Notes &amp; Outcome</button>
       </div>
       <div class="nav-right">
-        <span class="cnt" id="count">· 0</span>
         <input class="search" id="q" placeholder="Search name, file, city, text…">
       </div>
     </div>
@@ -547,7 +545,6 @@ function render(){
   const q=$('q').value.trim().toLowerCase();
   let rows=openOnly?ROWS.filter(r=>r.status==='open'):ROWS;
   if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category].some(v=>String(v||'').toLowerCase().includes(q)));
-  $('count').textContent=`· ${rows.length}`;
   let rowNumber=1;
   const body=[
     draftRowHTML('d',topDraft,true,rowNumber++),
