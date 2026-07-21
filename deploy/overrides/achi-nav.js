@@ -106,6 +106,39 @@
   // frames, so only one of our pages is ever alive.
   function showEmbed(entry, pushUrl) {
     if (!entry) return;
+
+  // The SPA's router knows none of our routes, so it resolves each as a 404 and
+  // sets document.title to "Page not found | <app>". The cover hides the visual
+  // 404; without this the tab still advertised an error on a page that works.
+  // Re-applied rather than set once: the router rewrites the title
+  // asynchronously and again on every re-render.
+  var appName = '', titleEntry = null, titleObs = null;
+  function wantedTitle() {
+    var base = (titleEntry && titleEntry.label) || '';
+    return appName ? base + ' | ' + appName : base;
+  }
+  function applyTitle() {
+    if (!titleEntry) return;
+    var t = document.title || '';
+    if (t === wantedTitle()) return;            // already ours; stops the observer looping
+    var i = t.lastIndexOf('|');                 // learn the app name from whatever it set
+    var tail = i >= 0 ? t.slice(i + 1).trim() : '';
+    if (tail) appName = tail;
+    document.title = wantedTitle();
+  }
+  function holdTitle(entry) {
+    titleEntry = entry || null;
+    if (!titleEntry) { if (titleObs) { titleObs.disconnect(); titleObs = null; } return; }
+    applyTitle();
+    var el = document.querySelector('title');
+    if (titleObs || !el) return;
+    titleObs = new MutationObserver(function () {
+      var e = byRoute(location.pathname);       // follows a switch between our entries
+      if (e) { titleEntry = e; applyTitle(); }
+    });
+    titleObs.observe(el, { childList: true, characterData: true, subtree: true });
+  }
+
     var f = document.getElementById(EMBED);
     if (!f) {
       f = document.createElement('iframe');
@@ -123,6 +156,7 @@
     positionEmbed(f);
     f.style.display = 'block';
     clearCurrent();
+    holdTitle(entry);
     var link = document.getElementById(entry.id); if (link) link.setAttribute('aria-current', 'page');
   }
   function hideEmbed() {
@@ -134,6 +168,7 @@
     }
     hideCover();
     clearCurrent();
+    holdTitle(null);   // release it; the SPA names its own real pages
   }
 
   function inject() {
