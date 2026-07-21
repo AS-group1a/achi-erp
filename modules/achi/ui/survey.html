@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Survey · Achi Scaffolding ERP</title>
+<style>
+  /* ACHI palette, same as the call log. The survey is filled in on a phone while
+     standing on the site, so the layout is a single readable column of steps with
+     large touch targets rather than a grid. */
+  :root{
+    --navy:#284F9E; --navy-d:#1F3F80; --navy-2:#305FB8; --light:#E3EDFB;
+    --bd:#dfe4ec; --hair:#eef1f6; --tx:#1d1d1f; --tx-2:#5b5e66; --tx-3:#8a8f98;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--tx);background:#f5f5f7}
+  .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin:12px 16px;display:none}
+
+  .nav{display:flex;align-items:center;gap:12px;background:var(--navy);padding:11px 16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  .nav h1{color:#fff;font-size:15px;font-weight:700;letter-spacing:.01em}
+  .nav .sp{flex:1}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:99px;background:#fff;color:var(--navy);font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22)}
+  .btn:hover{background:#eaf1ff}
+  .btn svg{width:14px;height:14px}
+  .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.5);box-shadow:none}
+  .btn-ghost:hover{background:rgba(255,255,255,.22)}
+  .search{height:32px;width:190px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
+  .search::placeholder{color:rgba(255,255,255,.45)}
+
+  .wrap{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px;align-items:start}
+  @media (max-width:900px){ .wrap{grid-template-columns:1fr} }
+
+  /* survey list */
+  .list{background:#fff;border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(40,79,158,.07)}
+  .list-head{padding:11px 14px;border-bottom:1px solid var(--hair);font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--tx-3)}
+  .sv{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--hair);background:#fff;padding:11px 14px;cursor:pointer;font:inherit}
+  .sv:hover{background:#f4f8ff}
+  .sv.on{background:#eaf1ff;box-shadow:inset 3px 0 0 var(--navy)}
+  .sv .n{font-variant-numeric:tabular-nums;font-size:11px;font-weight:700;color:var(--navy)}
+  .sv .who{font-weight:700;color:#111827;margin-top:1px}
+  .sv .where{font-size:12px;color:var(--tx-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sv .meta{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap}
+  .empty{padding:22px 14px;text-align:center;color:#9ca3af;font-size:13px}
+
+  /* steps */
+  .step{background:#fff;border:1px solid var(--bd);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 4px 18px rgba(40,79,158,.07)}
+  .step-h{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--hair);background:#fbfcff}
+  .step-n{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:800;flex:0 0 auto}
+  .step-t{font-size:13.5px;font-weight:800;color:#111827}
+  .step-s{font-size:11.5px;color:var(--tx-3)}
+  .step-b{padding:14px 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  label.f{display:block}
+  label.f span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tx-3);margin-bottom:4px}
+  input,select,textarea{width:100%;font:inherit;font-size:13.5px;border:1px solid #cfd9e8;border-radius:8px;padding:9px 10px;background:#fff;color:var(--tx)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(40,79,158,.13)}
+  textarea{min-height:96px;resize:vertical}
+
+  /* segmented choice — the truck questions, one tap each */
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{flex:1 1 auto;min-width:84px;padding:10px 12px;border:1.5px solid #cfd9e8;border-radius:10px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--tx-2);cursor:pointer}
+  .seg button:hover{border-color:var(--navy)}
+  .seg button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .seg button.on.warn{background:#b45309;border-color:#b45309}
+  .seg button.on.bad{background:#b91c1c;border-color:#b91c1c}
+
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;text-transform:capitalize;border:1px solid transparent}
+  .b-planned{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
+  .b-on_site{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
+  .b-surveyed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
+  .b-quoted{background:#ece9f5;color:#3e3794;border-color:#c5bde8}
+  .b-cancelled{background:#f3f3f3;color:#706e6b;border-color:#c9c7c5}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:600}
+
+  /* arrival */
+  .arrive{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .arrive .big{padding:13px 20px;font-size:14px;background:#16a34a;color:#fff;border:0;border-radius:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,.3)}
+  .arrive .big:hover{background:#15803d}
+  .arrive .done{font-size:13px;color:#166534;font-weight:700}
+
+  /* photos */
+  .drop{border:2px dashed #cfd9e8;border-radius:12px;padding:16px;text-align:center;color:var(--tx-3);font-size:13px;cursor:pointer;background:#fbfcff}
+  .drop:hover{border-color:var(--navy);color:var(--navy)}
+  .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
+  .shot{position:relative;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:#f8fafc}
+  .shot img{width:100%;height:96px;object-fit:cover;display:block}
+  .shot .doc{display:flex;align-items:center;justify-content:center;height:96px;color:var(--navy);font-size:11px;font-weight:700;padding:6px;text-align:center;word-break:break-word}
+  .shot .nm{font-size:10.5px;color:var(--tx-2);padding:5px 6px;border-top:1px solid var(--hair);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shot .x{position:absolute;top:4px;right:4px;width:22px;height:22px;border:0;border-radius:6px;background:rgba(255,255,255,.92);color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
+  .shot .x:hover{background:#fde8e8}
+
+  /* map preview (tiles — CSP blocks third-party iframes) */
+  .tilemap{position:relative;overflow:hidden;background:#e9eef4;border-radius:10px;border:1px solid var(--bd);margin-top:10px}
+  .mt-tile{position:absolute;width:256px;height:256px;display:block;max-width:none}
+  .maps-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);color:#ef4444;pointer-events:none;z-index:1}
+  .maps-pin svg{width:26px;height:26px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+
+  .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--hair);background:#fbfcff}
+  .saved{font-size:12px;color:#16a34a;font-weight:700;opacity:0;transition:opacity .2s}
+  .saved.on{opacity:1}
+  .danger{background:#fde8e8;color:#b91c1c;border:1.5px solid #f5b5b5;border-radius:99px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+  .danger:hover{background:#fbd5d5}
+  .muted{color:var(--tx-3)}
+  .has-drawing{background:#eaf1ff!important;border-color:var(--navy)!important;color:var(--navy)!important}
+</style>
+</head>
+<body>
+<div class="nav">
+  <h1>Site Survey</h1>
+  <span class="sp"></span>
+  <input class="search" id="q" placeholder="Search site, name, number…">
+  <button class="btn" id="new-survey" type="button">+ New survey</button>
+</div>
+<div class="err" id="err"></div>
+
+<div class="wrap">
+  <div class="list">
+    <div class="list-head" id="list-head">Surveys</div>
+    <div id="list"></div>
+  </div>
+  <div id="detail"></div>
+</div>
+
+<script src="/api/v1/achi/ui/drawing.js?v=2"></script>
+<script>
+/* Same-origin as the SPA, so the JWT it stored is ours to reuse. */
+function getToken(){
+  const isJwt=s=>typeof s==='string'&&/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
+  const d=localStorage.getItem('oe_access_token'); if(isJwt(d))return d;
+  for(const st of [localStorage,sessionStorage]){
+    for(let i=0;i<st.length;i++){ const v=st.getItem(st.key(i));
+      if(isJwt(v))return v;
+      if(v&&v[0]==='{'){ try{const o=JSON.parse(v);const c=o.access_token||o.token||(o.state&&(o.state.access_token||o.state.token));if(isJwt(c))return c;}catch(e){} } }
+  }
+  return null;
+}
+const TOKEN=getToken(), API='/api/v1/achi';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
+const clearErr=()=>{$('err').style.display='none';};
+
+async function api(path,opts={}){
+  const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
+  if(r.status===401){ fail('Session expired — open the main app on this host, sign in, then reload.'); throw new Error('401'); }
+  if(r.status===204) return {};
+  const b=await r.json().catch(()=>({}));
+  if(!r.ok){ const d=b.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
+  return b;
+}
+const SVGpin=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+const fmtDT=s=>{ if(!s)return ''; const d=new Date(s); if(isNaN(d))return String(s).slice(0,16).replace('T',' ');
+  const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const forInput=s=>{ if(!s)return ''; const d=new Date(s); if(isNaN(d))return '';
+  const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+/* Map preview from OSM tiles as <img>. NOT an iframe: this page is served with
+   `frame-src 'self' blob: data:` so a third-party frame renders blank, while
+   `img-src ... https:` lets tiles through. */
+function mapsCoords(url){
+  const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/];
+  for(const p of pats){ const m=String(url||'').match(p); if(m) return {lat:parseFloat(m[1]),lng:parseFloat(m[2])}; }
+  return null;
+}
+function tileMap(lat,lng,W,H,z){
+  const n=Math.pow(2,z), wx=((lng+180)/360)*n*256, s=Math.sin(lat*Math.PI/180);
+  const wy=(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*n*256;
+  const tlX=wx-W/2, tlY=wy-H/2; let out='';
+  for(let tx=Math.floor(tlX/256); tx*256<tlX+W; tx++)
+    for(let ty=Math.floor(tlY/256); ty*256<tlY+H; ty++){
+      if(ty<0||ty>=n) continue; const xx=((tx%n)+n)%n;
+      out+=`<img class="mt-tile" src="https://tile.openstreetmap.org/${z}/${xx}/${ty}.png" style="left:${Math.round(tx*256-tlX)}px;top:${Math.round(ty*256-tlY)}px" alt="" referrerpolicy="no-referrer">`;
+    }
+  return `<div class="tilemap" style="width:100%;max-width:${W}px;height:${H}px">${out}<span class="maps-pin">${SVGpin}</span></div>`;
+}
+
+let SURVEYS=[], current=null, shots=[];
+
+/* ── list ── */
+async function load(sel){
+  try{ SURVEYS=await api('/surveys/'); renderList();
+    if(sel) await open(sel);
+    else if(current && SURVEYS.some(s=>s.id===current.id)) await open(current.id);
+    else $('detail').innerHTML=blank();
+  }catch(e){ fail(e.message); }
+}
+function renderList(){
+  const q=$('q').value.trim().toLowerCase();
+  const rows=q?SURVEYS.filter(s=>[s.survey_number,s.lead_name,s.lead_company,s.city,s.site_location].some(v=>String(v||'').toLowerCase().includes(q))):SURVEYS;
+  $('list-head').textContent=`Surveys · ${rows.length}`;
+  $('list').innerHTML = rows.length ? rows.map(s=>`
+    <button class="sv ${current&&current.id===s.id?'on':''}" data-id="${s.id}" type="button">
+      <div class="n">${esc(s.survey_number)}</div>
+      <div class="who">${esc(s.lead_name||s.lead_company||'Unnamed site')}</div>
+      <div class="where">${esc([s.site_location,s.city].filter(Boolean).join(' · ')||'No location yet')}</div>
+      <div class="meta">
+        <span class="badge b-${esc(s.status)}">${esc(s.status.replace('_',' '))}</span>
+        ${s.photo_count?`<span class="chip">${s.photo_count} file${s.photo_count>1?'s':''}</span>`:''}
+        ${s.has_drawing?`<span class="chip">sketch</span>`:''}
+      </div>
+    </button>`).join('') : `<div class="empty">No surveys yet.<br>Raise one before you drive out.</div>`;
+  $('list').querySelectorAll('.sv').forEach(b=>b.onclick=()=>open(b.dataset.id));
+}
+const blank=()=>`<div class="step"><div class="step-b muted" style="text-align:center;padding:40px 16px">
+  Pick a survey on the left, or raise a new one for the site you are visiting.</div></div>`;
+
+/* ── detail: the visit, in the order it happens ── */
+async function open(id){
+  try{
+    current=await api('/surveys/'+id);
+    shots=await api(`/surveys/${id}/attachments`);
+    renderDetail(); renderList();
+  }catch(e){ fail(e.message); }
+}
+function seg(field,value,opts){
+  return `<div class="seg">${opts.map(o=>`<button type="button" data-seg="${field}" data-v="${o.v}" class="${value===o.v?'on '+(o.tone||''):''}">${esc(o.l)}</button>`).join('')}</div>`;
+}
+function renderDetail(){
+  const s=current, c=mapsCoords(s.maps_url);
+  $('detail').innerHTML=`
+  <div class="step">
+    <div class="step-h"><span class="step-n">1</span><div><div class="step-t">Where am I going</div>
+      <div class="step-s">${esc(s.survey_number)} · <span class="badge b-${esc(s.status)}">${esc(s.status.replace('_',' '))}</span></div></div></div>
+    <div class="step-b">
+      <div class="grid">
+        <label class="f"><span>Client / contact</span><input data-f="lead_name" value="${esc(s.lead_name||'')}" placeholder="Who asked for this"></label>
+        <label class="f"><span>Company</span><input data-f="lead_company" value="${esc(s.lead_company||'')}"></label>
+        <label class="f"><span>Mobile</span><input data-f="lead_mobile" value="${esc(s.lead_mobile||'')}" placeholder="+961…"></label>
+        <label class="f"><span>Visit planned for</span><input type="datetime-local" data-f="scheduled_for" value="${forInput(s.scheduled_for)}"></label>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <label class="f"><span>City</span><input data-f="city" value="${esc(s.city||'')}"></label>
+        <label class="f"><span>District</span><input data-f="district" value="${esc(s.district||'')}"></label>
+        <label class="f"><span>Street</span><input data-f="street" value="${esc(s.street||'')}"></label>
+        <label class="f"><span>Country</span><input data-f="country" value="${esc(s.country||'Lebanon')}"></label>
+      </div>
+      <label class="f" style="margin-top:12px"><span>Site / landmark</span><input data-f="site_location" value="${esc(s.site_location||'')}" placeholder="Villa behind the church, rear facade…"></label>
+      <label class="f" style="margin-top:12px"><span>Maps link</span><input data-f="maps_url" value="${esc(s.maps_url||'')}" placeholder="Paste a Google Maps link"></label>
+      ${c?tileMap(c.lat,c.lng,520,190,16):''}
+      ${s.maps_url?`<div style="margin-top:8px"><a href="${esc(s.maps_url)}" target="_blank" rel="noreferrer" style="color:var(--navy);font-weight:700;font-size:13px">Open in Maps ↗</a></div>`:''}
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-h"><span class="step-n">2</span><div><div class="step-t">Can we get the kit in</div>
+      <div class="step-s">Access decides the price — answer before you leave the site</div></div></div>
+    <div class="step-b">
+      <label class="f"><span>Can a truck reach the site</span></label>
+      ${seg('truck_access',s.truck_access,[{v:'yes',l:'Yes'},{v:'tight',l:'Tight',tone:'warn'},{v:'no',l:'No',tone:'bad'},{v:'unknown',l:'Not sure'}])}
+      <label class="f" style="margin-top:14px"><span>Where can we park</span></label>
+      ${seg('parking',s.parking,[{v:'on_site',l:'On site'},{v:'street',l:'Street'},{v:'none',l:'Nowhere',tone:'bad'},{v:'unknown',l:'Not sure'}])}
+      <label class="f" style="margin-top:14px"><span>The road in</span><textarea data-f="road_notes" placeholder="Width, gradient, low cables, gate size, turning space…">${esc(s.road_notes||'')}</textarea></label>
+      <label class="f" style="margin-top:12px"><span>Other access notes</span><textarea data-f="access_notes" placeholder="Stairs, lift, permissions, working hours, neighbours…">${esc(s.access_notes||'')}</textarea></label>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-h"><span class="step-n">3</span><div><div class="step-t">On site</div>
+      <div class="step-s">Arrive, then photograph everything you will be asked about later</div></div></div>
+    <div class="step-b">
+      <div class="arrive">
+        ${s.arrived_at?`<span class="done">✓ Arrived ${esc(fmtDT(s.arrived_at))}</span>`:`<button class="big" id="arrive" type="button">I'm on site</button>`}
+      </div>
+      <div class="drop" id="drop" style="margin-top:14px">Tap to add photos or a PDF — or drop files here</div>
+      <input type="file" id="file" multiple accept="image/*,application/pdf" style="display:none">
+      <div class="shots" id="shots"></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-h"><span class="step-n">4</span><div><div class="step-t">Who I met and what I saw</div>
+      <div class="step-s">Sketch what a photo cannot show</div></div></div>
+    <div class="step-b">
+      <label class="f"><span>People met</span><textarea data-f="people_met" placeholder="Name, role, phone — who to call back">${esc(s.people_met||'')}</textarea></label>
+      <label class="f" style="margin-top:12px"><span>Description</span><textarea data-f="description" style="min-height:130px" placeholder="Heights, elevations, ground, obstructions, what they actually want…">${esc(s.description||'')}</textarea></label>
+      <button class="btn btn-ghost ${s.has_drawing?'has-drawing':''}" id="draw" type="button" style="margin-top:12px;color:var(--navy);border-color:var(--bd);background:#fff">
+        ${s.has_drawing?'Edit sketch':'Add a sketch'}</button>
+    </div>
+    <div class="row-actions">
+      <label class="f" style="margin:0"><span>Status</span>
+        <select data-f="status">
+          ${['planned','on_site','surveyed','quoted','cancelled'].map(v=>`<option value="${v}"${s.status===v?' selected':''}>${v.replace('_',' ')}</option>`).join('')}
+        </select></label>
+      <span class="sp" style="flex:1"></span>
+      <span class="saved" id="saved">Saved</span>
+      <button class="danger" id="del" type="button">Delete survey</button>
+    </div>
+  </div>`;
+  wireDetail(); renderShots();
+}
+
+/* Autosave: each field saves when you leave it. On a site you do not get to
+   press Save at the end — you get interrupted. */
+function wireDetail(){
+  $('detail').querySelectorAll('[data-f]').forEach(el=>{
+    const commit=async()=>{
+      const f=el.dataset.f; let v=el.value;
+      if(f==='scheduled_for') v=v?new Date(v).toISOString():null;
+      if((current[f]??'')===(v??'')) return;
+      try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({[f]:v===''?null:v})});
+        clearErr(); flash(); renderList();
+      }catch(e){ fail(e.message); }
+    };
+    el.addEventListener('change',commit);
+    el.addEventListener('blur',commit);
+  });
+  $('detail').querySelectorAll('[data-seg]').forEach(b=>b.onclick=async()=>{
+    try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({[b.dataset.seg]:b.dataset.v})});
+      clearErr(); flash(); renderDetail(); renderList();
+    }catch(e){ fail(e.message); }
+  });
+  const arrive=$('arrive');
+  if(arrive) arrive.onclick=async()=>{ try{ current=await api(`/surveys/${current.id}/arrive`,{method:'POST'}); flash(); renderDetail(); renderList(); }catch(e){ fail(e.message); } };
+  $('drop').onclick=()=>$('file').click();
+  $('drop').addEventListener('dragover',e=>{e.preventDefault();});
+  $('drop').addEventListener('drop',e=>{e.preventDefault(); upload(e.dataTransfer.files);});
+  $('file').onchange=e=>upload(e.target.files);
+  $('del').onclick=async()=>{
+    if(!confirm(`Delete ${current.survey_number}? This cannot be undone.`)) return;
+    try{ await api('/surveys/'+current.id,{method:'DELETE'}); current=null; await load(); }catch(e){ fail(e.message); }
+  };
+  $('draw').onclick=async()=>{
+    if(typeof achi_drawing==='undefined'){ fail('Drawing tool did not load.'); return; }
+    let initial='';
+    try{ initial=(await api(`/surveys/${current.id}/drawing`)).drawing||''; }catch(e){}
+    achi_drawing.open({ title:`Sketch — ${current.survey_number}`, initial,
+      onSave:async json=>{ try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({drawing:json})}); flash(); renderDetail(); renderList(); }catch(e){ fail(e.message); } } });
+  };
+}
+function flash(){ const el=$('saved'); if(!el)return; el.classList.add('on'); setTimeout(()=>el.classList.remove('on'),1200); }
+
+/* ── photos and PDFs ── */
+async function upload(files){
+  if(!files||!files.length) return;
+  clearErr();
+  for(const f of files){
+    try{
+      const fd=new FormData(); fd.append('file',f,f.name);
+      const r=await fetch(`${API}/surveys/${current.id}/attachments`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+      if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||`Could not upload ${f.name}`); }
+    }catch(e){ fail(e.message); }
+  }
+  shots=await api(`/surveys/${current.id}/attachments`);
+  renderShots(); load();
+}
+function renderShots(){
+  const el=$('shots'); if(!el) return;
+  el.innerHTML=shots.map(a=>`<div class="shot" data-id="${a.id}">
+      ${a.content_type.startsWith('image/')?`<img data-src="${a.id}" alt="${esc(a.filename)}">`:`<div class="doc">${esc(a.filename.split('.').pop().toUpperCase())}<br>document</div>`}
+      <div class="nm" title="${esc(a.filename)}">${esc(a.filename)}</div>
+      <button class="x" data-del="${a.id}" title="Remove">&times;</button>
+    </div>`).join('');
+  // The download route is bearer-only, so an <img src> would 401. Fetch the bytes
+  // with the token and hand the browser a blob instead.
+  el.querySelectorAll('img[data-src]').forEach(async img=>{
+    try{
+      const r=await fetch(`${API}/survey-attachments/${img.dataset.src}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+      if(r.ok) img.src=URL.createObjectURL(await r.blob());
+    }catch(e){}
+  });
+  el.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    try{ await api(`/survey-attachments/${b.dataset.del}`,{method:'DELETE'});
+      shots=await api(`/surveys/${current.id}/attachments`); renderShots(); load();
+    }catch(e){ fail(e.message); }
+  });
+  el.querySelectorAll('.shot').forEach(s=>s.onclick=async e=>{
+    if(e.target.closest('[data-del]')) return;
+    const a=shots.find(x=>x.id===s.dataset.id); if(!a) return;
+    try{ const r=await fetch(`${API}/survey-attachments/${a.id}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+      if(r.ok) window.open(URL.createObjectURL(await r.blob()),'_blank');
+    }catch(err){}
+  });
+}
+
+/* ── new survey ── */
+$('new-survey').onclick=async()=>{
+  const who=prompt('Who is this survey for? (name or company)');
+  if(who===null) return;
+  try{
+    const s=await api('/surveys/',{method:'POST',body:JSON.stringify({lead_name:who.trim()||null,country:'Lebanon'})});
+    await load(s.id);
+  }catch(e){ fail(e.message); }
+};
+$('q').oninput=renderList;
+
+if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
+else load();
+</script>
+</body>
+</html>

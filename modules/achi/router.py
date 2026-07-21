@@ -28,8 +28,12 @@ from .schemas import (
     ModuleInfo,
 )
 from .service import ContactFileService
+from .survey_router import survey_router
 
 router = APIRouter()
+
+# Site survey lives in its own file; the loader only looks for `router` here.
+router.include_router(survey_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
