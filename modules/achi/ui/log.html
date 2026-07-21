@@ -308,7 +308,9 @@ function draftCell(c,dp,st){
   if(c.k==='num') return dp==='d'
     ? `<button class="addbtn2" data-add title="Add empty rows below">+</button>`
     : `<button class="rmbtn" data-rm="${dp}" title="Remove row">&times;</button>`;
-  if(c.k==='when') return `<span class="mt">now</span>`;
+  // Frappe's CRM Log draft rows show the actual creation value as
+  // DD/MM/YYYY HH:MM instead of the relative placeholder "now".
+  if(c.k==='when') return `<span class="dt">${esc(fmtDT(new Date()))}</span>`;
   if(c.k==='status') return `<span class="mt">open</span>`;
   if(c.k==='owner') return `<span class="mt">you</span>`;
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
