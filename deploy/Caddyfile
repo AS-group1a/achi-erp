@@ -18,7 +18,7 @@
 	}
 
 	replace {
-		"</head>" `<link rel="stylesheet" href="/achi-theme.css"><script src="/achi-nav.js?v=9" defer></script></head>`
+		"</head>" `<link rel="stylesheet" href="/achi-theme.css"><script src="/achi-nav.js?v=12" defer></script></head>`
 	}
 
 	# Upstream documents three hard proxy requirements (deploy/docker/README.md):
