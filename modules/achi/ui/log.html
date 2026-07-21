@@ -298,13 +298,15 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
-function showInvalidEmail(input){
+const validLebanonMobile=n=>/^(?:03\d{6}|3\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
+const validMobile=v=>{const s=String(v||'').trim();if(!s)return true;if(!/^([0-9 +_\-,.*#()]){1,20}$/.test(s))return false;const digits=s.replace(/\D/g,'');if(/^\+?961(?:\D|$)/.test(s))return validLebanonMobile(digits.slice(3));return digits.length>=7&&digits.length<=15;};
+function showInvalidValue(input,title,message){
   input&&input.classList.add('email-invalid');
   const existing=document.querySelector('.feedback');
   if(existing) return;
   const modal=document.createElement('div');
   modal.className='feedback'; modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.setAttribute('aria-labelledby','feedback-title');
-  modal.innerHTML='<div class="feedback-box"><div class="feedback-head" id="feedback-title">Invalid Email</div><div class="feedback-body">Please Enter a valid Email address</div><div class="feedback-foot"><button class="feedback-ok" type="button">OK</button></div></div>';
+  modal.innerHTML=`<div class="feedback-box"><div class="feedback-head" id="feedback-title">${esc(title)}</div><div class="feedback-body">${esc(message)}</div><div class="feedback-foot"><button class="feedback-ok" type="button">OK</button></div></div>`;
   document.body.appendChild(modal);
   const close=()=>{ modal.remove(); if(input&&input.isConnected){ input.focus(); input.select&&input.select(); } };
   modal.querySelector('.feedback-ok').onclick=close;
@@ -312,6 +314,8 @@ function showInvalidEmail(input){
   modal.onkeydown=e=>{ if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();close();} };
   requestAnimationFrame(()=>modal.querySelector('.feedback-ok').focus());
 }
+const showInvalidEmail=input=>showInvalidValue(input,'Invalid Email','Please Enter a valid Email address');
+const showInvalidMobile=input=>showInvalidValue(input,'Invalid Mobile','Please Enter a valid Mobile number');
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
@@ -591,6 +595,7 @@ function draftMobile(st){
   if(!num) return null;
   return `${st.dial||DEFAULT_DIAL} ${num}`.trim();
 }
+function validDraftMobile(st){ return validMobile(draftMobile(st)); }
 function draftPayload(st){
   const first=(st.first||'').trim(),last=(st.last||'').trim(),company=(st.company||'').trim();
   const isCo=!!company&&!first&&!last;
@@ -607,6 +612,7 @@ const committing=new Set();
 function draftIsSaveable(st){ return !!((st.first||'').trim() || (st.company||'').trim() || (st.last||'').trim()); }
 async function commitDraft(dp){
   const st=stateFor(dp); if(!st) return;
+  if(!validDraftMobile(st)){ showInvalidMobile($(dp+'-mobile')); return; }
   if(!validEmail(st.email)){ showInvalidEmail($(dp+'-email')); return; }
   if(!draftIsSaveable(st)){ const el=$(dp+'-first'); if(el)el.focus(); return; }
   if(committing.has(dp)) return;
@@ -640,6 +646,7 @@ function flushDrafts(){
     committing.add(dp);
     // No UI left to correct a bad email — drop it rather than lose the whole row.
     if(!validEmail(st.email)) st.email='';
+    if(!validDraftMobile(st)) st.mobilenum='';
     try{
       fetch(API+'/logs/',{method:'POST',keepalive:true,
         headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
@@ -675,6 +682,7 @@ $('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.d
     const s=document.getElementById(dp+'-prefix'); if(s) s.focus();
     return; }
   st[el.dataset.dk]=el.value;
+  if(el.dataset.dk==='mobilenum'&&validDraftMobile(st))el.classList.remove('email-invalid');
   if(el.dataset.dk==='email'){const valid=validEmail(el.value);if(valid)el.classList.remove('email-invalid');const button=el.closest('.draft-email')?.querySelector('.draft-compose');if(button)button.hidden=!(el.value.trim()&&valid); }
 });
 $('rows').addEventListener('click',e=>{
@@ -686,9 +694,10 @@ $('rows').addEventListener('click',e=>{
   });
 });
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
-  if(e.key==='Enter'){ e.preventDefault(); if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
+  if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp,st=stateFor(dp); if(el.dataset.dk==='mobilenum'&&!validDraftMobile(st)){showInvalidMobile(el);return;} if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='email'&&!validEmail(el.value))showInvalidEmail(el);});
+$('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='mobilenum'&&!validDraftMobile(stateFor(el.dataset.dp)))showInvalidMobile(el);});
 $('add-row').addEventListener('click',addBottomRow);
 $('btn-del').addEventListener('click',deleteSelected);
 $('select-all').addEventListener('click',()=>{
@@ -845,6 +854,7 @@ function openEditor(td){
     // new…" sentinel as a real prefix. Refuse it and leave the editor open.
     if(el.value===PREFIX_ADD) return;
     const nv=frappeSelect?(el.dataset.selectValue||''):el.value;
+    if(save&&field==='mobile'&&!validMobile(nv)){showInvalidMobile(el);return;}
     if(save&&field==='email'&&!validEmail(nv)){showInvalidEmail(el);return;}
     ran=true;
     if(save && nv!==val){ try{
