@@ -106,6 +106,14 @@
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
   thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  /* column resize (ported from tabbed_grid.js .pg-rz). The handle positions
+     against the th, which is already `position:sticky` and therefore a
+     containing block for absolute children. */
+  .rz{position:absolute;top:0;right:-2px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}
+  thead th:last-child .rz{right:0;width:4px}
+  .rz:hover,.rz.rz-active{background:rgba(255,255,255,.28)}
+  body.col-resizing{cursor:col-resize!important;user-select:none}
+  body.col-resizing *{cursor:col-resize!important}
   tbody td{height:40px;padding:0 12px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   tbody td.wide{max-width:340px}
   tbody tr.data:nth-child(even) td{background:#f8faff}
@@ -544,7 +552,65 @@ function stats(){ const now=new Date();
   const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
   $('k-total').textContent=ROWS.length; $('k-open').textContent=ROWS.filter(r=>r.status==='open').length;
   $('k-month').textContent=m; $('k-done').textContent=ROWS.filter(r=>r.status==='done').length; }
-function buildHead(){ $('thead').innerHTML=COLS.map(c=>`<th data-tab="${c.tab??''}" class="${c.cls||''}" style="width:${c.w}px">${c.h}</th>`).join(''); }
+/* ── column widths (ported from tabbed_grid.js _wireColResize) ─────────────
+ * Widths are per-column and remembered per browser, so someone who widens
+ * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
+ * so setting the th width is what actually sizes the column — the body cells
+ * follow it and nothing has to be touched per row. */
+const COLW_KEY='achi_log_col_widths', COLW_MIN=48;
+let COLW={};
+function loadColWidths(){
+  try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY)||'{}')||{}; }catch(e){ COLW={}; }
+}
+function saveColWidths(){
+  try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){}
+}
+const colWidth=c=>Math.max(COLW_MIN, Number(COLW[c.k])||c.w);
+function buildHead(){
+  $('thead').innerHTML=COLS.map(c=>
+    `<th data-tab="${c.tab??''}" data-k="${c.k}" class="${c.cls||''}" style="width:${colWidth(c)}px">`
+    +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`).join('');
+}
+/* Pointer events rather than mouse, so this works on the tablet a surveyor
+   carries as well as a desktop. One delegated listener on the header survives
+   buildHead() being called again. */
+function wireColResize(){
+  const head=$('thead');
+  if(!head || head.dataset.rzWired) return;
+  head.dataset.rzWired='1';
+  head.addEventListener('pointerdown',e=>{
+    const handle=e.target.closest('.rz'); if(!handle) return;
+    e.preventDefault(); e.stopPropagation();
+    const th=handle.closest('th'), key=handle.dataset.k;
+    if(!th||!key) return;
+    const startX=e.clientX, startW=th.getBoundingClientRect().width;
+    handle.classList.add('rz-active');
+    document.body.classList.add('col-resizing');
+    handle.setPointerCapture&&handle.setPointerCapture(e.pointerId);
+    const move=ev=>{
+      const next=Math.max(COLW_MIN,Math.round(startW+ev.clientX-startX));
+      COLW[key]=next; th.style.width=next+'px';
+    };
+    const up=()=>{
+      window.removeEventListener('pointermove',move);
+      window.removeEventListener('pointerup',up);
+      handle.classList.remove('rz-active');
+      document.body.classList.remove('col-resizing');
+      saveColWidths();
+      moveIndToActive();   // the pill indicator tracks column offsets
+    };
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',up);
+  });
+  // Double-click a handle to put that column back to its designed width.
+  head.addEventListener('dblclick',e=>{
+    const handle=e.target.closest('.rz'); if(!handle) return;
+    const c=COLS.find(x=>x.k===handle.dataset.k); if(!c) return;
+    delete COLW[c.k]; saveColWidths();
+    const th=handle.closest('th'); if(th) th.style.width=c.w+'px';
+  });
+}
+function moveIndToActive(){ const b=tabsEl&&tabsEl.querySelector('.pill-tab.on'); if(b) moveInd(b); }
 
 function draftCell(c,dp,st,rowNumber){
   if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
@@ -1299,7 +1365,7 @@ $('q').oninput=render;
 /* boot */
 $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
-buildHead(); setActivePill(0); render();
+loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
 </script>
