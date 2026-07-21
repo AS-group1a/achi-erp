@@ -182,6 +182,11 @@ class ContactFileService:
     async def get_log(self, log_id: str) -> FileLog | None:
         return await self.session.get(FileLog, log_id)
 
+    async def delete_log(self, log: FileLog) -> None:
+        """Delete one log entry. The file stays (files are plumbing)."""
+        await self.session.delete(log)
+        await self.session.commit()
+
     async def update_contact(self, file: ContactFile, data) -> None:
         """Inline-edit the file's linked canonical contact (name/company/phone/…).
 

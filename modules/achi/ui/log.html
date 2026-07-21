@@ -46,6 +46,29 @@
   .tb-select:hover{background:rgba(255,255,255,.22);border-color:#fff;transform:translateY(-1px)}
   .tb-select.on{background:#fff;color:var(--navy);border-color:#fff}
   .tb-select svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  /* delete selected */
+  .tb-del{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:99px;background:rgba(255,255,255,.1);color:#fca5a5;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0;pointer-events:none;max-width:0;padding:0;overflow:hidden;transition:opacity .18s,max-width .18s}
+  .tb-del.on{opacity:1;pointer-events:all;max-width:200px;padding:7px 13px;border:1.5px solid rgba(252,165,165,.45)}
+  .tb-del:hover{background:rgba(239,68,68,.25);border-color:#fca5a5;color:#fff}
+  .tb-del svg{width:13px;height:13px}
+  .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
+  /* phone: country-code picker + number */
+  .tel-wrap{display:flex;align-items:center;gap:4px;width:100%}
+  .tel-cc{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;height:30px;padding:0 6px;border:1px solid #cfd9e8;border-radius:6px;background:#fff;cursor:pointer;font:inherit;font-size:12px;color:#1e293b}
+  .tel-cc:hover{border-color:var(--navy)}
+  .tel-cc img{width:20px;height:15px;object-fit:cover;border-radius:2px;display:block}
+  .tel-cc svg{width:11px;height:11px;opacity:.55}
+  .tel-num{flex:1 1 auto;min-width:0}
+  .cc-drop{position:fixed;z-index:2147482300;width:290px;background:#fff;border:1.5px solid #dfe4ec;border-radius:10px;box-shadow:0 12px 34px rgba(15,23,42,.22);overflow:hidden;display:none}
+  .cc-drop.vis{display:block}
+  .cc-search{width:100%;border:0;border-bottom:1px solid #eef1f6;padding:9px 11px;font:inherit;font-size:12.5px;outline:none}
+  .cc-list{max-height:230px;overflow:auto}
+  .cc-item{display:flex;align-items:center;gap:9px;padding:7px 11px;cursor:pointer;font-size:12.5px}
+  .cc-item:hover{background:var(--navy);color:#fff}
+  .cc-item img{width:22px;height:16px;object-fit:cover;border-radius:2px;flex:0 0 auto}
+  .cc-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cc-dial{font-variant-numeric:tabular-nums;opacity:.7;flex:0 0 auto}
+  td.num{cursor:pointer}
 
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
@@ -126,7 +149,15 @@
   .muted{color:var(--tx-3)}
 
   /* description popup — ported from the frappe grid's note workspace, same blue/white */
-  .pg-note-workspace{position:fixed;inset:0;z-index:2147482400;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  .pg-note-workspace{position:fixed;inset:0;z-index:2147482400;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  /* expand affordance on long-text cells: click to type, arrow to open the popup */
+  td.notecell{position:relative}
+  .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:5px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
+  td.notecell:hover .note-exp,.note-wrap:hover .note-exp{opacity:1}
+  .note-exp:hover{background:#dbeafe}
+  .note-exp svg{width:12px;height:12px}
+  .note-wrap{position:relative;display:block;width:100%}
+  .note-wrap .note-exp{right:3px;bottom:5px}
   .pg-note-workspace-box{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:18px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
   .pg-note-workspace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
   .pg-note-workspace-title{font-size:16px;font-weight:800;letter-spacing:.02em}
@@ -182,9 +213,11 @@
 
   <div class="shell">
     <div class="nav">
+      <span class="cnt" id="count">· 0</span>
       <div class="nav-actions">
         <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
         <button class="tb-select" id="select-all" type="button" aria-pressed="false" title="Select or unselect all rows"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5 8l2 2 4-4"/></svg><span id="select-all-label">Select All</span></button>
+        <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
       </div>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
@@ -261,6 +294,11 @@ const SVG={
   copy:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="8" height="9" rx="1.2"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h7a1 1 0 011 1v2"/></svg>`,
   check:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 6,12 14,4"/></svg>`,
   up:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,10 8,6 12,10"/></svg>`,
+  plus:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>`,
+  expand:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/><line x1="14" y1="2" x2="9" y2="7"/><line x1="2" y1="14" x2="7" y2="9"/></svg>`,
+  chev:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg>`,
+  selall:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2.5"/><polyline points="5,8 7,10 11,6"/></svg>`,
+  trash:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,4 14,4"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/><path d="M6 7v5m4-5v5"/><rect x="3" y="4" width="10" height="9" rx="1.5"/></svg>`,
   wa:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`,
 };
 
@@ -286,6 +324,33 @@ function marks(r){ let s='';
   return s; }
 
 /* columns: full CRM Log List set. tab=null → always. edit.target: file|log|contact */
+/* Country dial codes. Flags are real images (flagcdn) rather than emoji, because
+   Windows renders flag emoji as bare letter pairs. [iso2, name, dial] */
+const DEFAULT_ISO='lb', DEFAULT_DIAL='+961';
+const COUNTRIES=[
+  ['lb','Lebanon','+961'],['ae','United Arab Emirates','+971'],['sa','Saudi Arabia','+966'],['qa','Qatar','+974'],
+  ['kw','Kuwait','+965'],['bh','Bahrain','+973'],['om','Oman','+968'],['jo','Jordan','+962'],['sy','Syria','+963'],
+  ['iq','Iraq','+964'],['eg','Egypt','+20'],['tr','Turkey','+90'],['cy','Cyprus','+357'],['il','Israel','+972'],
+  ['ps','Palestine','+970'],['ir','Iran','+98'],['ye','Yemen','+967'],
+  ['gb','United Kingdom','+44'],['ie','Ireland','+353'],['fr','France','+33'],['de','Germany','+49'],
+  ['it','Italy','+39'],['es','Spain','+34'],['pt','Portugal','+351'],['nl','Netherlands','+31'],
+  ['be','Belgium','+32'],['ch','Switzerland','+41'],['at','Austria','+43'],['se','Sweden','+46'],
+  ['no','Norway','+47'],['dk','Denmark','+45'],['fi','Finland','+358'],['pl','Poland','+48'],
+  ['cz','Czechia','+420'],['gr','Greece','+30'],['ro','Romania','+40'],['bg','Bulgaria','+359'],
+  ['hu','Hungary','+36'],['hr','Croatia','+385'],['rs','Serbia','+381'],['ua','Ukraine','+380'],
+  ['ru','Russia','+7'],['us','United States','+1'],['ca','Canada','+1'],['mx','Mexico','+52'],
+  ['br','Brazil','+55'],['ar','Argentina','+54'],['cl','Chile','+56'],['co','Colombia','+57'],
+  ['au','Australia','+61'],['nz','New Zealand','+64'],['in','India','+91'],['pk','Pakistan','+92'],
+  ['bd','Bangladesh','+880'],['lk','Sri Lanka','+94'],['np','Nepal','+977'],['cn','China','+86'],
+  ['jp','Japan','+81'],['kr','South Korea','+82'],['sg','Singapore','+65'],['my','Malaysia','+60'],
+  ['id','Indonesia','+62'],['th','Thailand','+66'],['vn','Vietnam','+84'],['ph','Philippines','+63'],
+  ['hk','Hong Kong','+852'],['za','South Africa','+27'],['ng','Nigeria','+234'],['ke','Kenya','+254'],
+  ['gh','Ghana','+233'],['et','Ethiopia','+251'],['ma','Morocco','+212'],['dz','Algeria','+213'],
+  ['tn','Tunisia','+216'],['ly','Libya','+218'],['sd','Sudan','+249'],['am','Armenia','+374'],
+  ['ge','Georgia','+995'],['az','Azerbaijan','+994'],['kz','Kazakhstan','+7'],['af','Afghanistan','+93'],
+];
+const flagSrc=iso=>`https://flagcdn.com/24x18/${iso}.png`;
+
 const COLS=[
   {k:'num',    h:'#',              tab:null, cls:'num', w:46},
   {k:'when',   h:'Date & Time',    tab:null, w:150},
@@ -299,7 +364,7 @@ const COLS=[
   {k:'owner',  h:'Owner',          tab:0, w:80},
   {k:'type',   h:'Call Type',      tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
   {k:'category',h:'Category',      tab:0, w:170, draft:'select', edit:{kind:'category',target:'log',field:'category',val:r=>r.category||''}},
-  {k:'mobile', h:'Mobile',         tab:1, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+  {k:'mobile', h:'Mobile',         tab:1, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
   {k:'email',  h:'Email',          tab:1, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
   {k:'maps',   h:'Maps',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
   {k:'country',h:'Country',        tab:2, w:110, draft:'text', edit:{kind:'text',target:'file',field:'country',val:r=>r.country||''}},
@@ -341,6 +406,7 @@ function cellHTML(c,r,i){switch(c.k){
 let ROWS=[], openOnly=false, activeTab=0;
 const selectedRows=new Set();
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
+let selected=new Set();             // selected log ids
 
 function stats(){ const now=new Date();
   const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
@@ -360,7 +426,11 @@ function draftCell(c,dp,st,rowNumber){
     if(c.k==='prefix') return `<select class="din" id="${id}" data-dp="${dp}" data-dk="prefix">${prefixOpts(st.prefix||'')}</select>`;
     const o=c.k==='type'?TYPES:CATEGORIES; const blank=c.k==='category'?'<option value=""></option>':''; return `<select class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}">${blank}${selOpts(o,st[c.k]||(c.k==='type'?'inbound_call':''))}</select>`; }
   if(c.draft==='date') return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" type="date" value="${v}">`;
-  if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; const note=c.note?' data-note="1" readonly title="Open notes, files, and drawing"':''; return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${note}>`; }
+  if(c.draft==='tel'){ const iso=st.iso||DEFAULT_ISO, dial=st.dial||DEFAULT_DIAL;
+    return `<span class="tel-wrap"><button type="button" class="tel-cc" data-dp="${dp}" title="Country code"><img src="${flagSrc(iso)}" alt=""><span class="cc">${esc(dial)}</span>${SVG.chev}</button>`
+      + `<input class="din tel-num" id="${id}" data-dp="${dp}" data-dk="mobilenum" placeholder="70 123 456" value="${esc(st.mobilenum||'')}"></span>`; }
+  if(c.draft==='text'){ const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||''; const inp=`<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${c.note?' data-note="1"':''}>`;
+    return c.note ? `<span class="note-wrap">${inp}<button type="button" class="note-exp" data-noteexp data-for="${id}" title="Open notes, files and drawing">${SVG.expand}</button></span>` : inp; }
   return `<span class="mt">—</span>`;
 }
 function draftRowHTML(dp,st,isTop,rowNumber){
@@ -374,9 +444,10 @@ function draftRowHTML(dp,st,isTop,rowNumber){
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=[c.cls||'',c.wide?'wide':'',c.edit?(['status','type','category','prefix'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
+    const cls=[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}</td>`;
+    const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 
@@ -407,6 +478,25 @@ function render(){
   ].join('');
   $('rows').innerHTML=body;
   refreshSelectionButton();
+  refreshDeleteButton();
+}
+
+/* Delete the selected rows. Uses the shared selectedRows set (keys are `log:<id>`)
+   so it stays in step with the select-all / row-number selection. */
+function refreshDeleteButton(){
+  const n=selectedRows.size, del=$('btn-del');
+  if(del){ del.classList.toggle('on', n>0); const c=$('del-count'); if(c) c.textContent=n; }
+}
+async function deleteSelected(){
+  const ids=[...selectedRows].map(k=>String(k).replace(/^log:/,''));
+  if(!ids.length) return;
+  if(!confirm(`Delete ${ids.length} log${ids.length>1?'s':''}? This cannot be undone.`)) return;
+  try{
+    for(const id of ids){ await api('/logs/'+id,{method:'DELETE'}); }
+    selectedRows.clear();
+    await load();
+    refreshDeleteButton();
+  }catch(e){ fail(e.message); }
 }
 
 /* ── draft interactions (delegated once) ── */
@@ -421,11 +511,17 @@ function addBottomRow(){
   $('touter').scrollLeft=left;
 }
 function removeBottomRow(dp){ bottomDrafts.splice(+dp.slice(1),1); render(); }
+function draftMobile(st){
+  const num=(st.mobilenum||'').trim();
+  if(!num) return null;
+  return `${st.dial||DEFAULT_DIAL} ${num}`.trim();
+}
 function draftPayload(st){
   const first=(st.first||'').trim(),last=(st.last||'').trim(),company=(st.company||'').trim();
   const isCo=!!company&&!first&&!last;
-  const person=isCo?{is_company:true,company_name:company,mobile:st.mobile||null,email:st.email||null}
-    :{is_company:false,prefix:st.prefix||null,first_name:first||null,last_name:last||null,company_name:company||null,mobile:st.mobile||null,email:st.email||null};
+  const mob=draftMobile(st);
+  const person=isCo?{is_company:true,company_name:company,mobile:mob,email:st.email||null}
+    :{is_company:false,prefix:st.prefix||null,first_name:first||null,last_name:last||null,company_name:company||null,mobile:mob,email:st.email||null};
   const hasSite=st.country||st.district||st.city||st.street||st.maps||st.location;
   return {person,site:hasSite?{country:st.country||'Lebanon',district:st.district||null,city:st.city||null,street:st.street||null,maps_url:st.maps||null,site_location:st.location||null}:null,
     log_type:st.type||'inbound_call',category:st.category||null,description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
@@ -459,16 +555,58 @@ $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&
   if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('add-row').addEventListener('click',addBottomRow);
+$('btn-del').addEventListener('click',deleteSelected);
 $('select-all').addEventListener('click',()=>{
   const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
   rows.forEach(tr=>toggleRowSelection(tr,!all));
-  refreshSelectionButton();
+  refreshSelectionButton(); refreshDeleteButton();
 });
-$('rows').addEventListener('click',e=>{ const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); return; }
+$('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); if(ccb){ openCc(ccb); return; }
+  const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); refreshDeleteButton(); return; }
+  const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
   const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
-  const dn=e.target.closest('.din[data-note]'); if(dn){ openDraftNoteWorkspace(dn); return; }
+  const ne=e.target.closest('.note-exp'); if(ne){
+    const forId=ne.getAttribute('data-for');
+    if(forId){ const inp=document.getElementById(forId); if(inp) openDraftNoteWorkspace(inp); return; }
+    const ntd=ne.closest('td[data-k]');
+    if(ntd){ const col=COLS.find(c=>c.k===ntd.dataset.k); if(col) openNoteWorkspace(ntd,col); }
+    return; }
   const cp=e.target.closest('[data-copy]'); if(cp){ try{navigator.clipboard.writeText(cp.dataset.copy);}catch(_){} cp.classList.add('copied'); cp.innerHTML=SVG.check; setTimeout(()=>{cp.classList.remove('copied');cp.innerHTML=SVG.copy;},1000); return; }
+  const numTd=e.target.closest('td.num'); if(numTd && numTd.closest('tr.data')){ toggleSelect(numTd.closest('tr.data').dataset.log); return; }
   const td=e.target.closest('td[data-edit]'); if(td && td.closest('tr.data')){ if(!e.target.closest('a,button')) openEditor(td); } });
+
+/* ── country-code picker (real flag images; emoji flags don't render on Windows) ── */
+let ccDrop=null, ccBtn=null;
+function ensureCcDrop(){ if(ccDrop) return;
+  ccDrop=document.createElement('div'); ccDrop.className='cc-drop';
+  ccDrop.innerHTML=`<input class="cc-search" placeholder="Search country or code…"><div class="cc-list"></div>`;
+  document.body.appendChild(ccDrop);
+  ccDrop.querySelector('.cc-search').addEventListener('input',e=>renderCcList(e.target.value));
+  ccDrop.addEventListener('mousedown',e=>{ const it=e.target.closest('.cc-item[data-iso]'); if(it){ e.preventDefault(); pickCc(it.dataset.iso,it.dataset.dial); } });
+  document.addEventListener('mousedown',e=>{ if(ccDrop.classList.contains('vis') && !ccDrop.contains(e.target) && !e.target.closest('.tel-cc')) closeCc(); });
+}
+function renderCcList(q){ const t=(q||'').trim().toLowerCase();
+  const rows=COUNTRIES.filter(c=>!t||c[1].toLowerCase().includes(t)||c[2].includes(t)||c[0]===t);
+  ccDrop.querySelector('.cc-list').innerHTML = rows.length
+    ? rows.map(c=>`<div class="cc-item" data-iso="${c[0]}" data-dial="${c[2]}"><img src="${flagSrc(c[0])}" alt=""><span class="cc-name">${esc(c[1])}</span><span class="cc-dial">${esc(c[2])}</span></div>`).join('')
+    : `<div class="cc-item" style="cursor:default;opacity:.6">No match</div>`;
+}
+function openCc(btn){ ensureCcDrop(); ccBtn=btn;
+  const s=ccDrop.querySelector('.cc-search'); s.value=''; renderCcList('');
+  const r=btn.getBoundingClientRect();
+  ccDrop.style.left=Math.max(8,Math.min(r.left,window.innerWidth-300))+'px';
+  ccDrop.style.top=((r.bottom+290>window.innerHeight) ? Math.max(8,r.top-290) : r.bottom+4)+'px';
+  ccDrop.classList.add('vis'); s.focus();
+}
+function closeCc(){ if(ccDrop) ccDrop.classList.remove('vis'); ccBtn=null; }
+function pickCc(iso,dial){ if(!ccBtn) return;
+  const dp=ccBtn.dataset.dp, st=stateFor(dp);
+  if(st){ st.iso=iso; st.dial=dial; }
+  const img=ccBtn.querySelector('img'); if(img) img.src=flagSrc(iso);
+  const cc=ccBtn.querySelector('.cc'); if(cc) cc.textContent=dial;
+  closeCc();
+  const num=document.getElementById(dp+'-mobile'); if(num) num.focus();
+}
 
 /* ── Maps hover preview (ported from the tabbed grid) ── */
 let mapsPopup=null, mapsTimer=null;
@@ -536,7 +674,7 @@ function refreshCell(td){ const tr=td.closest('tr'); const r=ROWS.find(x=>x.id==
 function openEditor(td){
   if(td.querySelector('input,select')) return;
   const col=COLS.find(c=>c.k===td.dataset.k);
-  if(col&&col.note){ openNoteWorkspace(td,col); return; }   // long text gets the popup, not a 30px input
+  // long-text cells edit inline like any other; the ⤢ arrow opens the full workspace
   const kind=td.dataset.kind, val=td.dataset.val||'', field=td.dataset.field, target=td.dataset.target;
   const tr=td.closest('tr'), logId=tr.dataset.log, fileId=tr.dataset.file;
   let el;
@@ -791,6 +929,7 @@ $('q').oninput=render;
 
 /* boot */
 $('totop').innerHTML=SVG.up;
+$('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
 buildHead(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
