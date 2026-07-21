@@ -1,4 +1,4 @@
-/* ACHI Scaffolding - sidebar "Call Log" entry + in-app embed (tier 3, no fork).
+/* ACHI Scaffolding - sidebar ordering + "Call Log" embed (tier 3, no fork).
  *
  * Adds our pages ("Call Log", "Site Survey") under "Project Files" and, when
  * clicked, docks them as an iframe over the content area to the RIGHT of the
@@ -26,6 +26,15 @@
   ];
   var byRoute = function (r) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].route === r) return ENTRIES[i]; return null; };
   var byId = function (id) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].id === id) return ENTRIES[i]; return null; };
+  var ID = ENTRIES[0].id;
+  var CONTACTS_ID = 'achi-nav-contacts';
+  var CRM_ID = 'achi-nav-crm';
+  var HREF = ENTRIES[0].href;
+  var ROUTE = ENTRIES[0].route;
+  var ORDER_KEY = 'achi_sidebar_module_order_v2';
+  var dragged = null;
+  var draggedAt = 0;
+  var arranging = false;
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }
   function projectFilesLink() {
@@ -57,6 +66,159 @@
     var s = el.querySelectorAll('span');
     for (var i = 0; i < s.length; i++) if (s[i].textContent && s[i].textContent.trim()) { s[i].textContent = t; return; }
     el.setAttribute('title', t);
+  }
+  function moduleNav() {
+    var pf = projectFilesLink();
+    return pf ? pf.closest('nav') : null;
+  }
+  function directLink(item) {
+    if (!item || item.tagName !== 'LI') return null;
+    for (var i = 0; i < item.children.length; i++) {
+      var child = item.children[i];
+      if (child.tagName === 'A') return child;
+    }
+    return null;
+  }
+  function moduleItems() {
+    var nav = moduleNav();
+    if (!nav) return [];
+    var out = [], items = nav.querySelectorAll('ul > li');
+    for (var i = 0; i < items.length; i++) {
+      var link = directLink(items[i]);
+      var href = link ? link.getAttribute('href') || '' : '';
+      if (href.charAt(0) === '/' && href.indexOf('/api/') !== 0) out.push(items[i]);
+    }
+    return out;
+  }
+  function orderId(link) {
+    var href = (link.getAttribute('href') || '').replace(/\?.*$/, '').replace(/\/+$/, '') || '/';
+    return href === HREF.replace(/\?.*$/, '') ? ROUTE : href;
+  }
+  function routeItem(route, syntheticId, labelText) {
+    var items = moduleItems(), fallback = null;
+    for (var i = 0; i < items.length; i++) {
+      var link = directLink(items[i]), href = link ? orderId(link) : '';
+      if (href === route) {
+        if (link.id !== syntheticId) return items[i];
+        fallback = items[i];
+      }
+    }
+    for (var j = 0; j < items.length; j++) {
+      var label = directLink(items[j]);
+      if (label && (label.textContent || '').trim().toLowerCase() === labelText.toLowerCase()) return items[j];
+    }
+    return fallback;
+  }
+  function ensureRouteAfter(precedingItem, route, syntheticId, labelText) {
+    if (!precedingItem || !precedingItem.parentNode) return null;
+    var synthetic = document.getElementById(syntheticId);
+    var item = synthetic && synthetic.closest('li');
+    if (!item) {
+      item = precedingItem.cloneNode(true);
+      var anchor = directLink(item);
+      if (!anchor) return null;
+      anchor.id = syntheticId;
+      anchor.setAttribute('href', route);
+      anchor.removeAttribute('aria-current');
+      anchor.classList.remove('active', 'router-link-active', 'router-link-exact-active');
+      setLabel(anchor, labelText);
+    }
+    // Do not move React-owned rows between groups; React will reconstruct them
+    // and can enter a render fight. The ACHI Overview link opens the same route.
+    moduleItems().forEach(function (candidate) {
+      var candidateLink = directLink(candidate);
+      if (candidateLink && candidateLink.id !== syntheticId && orderId(candidateLink) === route) {
+        candidate.style.display = 'none';
+        candidate.setAttribute('aria-hidden', 'true');
+        candidate.setAttribute('data-achi-relocated', syntheticId);
+      }
+    });
+    if (item.parentNode !== precedingItem.parentNode || item !== precedingItem.nextElementSibling) {
+      precedingItem.parentNode.insertBefore(item, precedingItem.nextSibling);
+    }
+    return item;
+  }
+  function ensureOverviewModules() {
+    var log = document.getElementById(ID);
+    var logItem = log && log.closest('li');
+    if (!logItem || !logItem.parentNode) return null;
+    var specs = [
+      { id: CONTACTS_ID, route: '/contacts', label: 'Contacts' },
+      { id: CRM_ID, route: '/crm', label: 'CRM' }
+    ];
+    var previous = logItem;
+    specs.forEach(function (spec) {
+      var link = document.getElementById(spec.id);
+      var item = link && link.closest('li');
+      if (!link) {
+        item = logItem.cloneNode(true);
+        link = directLink(item);
+        if (!link) return;
+        link.id = spec.id;
+        link.setAttribute('href', spec.route);
+        link.removeAttribute('aria-current');
+        link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
+        setLabel(link, spec.label);
+      }
+      if (item.parentNode !== logItem.parentNode || item !== previous.nextElementSibling) {
+        logItem.parentNode.insertBefore(item, previous.nextSibling);
+      }
+      previous = item;
+    });
+    // Suppress the original group entries; these inline links open the same
+    // upstream routes and therefore the same Contacts and CRM data.
+    moduleItems().forEach(function (item) {
+      var link = directLink(item), href = link ? orderId(link) : '';
+      if (link && link.id !== CONTACTS_ID && link.id !== CRM_ID &&
+          (href === '/contacts' || href === '/crm')) {
+        item.style.display = 'none';
+        item.setAttribute('aria-hidden', 'true');
+      }
+    });
+    return { contacts: document.getElementById(CONTACTS_ID), crm: document.getElementById(CRM_ID) };
+  }
+  function savedOrder() {
+    try { var value = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]'); return Array.isArray(value) ? value : []; }
+    catch (e) { return []; }
+  }
+  function saveOrder() {
+    var nav = moduleNav();
+    if (!nav) return;
+    var groups = [], lists = nav.querySelectorAll('ul');
+    for (var i = 0; i < lists.length; i++) {
+      var ids = [], children = lists[i].children;
+      for (var j = 0; j < children.length; j++) {
+        var link = directLink(children[j]);
+        if (link) ids.push(orderId(link));
+      }
+      groups.push(ids);
+    }
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(groups)); } catch (e) {}
+  }
+  function applySidebarOrder() {
+    if (arranging || dragged) return;
+    var nav = moduleNav();
+    if (!nav) return;
+    arranging = true;
+    var ours = document.getElementById(ID), oursItem = ours && ours.closest('li');
+    ensureOverviewModules();
+    var order = savedOrder();
+    if (order.length) {
+      var items = moduleItems(), byId = {}, lists = nav.querySelectorAll('ul');
+      items.forEach(function (item) { var link = directLink(item); if (link) byId[orderId(link)] = item; });
+      order.forEach(function (ids, groupIndex) {
+        var list = lists[groupIndex];
+        if (!list || !Array.isArray(ids)) return;
+        ids.forEach(function (id) { if (byId[id]) list.appendChild(byId[id]); });
+      });
+    }
+    moduleItems().forEach(function (item) {
+      var link = directLink(item);
+      item.draggable = true;
+      item.classList.add('achi-sidebar-draggable');
+      if (link) item.setAttribute('data-achi-order-id', orderId(link));
+    });
+    arranging = false;
   }
 
   // The content region = the SPA's <main> (falls back to the sidebar's widest
@@ -174,27 +336,62 @@
   function inject() {
     var pf = projectFilesLink();
     if (!pf) return;
-    var after = pf;
+    var sourceItem = pf.closest('li');
+    if (!sourceItem) return;
+    var after = sourceItem;
     for (var i = 0; i < ENTRIES.length; i++) {
       var e = ENTRIES[i];
       var existing = document.getElementById(e.id);
-      if (existing) { after = existing; continue; }
-      var link = pf.cloneNode(true);
+      if (existing) { after = existing.closest('li') || after; continue; }
+      var item = sourceItem.cloneNode(true);
+      var link = directLink(item);
+      if (!link) continue;
       link.id = e.id; link.setAttribute('href', e.route);
       link.removeAttribute('aria-current');
       link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
       setLabel(link, e.label);
       setIcon(link, e.icon);
-      after.parentNode.insertBefore(link, after.nextSibling);
-      after = link;
+      after.parentNode.insertBefore(item, after.nextSibling);
+      after = item;
     }
+    applySidebarOrder();
   }
+
+  // Native sidebar drag-and-drop. Reordering the existing anchors preserves all
+  // upstream click handlers; the MutationObserver reapplies the saved order if
+  // the SPA rebuilds the sidebar during navigation.
+  document.addEventListener('dragstart', function (e) {
+    var item = e.target.closest && e.target.closest('li.achi-sidebar-draggable');
+    if (!item) return;
+    dragged = item; draggedAt = Date.now(); item.classList.add('achi-sidebar-dragging');
+    if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', item.getAttribute('data-achi-order-id') || ''); }
+  }, true);
+  document.addEventListener('dragover', function (e) {
+    if (!dragged) return;
+    var over = e.target.closest && e.target.closest('li.achi-sidebar-draggable');
+    if (!over || over === dragged) return;
+    e.preventDefault();
+    var r = over.getBoundingClientRect();
+    over.parentNode.insertBefore(dragged, e.clientY < r.top + r.height / 2 ? over : over.nextSibling);
+  }, true);
+  document.addEventListener('drop', function (e) {
+    if (!dragged) return;
+    e.preventDefault(); saveOrder();
+  }, true);
+  document.addEventListener('dragend', function () {
+    if (!dragged) return;
+    dragged.classList.remove('achi-sidebar-dragging'); saveOrder(); dragged = null; draggedAt = Date.now();
+  }, true);
 
   // ONE global capture listener handles show + hide, regardless of re-renders.
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a');
     if (!a) return;
+    if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('href') || '';
+    if (a.id === CONTACTS_ID || a.id === CRM_ID) {
+      e.preventDefault(); e.stopImmediatePropagation(); hideEmbed(); location.assign(href); return;
+    }
     var entry = byId(a.id) || byRoute(href);
     if (entry) { e.preventDefault(); e.stopImmediatePropagation(); showEmbed(entry, true); return; }
     if (a.closest('nav, aside, [class*="sidebar" i]')) hideEmbed();   // real navigation elsewhere
@@ -210,8 +407,19 @@
   window.addEventListener('resize', reposition);
   window.addEventListener('scroll', reposition, true);
 
-  var obs = new MutationObserver(function () { inject(); var e = byRoute(location.pathname); if (e) showEmbed(e, false); });
-  obs.observe(document.documentElement, { childList: true, subtree: true });
+  // Avoid observing the whole React tree: the authenticated app performs many
+  // unrelated DOM mutations and a global observer can continuously rescan it.
+  // This check is effectively free once the requested sequence is in place.
+  window.setInterval(function () {
+    var log = document.getElementById(ID), survey = document.getElementById(ENTRIES[1].id);
+    var contacts = document.getElementById(CONTACTS_ID);
+    var crm = document.getElementById(CRM_ID);
+    if (log && survey && contacts && crm) return;
+    inject();
+    ensureOverviewModules();
+    var entry = byRoute(location.pathname);
+    if (entry) showEmbed(entry, false);
+  }, 1000);
   function boot() { inject(); syncToUrl(); }
   if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();
