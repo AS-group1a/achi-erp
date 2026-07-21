@@ -12,11 +12,20 @@
  */
 (function () {
   'use strict';
-  var ID = 'achi-nav-log';
   var EMBED = 'achi-embed';
-  var LABEL = 'Call Log';
-  var HREF = '/api/v1/achi/ui?v=14'; // iframe source; version busts the service-worker cache
-  var ROUTE = '/call-log';         // the pretty URL we show in the address bar
+  // Our sidebar entries. Each is an id, the pretty URL, and the page it frames.
+  // `icon` replaces the cloned link's SVG so the entry doesn't wear Project Files'
+  // icon; ?v= busts the service-worker cache when a page changes.
+  var ENTRIES = [
+    { id: 'achi-nav-log', label: 'Call Log', route: '/call-log',
+      href: '/api/v1/achi/ui?v=14',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
+    { id: 'achi-nav-survey', label: 'Site Survey', route: '/site-survey',
+      href: '/api/v1/achi/survey/ui?v=1',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' }
+  ];
+  var byRoute = function (r) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].route === r) return ENTRIES[i]; return null; };
+  var byId = function (id) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].id === id) return ENTRIES[i]; return null; };
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }
   function projectFilesLink() {
@@ -31,6 +40,18 @@
     var our = document.getElementById(ID);
     var anchor = our || projectFilesLink();
     return anchor ? anchor.closest('nav, aside, [class*="sidebar" i]') : null;
+  }
+  function setIcon(el, svg) {
+    var old = el.querySelector('svg');
+    if (!old || !svg) return;
+    var box = document.createElement('span');
+    box.innerHTML = svg;
+    var fresh = box.firstChild;
+    // Keep the cloned icon's sizing classes so it lines up with the others.
+    if (old.getAttribute('class')) fresh.setAttribute('class', old.getAttribute('class'));
+    fresh.setAttribute('width', old.getAttribute('width') || '18');
+    fresh.setAttribute('height', old.getAttribute('height') || '18');
+    old.parentNode.replaceChild(fresh, old);
   }
   function setLabel(el, t) {
     var s = el.querySelectorAll('span');
@@ -100,15 +121,22 @@
   }
 
   function inject() {
-    if (document.getElementById(ID)) return;
     var pf = projectFilesLink();
     if (!pf) return;
-    var link = pf.cloneNode(true);
-    link.id = ID; link.setAttribute('href', ROUTE);
-    link.removeAttribute('aria-current');
-    link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
-    setLabel(link, LABEL);
-    pf.parentNode.insertBefore(link, pf.nextSibling);
+    var after = pf;
+    for (var i = 0; i < ENTRIES.length; i++) {
+      var e = ENTRIES[i];
+      var existing = document.getElementById(e.id);
+      if (existing) { after = existing; continue; }
+      var link = pf.cloneNode(true);
+      link.id = e.id; link.setAttribute('href', e.route);
+      link.removeAttribute('aria-current');
+      link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
+      setLabel(link, e.label);
+      setIcon(link, e.icon);
+      after.parentNode.insertBefore(link, after.nextSibling);
+      after = link;
+    }
   }
 
   // ONE global capture listener handles show + hide, regardless of re-renders.
