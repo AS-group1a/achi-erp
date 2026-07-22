@@ -258,3 +258,81 @@ class SurveyAttachment(Base):
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     survey: Mapped[SiteSurvey] = relationship(back_populates="attachments")
+
+
+class Quotation(Base):
+    """A price ACHI offers a customer, drafted from a call log row.
+
+    OCE has no home for this. Its quotation-shaped modules — oe_rfq_bidding,
+    oe_bid_management, oe_tendering — all run the other way: we solicit bids and
+    suppliers answer. This is the sales side, a document we issue to whoever just
+    phoned, so it is ours to model.
+
+    The customer is copied in as text rather than only referenced. A quotation is
+    a record of what was offered to whom on a day; if the contact is later renamed
+    or deleted, the quotation must still read the way it was sent. Same reasoning
+    as lead_* on ContactFile and SiteSurvey.
+    """
+
+    __tablename__ = "achi_quotation"
+    __table_args__ = (
+        Index("ix_achi_quotation_status", "status"),
+        Index("ix_achi_quotation_file", "file_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    quotation_number: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+
+    # Where it came from. Usually a call log row, sometimes a survey, sometimes
+    # neither — all three are optional so a quotation can be raised on its own.
+    file_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("achi_contact_file.id", ondelete="SET NULL"), nullable=True
+    )
+    survey_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("achi_site_survey.id", ondelete="SET NULL"), nullable=True
+    )
+    contact_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+    # Who it is for, as it read when the quotation was drafted.
+    customer_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    customer_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    customer_mobile: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    customer_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    site_city: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    site_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # The quick estimate. Scaffolding is priced on area for a duration, so those
+    # are the two numbers someone can give on the phone; everything else is a
+    # named addition. Money is stored in MINOR UNITS as integers — floats would
+    # accumulate rounding across a total that has to match what the customer was
+    # told. Dimensions are not money and stay numeric text.
+    area_sqm: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    duration_weeks: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    rate_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)      # per m² per week
+    erection_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    transport_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    extras_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    discount_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    vat_percent: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="USD")
+
+    # Totals are STORED, not derived on read. What the customer was quoted must
+    # not silently change because a rate or VAT default moved afterwards.
+    subtotal_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    vat_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    scope: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    valid_until: Mapped[str | None] = mapped_column(Date, nullable=True)
+
+    # draft -> sent -> accepted | rejected | expired
+    # No index=True here: __table_args__ already declares ix_achi_quotation_status.
+    # Both together emit CREATE INDEX twice and create_all aborts startup with
+    # DuplicateTableError — which takes the whole app down, not just this module.
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft")
+
+    owner_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

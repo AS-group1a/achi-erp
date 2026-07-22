@@ -102,6 +102,38 @@
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
   thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  /* Quick quotation card. Light blue so it reads as a working surface attached
+     to the selection rather than another table. Radii follow OCE's scale. */
+  .qv{margin:14px 0 8px;border:1px solid #bcd6f5;background:#eff6ff;border-radius:12px;padding:14px 16px}
+  .qv-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .qv-head h2{font-size:13px;font-weight:800;color:var(--navy);letter-spacing:.01em}
+  .qv-for{font-size:11.5px;color:#4a5568;margin-top:2px}
+  .qv-x{border:0;background:transparent;color:#64748b;cursor:pointer;padding:4px;border-radius:6px;display:inline-flex}
+  .qv-x:hover{background:#dbeafe;color:var(--navy)}
+  .qv-x svg{width:14px;height:14px}
+  .qv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px}
+  .qv-grid-wide{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:9px}
+  .qv-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .qv-f>span{font-size:10.5px;font-weight:700;color:#475569;letter-spacing:.03em;text-transform:uppercase}
+  .qv-f input,.qv-f textarea{font:inherit;font-size:12.5px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--tx);min-width:0;width:100%}
+  .qv-f input:focus,.qv-f textarea:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .qv-f textarea{resize:vertical}
+  .qv-span{grid-column:1/-1}
+  .qv-more{margin-top:10px}
+  .qv-more summary{font-size:11.5px;font-weight:700;color:var(--navy);cursor:pointer;user-select:none;padding:4px 0}
+  .qv-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:13px;padding-top:11px;border-top:1px solid #bcd6f5}
+  .qv-totals{display:flex;align-items:center;gap:16px;font-size:11.5px;color:#475569;flex-wrap:wrap}
+  .qv-totals b{color:var(--tx);font-weight:700;margin-left:4px}
+  .qv-total{font-size:13px;color:var(--navy);font-weight:700}
+  .qv-total b{color:var(--navy);font-size:15px;font-weight:800}
+  .qv-actions{display:flex;align-items:center;gap:10px}
+  .qv-msg{font-size:11.5px;color:#475569}
+  .qv-msg.ok{color:#15803d;font-weight:700}
+  .qv-msg.bad{color:#ba0517;font-weight:700}
+  .qv-draft{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:9px 16px;cursor:pointer;white-space:nowrap}
+  .qv-draft:hover{background:#1F3F80}
+  .qv-draft:disabled{opacity:.55;cursor:not-allowed}
+
   /* # header doubles as select-all. It has to read as pressable — an unstyled
      <th> gives no hint that it does anything. .on is the all-selected state. */
   thead th.num-head{cursor:pointer;user-select:none}
@@ -298,6 +330,51 @@
     </div>
     <div class="vrz" id="vrz" title="Drag to resize table height"></div>
   </div>
+
+  <!-- Quick quotation. Below the table, like the ERPNext quick view it replaces.
+       Hidden until exactly one saved row is selected: a quotation is addressed to
+       one customer, and drafting from a blank draft row would address nobody. -->
+  <section class="qv" id="qv" hidden>
+    <div class="qv-head">
+      <div>
+        <h2>Quick quotation</h2>
+        <p class="qv-for" id="qv-for"></p>
+      </div>
+      <button type="button" class="qv-x" id="qv-collapse" title="Hide" aria-label="Hide quick quotation">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="qv-grid">
+      <label class="qv-f"><span>Area (m²)</span><input id="qv-area" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label class="qv-f"><span>Weeks</span><input id="qv-weeks" type="number" min="0" step="0.5" placeholder="0"></label>
+      <label class="qv-f"><span>Rate /m²/week</span><input id="qv-rate" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Erection</span><input id="qv-erection" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Transport</span><input id="qv-transport" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Extras</span><input id="qv-extras" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Discount</span><input id="qv-discount" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>VAT %</span><input id="qv-vat" type="number" min="0" step="0.1" placeholder="11"></label>
+    </div>
+    <details class="qv-more" id="qv-more">
+      <summary>Add more information</summary>
+      <div class="qv-grid qv-grid-wide">
+        <label class="qv-f qv-span"><span>Scope of work</span><textarea id="qv-scope" rows="2" placeholder="What is being erected, where, and for how long"></textarea></label>
+        <label class="qv-f"><span>Site city</span><input id="qv-city" type="text"></label>
+        <label class="qv-f"><span>Valid until</span><input id="qv-valid" type="date"></label>
+        <label class="qv-f qv-span"><span>Notes</span><textarea id="qv-notes" rows="2" placeholder="Anything the customer should see on the quotation"></textarea></label>
+      </div>
+    </details>
+    <div class="qv-foot">
+      <div class="qv-totals">
+        <span>Subtotal <b id="qv-sub">0.00</b></span>
+        <span>VAT <b id="qv-vatv">0.00</b></span>
+        <span class="qv-total">Total <b id="qv-tot">0.00</b></span>
+      </div>
+      <div class="qv-actions">
+        <span class="qv-msg" id="qv-msg"></span>
+        <button type="button" class="qv-draft" id="qv-draft">Draft quotation</button>
+      </div>
+    </div>
+  </section>
 </main>
 
 <button class="totop" id="totop" title="Back to top">&#8963;</button>
@@ -725,6 +802,71 @@ const draftKeys=()=>[...selectedRows].filter(k=>String(k).startsWith('draft:'));
 function refreshDeleteButton(){
   const n=logKeys().length+draftKeys().length, del=$('btn-del');
   if(del){ del.classList.toggle('on', n>0); const c=$('del-count'); if(c) c.textContent=n; }
+  refreshQuickQuote();
+}
+
+/* ── quick quotation ────────────────────────────────────────────────────────
+   Drafts a customer quotation from the selected row. OCE has no sales-side
+   quotation module — rfq_bidding, bid_management and tendering all model us
+   soliciting bids — so this posts to our own /logs/{id}/quotation.
+
+   Shown only for exactly ONE selected saved row: a quotation is addressed to a
+   single customer, and a draft row has no id to address it to. */
+// qvHidden is scoped to ONE row: dismissing the card should not suppress it for
+// the rest of the session, so selecting a different row brings it back.
+let qvHidden=false, qvLastId=null;
+const qvNum=id=>{ const v=parseFloat($(id).value); return isNaN(v)?0:v; };
+function selectedLogId(){
+  const logs=logKeys();
+  if(logs.length!==1) return null;
+  return logs[0].slice(4);   // strip "log:"
+}
+function refreshQuickQuote(){
+  const card=$('qv'); if(!card) return;
+  const id=selectedLogId();
+  if(id!==qvLastId){ qvLastId=id; qvHidden=false; qvMsg(''); }
+  if(!id||qvHidden){ card.hidden=true; return; }
+  const r=ROWS.find(x=>x.id===id);
+  if(!r){ card.hidden=true; return; }
+  card.hidden=false;
+  const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'this enquiry';
+  $('qv-for').textContent=`${r.file_number?r.file_number+' — ':''}${who}`;
+  if(!$('qv-city').value && r.city) $('qv-city').value=r.city;
+  qvTotals();
+}
+/* Totals mirror quotation_service.compute_totals. Duplicated deliberately: this
+   is a live preview and must not wait on a round trip. The SERVER's numbers are
+   the ones stored — if the two ever disagree, the server is right. */
+function qvTotals(){
+  const hire=qvNum('qv-area')*qvNum('qv-weeks')*qvNum('qv-rate');
+  let sub=hire+qvNum('qv-erection')+qvNum('qv-transport')+qvNum('qv-extras')-qvNum('qv-discount');
+  if(sub<0) sub=0;
+  const vat=sub*qvNum('qv-vat')/100;
+  $('qv-sub').textContent=sub.toFixed(2);
+  $('qv-vatv').textContent=vat.toFixed(2);
+  $('qv-tot').textContent=(sub+vat).toFixed(2);
+}
+function qvMsg(text,cls){ const m=$('qv-msg'); m.textContent=text||''; m.className='qv-msg'+(cls?' '+cls:''); }
+async function draftQuotation(){
+  const id=selectedLogId();
+  if(!id){ qvMsg('Select one row first.','bad'); return; }
+  const btn=$('qv-draft'); btn.disabled=true; qvMsg('Drafting…');
+  // Blank stays blank: the server fills customer fields from the row, and an
+  // empty string here would overwrite them with nothing.
+  const val=id2=>{ const v=$(id2).value.trim(); return v===''?undefined:v; };
+  const body={
+    area_sqm:val('qv-area'), duration_weeks:val('qv-weeks'), rate:val('qv-rate'),
+    erection:val('qv-erection'), transport:val('qv-transport'), extras:val('qv-extras'),
+    discount:val('qv-discount'), vat_percent:val('qv-vat'),
+    scope:val('qv-scope'), notes:val('qv-notes'), site_city:val('qv-city'),
+    valid_until:val('qv-valid'),
+  };
+  Object.keys(body).forEach(k=>body[k]===undefined&&delete body[k]);
+  try{
+    const q=await api(`/logs/${encodeURIComponent(id)}/quotation`,{method:'POST',body:JSON.stringify(body)});
+    qvMsg(`Saved ${q.quotation_number} — total ${q.total} ${q.currency}`,'ok');
+  }catch(e){ qvMsg(e.message||'Could not draft quotation','bad'); }
+  finally{ btn.disabled=false; }
 }
 async function deleteSelected(){
   const logs=logKeys(), drafts=draftKeys();
@@ -874,6 +1016,11 @@ $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&e
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='mobilenum'&&!validDraftMobile(stateFor(el.dataset.dp)))showInvalidMobile(el);});
 $('add-row').addEventListener('click',addBottomRow);
 $('btn-del').addEventListener('click',deleteSelected);
+/* Quick quotation. One delegated listener on the card so the eight number
+   inputs do not each need wiring, and so the totals stay live while typing. */
+$('qv').addEventListener('input',e=>{ if(e.target.matches('input[type="number"]')) qvTotals(); });
+$('qv-draft').addEventListener('click',draftQuotation);
+$('qv-collapse').addEventListener('click',()=>{ qvHidden=true; $('qv').hidden=true; });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
    or dragging a column edge would also flip the whole selection. */
 $('thead').addEventListener('click',e=>{
@@ -1403,6 +1550,6 @@ loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
 </script>
-<script src="/api/v1/achi/ui/chrome.js?v=7"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=8"></script>
 </body>
 </html>
