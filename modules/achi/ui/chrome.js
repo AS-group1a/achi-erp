@@ -84,7 +84,24 @@
    */
   var FONT = '-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif';
   var CSS = ''
-    + '.achi-chrome{position:fixed;left:0;top:0;bottom:0;width:216px;background:#284F9E;color:#fff;display:flex;flex-direction:column;z-index:40;font-family:' + FONT + '}'
+    /* Hover-expand, mirroring Grece's behaviour on the app sidebar: start
+     * collapsed, expand on hover, settle back after a beat. Widths are
+     * upstream's exact 64/248 rather than our old 216 — when the two sidebars
+     * are different widths, every crossing between an app page and one of ours
+     * shifts the whole layout, which is the flash. Same width, no jump.
+     * CSS-only here: there is no React state to hand off to, so hover does not
+     * need JS, and a pure-CSS transition cannot desync from the pointer. */
+    + ':root{--achi-sb:64px}'
+    + '.achi-chrome{position:fixed;left:0;top:0;bottom:0;width:var(--achi-sb);background:#284F9E;color:#fff;display:flex;flex-direction:column;z-index:40;font-family:' + FONT + ';overflow:hidden;transition:width .2s ease}'
+    + '.achi-chrome:hover{width:248px}'
+    /* Collapsed: icons only. Labels stay in the DOM for screen readers and fade
+     * back in on expand — display:none would make them unreadable to AT too. */
+    + '.achi-chrome:not(:hover) .achi-link span,.achi-chrome:not(:hover) .achi-back span,'
+    +   '.achi-chrome:not(:hover) .achi-tool span,.achi-chrome:not(:hover) .achi-brand div,'
+    +   '.achi-chrome:not(:hover) .achi-foot{opacity:0;pointer-events:none}'
+    + '.achi-chrome:not(:hover) .achi-tools,.achi-chrome:not(:hover) .achi-community{grid-template-columns:1fr}'
+    + '.achi-link span,.achi-back span,.achi-tool span,.achi-brand div,.achi-foot{transition:opacity .15s ease}'
+    + 'body:has(.achi-chrome:hover){--achi-sb:248px}'
     + '.achi-brand{display:flex;align-items:center;gap:10px;padding:16px 16px 14px}'
     + '.achi-brand img{width:28px;height:28px;flex:0 0 auto;border-radius:6px;object-fit:contain}'
     + '.achi-back{display:flex;align-items:center;gap:9px;margin:0 8px 6px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:11px;line-height:1.36;font-weight:500}'
@@ -121,7 +138,14 @@
     + '.achi-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid #dfe4ec;padding:11px 18px;font-family:' + FONT + '}'
     + '.achi-top h1{font-size:13px;line-height:1.46;font-weight:600;color:#1d1d1f}'
     + '.achi-burger{display:none;border:0;background:#eef2fb;color:#284F9E;border-radius:8px;padding:7px 9px;cursor:pointer;font-size:15px;line-height:1}'
-    + 'body{padding-left:216px}'
+    /* Page background cloned from upstream's "dots" shell style, values lifted
+     * from the bundle: --oe-bg-secondary under a 0.9px 16%-alpha dot every 24px.
+     * Ours had a flat grey, which is why these pages read as a different surface
+     * from the rest of the app. */
+    + 'body{padding-left:var(--achi-sb);background-color:#f5f5f7;'
+    +   'background-image:radial-gradient(circle,rgba(60,60,67,.16) .9px,transparent .9px);'
+    +   'background-size:24px 24px;transition:padding-left .2s ease}'
+    + '@media (prefers-color-scheme:dark){body{background-color:#161822}}'
     + '@media (max-width:900px){'
     + ' body{padding-left:0}'
     + ' .achi-chrome{transform:translateX(-100%);transition:transform .18s ease;box-shadow:0 0 40px rgba(0,0,0,.3)}'
