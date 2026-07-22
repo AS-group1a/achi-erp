@@ -63,6 +63,33 @@ else:
     print("ACHI theme + nav already present (v%s)" % NAV_V)
 PY
 
+# 4a. Re-stamp the service worker's precache entry for index.html.
+#
+# Without this, none of the ?v= bumps above reach a browser that has already
+# loaded the app. sw.js precaches index.html against a fixed revision hash and
+# serves EVERY navigation from that copy (NavigationRoute ->
+# createHandlerBoundToURL("/index.html")). We rewrite index.html after the
+# frontend was built, so the recorded revision still describes the pre-injection
+# file and the worker never refetches it. The browser only reinstalls a worker
+# when sw.js itself changes byte-for-byte, so writing the real hash in both
+# updates the entry and triggers that reinstall.
+"$PY" - "$DIST/index.html" "$DIST/sw.js" <<'PY'
+import hashlib, pathlib, re, sys
+idx, sw = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+if not sw.exists():
+    print("No service worker to re-stamp"); raise SystemExit
+digest = hashlib.md5(idx.read_bytes()).hexdigest()
+js = sw.read_text(encoding="utf-8")
+new, n = re.subn(r'(\{url:"index\.html",revision:")[^"]*(")', r'\g<1>%s\g<2>' % digest, js)
+if not n:
+    print("WARNING: index.html not found in the precache manifest — a stale page may persist")
+elif new != js:
+    sw.write_text(new, encoding="utf-8")
+    print("Re-stamped sw.js precache for index.html (%s)" % digest[:8])
+else:
+    print("sw.js precache already current (%s)" % digest[:8])
+PY
+
 # 4b. install the partner pack (file-level; "apply" happens once via brand-local.sh)
 mkdir -p "$HOME/.openestimate/packs"
 cp -r packs/achi-scaffolding "$HOME/.openestimate/packs/achi-scaffolding"
