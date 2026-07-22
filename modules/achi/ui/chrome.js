@@ -29,8 +29,6 @@
   // Docked in the SPA? Upstream's sidebar is already there — stand down.
   if (window.top !== window.self) return;
 
-  var VERSION = 'v11.9.0 · AGPL-3.0';
-
   // Our pages first, then the upstream destinations worth a jump from here.
   var LINKS = [
     { k: 'calllog',  label: 'Call Log',      href: '/api/v1/achi/ui',        icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
@@ -41,19 +39,31 @@
     { k: 'files',    label: 'Project Files', href: '/files',                 icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' }
   ];
 
-  /* The admin cluster upstream pins at the bottom of its sidebar, in the same
-   * two-column grid and the same order. Routes verified against the compiled
-   * bundle — note Audit is /audits (plural), which is easy to get wrong.
-   * Reachable from our pages so an admin does not have to go back to the app
-   * first just to open Settings.
+  /* The admin cluster upstream pins at the bottom of its sidebar — a literal
+   * clone, not an approximation: upstream's own Lucide paths, its 14px icons at
+   * stroke-width 1.75, its 32px (h-8) rows, its 11px/500 labels, and its
+   * two-column grid. Copied from the rendered markup rather than redrawn, so
+   * "same icon" means the same path data, not a lookalike.
+   *
+   * Routes verified against the compiled bundle. Audit is /audits, plural — the
+   * singular looks right and 404s.
    */
   var TOOLS = [
-    { label: 'Settings',   href: '/settings',   icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9z"/>' },
-    { label: 'Users',      href: '/users',      icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
-    { label: 'Modules',    href: '/modules',    icon: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>' },
-    { label: 'Governance', href: '/governance', icon: '<path d="M12 3v18"/><path d="M5 7h14"/><path d="m5 7-3 7h6z"/><path d="m19 7-3 7h6z"/>' },
-    { label: 'Audit',      href: '/audits',     icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/>' },
+    { label: 'Settings',   href: '/settings',   icon: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>' },
+    { label: 'Users',      href: '/users',      icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
+    { label: 'Modules',    href: '/modules',    icon: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/>' },
+    { label: 'Governance', href: '/governance', icon: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>' },
+    { label: 'Audit',      href: '/audits',     icon: '<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>' },
     { label: 'About',      href: '/about',      icon: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>' }
+  ];
+
+  // The community row upstream renders below the cluster. Telegram's mark is a
+  // filled glyph, not a stroked one, hence the per-item `fill` flag.
+  var COMMUNITY = [
+    { label: 'GitHub',    href: 'https://github.com/datadrivenconstruction/OpenConstructionERP',
+      icon: '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>' },
+    { label: 'Community', href: 'https://t.me/datadrivenconstruction', fill: true,
+      icon: '<path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71l-4.14-3.06-1.99 1.93c-.23.23-.42.42-.83.42z"/>' }
   ];
 
   function activeKey() {
@@ -88,12 +98,26 @@
     + '.achi-link:hover{background:rgba(255,255,255,.12);color:#fff}'
     + '.achi-link.on{background:rgba(255,255,255,.16);color:#fff;font-weight:600}'
     + '.achi-link svg{width:16px;height:16px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
-    + '.achi-tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px}'
-    + '.achi-tool{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:8px;background:rgba(255,255,255,.10);color:rgba(255,255,255,.88);text-decoration:none;font-size:11px;line-height:1.36;font-weight:500;min-width:0}'
-    + '.achi-tool:hover{background:rgba(255,255,255,.18);color:#fff}'
-    + '.achi-tool span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-    + '.achi-tool svg{width:14px;height:14px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
-    + '.achi-foot{padding:10px 16px 14px;font-size:11px;line-height:1.36;opacity:.55}'
+    /* Cluster metrics are upstream's, translated from its Tailwind classes:
+     * py-2 px-2 container over a bg-black/[0.02] wash, grid-cols-2 gap-1,
+     * h-8 rows, rounded-md, px-2, gap-1.5, text-[11px] font-medium leading-none.
+     * Surface: upstream's class is bg-surface-primary, which is NOT white here.
+     * achi-theme.css rescopes --oe-bg-ch to the brand navy on the sidebar
+     * subtree, and custom properties inherit, so those buttons resolve to navy
+     * and read as translucent chips with light text. Hardcoding white was wrong
+     * for exactly that reason — it ignored the rescope and stood out. */
+    + '.achi-cluster{position:relative;padding:8px;background:rgba(0,0,0,.02)}'
+    + '.achi-cluster::before{content:"";position:absolute;top:0;left:12px;right:12px;height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,.22),transparent)}'
+    + '.achi-tools{display:grid;grid-template-columns:1fr 1fr;gap:4px;list-style:none;margin:0;padding:0}'
+    + '.achi-tool{display:flex;align-items:center;justify-content:flex-start;gap:6px;height:32px;padding:0 8px;border-radius:6px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:rgba(255,255,255,.82);text-decoration:none;font-size:11px;line-height:1;font-weight:500;min-width:0;transition:background .12s,color .12s,border-color .12s}'
+    + '.achi-tool:hover{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.3)}'
+    + '.achi-tool span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.achi-tool svg{width:14px;height:14px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}'
+    + '.achi-tool svg.fill{fill:currentColor;stroke:none}'
+    + '.achi-community{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px}'
+    + '.achi-foot{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px 12px;font-size:10px;line-height:1.36;color:rgba(255,255,255,.5)}'
+    + '.achi-foot a{color:inherit;text-decoration:none}'
+    + '.achi-foot a:hover{color:rgba(255,255,255,.78)}'
     + '.achi-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid #dfe4ec;padding:11px 18px;font-family:' + FONT + '}'
     + '.achi-top h1{font-size:13px;line-height:1.46;font-weight:600;color:#1d1d1f}'
     + '.achi-burger{display:none;border:0;background:#eef2fb;color:#284F9E;border-radius:8px;padding:7px 9px;cursor:pointer;font-size:15px;line-height:1}'
@@ -125,16 +149,28 @@
             + '<svg viewBox="0 0 24 24">' + l.icon + '</svg><span>' + l.label + '</span></a>';
         }).join('')
       + '</div>'
-      // Separator then the admin grid, pinned below the scrolling nav the way
-      // upstream pins it — .achi-nav takes flex:1, so this stays at the bottom.
-      + '<div class="achi-sep"></div>'
-      + '<div class="achi-tools">'
+      // The cluster is pinned below the scrolling nav the way upstream pins it —
+      // .achi-nav takes flex:1, so this always sits at the bottom. Its own
+      // gradient hairline is the separator, so no .achi-sep here.
+      + '<div class="achi-cluster">'
+      + '<ul class="achi-tools">'
       + TOOLS.map(function (t) {
-          return '<a class="achi-tool" href="' + t.href + '" title="' + t.label + '">'
-            + '<svg viewBox="0 0 24 24">' + t.icon + '</svg><span>' + t.label + '</span></a>';
+          return '<li><a class="achi-tool" href="' + t.href + '" title="' + t.label + '" aria-label="' + t.label + '">'
+            + '<svg viewBox="0 0 24 24" aria-hidden="true">' + t.icon + '</svg>'
+            + '<span>' + t.label + '</span></a></li>';
         }).join('')
-      + '</div>'
-      + '<div class="achi-foot">' + VERSION + '</div>';
+      + '</ul>'
+      + '<div class="achi-community">'
+      + COMMUNITY.map(function (t) {
+          return '<a class="achi-tool" href="' + t.href + '" target="_blank" rel="noopener noreferrer" title="' + t.label + '" aria-label="' + t.label + '">'
+            + '<svg viewBox="0 0 24 24" aria-hidden="true"' + (t.fill ? ' class="fill"' : '') + '>' + t.icon + '</svg>'
+            + '<span>' + t.label + '</span></a>';
+        }).join('')
+      + '</div></div>'
+      // Version + licence, upstream's own footer. /api/source is the AGPL source
+      // offer — it is a licence notice, so it is reproduced, not restyled away.
+      + '<div class="achi-foot"><span>v11.9.0</span><span>·</span>'
+      + '<a href="/api/source" target="_blank" rel="noopener noreferrer">AGPL-3.0</a></div>';
 
     var top = document.createElement('div');
     top.className = 'achi-top';

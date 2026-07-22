@@ -18,18 +18,18 @@
   main{margin:0;padding:16px 18px 40px}
   .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none}
   .feedback{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;padding:72px 20px 20px;background:rgba(15,35,75,.24);backdrop-filter:blur(2px)}
-  .feedback-box{width:min(430px,calc(100vw - 32px));overflow:hidden;border:1px solid #d8e3f3;border-top:4px solid var(--navy);border-radius:18px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.18),0 4px 14px rgba(15,23,42,.08)}
+  .feedback-box{width:min(430px,calc(100vw - 32px));overflow:hidden;border:1px solid #d8e3f3;border-top:4px solid var(--navy);border-radius:12px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.18),0 4px 14px rgba(15,23,42,.08)}
   .feedback-head{padding:14px 20px;border-bottom:1px solid #dce6f5;background:linear-gradient(135deg,#edf4ff 0%,#f7faff 58%,#fff 100%);color:#1e3f85;font-size:16px;font-weight:800}
   .feedback-body{padding:20px;color:#334155;font-size:13.5px;line-height:1.65}
   .feedback-foot{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #eef2f7;background:#f8fafc}
-  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:9px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
   .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
   .email-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;cursor:pointer;padding:3px 0;text-decoration:none}
   .email-btn:hover{text-decoration:underline}
   .email-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .draft-email{display:flex;align-items:center;gap:5px;width:100%}
   .draft-email .din{min-width:0;flex:1}
-  .draft-compose{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px;border:1.5px solid #bfdbfe;border-radius:50%;background:#eff6ff;color:var(--navy);cursor:pointer;padding:0}
+  .draft-compose{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px;border:1.5px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:var(--navy);cursor:pointer;padding:0}
   .draft-compose:hover{background:#dbeafe}
   .draft-compose[hidden]{display:none}
   .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -38,21 +38,21 @@
   .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
   .compose-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;letter-spacing:.02em}
   .compose-title svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .compose-close{width:28px;height:28px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:19px;line-height:1;cursor:pointer}
+  .compose-close{width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;font-size:19px;line-height:1;cursor:pointer}
   .compose-close:hover{background:rgba(255,255,255,.32)}
   .compose-row{display:flex;align-items:center;min-height:44px;padding:0 20px;border-bottom:1px solid #f0f0f5}
   .compose-label{width:64px;flex-shrink:0;color:#9ca3af;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-  .compose-recipient{display:inline-flex;align-items:center;padding:5px 10px;border:1.5px solid #bfdbfe;border-radius:99px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:500}
+  .compose-recipient{display:inline-flex;align-items:center;padding:5px 10px;border:1.5px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:500}
   .compose-subject{flex:1;border:0;outline:0;background:transparent;color:#111827;font:inherit;font-size:13px}
   .compose-subject::placeholder,.compose-body::placeholder{color:#d1d5db}
   .compose-body{display:block;width:100%;min-height:210px;padding:16px 20px;border:0;outline:0;resize:none;color:#374151;font:inherit;font-size:13px;line-height:1.7}
   .compose-foot{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1.5px solid #e8e8f0;background:#f6f9fe}
-  .compose-send{padding:8px 22px;border:0;border-radius:99px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
-  .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:99px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .compose-send{padding:8px 22px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
+  .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:8px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .compose-mailto:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
 
   .kpis{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
-  .kpi{flex:1 1 180px;border-radius:14px;padding:15px 18px;color:#fff;transition:transform .15s ease}
+  .kpi{flex:1 1 180px;border-radius:12px;padding:15px 18px;color:#fff;transition:transform .15s ease}
   .kpi:hover{transform:translateY(-2px)}
   .kpi.btn{cursor:pointer}
   .kpi .n{font-size:28px;font-weight:900;line-height:1.05}
@@ -61,30 +61,26 @@
   .k1{background:#0176d3}.k2{background:#032d60}.k3{background:#014486}.k4{background:#0e7490}
   .kpi.on{outline:3px solid rgba(255,255,255,.55);outline-offset:-3px}
 
-  .shell{background:#fff;border:1px solid var(--bd);border-radius:14px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
+  .shell{background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
   .nav{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;background:var(--navy);padding:11px 16px}
   .nav-actions{display:flex;align-items:center;gap:8px;justify-self:start}
   .nav-right{display:flex;align-items:center;gap:10px;justify-self:end;min-width:0}
-  .pt{position:relative;display:inline-flex;justify-self:center;background:rgba(0,0,0,.2);border-radius:99px;padding:4px}
-  .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:99px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
+  .pt{position:relative;display:inline-flex;justify-self:center;background:rgba(0,0,0,.2);border-radius:8px;padding:4px}
+  .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
   .pill-tab{position:relative;z-index:1;border:0;background:transparent;padding:7px 15px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.58);cursor:pointer;white-space:nowrap;font-family:inherit}
   .pill-tab:hover{color:rgba(255,255,255,.88)}
   .pill-tab.on{color:var(--navy);font-weight:800}
-  .search{height:32px;width:200px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
+  .search{height:32px;width:200px;border-radius:8px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
   .search::placeholder{color:rgba(255,255,255,.42)}
-  .tb-add{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:99px;background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22);transition:transform .15s,box-shadow .15s}
+  .tb-add{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:8px;background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22);transition:transform .15s,box-shadow .15s}
   .tb-add:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.28)}
   .tb-add-plus{font-size:17px;line-height:1}
-  .tb-select{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid rgba(255,255,255,.55);border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,transform .12s}
-  .tb-select:hover{background:rgba(255,255,255,.22);border-color:#fff;transform:translateY(-1px)}
-  .tb-select.on{background:#fff;color:var(--navy);border-color:#fff}
-  .tb-select svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   /* delete selected */
-  .tb-del{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:99px;background:rgba(255,255,255,.1);color:#fca5a5;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0;pointer-events:none;max-width:0;padding:0;overflow:hidden;transition:opacity .18s,max-width .18s}
+  .tb-del{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;background:rgba(255,255,255,.1);color:#fca5a5;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0;pointer-events:none;max-width:0;padding:0;overflow:hidden;transition:opacity .18s,max-width .18s}
   .tb-del.on{opacity:1;pointer-events:all;max-width:200px;padding:7px 13px;border:1.5px solid rgba(252,165,165,.45)}
   .tb-del:hover{background:rgba(239,68,68,.25);border-color:#fca5a5;color:#fff}
   .tb-del svg{width:13px;height:13px}
-  .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
+  .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:8px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
   /* phone: country-code picker + number */
   .tel-wrap{display:flex;align-items:center;gap:4px;width:100%}
   .tel-cc{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;height:30px;padding:0 6px;border:1px solid #cfd9e8;border-radius:6px;background:#fff;cursor:pointer;font:inherit;font-size:12px;color:#1e293b}
@@ -106,6 +102,12 @@
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
   thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  /* # header doubles as select-all. It has to read as pressable — an unstyled
+     <th> gives no hint that it does anything. .on is the all-selected state. */
+  thead th.num-head{cursor:pointer;user-select:none}
+  thead th.num-head:hover{background:#2f5cb3;color:#fff}
+  thead th.num-head:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+  thead th.num-head.on{background:#fff;color:var(--navy)}
   /* column resize (ported from tabbed_grid.js .pg-rz). The handle positions
      against the th, which is already `position:sticky` and therefore a
      containing block for absolute children. */
@@ -142,16 +144,19 @@
   .tag{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;background:#f1f5f9;color:#475569;text-transform:capitalize;white-space:nowrap}
   /* maps cell (ported from the tabbed grid): Open button + copy + hover preview */
   .maps-cell{display:inline-flex;align-items:center;gap:5px}
-  .maps-btn{display:inline-flex;align-items:center;gap:4px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px;background:#eff6ff;white-space:nowrap}
+  .maps-btn{display:inline-flex;align-items:center;gap:4px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;padding:3px 9px;border-radius:8px;background:#eff6ff;white-space:nowrap}
   .maps-btn:hover{background:#dbeafe}
   .maps-btn .pin{display:inline-flex;color:#ef4444}
   .maps-btn svg,.pin svg{width:13px;height:13px}
-  .map-copy{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
-  .map-copy svg{width:12px;height:12px}
+  /* flex:0 0 auto matters: .maps-cell and .draft-map-wrap are flex rows, and a
+     fixed width/height alone does NOT stop flex from shrinking these. In a narrow
+     column the circles were squeezed into ovals and the icons with them. */
+  .map-copy{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
+  .map-copy svg{width:12px;height:12px;flex:0 0 auto}
   .map-copy:hover{background:#dbeafe}
   .map-copy.copied{border-color:#16a34a;background:#dcfce7;color:#16a34a}
-  .map-edit{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
-  .map-edit svg{width:12px;height:12px}
+  .map-edit{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
+  .map-edit svg{width:12px;height:12px;flex:0 0 auto}
   .map-edit:hover{background:#dbeafe}
   .draft-map-wrap{display:flex;align-items:center;gap:5px}
   .draft-map-wrap .din{min-width:0}
@@ -188,12 +193,12 @@
   /* draft rows: top permanent + appended bottom ones */
   tr.draft td{background:#f2f6fd;border-bottom:1px solid #cdddf5}
   tr.draft.dtop td{border-bottom:2px solid #cdddf5}
-  tr.draft .din{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:1px solid #cfd9e8;border-radius:5px;padding:2px 6px;background:#fff}
+  tr.draft .din{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:1px solid #cfd9e8;border-radius:6px;padding:2px 6px;background:#fff}
   tr.draft select.din{padding:2px 3px}
   tr.draft .din:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(40,79,158,.15)}
   .addbtn2{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--navy);color:#fff;font-weight:900;font-size:16px;border:0;cursor:pointer;line-height:1;padding:0}
   .addbtn2:hover{background:var(--navy-2)}
-  .rmbtn{width:24px;height:24px;border-radius:7px;border:0;background:#fde8e8;color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
+  .rmbtn{width:24px;height:24px;border-radius:6px;border:0;background:#fde8e8;color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
   .rmbtn:hover{background:#f7c9c9}
 
   /* bottom drag strip to resize the table height */
@@ -202,7 +207,7 @@
   body.resizing{cursor:row-resize!important;user-select:none!important}
 
   /* back-to-top FAB (cloned from the tabbed grid) */
-  .totop{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:50%;background:var(--navy);color:#fff;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28);display:none;align-items:center;justify-content:center;font-size:20px;line-height:1;z-index:60;transition:transform .15s ease,opacity .15s ease;opacity:0}
+  .totop{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:8px;background:var(--navy);color:#fff;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28);display:none;align-items:center;justify-content:center;font-size:20px;line-height:1;z-index:60;transition:transform .15s ease,opacity .15s ease;opacity:0}
   .totop.show{display:inline-flex;opacity:1}
   .totop:hover{transform:translateY(-2px);background:var(--navy-2)}
   .totop svg{width:18px;height:18px}
@@ -212,27 +217,27 @@
   .pg-note-workspace{position:fixed;inset:0;z-index:2147482400;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
   /* expand affordance on long-text cells: click to type, arrow to open the popup */
   td.notecell{position:relative}
-  .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:5px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
+  .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
   td.notecell:hover .note-exp,.note-wrap:hover .note-exp{opacity:1}
   .note-exp:hover{background:#dbeafe}
   .note-exp svg{width:12px;height:12px}
   .note-wrap{position:relative;display:block;width:100%}
   .note-wrap .note-exp{right:3px;bottom:5px}
-  .pg-note-workspace-box{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:18px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .pg-note-workspace-box{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
   .pg-note-workspace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
   .pg-note-workspace-title{font-size:16px;font-weight:800;letter-spacing:.02em}
   .pg-note-workspace-sub{margin-top:3px;font-size:11.5px;color:rgba(255,255,255,.76)}
   .pg-note-workspace-head-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
-  .pg-note-head-tool{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid rgba(255,255,255,.34);border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+  .pg-note-head-tool{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid rgba(255,255,255,.34);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
   .pg-note-head-tool:hover,.pg-note-head-tool.has-content{background:#fff;color:#1e3f85}
   .pg-note-head-tool:disabled{opacity:.55;cursor:wait}
-  .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
+  .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
   .pg-note-workspace-body{padding:20px 22px;overflow:auto;background:#f7faff}
   .pg-note-workspace-label{display:block;margin-bottom:7px;color:#1e3f85;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   .pg-note-workspace-text{width:100%;min-height:210px;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
   .pg-note-workspace-text:focus{border-color:#284f9e;box-shadow:0 0 0 3px rgba(40,79,158,.12)}
   .pg-note-files{margin-top:14px;display:flex;flex-direction:column;gap:7px}
-  .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:9px;background:#fff;color:#334155;font-size:12px}
+  .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:8px;background:#fff;color:#334155;font-size:12px}
   .pg-note-file a{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#1e3f85;text-decoration:none}
   .pg-note-file a:hover{text-decoration:underline}
   .pg-note-file-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -243,7 +248,7 @@
   .pg-note-workspace-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid #dce6f5;background:#fff}
   .pg-note-workspace-hint{color:#718096;font-size:11px}
   .pg-note-workspace-actions{display:flex;gap:9px}
-  .pg-note-cancel,.pg-note-save{height:36px;padding:0 18px;border-radius:9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .pg-note-cancel,.pg-note-save{height:36px;padding:0 18px;border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
   .pg-note-cancel{border:1.5px solid #cbd9f1;background:#fff;color:#1e3f85}
   .pg-note-save{border:0;background:#1e3f85;color:#fff;box-shadow:0 4px 12px rgba(30,63,133,.22)}
   .pg-note-save:disabled{opacity:.55;cursor:wait}
@@ -275,7 +280,6 @@
     <div class="nav">
       <div class="nav-actions">
         <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
-        <button class="tb-select" id="select-all" type="button" aria-pressed="false" title="Select or unselect all rows"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5 8l2 2 4-4"/></svg><span id="select-all-label">Select All</span></button>
         <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
       </div>
       <div class="pt" id="tabs">
@@ -400,7 +404,6 @@ const SVG={
   plus:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>`,
   expand:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/><line x1="14" y1="2" x2="9" y2="7"/><line x1="2" y1="14" x2="7" y2="9"/></svg>`,
   chev:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg>`,
-  selall:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2.5"/><polyline points="5,8 7,10 11,6"/></svg>`,
   trash:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,4 14,4"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/><path d="M6 7v5m4-5v5"/><rect x="3" y="4" width="10" height="9" rx="1.5"/></svg>`,
   wa:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`,
 };
@@ -567,9 +570,16 @@ function saveColWidths(){
 }
 const colWidth=c=>Math.max(COLW_MIN, Number(COLW[c.k])||c.w);
 function buildHead(){
-  $('thead').innerHTML=COLS.map(c=>
-    `<th data-tab="${c.tab??''}" data-k="${c.k}" class="${c.cls||''}" style="width:${colWidth(c)}px">`
-    +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`).join('');
+  $('thead').innerHTML=COLS.map(c=>{
+    // The # header doubles as select-all: the rows already select by clicking
+    // their own number cell, so the column header toggling the whole column is
+    // where people look for it. role/aria-pressed because a <th> is not a button.
+    const sel=c.k==='num'
+      ? ` class="${c.cls||''} num-head" role="button" tabindex="0" aria-pressed="false" title="Select or unselect all rows"`
+      : ` class="${c.cls||''}"`;
+    return `<th data-tab="${c.tab??''}" data-k="${c.k}"${sel} style="width:${colWidth(c)}px">`
+      +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
+  }).join('');
 }
 /* Pointer events rather than mouse, so this works on the tablet a surveyor
    carries as well as a desktop. One delegated listener on the header survives
@@ -658,11 +668,29 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
 }</tr>`; }
 
 function visibleSelectableRows(){ return [...$('rows').querySelectorAll('tr.selectable-row')]; }
+/* Select-all skips the top draft row. It is the permanent blank "new entry" row,
+   not a record — sweeping it in meant Delete counted a row that does not exist
+   yet. Clicking its own number cell still selects it, which is the only way it
+   can be selected deliberately. */
+function selectAllTargets(){ return visibleSelectableRows().filter(tr=>!tr.classList.contains('dtop')); }
+function allRowsSelected(){
+  const rows=selectAllTargets();
+  return rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
+}
+/* Reflect the selection state on the # header. Guarded because render() calls
+   this and the header may not be built yet on the very first pass. */
 function refreshSelectionButton(){
-  const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
-  $('select-all').classList.toggle('on',all);
-  $('select-all').setAttribute('aria-pressed',String(all));
-  $('select-all-label').textContent=all?'Unselect All':'Select All';
+  const th=$('thead').querySelector('th[data-k="num"]');
+  if(!th) return;
+  const all=allRowsSelected();
+  th.classList.toggle('on',all);
+  th.setAttribute('aria-pressed',String(all));
+  th.setAttribute('title',all?'Unselect all rows':'Select all rows');
+}
+function toggleSelectAll(){
+  const rows=selectAllTargets(), all=allRowsSelected();
+  rows.forEach(tr=>toggleRowSelection(tr,!all));
+  refreshSelectionButton(); refreshDeleteButton();
 }
 function toggleRowSelection(tr,force){
   const id=tr.dataset.rowKey, on=force===undefined?!selectedRows.has(id):force;
@@ -846,10 +874,16 @@ $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&e
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='mobilenum'&&!validDraftMobile(stateFor(el.dataset.dp)))showInvalidMobile(el);});
 $('add-row').addEventListener('click',addBottomRow);
 $('btn-del').addEventListener('click',deleteSelected);
-$('select-all').addEventListener('click',()=>{
-  const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
-  rows.forEach(tr=>toggleRowSelection(tr,!all));
-  refreshSelectionButton(); refreshDeleteButton();
+/* Select-all lives on the # header. Ignore clicks that land on the resize grip,
+   or dragging a column edge would also flip the whole selection. */
+$('thead').addEventListener('click',e=>{
+  if(e.target.closest('.rz')) return;
+  if(e.target.closest('th[data-k="num"]')) toggleSelectAll();
+});
+$('thead').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ') return;
+  if(!e.target.closest('th[data-k="num"]')) return;
+  e.preventDefault(); toggleSelectAll();
 });
 $('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); if(ccb){ openCc(ccb); return; }
   const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); refreshDeleteButton(); return; }
@@ -964,7 +998,7 @@ function openMapsLocationPopup(target){
   const ov=document.createElement('div'); ov.id='pg-loc-popup'; ov.className='pg-modal-overlay pg-loc-overlay';
   ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Set Map Location');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2147482200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
-  ov.innerHTML=`<div style="background:#fff;border-radius:16px;width:min(440px,calc(100vw - 32px));box-shadow:0 8px 40px rgba(0,0,0,.22);overflow:hidden;">
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;width:min(440px,calc(100vw - 32px));box-shadow:0 8px 40px rgba(0,0,0,.22);overflow:hidden;">
     <div style="background:linear-gradient(135deg,#1e3f85,#2563eb);padding:18px 20px 14px;color:#fff;"><div style="font-size:14px;font-weight:700;margin-bottom:4px;">Set Map Location</div><div style="font-size:11.5px;opacity:.8;">Use your current GPS position or paste a link</div></div>
     <div style="padding:18px 20px;"><button id="pg-loc-use-gps" type="button" style="width:100%;height:40px;border:none;border-radius:10px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;"><svg viewBox="0 0 16 16" fill="none" width="14" height="14"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg>Use My Current Location</button>
       <div style="font-size:11px;color:#9ca3af;text-align:center;margin-bottom:10px;">- or paste link manually -</div>
@@ -1369,6 +1403,6 @@ loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
 </script>
-<script src="/api/v1/achi/ui/chrome.js?v=4"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=6"></script>
 </body>
 </html>
