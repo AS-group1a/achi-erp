@@ -449,6 +449,18 @@
     dragged.classList.remove('achi-sidebar-dragging'); saveOrder(); dragged = null; draggedAt = Date.now();
   }, true);
 
+  function openNativeRoute(route, syntheticId) {
+    var items = moduleItems();
+    for (var i = 0; i < items.length; i++) {
+      var link = directLink(items[i]);
+      if (link && link.id !== syntheticId && orderId(link) === route) {
+        link.click();
+        return;
+      }
+    }
+    location.assign(route);
+  }
+
   // ONE global capture listener handles show + hide, regardless of re-renders.
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a');
@@ -456,7 +468,11 @@
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('href') || '';
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
-      e.preventDefault(); e.stopImmediatePropagation(); hideEmbed(); location.assign(href); return;
+      // These rows are visual clones. Forward to the hidden React-owned link so
+      // the SPA performs exactly one native navigation and keeps its router
+      // state; a hard reload races the one-second sidebar reinjection timer.
+      e.preventDefault(); e.stopImmediatePropagation(); hideEmbed();
+      openNativeRoute(href, a.id); return;
     }
     var entry = byId(a.id) || byRoute(href);
     if (entry) { e.preventDefault(); e.stopImmediatePropagation(); showEmbed(entry, true); return; }
