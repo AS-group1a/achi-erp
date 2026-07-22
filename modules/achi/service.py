@@ -195,10 +195,49 @@ class ContactFileService:
         Contact identity is owned by the Contacts directory, but the grid lets the
         front desk fix a typo without leaving the log. Only the sent fields change.
         """
-        c = await self.session.get(Contact, file.contact_id)
-        if c is None:
-            return
         d = data.model_dump(exclude_unset=True)
+        c = await self.session.get(Contact, file.contact_id) if file.contact_id else None
+
+        # No contact yet. This is the normal state for a name-only row: by the
+        # rules in _resolve_contacts, a name we cannot reach does not earn a
+        # directory Contact. Returning here silently dropped the edit — the API
+        # answered 200 {"ok": true} and the phone number the user had just typed
+        # never landed anywhere, so it also never reached Contacts. Instead:
+        # write what was typed onto the file, and promote it to a real contact
+        # the moment a phone or email makes it reachable.
+        if c is None:
+            if "first_name" in d:
+                file.lead_first_name = d["first_name"] or None
+            if "last_name" in d:
+                file.lead_last_name = d["last_name"] or None
+            if "company_name" in d:
+                file.lead_company = d["company_name"] or None
+            if "prefix" in d:
+                file.lead_prefix = d["prefix"] or None
+            if "mobile" in d:
+                file.lead_mobile = d["mobile"] or None
+            if "email" in d:
+                file.lead_email = (d["email"] or "").strip().lower() or None
+
+            phone = (file.lead_mobile or "").strip()
+            email = (file.lead_email or "").strip()
+            if phone or email:
+                # Reachable now — same resolution the quick-create path uses, so
+                # a row promoted here and a row created complete end up identical.
+                person, company_contact = await self._resolve_contacts(
+                    first=(file.lead_first_name or "").strip(),
+                    last=(file.lead_last_name or "").strip(),
+                    company=(file.lead_company or "").strip(),
+                    phone=phone, email=email,
+                    prefix=file.lead_prefix, user_id=file.owner_user_id,
+                )
+                if person is not None:
+                    file.contact_id = str(person.id)
+                if company_contact is not None:
+                    file.company_contact_id = str(company_contact.id)
+            await self.session.commit()
+            return
+
         if "first_name" in d:
             c.first_name = d["first_name"] or None
         if "last_name" in d:

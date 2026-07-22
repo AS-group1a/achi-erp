@@ -58,15 +58,6 @@
     { label: 'About',      href: '/about',      icon: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>' }
   ];
 
-  // The community row upstream renders below the cluster. Telegram's mark is a
-  // filled glyph, not a stroked one, hence the per-item `fill` flag.
-  var COMMUNITY = [
-    { label: 'GitHub',    href: 'https://github.com/datadrivenconstruction/OpenConstructionERP',
-      icon: '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>' },
-    { label: 'Community', href: 'https://t.me/datadrivenconstruction', fill: true,
-      icon: '<path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71l-4.14-3.06-1.99 1.93c-.23.23-.42.42-.83.42z"/>' }
-  ];
-
   function activeKey() {
     var p = location.pathname;
     if (p.indexOf('/achi/survey/ui') !== -1) return 'survey';
@@ -93,17 +84,20 @@
      * shifts the whole layout, which is the flash. Same width, no jump.
      * CSS-only here: there is no React state to hand off to, so hover does not
      * need JS, and a pure-CSS transition cannot desync from the pointer. */
+    /* The expanded sidebar OVERLAYS the page; it never widens the content gutter.
+     * Driving body's padding from hover reflowed the whole page on every expand
+     * — on a wide grid that reads as fields jumping and getting cropped. The
+     * gutter is therefore pinned to the collapsed width and never animates. */
     + ':root{--achi-sb:64px}'
     + '.achi-chrome{position:fixed;left:0;top:0;bottom:0;width:var(--achi-sb);background:#284F9E;color:#fff;display:flex;flex-direction:column;z-index:40;font-family:' + FONT + ';overflow:hidden;transition:width .2s ease}'
-    + '.achi-chrome:hover{width:248px}'
+    + '.achi-chrome:hover{width:248px;box-shadow:6px 0 24px rgba(0,0,0,.18)}'
     /* Collapsed: icons only. Labels stay in the DOM for screen readers and fade
      * back in on expand — display:none would make them unreadable to AT too. */
     + '.achi-chrome:not(:hover) .achi-link span,.achi-chrome:not(:hover) .achi-back span,'
     +   '.achi-chrome:not(:hover) .achi-tool span,.achi-chrome:not(:hover) .achi-brand div,'
     +   '.achi-chrome:not(:hover) .achi-foot{opacity:0;pointer-events:none}'
-    + '.achi-chrome:not(:hover) .achi-tools,.achi-chrome:not(:hover) .achi-community{grid-template-columns:1fr}'
+    + '.achi-chrome:not(:hover) .achi-tools{grid-template-columns:1fr}'
     + '.achi-link span,.achi-back span,.achi-tool span,.achi-brand div,.achi-foot{transition:opacity .15s ease}'
-    + 'body:has(.achi-chrome:hover){--achi-sb:248px}'
     + '.achi-brand{display:flex;align-items:center;gap:10px;padding:16px 16px 14px}'
     + '.achi-brand img{width:28px;height:28px;flex:0 0 auto;border-radius:6px;object-fit:contain}'
     + '.achi-back{display:flex;align-items:center;gap:9px;margin:0 8px 6px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:11px;line-height:1.36;font-weight:500}'
@@ -132,8 +126,6 @@
     + '.achi-tool:hover{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.3)}'
     + '.achi-tool span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
     + '.achi-tool svg{width:14px;height:14px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}'
-    + '.achi-tool svg.fill{fill:currentColor;stroke:none}'
-    + '.achi-community{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px}'
     + '.achi-foot{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px 12px;font-size:10px;line-height:1.36;color:rgba(255,255,255,.5)}'
     + '.achi-foot a{color:inherit;text-decoration:none}'
     + '.achi-foot a:hover{color:rgba(255,255,255,.78)}'
@@ -146,7 +138,7 @@
      * from the rest of the app. */
     + 'body{padding-left:var(--achi-sb);background-color:#f5f5f7;'
     +   'background-image:radial-gradient(circle,rgba(60,60,67,.16) .9px,transparent .9px);'
-    +   'background-size:24px 24px;transition:padding-left .2s ease}'
+    +   'background-size:24px 24px}'
     + '@media (prefers-color-scheme:dark){body{background-color:#161822}}'
     + '@media (max-width:900px){'
     + ' body{padding-left:0}'
@@ -186,13 +178,7 @@
             + '<span>' + t.label + '</span></a></li>';
         }).join('')
       + '</ul>'
-      + '<div class="achi-community">'
-      + COMMUNITY.map(function (t) {
-          return '<a class="achi-tool" href="' + t.href + '" target="_blank" rel="noopener noreferrer" title="' + t.label + '" aria-label="' + t.label + '">'
-            + '<svg viewBox="0 0 24 24" aria-hidden="true"' + (t.fill ? ' class="fill"' : '') + '>' + t.icon + '</svg>'
-            + '<span>' + t.label + '</span></a>';
-        }).join('')
-      + '</div></div>'
+      + '</div>'
       // Version + licence, upstream's own footer. /api/source is the AGPL source
       // offer — it is a licence notice, so it is reproduced, not restyled away.
       + '<div class="achi-foot"><span>v11.9.0</span><span>·</span>'

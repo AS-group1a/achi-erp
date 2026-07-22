@@ -102,6 +102,53 @@
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
   thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  /* Expand Row — the whole row as one vertical page. Sits next to Add Row and
+     appears only with a selection, because there is nothing to expand without
+     one. Same pill shape as its neighbours. */
+  .tb-exp{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid rgba(255,255,255,.55);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .tb-exp:hover{background:rgba(255,255,255,.22);border-color:#fff}
+  .tb-exp svg{width:13px;height:13px}
+
+  /* The expanded row. A sheet rather than a dialog: one column, scrolls
+     vertically, reads the way the same record would on a phone. */
+  .rx{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  .rx[hidden]{display:none}
+  .rx-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .rx-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;flex:0 0 auto}
+  .rx-head h2{font-size:14px;font-weight:800;letter-spacing:.01em}
+  .rx-head p{font-size:11px;opacity:.8;margin-top:2px}
+  .rx-x{border:0;background:rgba(255,255,255,.16);color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .rx-x:hover{background:rgba(255,255,255,.3)}
+  .rx-x svg{width:13px;height:13px}
+  .rx-body{overflow-y:auto;padding:4px 0 0;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+  .rx-sec{border-bottom:1px solid #eef1f6;padding:12px 18px 14px}
+  .rx-sec:last-child{border-bottom:0}
+  .rx-sec h3{font-size:10px;font-weight:800;color:#64748b;letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px}
+  .rx-f{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .rx-f>label{font-size:10.5px;font-weight:700;color:#475569;letter-spacing:.02em}
+  .rx-f input,.rx-f textarea,.rx-f select{font:inherit;font-size:13px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--tx);width:100%}
+  .rx-f input:focus,.rx-f textarea:focus,.rx-f select:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .rx-f textarea{resize:vertical;min-height:64px}
+  .rx-f .rx-saved{font-size:10.5px;color:#15803d;font-weight:700}
+  .rx-f .rx-err{font-size:10.5px;color:#ba0517;font-weight:700}
+  .rx-map{border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;background:#eef2f7}
+  .rx-map .mapwrap{position:relative;height:170px;overflow:hidden}
+  .rx-map a{display:block;padding:8px 10px;font-size:11.5px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
+  .rx-none{font-size:12px;color:#94a3b8;padding:8px 0}
+  /* Sticky footer: on a long sheet Save must be reachable without scrolling
+     back down, which is the whole point of a one-column layout on a phone. */
+  .rx-foot{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 18px;border-top:1px solid #e2e8f0;background:#fff}
+  .rx-status{font-size:11.5px;color:#475569}
+  .rx-status.ok{color:#15803d;font-weight:700}
+  .rx-status.bad{color:#ba0517;font-weight:700}
+  .rx-save{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:9px 20px;cursor:pointer}
+  .rx-save:hover{background:#1F3F80}
+  .rx-save:disabled{opacity:.55;cursor:not-allowed}
+  /* Drafting a quotation is a secondary action next to Save — same blue family,
+     lighter weight, so the primary action stays obvious. */
+  .qv-draft.alt{background:#e8f0fd;color:var(--navy);border:1px solid #b9d0f2}
+  .qv-draft.alt:hover{background:#dbe8fb}
+
   /* Quick quotation card. Light blue so it reads as a working surface attached
      to the selection rather than another table. Radii follow OCE's scale. */
   .qv{margin:14px 0 8px;border:1px solid #bcd6f5;background:#eff6ff;border-radius:12px;padding:14px 16px}
@@ -312,6 +359,10 @@
     <div class="nav">
       <div class="nav-actions">
         <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
+        <button class="tb-exp" id="expand-row" type="button" title="Open the selected row as a full page" hidden>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/><line x1="14" y1="2" x2="9" y2="7"/><line x1="2" y1="14" x2="7" y2="9"/></svg>
+          Expand Row
+        </button>
         <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
       </div>
       <div class="pt" id="tabs">
@@ -329,6 +380,27 @@
       <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
     </div>
     <div class="vrz" id="vrz" title="Drag to resize table height"></div>
+  </div>
+
+  <!-- Expanded row. Built by JS from COLS so it cannot drift from the table:
+       add a column there and it appears here too. -->
+  <div class="rx" id="rx" hidden>
+    <div class="rx-box" role="dialog" aria-modal="true" aria-labelledby="rx-title">
+      <div class="rx-head">
+        <div>
+          <h2 id="rx-title">Row</h2>
+          <p id="rx-sub"></p>
+        </div>
+        <button type="button" class="rx-x" id="rx-close" aria-label="Close">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="rx-body" id="rx-body"></div>
+      <div class="rx-foot">
+        <span class="rx-status" id="rx-status"></span>
+        <button type="button" class="rx-save" id="rx-save">Save</button>
+      </div>
+    </div>
   </div>
 
   <!-- Quick quotation. Below the table, like the ERPNext quick view it replaces.
@@ -802,6 +874,8 @@ const draftKeys=()=>[...selectedRows].filter(k=>String(k).startsWith('draft:'));
 function refreshDeleteButton(){
   const n=logKeys().length+draftKeys().length, del=$('btn-del');
   if(del){ del.classList.toggle('on', n>0); const c=$('del-count'); if(c) c.textContent=n; }
+  // Expand needs exactly one saved row — the same condition the card uses.
+  const exp=$('expand-row'); if(exp) exp.hidden=!selectedLogId();
   refreshQuickQuote();
 }
 
@@ -847,6 +921,161 @@ function qvTotals(){
   $('qv-tot').textContent=(sub+vat).toFixed(2);
 }
 function qvMsg(text,cls){ const m=$('qv-msg'); m.textContent=text||''; m.className='qv-msg'+(cls?' '+cls:''); }
+
+/* ── expanded row ───────────────────────────────────────────────────────────
+   The selected row as one vertical page: every field stacked, the map rendered
+   rather than linked, and quotation drafting at the bottom. Sections come from
+   COLS' own tab numbers, so a column added to the table shows up here without
+   anyone remembering to update this. */
+const RX_SECTIONS=[
+  {tab:null,title:'Status'},
+  {tab:0,   title:'Log details'},
+  {tab:1,   title:'Contact'},
+  {tab:2,   title:'Site'},
+  {tab:3,   title:'Follow-up'},
+];
+const RX_LONG=new Set(['desc','updates','funotes']);
+let rxRowId=null;
+
+function rxFieldHTML(c,r){
+  const v=c.edit&&c.edit.val?String(c.edit.val(r)??''):'';
+  const id='rx-'+c.k;
+  const attrs=`id="${id}" data-k="${c.k}"`;
+  let control;
+  if(RX_LONG.has(c.k)) control=`<textarea ${attrs}>${esc(v)}</textarea>`;
+  else if(c.edit&&c.edit.kind==='date') control=`<input type="date" ${attrs} value="${esc(v)}">`;
+  else if(c.edit&&(c.edit.kind==='status'||c.edit.kind==='type'||c.edit.kind==='category'||c.edit.kind==='prefix')){
+    // Same option sets the grid's popup uses, so the two cannot disagree —
+    // minus the "＋ Add new…" sentinel, which is a command, not a value. In a
+    // real <select> it is directly selectable and would be saved as a prefix.
+    const opts=(selectPopupChoices(c.edit.kind)||[]).filter(o=>(typeof o==='string'?o:o.value)!==PREFIX_ADD);
+    control=`<select ${attrs}>${opts.map(o=>{
+      const val=typeof o==='string'?o:o.value; const lab=typeof o==='string'?label(o):(o.label||label(o.value));
+      return `<option value="${esc(val)}"${String(val)===String(v)?' selected':''}>${esc(lab)}</option>`;}).join('')}</select>`;
+  }
+  else control=`<input type="text" ${attrs} value="${esc(v)}">`;
+  return `<div class="rx-f"><label for="${id}">${esc(c.h)}</label>${control}<span class="rx-note" id="${id}-note"></span></div>`;
+}
+
+function rxMapHTML(r){
+  const url=r.maps_url?normalizeMapsUrl(r.maps_url):null;
+  if(!url) return '<div class="rx-none">No map link on this row.</div>';
+  const c=mapsCoords(url);
+  if(!c) return `<div class="rx-none">Preview unavailable for this link.</div><a href="${esc(url)}" target="_blank" rel="noreferrer">${esc(url)}</a>`;
+  // Tiles as <img>, never an embed iframe: the CSP allows https images but
+  // blocks third-party frames, so an embed renders blank. See tileMap().
+  return `<div class="rx-map"><div class="mapwrap" id="rx-mapwrap"></div>`
+    +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>`;
+}
+
+function openExpandedRow(){
+  const id=selectedLogId(); if(!id) return;
+  const r=ROWS.find(x=>x.id===id); if(!r) return;
+  rxRowId=id;
+  const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'—';
+  $('rx-title').textContent=r.file_number||'Row';
+  $('rx-sub').textContent=`${who}${r.created_at?' · '+fmtDT(r.created_at):''}`;
+
+  let html='';
+  for(const s of RX_SECTIONS){
+    const cols=COLS.filter(c=>c.tab===s.tab&&c.edit);
+    if(!cols.length) continue;
+    html+=`<div class="rx-sec"><h3>${esc(s.title)}</h3>${cols.map(c=>rxFieldHTML(c,r)).join('')}</div>`;
+  }
+  html+=`<div class="rx-sec"><h3>Location</h3>${rxMapHTML(r)}</div>`;
+  html+=`<div class="rx-sec"><h3>Quotation</h3>
+    <div class="rx-f"><label for="rx-q-area">Area (m²)</label><input id="rx-q-area" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-weeks">Weeks</label><input id="rx-q-weeks" type="number" min="0" step="0.5"></div>
+    <div class="rx-f"><label for="rx-q-rate">Rate /m²/week</label><input id="rx-q-rate" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-erection">Erection</label><input id="rx-q-erection" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-transport">Transport</label><input id="rx-q-transport" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-extras">Extras</label><input id="rx-q-extras" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-discount">Discount</label><input id="rx-q-discount" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-vat">VAT %</label><input id="rx-q-vat" type="number" min="0" step="0.1"></div>
+    <div class="rx-f"><label for="rx-q-scope">Scope of work</label><textarea id="rx-q-scope" rows="2"></textarea></div>
+    <div class="qv-foot" style="border-top-color:#e2e8f0">
+      <div class="qv-totals">
+        <span>Subtotal <b id="rx-q-sub">0.00</b></span>
+        <span>VAT <b id="rx-q-vatv">0.00</b></span>
+        <span class="qv-total">Total <b id="rx-q-tot">0.00</b></span>
+      </div>
+      <div class="qv-actions"><span class="qv-msg" id="rx-q-msg"></span>
+        <button type="button" class="qv-draft alt" id="rx-q-draft">Draft quotation</button></div>
+    </div></div>`;
+  $('rx-body').innerHTML=html;
+  $('rx').hidden=false;
+
+  // Tiles need the real width, which only exists once the sheet is laid out.
+  const wrap=$('rx-mapwrap');
+  if(wrap){ const url=normalizeMapsUrl(r.maps_url), c=mapsCoords(url);
+    if(c) wrap.innerHTML=tileMap(c.lat,c.lng,wrap.clientWidth||500,170,15); }
+  $('rx-body').scrollTop=0;
+}
+async function rxSaveAll(){
+  const btn=$('rx-save'), st=$('rx-status');
+  const fields=[...$('rx-body').querySelectorAll('[data-k]')];
+  const r=ROWS.find(x=>x.id===rxRowId);
+  if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
+  const changed=fields.filter(el=>{
+    const c=COLS.find(x=>x.k===el.dataset.k);
+    return c&&c.edit&&String(c.edit.val(r)??'')!==el.value.trim();
+  });
+  if(!changed.length){ st.textContent='Nothing to save'; st.className='rx-status'; return; }
+  btn.disabled=true; st.textContent='Saving…'; st.className='rx-status';
+  // Sequential, not Promise.all: these PATCH the same file and contact, and
+  // firing them together interleaves writes to one row.
+  let failed=0;
+  for(const el of changed){ try{ await rxSave(el); }catch(e){ failed++; } }
+  btn.disabled=false;
+  if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
+  else { st.textContent='Saved'; st.className='rx-status ok'; setTimeout(()=>{ st.textContent=''; },2000); }
+}
+function closeExpandedRow(){ $('rx').hidden=true; rxRowId=null; }
+
+/* Field saves go through the SAME endpoints as the grid's inline editors, keyed
+   off each column's own edit.target — so nothing here can save to a different
+   place than the table would. */
+async function rxSave(el){
+  const c=COLS.find(x=>x.k===el.dataset.k); if(!c||!c.edit||!rxRowId) return;
+  const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
+  const note=$(el.id+'-note'), field=c.edit.field, target=c.edit.target;
+  const nv=el.value.trim();
+  if(String(c.edit.val(r)??'')===nv) return;                // nothing changed
+  if(field==='email'&&nv&&!validEmail(nv)){ note.textContent='Invalid email'; note.className='rx-note rx-err'; return; }
+  try{
+    if(target==='file') await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
+    else if(target==='contact') await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
+    else await api('/logs/'+r.id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
+    ROWS.forEach(x=>{ if((target==='log'&&x.id===r.id)||(target!=='log'&&x.file_id===r.file_id)) x[field]=nv; });
+    note.textContent='Saved'; note.className='rx-note rx-saved';
+    setTimeout(()=>{ if(note) note.textContent=''; },1600);
+    render();                                                // keep the grid in step
+  }catch(e){ note.textContent=e.message||'Could not save'; note.className='rx-note rx-err'; }
+}
+function rxTotals(){
+  const n=id=>{ const v=parseFloat(($(id)||{}).value); return isNaN(v)?0:v; };
+  let sub=n('rx-q-area')*n('rx-q-weeks')*n('rx-q-rate')+n('rx-q-erection')+n('rx-q-transport')+n('rx-q-extras')-n('rx-q-discount');
+  if(sub<0) sub=0;
+  const vat=sub*n('rx-q-vat')/100;
+  $('rx-q-sub').textContent=sub.toFixed(2); $('rx-q-vatv').textContent=vat.toFixed(2);
+  $('rx-q-tot').textContent=(sub+vat).toFixed(2);
+}
+async function rxDraftQuotation(){
+  if(!rxRowId) return;
+  const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
+  const m=$('rx-q-msg'), btn=$('rx-q-draft');
+  const val=id=>{ const el=$(id); const v=el?el.value.trim():''; return v===''?undefined:v; };
+  const body={area_sqm:val('rx-q-area'),duration_weeks:val('rx-q-weeks'),rate:val('rx-q-rate'),
+    erection:val('rx-q-erection'),transport:val('rx-q-transport'),extras:val('rx-q-extras'),
+    discount:val('rx-q-discount'),vat_percent:val('rx-q-vat'),scope:val('rx-q-scope')};
+  Object.keys(body).forEach(k=>body[k]===undefined&&delete body[k]);
+  btn.disabled=true; m.textContent='Drafting…'; m.className='qv-msg';
+  try{
+    const q=await api(`/logs/${encodeURIComponent(r.file_id)}/quotation`,{method:'POST',body:JSON.stringify(body)});
+    m.textContent=`Saved ${q.quotation_number} — total ${q.total} ${q.currency}`; m.className='qv-msg ok';
+  }catch(e){ m.textContent=e.message||'Could not draft quotation'; m.className='qv-msg bad'; }
+  finally{ btn.disabled=false; }
+}
 async function draftQuotation(){
   const id=selectedLogId();
   if(!id){ qvMsg('Select one row first.','bad'); return; }
@@ -862,8 +1091,12 @@ async function draftQuotation(){
     valid_until:val('qv-valid'),
   };
   Object.keys(body).forEach(k=>body[k]===undefined&&delete body[k]);
+  // The endpoint keys off the FILE, not the log row: a file is the enquiry a
+  // quotation is addressed to, and one file can carry several log entries.
+  const row=ROWS.find(x=>x.id===id);
+  if(!row){ qvMsg('Row not loaded — reload and try again.','bad'); btn.disabled=false; return; }
   try{
-    const q=await api(`/logs/${encodeURIComponent(id)}/quotation`,{method:'POST',body:JSON.stringify(body)});
+    const q=await api(`/logs/${encodeURIComponent(row.file_id)}/quotation`,{method:'POST',body:JSON.stringify(body)});
     qvMsg(`Saved ${q.quotation_number} — total ${q.total} ${q.currency}`,'ok');
   }catch(e){ qvMsg(e.message||'Could not draft quotation','bad'); }
   finally{ btn.disabled=false; }
@@ -1021,6 +1254,25 @@ $('btn-del').addEventListener('click',deleteSelected);
 $('qv').addEventListener('input',e=>{ if(e.target.matches('input[type="number"]')) qvTotals(); });
 $('qv-draft').addEventListener('click',draftQuotation);
 $('qv-collapse').addEventListener('click',()=>{ qvHidden=true; $('qv').hidden=true; });
+/* Expanded row. Delegated so the sheet's contents can be rebuilt on every open
+   without re-binding: change saves selects/dates immediately, blur saves text
+   once the user has stopped typing. */
+$('expand-row').addEventListener('click',openExpandedRow);
+$('rx-close').addEventListener('click',closeExpandedRow);
+$('rx-save').addEventListener('click',rxSaveAll);
+$('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
+$('rx-body').addEventListener('change',e=>{
+  const el=e.target;
+  if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); return; }
+  if(el.dataset&&el.dataset.k&&(el.tagName==='SELECT'||el.type==='date')) rxSave(el);
+});
+$('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals(); });
+$('rx-body').addEventListener('focusout',e=>{
+  const el=e.target;
+  if(el.dataset&&el.dataset.k&&el.tagName!=='SELECT'&&el.type!=='date') rxSave(el);
+});
+$('rx-body').addEventListener('click',e=>{ if(e.target.closest('#rx-q-draft')) rxDraftQuotation(); });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
    or dragging a column edge would also flip the whole selection. */
 $('thead').addEventListener('click',e=>{
@@ -1550,6 +1802,6 @@ loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
 </script>
-<script src="/api/v1/achi/ui/chrome.js?v=8"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=9"></script>
 </body>
 </html>
