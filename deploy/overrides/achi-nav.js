@@ -35,6 +35,53 @@
   var dragged = null;
   var draggedAt = 0;
   var arranging = false;
+  var SIDEBAR_COLLAPSE_DELAY_MS = 120;
+
+  // Match frappe-bench's hover interaction while leaving this sidebar entirely
+  // native: start collapsed, expand on mouseenter, and collapse 120 ms after
+  // mouseleave. Clicking the existing toggle lets React keep ownership of width,
+  // labels, icons, layout, persistence, and animation.
+  function sidebarToggle(sidebar) {
+    var buttons = sidebar ? sidebar.querySelectorAll('button[aria-label]') : [];
+    for (var i = 0; i < buttons.length; i++) {
+      if (/^(expand|collapse) sidebar$/i.test(buttons[i].getAttribute('aria-label') || '')) return buttons[i];
+    }
+    // The label is translated. Fall back to the native toggle's stable layout
+    // signature: the only absolute, vertically-centred 48x20 button in <aside>.
+    return sidebar && sidebar.querySelector('button.absolute.top-1\\/2.h-12.w-5');
+  }
+  function sidebarIsCollapsed() {
+    var width = window.getComputedStyle(document.documentElement)
+      .getPropertyValue('--oe-sidebar-width');
+    return parseFloat(width) < 100; // native values are 64px collapsed / 248px open
+  }
+  function setSidebarExpanded(sidebar, expanded) {
+    var toggle = sidebarToggle(sidebar);
+    if (!toggle) return;
+    if (expanded === sidebarIsCollapsed()) toggle.click();
+  }
+  function wireSidebarHover() {
+    var sidebar = document.querySelector('[data-testid="app-sidebar"], aside.oe-sidebar');
+    if (!sidebar || sidebar.getAttribute('data-achi-hover-wired') === '1') return;
+    sidebar.setAttribute('data-achi-hover-wired', '1');
+    sidebar.setAttribute('data-achi-hover-source', 'native-width');
+    var collapseTimer = null;
+    function cancelCollapse() {
+      if (collapseTimer !== null) { window.clearTimeout(collapseTimer); collapseTimer = null; }
+    }
+    sidebar.addEventListener('mouseenter', function () {
+      cancelCollapse();
+      setSidebarExpanded(sidebar, true);
+    });
+    sidebar.addEventListener('mouseleave', function () {
+      cancelCollapse();
+      collapseTimer = window.setTimeout(function () {
+        collapseTimer = null;
+        setSidebarExpanded(sidebar, false);
+      }, SIDEBAR_COLLAPSE_DELAY_MS);
+    });
+    setSidebarExpanded(sidebar, false);
+  }
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }
   function projectFilesLink() {
@@ -411,6 +458,7 @@
   // unrelated DOM mutations and a global observer can continuously rescan it.
   // This check is effectively free once the requested sequence is in place.
   window.setInterval(function () {
+    wireSidebarHover();
     var log = document.getElementById(ID), survey = document.getElementById(ENTRIES[1].id);
     var contacts = document.getElementById(CONTACTS_ID);
     var crm = document.getElementById(CRM_ID);
@@ -420,6 +468,6 @@
     var entry = byRoute(location.pathname);
     if (entry) showEmbed(entry, false);
   }, 1000);
-  function boot() { inject(); syncToUrl(); }
+  function boot() { wireSidebarHover(); inject(); syncToUrl(); }
   if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();
