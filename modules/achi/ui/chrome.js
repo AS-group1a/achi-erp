@@ -41,6 +41,21 @@
     { k: 'files',    label: 'Project Files', href: '/files',                 icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' }
   ];
 
+  /* The admin cluster upstream pins at the bottom of its sidebar, in the same
+   * two-column grid and the same order. Routes verified against the compiled
+   * bundle — note Audit is /audits (plural), which is easy to get wrong.
+   * Reachable from our pages so an admin does not have to go back to the app
+   * first just to open Settings.
+   */
+  var TOOLS = [
+    { label: 'Settings',   href: '/settings',   icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9z"/>' },
+    { label: 'Users',      href: '/users',      icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
+    { label: 'Modules',    href: '/modules',    icon: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>' },
+    { label: 'Governance', href: '/governance', icon: '<path d="M12 3v18"/><path d="M5 7h14"/><path d="m5 7-3 7h6z"/><path d="m19 7-3 7h6z"/>' },
+    { label: 'Audit',      href: '/audits',     icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/>' },
+    { label: 'About',      href: '/about',      icon: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>' }
+  ];
+
   function activeKey() {
     var p = location.pathname;
     if (p.indexOf('/achi/survey/ui') !== -1) return 'survey';
@@ -73,6 +88,11 @@
     + '.achi-link:hover{background:rgba(255,255,255,.12);color:#fff}'
     + '.achi-link.on{background:rgba(255,255,255,.16);color:#fff;font-weight:600}'
     + '.achi-link svg{width:16px;height:16px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
+    + '.achi-tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px}'
+    + '.achi-tool{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:8px;background:rgba(255,255,255,.10);color:rgba(255,255,255,.88);text-decoration:none;font-size:11px;line-height:1.36;font-weight:500;min-width:0}'
+    + '.achi-tool:hover{background:rgba(255,255,255,.18);color:#fff}'
+    + '.achi-tool span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.achi-tool svg{width:14px;height:14px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
     + '.achi-foot{padding:10px 16px 14px;font-size:11px;line-height:1.36;opacity:.55}'
     + '.achi-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid #dfe4ec;padding:11px 18px;font-family:' + FONT + '}'
     + '.achi-top h1{font-size:13px;line-height:1.46;font-weight:600;color:#1d1d1f}'
@@ -95,7 +115,7 @@
       '<div class="achi-brand">'
       + '<img id="achi-logo" src="/logo.svg" alt="" onerror="this.style.display=\'none\'">'
       + '<div><b>ACHI</b><span id="achi-credit">by ACHI Scaffolding</span></div></div>'
-      + '<a class="achi-back" href="/">'
+      + '<a class="achi-back" href="/modules">'
       + '<svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>'
       + '<span>All modules</span></a>'
       + '<div class="achi-sep"></div>'
@@ -104,7 +124,17 @@
           return '<a class="achi-link' + (l.k === activeKey() ? ' on' : '') + '" href="' + l.href + '">'
             + '<svg viewBox="0 0 24 24">' + l.icon + '</svg><span>' + l.label + '</span></a>';
         }).join('')
-      + '</div><div class="achi-foot">' + VERSION + '</div>';
+      + '</div>'
+      // Separator then the admin grid, pinned below the scrolling nav the way
+      // upstream pins it — .achi-nav takes flex:1, so this stays at the bottom.
+      + '<div class="achi-sep"></div>'
+      + '<div class="achi-tools">'
+      + TOOLS.map(function (t) {
+          return '<a class="achi-tool" href="' + t.href + '" title="' + t.label + '">'
+            + '<svg viewBox="0 0 24 24">' + t.icon + '</svg><span>' + t.label + '</span></a>';
+        }).join('')
+      + '</div>'
+      + '<div class="achi-foot">' + VERSION + '</div>';
 
     var top = document.createElement('div');
     top.className = 'achi-top';
