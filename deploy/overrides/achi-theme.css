@@ -100,6 +100,28 @@ aside.oe-sidebar,
   --oe-blue-text:       #E3EDFB;
 }
 
+/* The native sidebar scrolls its module list vertically. Synthetic ACHI rows
+ * can make that list a few pixels wider during the 248px -> 64px transition,
+ * which exposed both horizontal and vertical scrollbar tracks when collapsed.
+ * Keep wheel/touch/keyboard scrolling, but contain horizontal overflow and hide
+ * scrollbar chrome inside the navigation rail. */
+aside.oe-sidebar,
+[data-testid="app-sidebar"] {
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+aside.oe-sidebar *,
+[data-testid="app-sidebar"] * {
+  scrollbar-width: none;
+}
+aside.oe-sidebar::-webkit-scrollbar,
+aside.oe-sidebar *::-webkit-scrollbar,
+[data-testid="app-sidebar"]::-webkit-scrollbar,
+[data-testid="app-sidebar"] *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Module links are reordered by achi-nav.js. Keep the drag affordance subtle:
  * the whole row remains the handle, with a clear lift state while moving. */
 aside.oe-sidebar li.achi-sidebar-draggable,

@@ -36,6 +36,7 @@
   var draggedAt = 0;
   var arranging = false;
   var SIDEBAR_COLLAPSE_DELAY_MS = 120;
+  var layoutObserver = null;
 
   // Match frappe-bench's hover interaction while leaving this sidebar entirely
   // native: start collapsed, expand on mouseenter, and collapse 120 ms after
@@ -81,6 +82,7 @@
       }, SIDEBAR_COLLAPSE_DELAY_MS);
     });
     setSidebarExpanded(sidebar, false);
+    observeEmbedLayout(sidebar);
   }
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }
@@ -190,8 +192,10 @@
     var logItem = log && log.closest('li');
     if (!logItem || !logItem.parentNode) return null;
     var specs = [
-      { id: CONTACTS_ID, route: '/contacts', label: 'Contacts' },
-      { id: CRM_ID, route: '/crm', label: 'CRM' }
+      { id: CONTACTS_ID, route: '/contacts', label: 'Contacts',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
+      { id: CRM_ID, route: '/crm', label: 'CRM',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' }
     ];
     var previous = logItem;
     specs.forEach(function (spec) {
@@ -206,6 +210,7 @@
         link.removeAttribute('aria-current');
         link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
         setLabel(link, spec.label);
+        setIcon(link, spec.icon);
       }
       if (item.parentNode !== logItem.parentNode || item !== previous.nextElementSibling) {
         logItem.parentNode.insertBefore(item, previous.nextSibling);
@@ -290,6 +295,19 @@
     f.style.top = Math.round(c.top) + 'px';
     f.style.width = Math.round(c.width) + 'px';
     f.style.height = Math.round(c.height) + 'px';
+  }
+  // Expanding/collapsing the upstream sidebar changes --oe-sidebar-width with a
+  // CSS transition. That does not fire window.resize, so the fixed iframe used
+  // to retain the expanded geometry until an unrelated scroll event occurred.
+  // Observe the actual layout boxes and keep the embed flush with <main> for
+  // every frame of the native transition.
+  function observeEmbedLayout(sidebar) {
+    if (!window.ResizeObserver) return;
+    if (layoutObserver) layoutObserver.disconnect();
+    layoutObserver = new ResizeObserver(function () { reposition(); });
+    layoutObserver.observe(sidebar);
+    var main = document.querySelector('main, [role="main"]');
+    if (main) layoutObserver.observe(main);
   }
   // Full-screen cover shown INSTANTLY on a hard load of /call-log, so the SPA's
   // 404 never flashes before the embed is ready. Removed when the iframe loads.
@@ -380,17 +398,6 @@
     holdTitle(null);   // release it; the SPA names its own real pages
   }
 
-  function normalizeHref(h) {
-    if (!h) return '';
-    return (h.split('?')[0] || '').replace(/\/+$|^\/+/, '').toLowerCase();
-  }
-  function findSidebarLink(predicate) {
-    var a = links();
-    for (var i = 0; i < a.length; i++) {
-      if (predicate(a[i])) return a[i];
-    }
-    return null;
-  }
   function inject() {
     var pf = projectFilesLink();
     if (!pf) return;
