@@ -88,6 +88,26 @@ def ui_drawing_js() -> PlainTextResponse:
     )
 
 
+@router.get(
+    "/ui/chrome.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Sidebar and top bar for our own pages",
+)
+def ui_chrome_js() -> PlainTextResponse:
+    """The app furniture our pages wear.
+
+    Served beside them rather than duplicated into each, so the sidebar cannot
+    drift between Call Log and Site Survey. Unauthenticated for the same reason
+    as the pages themselves: it is inert markup with no data in it.
+    """
+    return PlainTextResponse(
+        (_UI_DIR / "chrome.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
 @router.get("/info", response_model=ModuleInfo, summary="ACHI module info")
 def info() -> ModuleInfo:
     return ModuleInfo(

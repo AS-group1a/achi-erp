@@ -260,7 +260,7 @@
   }
 </style>
 </head>
-<body>
+<body data-achi-title="Call Log">
 <main>
   <div class="err" id="err"></div>
 
@@ -1369,5 +1369,6 @@ loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
 </script>
+<script src="/api/v1/achi/ui/chrome.js?v=3"></script>
 </body>
 </html>
