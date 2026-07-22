@@ -42,9 +42,9 @@ cp deploy/overrides/achi-nav.js  "$DIST/achi-nav.js"
 import re, sys
 p = sys.argv[1]
 html = orig = open(p, encoding="utf-8").read()
-NAV_V = "19"
+NAV_V = "27"
 tags = [
-    '<link rel="stylesheet" href="/achi-theme.css">',
+    '<link rel="stylesheet" href="/achi-theme.css?v=2">',
     '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,
 ]
 # Strip any copy we injected before, INCLUDING an older ?v= cache-buster, then
@@ -52,7 +52,7 @@ tags = [
 # version bump did not recognise the old tag as ours, so it stacked a second
 # <script> beside it and achi-nav.js ran twice (two click listeners, two
 # MutationObservers) for anyone who had run this script at an earlier version.
-html = re.sub(r'<link rel="stylesheet" href="/achi-theme\.css"\s*/?>', '', html)
+html = re.sub(r'<link rel="stylesheet" href="/achi-theme\.css(?:\?v=[^"]*)?"\s*/?>', '', html)
 html = re.sub(r'<script src="/achi-nav\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
 if "</head>" in html:
     html = html.replace("</head>", "".join(tags) + "</head>", 1)

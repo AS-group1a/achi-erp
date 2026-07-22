@@ -17,8 +17,28 @@
 		file_server
 	}
 
+	# Upstream precaches index.html before our response rewrite. Serve a small
+	# pass-through worker that clears that stale shell and keeps navigation online.
+	handle /sw.js {
+		header Cache-Control "no-store, max-age=0"
+		header Service-Worker-Allowed "/"
+		root * /srv/overrides
+		rewrite * /achi-sw.js
+		file_server
+	}
+
+	# One-time escape hatch for browsers still controlled by upstream's cached
+	# navigation fallback. /api is explicitly excluded by that service worker.
+	handle /api/achi-browser-reset {
+		header Clear-Site-Data `"cache", "storage"`
+		header Cache-Control "no-store, max-age=0"
+		root * /srv/overrides
+		rewrite * /browser-reset.html
+		file_server
+	}
+
 	replace {
-		"</head>" `<link rel="stylesheet" href="/achi-theme.css"><script src="/achi-nav.js?v=17" defer></script></head>`
+		"</head>" `<link rel="stylesheet" href="/achi-theme.css?v=3"><script src="/achi-nav.js?v=33" defer></script></head>`
 	}
 
 	# Upstream documents three hard proxy requirements (deploy/docker/README.md):

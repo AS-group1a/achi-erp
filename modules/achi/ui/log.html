@@ -106,6 +106,14 @@
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
   thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  /* column resize (ported from tabbed_grid.js .pg-rz). The handle positions
+     against the th, which is already `position:sticky` and therefore a
+     containing block for absolute children. */
+  .rz{position:absolute;top:0;right:-2px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}
+  thead th:last-child .rz{right:0;width:4px}
+  .rz:hover,.rz.rz-active{background:rgba(255,255,255,.28)}
+  body.col-resizing{cursor:col-resize!important;user-select:none}
+  body.col-resizing *{cursor:col-resize!important}
   tbody td{height:40px;padding:0 12px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   tbody td.wide{max-width:340px}
   tbody tr.data:nth-child(even) td{background:#f8faff}
@@ -142,6 +150,11 @@
   .map-copy svg{width:12px;height:12px}
   .map-copy:hover{background:#dbeafe}
   .map-copy.copied{border-color:#16a34a;background:#dcfce7;color:#16a34a}
+  .map-edit{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
+  .map-edit svg{width:12px;height:12px}
+  .map-edit:hover{background:#dbeafe}
+  .draft-map-wrap{display:flex;align-items:center;gap:5px}
+  .draft-map-wrap .din{min-width:0}
   .maps-popup{position:fixed;z-index:2147482100;background:#fff;border-radius:12px;border:1.5px solid #e8e8f0;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;width:240px;opacity:0;transition:opacity .15s;pointer-events:none}
   .maps-popup.vis{opacity:1;pointer-events:all}
   .maps-popup-inner{position:relative}
@@ -328,13 +341,15 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
-function showInvalidEmail(input){
+const validLebanonMobile=n=>/^(?:03\d{6}|3\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
+const validMobile=v=>{const s=String(v||'').trim();if(!s)return true;if(!/^([0-9 +_\-,.*#()]){1,20}$/.test(s))return false;const digits=s.replace(/\D/g,'');if(/^\+?961(?:\D|$)/.test(s))return validLebanonMobile(digits.slice(3));return digits.length>=7&&digits.length<=15;};
+function showInvalidValue(input,title,message){
   input&&input.classList.add('email-invalid');
   const existing=document.querySelector('.feedback');
   if(existing) return;
   const modal=document.createElement('div');
   modal.className='feedback'; modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.setAttribute('aria-labelledby','feedback-title');
-  modal.innerHTML='<div class="feedback-box"><div class="feedback-head" id="feedback-title">Invalid Email</div><div class="feedback-body">Please Enter a valid Email address</div><div class="feedback-foot"><button class="feedback-ok" type="button">OK</button></div></div>';
+  modal.innerHTML=`<div class="feedback-box"><div class="feedback-head" id="feedback-title">${esc(title)}</div><div class="feedback-body">${esc(message)}</div><div class="feedback-foot"><button class="feedback-ok" type="button">OK</button></div></div>`;
   document.body.appendChild(modal);
   const close=()=>{ modal.remove(); if(input&&input.isConnected){ input.focus(); input.select&&input.select(); } };
   modal.querySelector('.feedback-ok').onclick=close;
@@ -342,6 +357,8 @@ function showInvalidEmail(input){
   modal.onkeydown=e=>{ if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();close();} };
   requestAnimationFrame(()=>modal.querySelector('.feedback-ok').focus());
 }
+const showInvalidEmail=input=>showInvalidValue(input,'Invalid Email','Please Enter a valid Email address');
+const showInvalidMobile=input=>showInvalidValue(input,'Invalid Mobile','Please Enter a valid Mobile number');
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
@@ -377,6 +394,7 @@ const SVG={
   mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
   pin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
   copy:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="8" height="9" rx="1.2"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h7a1 1 0 011 1v2"/></svg>`,
+  pen:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L5 13H3v-2z"/><path d="M10 4l2 2"/></svg>`,
   check:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 6,12 14,4"/></svg>`,
   up:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,10 8,6 12,10"/></svg>`,
   plus:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>`,
@@ -514,7 +532,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'mobile': return phone(r.mobile);
   case 'email': return r.email?`<button class="email-btn" type="button" data-compose-email="${esc(r.email)}" title="Compose email">${SVG.mail}<span>${esc(r.email)}</span></button>`:'<span class="mt">—</span>';
   case 'maps': return r.maps_url
-    ? `<span class="maps-cell"><a class="maps-btn" href="${esc(r.maps_url)}" target="_blank" rel="noreferrer" data-mapurl="${esc(r.maps_url)}"><span class="pin">${SVG.pin}</span><span>Open in Maps</span></a><button class="map-copy" data-copy="${esc(r.maps_url)}" title="Copy link">${SVG.copy}</button></span>`
+    ? `<span class="maps-cell"><a class="maps-btn" href="${esc(r.maps_url)}" target="_blank" rel="noreferrer" data-mapurl="${esc(r.maps_url)}"><span class="pin">${SVG.pin}</span><span>Open in Maps</span></a><button class="map-copy" data-copy="${esc(r.maps_url)}" title="Copy link">${SVG.copy}</button><button class="map-edit" data-edit-map title="Edit link">${SVG.pen}</button></span>`
     : '<span class="mt">—</span>';
   case 'country': return dash(r.country);
   case 'district': return dash(r.district);
@@ -534,7 +552,65 @@ function stats(){ const now=new Date();
   const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
   $('k-total').textContent=ROWS.length; $('k-open').textContent=ROWS.filter(r=>r.status==='open').length;
   $('k-month').textContent=m; $('k-done').textContent=ROWS.filter(r=>r.status==='done').length; }
-function buildHead(){ $('thead').innerHTML=COLS.map(c=>`<th data-tab="${c.tab??''}" class="${c.cls||''}" style="width:${c.w}px">${c.h}</th>`).join(''); }
+/* ── column widths (ported from tabbed_grid.js _wireColResize) ─────────────
+ * Widths are per-column and remembered per browser, so someone who widens
+ * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
+ * so setting the th width is what actually sizes the column — the body cells
+ * follow it and nothing has to be touched per row. */
+const COLW_KEY='achi_log_col_widths', COLW_MIN=48;
+let COLW={};
+function loadColWidths(){
+  try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY)||'{}')||{}; }catch(e){ COLW={}; }
+}
+function saveColWidths(){
+  try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){}
+}
+const colWidth=c=>Math.max(COLW_MIN, Number(COLW[c.k])||c.w);
+function buildHead(){
+  $('thead').innerHTML=COLS.map(c=>
+    `<th data-tab="${c.tab??''}" data-k="${c.k}" class="${c.cls||''}" style="width:${colWidth(c)}px">`
+    +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`).join('');
+}
+/* Pointer events rather than mouse, so this works on the tablet a surveyor
+   carries as well as a desktop. One delegated listener on the header survives
+   buildHead() being called again. */
+function wireColResize(){
+  const head=$('thead');
+  if(!head || head.dataset.rzWired) return;
+  head.dataset.rzWired='1';
+  head.addEventListener('pointerdown',e=>{
+    const handle=e.target.closest('.rz'); if(!handle) return;
+    e.preventDefault(); e.stopPropagation();
+    const th=handle.closest('th'), key=handle.dataset.k;
+    if(!th||!key) return;
+    const startX=e.clientX, startW=th.getBoundingClientRect().width;
+    handle.classList.add('rz-active');
+    document.body.classList.add('col-resizing');
+    handle.setPointerCapture&&handle.setPointerCapture(e.pointerId);
+    const move=ev=>{
+      const next=Math.max(COLW_MIN,Math.round(startW+ev.clientX-startX));
+      COLW[key]=next; th.style.width=next+'px';
+    };
+    const up=()=>{
+      window.removeEventListener('pointermove',move);
+      window.removeEventListener('pointerup',up);
+      handle.classList.remove('rz-active');
+      document.body.classList.remove('col-resizing');
+      saveColWidths();
+      moveIndToActive();   // the pill indicator tracks column offsets
+    };
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',up);
+  });
+  // Double-click a handle to put that column back to its designed width.
+  head.addEventListener('dblclick',e=>{
+    const handle=e.target.closest('.rz'); if(!handle) return;
+    const c=COLS.find(x=>x.k===handle.dataset.k); if(!c) return;
+    delete COLW[c.k]; saveColWidths();
+    const th=handle.closest('th'); if(th) th.style.width=c.w+'px';
+  });
+}
+function moveIndToActive(){ const b=tabsEl&&tabsEl.querySelector('.pill-tab.on'); if(b) moveInd(b); }
 
 function draftCell(c,dp,st,rowNumber){
   if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
@@ -558,6 +634,7 @@ function draftCell(c,dp,st,rowNumber){
     const inp=`<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${type}${c.note?' data-note="1"':''}>`;
     if(c.note) return `<span class="note-wrap">${inp}<button type="button" class="note-exp" data-noteexp data-for="${id}" title="Open notes, files and drawing">${SVG.expand}</button></span>`;
     if(c.k==='email') return `<span class="draft-email">${inp}<button class="draft-compose" type="button" data-draft-compose="${id}" title="Compose email"${validEmail(st[c.k])&&st[c.k]?'':' hidden'}>${SVG.mail}</button></span>`;
+    if(c.k==='maps') return `<span class="draft-map-wrap">${inp}<button type="button" class="map-edit" data-draft-map="${id}" title="Set map location">${SVG.pen}</button></span>`;
     return inp;
   }
   return `<span class="mt">—</span>`;
@@ -664,6 +741,7 @@ function draftMobile(st){
   if(!num) return null;
   return `${st.dial||DEFAULT_DIAL} ${num}`.trim();
 }
+function validDraftMobile(st){ return validMobile(draftMobile(st)); }
 function draftPayload(st){
   const first=(st.first||'').trim(),last=(st.last||'').trim(),company=(st.company||'').trim();
   const isCo=!!company&&!first&&!last;
@@ -680,6 +758,7 @@ const committing=new Set();
 function draftIsSaveable(st){ return !!((st.first||'').trim() || (st.company||'').trim() || (st.last||'').trim()); }
 async function commitDraft(dp){
   const st=stateFor(dp); if(!st) return;
+  if(!validDraftMobile(st)){ showInvalidMobile($(dp+'-mobile')); return; }
   if(!validEmail(st.email)){ showInvalidEmail($(dp+'-email')); return; }
   if(!draftIsSaveable(st)){ const el=$(dp+'-first'); if(el)el.focus(); return; }
   if(committing.has(dp)) return;
@@ -713,6 +792,7 @@ function flushDrafts(){
     committing.add(dp);
     // No UI left to correct a bad email — drop it rather than lose the whole row.
     if(!validEmail(st.email)) st.email='';
+    if(!validDraftMobile(st)) st.mobilenum='';
     try{
       fetch(API+'/logs/',{method:'POST',keepalive:true,
         headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
@@ -748,6 +828,7 @@ $('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.d
     const s=document.getElementById(dp+'-prefix'); if(s) s.focus();
     return; }
   st[el.dataset.dk]=el.value;
+  if(el.dataset.dk==='mobilenum'&&validDraftMobile(st))el.classList.remove('email-invalid');
   if(el.dataset.dk==='email'){const valid=validEmail(el.value);if(valid)el.classList.remove('email-invalid');const button=el.closest('.draft-email')?.querySelector('.draft-compose');if(button)button.hidden=!(el.value.trim()&&valid); }
 });
 $('rows').addEventListener('click',e=>{
@@ -759,9 +840,10 @@ $('rows').addEventListener('click',e=>{
   });
 });
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
-  if(e.key==='Enter'){ e.preventDefault(); if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const dp=el.dataset.dp; const ins=draftInputs(dp); const i=ins.indexOf(el);
+  if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp,st=stateFor(dp); if(el.dataset.dk==='mobilenum'&&!validDraftMobile(st)){showInvalidMobile(el);return;} if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='email'&&!validEmail(el.value))showInvalidEmail(el);});
+$('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='mobilenum'&&!validDraftMobile(stateFor(el.dataset.dp)))showInvalidMobile(el);});
 $('add-row').addEventListener('click',addBottomRow);
 $('btn-del').addEventListener('click',deleteSelected);
 $('select-all').addEventListener('click',()=>{
@@ -782,8 +864,10 @@ $('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); i
     if(ntd){ const col=COLS.find(c=>c.k===ntd.dataset.k); if(col) openNoteWorkspace(ntd,col); }
     return; }
   const cp=e.target.closest('[data-copy]'); if(cp){ try{navigator.clipboard.writeText(cp.dataset.copy);}catch(_){} cp.classList.add('copied'); cp.innerHTML=SVG.check; setTimeout(()=>{cp.classList.remove('copied');cp.innerHTML=SVG.copy;},1000); return; }
+  const draftMap=e.target.closest('[data-draft-map]'); if(draftMap){ const inp=$(draftMap.dataset.draftMap); if(inp) openMapsLocationPopup(inp); return; }
+  const editMap=e.target.closest('[data-edit-map]'); if(editMap){ const mtd=editMap.closest('td[data-edit]'); if(mtd) openMapsLocationPopup(mtd); return; }
   const numTd=e.target.closest('td.num'); if(numTd && numTd.closest('tr.data')){ toggleSelect(numTd.closest('tr.data').dataset.log); return; }
-  const td=e.target.closest('td[data-edit]'); if(td && td.closest('tr.data')){ if(!e.target.closest('a,button')) openEditor(td); } });
+  const td=e.target.closest('td[data-edit]'); if(td && td.closest('tr.data')){ if(!e.target.closest('a,button')){ if(td.dataset.field==='maps_url') openMapsLocationPopup(td); else openEditor(td); } } });
 
 /* ── country-code picker (real flag images; emoji flags don't render on Windows) ── */
 let ccDrop=null, ccBtn=null;
@@ -825,6 +909,20 @@ function ensureMapsPopup(){ if(mapsPopup)return; mapsPopup=document.createElemen
 function hideMapsPopup(){ if(mapsPopup) mapsPopup.classList.remove('vis'); }
 function mapsCoords(url){ const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/];
   for(const p of pats){ const m=String(url||'').match(p); if(m) return {lat:parseFloat(m[1]),lng:parseFloat(m[2])}; } return null; }
+function normalizeMapsUrl(value){
+  const raw=String(value||'').trim(); if(!raw)return '';
+  let candidate=raw;
+  if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)){
+    const lower=candidate.toLowerCase();
+    if(!(lower.startsWith('www.google.')||lower.startsWith('google.')||lower.startsWith('maps.google.')||lower.startsWith('maps.app.goo.gl')||lower.startsWith('goo.gl/maps')))return '';
+    candidate='https://'+candidate;
+  }
+  try{ const u=new URL(candidate),host=u.hostname.toLowerCase().replace(/^www\./,''),path=u.pathname.toLowerCase();
+    if(!['http:','https:'].includes(u.protocol))return '';
+    const valid=/^maps\.google\./.test(host)||(host==='google.com'&&path.includes('/maps'))||(host.endsWith('.google.com')&&path.includes('/maps'))||host==='maps.app.goo.gl'||(host==='goo.gl'&&path.startsWith('/maps'));
+    return valid?u.href:'';
+  }catch(_){return '';}
+}
 // measure rather than hardcode: the popup box changed width with the OSM embed,
 // and a stale constant here silently mis-flips it at the viewport edge
 function positionPopup(pop,anchor){ const r=anchor.getBoundingClientRect(); const pw=pop.offsetWidth||240, ph=pop.offsetHeight||190; let left=r.left, top=r.bottom+6;
@@ -856,6 +954,35 @@ function tileMap(lat,lng,W,H,z){
     }
   }
   return `<div class="tilemap" style="width:${W}px;height:${H}px">${out}<span class="maps-pin">${SVG.pin}</span></div>`;
+}
+/* Set Location popup ported from frappe-bench's GridShell. The layout and
+   interaction match _openMapsLocationPopup; only the preview renderer and save
+   call use ACHI-native facilities. */
+function openMapsLocationPopup(target){
+  document.getElementById('pg-loc-popup')?.remove();
+  const isDraft=target.tagName==='INPUT', initial=isDraft?target.value:(target.dataset.val||'');
+  const ov=document.createElement('div'); ov.id='pg-loc-popup'; ov.className='pg-modal-overlay pg-loc-overlay';
+  ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Set Map Location');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2147482200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
+  ov.innerHTML=`<div style="background:#fff;border-radius:16px;width:min(440px,calc(100vw - 32px));box-shadow:0 8px 40px rgba(0,0,0,.22);overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1e3f85,#2563eb);padding:18px 20px 14px;color:#fff;"><div style="font-size:14px;font-weight:700;margin-bottom:4px;">Set Map Location</div><div style="font-size:11.5px;opacity:.8;">Use your current GPS position or paste a link</div></div>
+    <div style="padding:18px 20px;"><button id="pg-loc-use-gps" type="button" style="width:100%;height:40px;border:none;border-radius:10px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;"><svg viewBox="0 0 16 16" fill="none" width="14" height="14"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg>Use My Current Location</button>
+      <div style="font-size:11px;color:#9ca3af;text-align:center;margin-bottom:10px;">- or paste link manually -</div>
+      <input id="pg-loc-manual" type="text" value="${esc(initial)}" placeholder="https://maps.google.com/…" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:12px;outline:none;">
+      <div id="pg-loc-preview" style="display:none;margin-top:12px;border:1px solid #dce6f5;border-radius:12px;overflow:hidden;background:#f8fafc;"><div id="pg-loc-preview-map" style="display:block;width:100%;height:190px;overflow:hidden;"></div><div id="pg-loc-preview-label" style="padding:8px 11px;font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div></div></div>
+    <div style="padding:0 20px 18px;display:flex;gap:8px;"><button id="pg-loc-cancel" type="button" style="flex:1;height:36px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#374151;font-size:12px;cursor:pointer;">Cancel</button><button id="pg-loc-save" type="button" style="flex:2;height:36px;border:none;border-radius:8px;background:#1e3f85;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Save Link</button></div>
+    <div id="pg-loc-status" style="padding:0 20px 14px;font-size:11.5px;color:#6b7280;min-height:18px;"></div></div>`;
+  document.body.appendChild(ov);
+  const input=ov.querySelector('#pg-loc-manual'),preview=ov.querySelector('#pg-loc-preview'),map=ov.querySelector('#pg-loc-preview-map'),labelEl=ov.querySelector('#pg-loc-preview-label'),status=ov.querySelector('#pg-loc-status');
+  const updatePreview=()=>{ const raw=input.value.trim(),url=normalizeMapsUrl(raw); if(!raw){preview.style.display='none';input.style.borderColor='#e2e8f0';status.textContent='';return;} if(!url){preview.style.display='none';input.style.borderColor='#ef4444';status.textContent='Please paste a valid Google Maps link.';return;} input.style.borderColor='#16a34a';const c=mapsCoords(url);if(!c){preview.style.display='none';status.textContent='Preview unavailable for this link';return;}preview.style.display='block';map.innerHTML=tileMap(c.lat,c.lng,map.clientWidth||400,190,15);labelEl.textContent=url;status.textContent='Map preview ready'; };
+  const close=()=>ov.remove();
+  const commit=async url=>{ try{ if(isDraft){ const st=stateFor(target.dataset.dp); if(st)st.maps=url;target.value=url;target.dispatchEvent(new Event('input',{bubbles:true})); }
+      else { const tr=target.closest('tr'),fileId=tr.dataset.file;await api('/files/'+fileId,{method:'PATCH',body:JSON.stringify({maps_url:url})});ROWS.forEach(r=>{if(r.file_id===fileId)r.maps_url=url;});target.dataset.val=url;refreshCell(target); }
+      clearErr();close();
+    }catch(e){status.textContent=e.message||'Save failed. Please try again.';} };
+  ov.querySelector('#pg-loc-use-gps').onclick=()=>{ if(!navigator.geolocation){status.textContent='Geolocation not supported on this device.';return;}status.textContent='Getting your location…';navigator.geolocation.getCurrentPosition(p=>{const {latitude:lat,longitude:lng}=p.coords;commit(`https://www.google.com/maps?q=${lat},${lng}`);},()=>{status.textContent='Could not get location. Please enable GPS.';}); };
+  ov.querySelector('#pg-loc-save').onclick=()=>{ const raw=input.value.trim(),url=normalizeMapsUrl(raw);if(!raw){status.textContent='Please enter a Maps URL or use GPS.';return;}if(!url){status.textContent='Please paste a valid Google Maps link.';input.style.borderColor='#ef4444';input.focus();input.select();return;}commit(url); };
+  ov.querySelector('#pg-loc-cancel').onclick=close;ov.onmousedown=e=>{if(e.target===ov)close();};ov.onkeydown=e=>{e.stopPropagation();if(e.key==='Escape')close();else if(e.key==='Enter'){e.preventDefault();ov.querySelector('#pg-loc-save').click();}};input.oninput=updatePreview;if(initial)updatePreview();requestAnimationFrame(()=>input.focus());
 }
 function showMapsPopup(anchor,url){ ensureMapsPopup(); const c=mapsCoords(url);
   if(c){ mapsPopup.innerHTML=`<div class="maps-popup-inner">`
@@ -992,6 +1119,7 @@ function openEditor(td){
     // new…" sentinel as a real prefix. Refuse it and leave the editor open.
     if(el.value===PREFIX_ADD) return;
     const nv=frappeSelect?(el.dataset.selectValue||''):el.value;
+    if(save&&field==='mobile'&&!validMobile(nv)){showInvalidMobile(el);return;}
     if(save&&field==='email'&&!validEmail(nv)){showInvalidEmail(el);return;}
     ran=true;
     if(save && nv!==val){ try{
@@ -1237,7 +1365,7 @@ $('q').oninput=render;
 /* boot */
 $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
-buildHead(); setActivePill(0); render();
+loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
 </script>

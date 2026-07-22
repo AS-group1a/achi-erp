@@ -321,3 +321,128 @@ class LogRowOut(BaseModel):
     company_name: str | None = None
     mobile: str | None = None
     email: str | None = None
+
+
+# ── Site survey ───────────────────────────────────────────────────────────
+
+TRUCK_ACCESS = ("unknown", "yes", "tight", "no")
+PARKING = ("unknown", "on_site", "street", "none")
+SURVEY_STATUS = ("planned", "on_site", "surveyed", "quoted", "cancelled")
+
+
+class SurveyCreate(BaseModel):
+    """Raise a survey — typically from the office, before driving out."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    file_id: str | None = Field(default=None, max_length=36)
+    contact_id: str | None = Field(default=None, max_length=36)
+    lead_name: str | None = Field(default=None, max_length=255)
+    lead_company: str | None = Field(default=None, max_length=255)
+    lead_mobile: str | None = Field(default=None, max_length=32)
+
+    country: str | None = Field(default=None, max_length=64)
+    district: str | None = Field(default=None, max_length=128)
+    city: str | None = Field(default=None, max_length=128)
+    street: str | None = Field(default=None, max_length=255)
+    site_location: str | None = None
+    maps_url: str | None = Field(default=None, max_length=1024)
+    scheduled_for: datetime | None = None
+
+
+class SurveyUpdate(BaseModel):
+    """Everything the surveyor fills in on site. All optional — the page saves
+    each section as it is completed rather than demanding the whole form."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    lead_name: str | None = Field(default=None, max_length=255)
+    lead_company: str | None = Field(default=None, max_length=255)
+    lead_mobile: str | None = Field(default=None, max_length=32)
+
+    country: str | None = Field(default=None, max_length=64)
+    district: str | None = Field(default=None, max_length=128)
+    city: str | None = Field(default=None, max_length=128)
+    street: str | None = Field(default=None, max_length=255)
+    site_location: str | None = None
+    maps_url: str | None = Field(default=None, max_length=1024)
+    scheduled_for: datetime | None = None
+
+    truck_access: str | None = Field(default=None, pattern="^(%s)$" % "|".join(TRUCK_ACCESS))
+    parking: str | None = Field(default=None, pattern="^(%s)$" % "|".join(PARKING))
+    road_notes: str | None = None
+    access_notes: str | None = None
+
+    arrived_at: datetime | None = None
+    people_met: str | None = None
+    description: str | None = None
+    # has_drawing is derived from the payload, never trusted from the client.
+    drawing: str | None = None
+
+    status: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_STATUS))
+
+
+class SurveyAttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    survey_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
+
+
+class SurveyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    survey_number: str
+    file_id: str | None = None
+    contact_id: str | None = None
+    lead_name: str | None = None
+    lead_company: str | None = None
+    lead_mobile: str | None = None
+
+    country: str | None = None
+    district: str | None = None
+    city: str | None = None
+    street: str | None = None
+    site_location: str | None = None
+    maps_url: str | None = None
+    scheduled_for: datetime | None = None
+
+    truck_access: str = "unknown"
+    parking: str = "unknown"
+    road_notes: str = ""
+    access_notes: str = ""
+
+    arrived_at: datetime | None = None
+    people_met: str = ""
+    description: str = ""
+    has_drawing: int = 0
+
+    status: str = "planned"
+    created_at: datetime
+    attachments: list[SurveyAttachmentOut] = []
+
+
+class SurveyRowOut(BaseModel):
+    """Flat row for the survey list — no attachments, no drawing blob."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    survey_number: str
+    lead_name: str | None = None
+    lead_company: str | None = None
+    city: str | None = None
+    site_location: str | None = None
+    truck_access: str = "unknown"
+    parking: str = "unknown"
+    status: str = "planned"
+    scheduled_for: datetime | None = None
+    arrived_at: datetime | None = None
+    has_drawing: int = 0
+    photo_count: int = 0
+    created_at: datetime

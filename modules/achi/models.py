@@ -165,3 +165,96 @@ class LogAttachment(Base):
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     log: Mapped[FileLog] = relationship(back_populates="attachments")
+
+
+# ── Site survey ───────────────────────────────────────────────────────────
+#
+# The survey follows the job as it actually happens: you take an address from the
+# office, you drive there, you find out whether a truck can even get in, you
+# arrive, you photograph it, you talk to whoever is on site, and you sketch what
+# you saw. Each of those is a field here, in that order, because the person
+# filling it in is standing on the site with a phone.
+
+
+class SiteSurvey(Base):
+    """A visit to a site to work out what scaffolding the quotation needs."""
+
+    __tablename__ = "achi_site_survey"
+    __table_args__ = (
+        Index("ix_achi_site_survey_status", "status"),
+        Index("ix_achi_site_survey_file", "file_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    survey_number: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+
+    # Where it came from. A survey usually follows an enquiry, but one can be
+    # raised on its own, so both links are optional.
+    file_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("achi_contact_file.id", ondelete="SET NULL"), nullable=True
+    )
+    contact_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    # Who it is for, as typed — same reasoning as the call log: a survey must read
+    # correctly even when there is no directory contact behind it.
+    lead_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lead_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lead_mobile: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    # 1. Where am I going
+    country: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    district: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    street: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    site_location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    maps_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    scheduled_for: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # 2. Can we actually get the kit in — the questions that decide the price
+    truck_access: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")   # yes|tight|no|unknown
+    parking: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")        # on_site|street|none|unknown
+    road_notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    access_notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+
+    # 3. On site
+    arrived_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    people_met: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    # Canvas JSON from the same drawing tool the call log uses.
+    drawing: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    has_drawing: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+    # 4. Outcome
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="planned")  # planned|on_site|surveyed|quoted|cancelled
+
+    owner_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    attachments: Mapped[list["SurveyAttachment"]] = relationship(
+        back_populates="survey", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class SurveyAttachment(Base):
+    """A photo or document taken on the survey.
+
+    Same shape as LogAttachment (bytes in app.core.storage, row holds the key)
+    because it is the same problem; kept as its own table so a survey is not
+    forced to invent a log entry just to carry a photograph.
+    """
+
+    __tablename__ = "achi_survey_attachment"
+    __table_args__ = (Index("ix_achi_survey_attachment_survey", "survey_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    survey_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("achi_site_survey.id", ondelete="CASCADE"), nullable=False
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False, default="application/octet-stream")
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    uploaded_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    survey: Mapped[SiteSurvey] = relationship(back_populates="attachments")
