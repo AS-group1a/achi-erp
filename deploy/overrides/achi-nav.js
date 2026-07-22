@@ -138,6 +138,20 @@
     }
     return item;
   }
+  // Upstream's own <li> for a route, so a clone of it inherits the right icon.
+  // Matches on href only — label text is localised and would break in German.
+  // Skips our own clones so this never re-clones a copy of a copy.
+  function originalItemFor(route) {
+    var a = links();
+    for (var i = 0; i < a.length; i++) {
+      var el = a[i];
+      if (el.id === CONTACTS_ID || el.id === CRM_ID || el.id === ID) continue;
+      var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
+      if (href === route) { var li = el.closest('li'); if (li) return li; }
+    }
+    return null;
+  }
+
   function ensureOverviewModules() {
     var log = document.getElementById(ID);
     var logItem = log && log.closest('li');
@@ -151,7 +165,13 @@
       var link = document.getElementById(spec.id);
       var item = link && link.closest('li');
       if (!link) {
-        item = logItem.cloneNode(true);
+        // Clone the REAL entry for this route, not the Call Log row: the source
+        // carries its own icon, and cloning Call Log's gave Contacts and CRM a
+        // phone glyph (setLabel rewrites the text but never the <svg>). Falling
+        // back to the Call Log row keeps the entry present if upstream has not
+        // rendered the original yet — wrong icon beats a missing link.
+        var source = originalItemFor(spec.route) || logItem;
+        item = source.cloneNode(true);
         link = directLink(item);
         if (!link) return;
         link.id = spec.id;
@@ -390,19 +410,41 @@
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('href') || '';
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
-      e.preventDefault(); e.stopImmediatePropagation(); hideEmbed(); location.assign(href); return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      // hideEmbed() touches an iframe that may not exist and postMessages into
+      // it; if it throws, navigation never runs and the link reads as dead.
+      // Navigation is the point here, so it must not depend on cleanup.
+      try { hideEmbed(); } catch (err) {}
+      location.assign(href);
+      return;
     }
     var entry = byId(a.id) || byRoute(href);
-    if (entry) { e.preventDefault(); e.stopImmediatePropagation(); showEmbed(entry, true); return; }
+    // Our pages load as ordinary pages rather than docking as an iframe over the
+    // content area. They render their own sidebar (ui/chrome.js) when they are
+    // not framed, so this is a real navigation to a real page, not an overlay.
+    if (entry) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      try { hideEmbed(); } catch (err) {}
+      location.assign(entry.href);
+      return;
+    }
     if (a.closest('nav, aside, [class*="sidebar" i]')) hideEmbed();   // real navigation elsewhere
   }, true);
 
-  // On a hard load straight to /call-log, cover the 404 flash immediately.
-  if (byRoute(location.pathname)) showCover();
-
-  // Keep the embed in sync with the URL: /call-log shows it, anything else hides.
-  function syncToUrl() { var e = byRoute(location.pathname); if (e) showEmbed(e, false); else hideEmbed(); }
-  window.addEventListener('popstate', syncToUrl);
+  // A hard load of /call-log (an old bookmark, a shared link, a back button into
+  // a URL the previous embed pushed) hits a route the SPA's router does not know
+  // and renders its 404. Now that these pages load natively, send the browser to
+  // the real page instead. replace(), not assign(), so Back does not bounce
+  // between the two. The cover still runs first so the 404 never flashes.
+  function redirectIfOurRoute() {
+    var e = byRoute(location.pathname);
+    if (!e) return false;
+    showCover();
+    location.replace(e.href);
+    return true;
+  }
+  redirectIfOurRoute();
+  window.addEventListener('popstate', redirectIfOurRoute);
   function reposition() { var f = document.getElementById(EMBED); if (f && f.style.display !== 'none') positionEmbed(f); }
   window.addEventListener('resize', reposition);
   window.addEventListener('scroll', reposition, true);
@@ -417,9 +459,7 @@
     if (log && survey && contacts && crm) return;
     inject();
     ensureOverviewModules();
-    var entry = byRoute(location.pathname);
-    if (entry) showEmbed(entry, false);
   }, 1000);
-  function boot() { inject(); syncToUrl(); }
+  function boot() { inject(); redirectIfOurRoute(); }
   if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();

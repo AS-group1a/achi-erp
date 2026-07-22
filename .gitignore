@@ -4,3 +4,6 @@ deploy/ssh/
 *.pem
 *_rsa
 *_ed25519
+
+# Local dev database + server state (run-local.sh). Never commit.
+.rundata/
