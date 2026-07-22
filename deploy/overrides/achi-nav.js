@@ -39,6 +39,7 @@
   var draggedAt = 0;
   var arranging = false;
   var SIDEBAR_COLLAPSE_DELAY_MS = 120;
+  var layoutObserver = null;
 
   // Match frappe-bench's hover interaction while leaving this sidebar entirely
   // native: start collapsed, expand on mouseenter, and collapse 120 ms after
@@ -84,6 +85,7 @@
       }, SIDEBAR_COLLAPSE_DELAY_MS);
     });
     setSidebarExpanded(sidebar, false);
+    observeEmbedLayout(sidebar);
   }
 
   function links() { return document.querySelectorAll('nav a, aside a, [class*="sidebar" i] a'); }
@@ -207,8 +209,10 @@
     var logItem = log && log.closest('li');
     if (!logItem || !logItem.parentNode) return null;
     var specs = [
-      { id: CONTACTS_ID, route: '/contacts', label: 'Contacts' },
-      { id: CRM_ID, route: '/crm', label: 'CRM' }
+      { id: CONTACTS_ID, route: '/contacts', label: 'Contacts',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
+      { id: CRM_ID, route: '/crm', label: 'CRM',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' }
     ];
     var previous = logItem;
     specs.forEach(function (spec) {
@@ -229,6 +233,7 @@
         link.removeAttribute('aria-current');
         link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
         setLabel(link, spec.label);
+        setIcon(link, spec.icon);
       }
       if (item.parentNode !== logItem.parentNode || item !== previous.nextElementSibling) {
         logItem.parentNode.insertBefore(item, previous.nextSibling);
@@ -314,6 +319,19 @@
     f.style.width = Math.round(c.width) + 'px';
     f.style.height = Math.round(c.height) + 'px';
   }
+  // Expanding/collapsing the upstream sidebar changes --oe-sidebar-width with a
+  // CSS transition. That does not fire window.resize, so the fixed iframe used
+  // to retain the expanded geometry until an unrelated scroll event occurred.
+  // Observe the actual layout boxes and keep the embed flush with <main> for
+  // every frame of the native transition.
+  function observeEmbedLayout(sidebar) {
+    if (!window.ResizeObserver) return;
+    if (layoutObserver) layoutObserver.disconnect();
+    layoutObserver = new ResizeObserver(function () { reposition(); });
+    layoutObserver.observe(sidebar);
+    var main = document.querySelector('main, [role="main"]');
+    if (main) layoutObserver.observe(main);
+  }
   // Full-screen cover shown INSTANTLY on a hard load of /call-log, so the SPA's
   // 404 never flashes before the embed is ready. Removed when the iframe loads.
   function showCover() {
@@ -334,11 +352,6 @@
       if (l) l.removeAttribute('aria-current');
     }
   }
-  // One iframe, reused: switching entries swaps its src rather than stacking
-  // frames, so only one of our pages is ever alive.
-  function showEmbed(entry, pushUrl) {
-    if (!entry) return;
-
   // The SPA's router knows none of our routes, so it resolves each as a 404 and
   // sets document.title to "Page not found | <app>". The cover hides the visual
   // 404; without this the tab still advertised an error on a page that works.
@@ -370,6 +383,12 @@
     });
     titleObs.observe(el, { childList: true, characterData: true, subtree: true });
   }
+
+  // One iframe, reused: switching entries swaps its src rather than stacking
+  // frames, so only one of our pages is ever alive.
+  function showEmbed(entry, pushUrl) {
+    if (!entry) return;
+
 
     var f = document.getElementById(EMBED);
     if (!f) {
@@ -453,6 +472,18 @@
     dragged.classList.remove('achi-sidebar-dragging'); saveOrder(); dragged = null; draggedAt = Date.now();
   }, true);
 
+  function openNativeRoute(route, syntheticId) {
+    var items = moduleItems();
+    for (var i = 0; i < items.length; i++) {
+      var link = directLink(items[i]);
+      if (link && link.id !== syntheticId && orderId(link) === route) {
+        link.click();
+        return;
+      }
+    }
+    location.assign(route);
+  }
+
   // ONE global capture listener handles show + hide, regardless of re-renders.
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a');
@@ -460,13 +491,14 @@
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('href') || '';
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
+      // These rows are visual clones. Forward to the hidden React-owned link so
+      // the SPA performs exactly one native navigation and keeps its router
+      // state; a hard reload races the one-second sidebar reinjection timer.
+      // hideEmbed() postMessages into an iframe that may not exist — guarded so
+      // a throw in cleanup cannot stop the navigation, which is the point here.
       e.preventDefault(); e.stopImmediatePropagation();
-      // hideEmbed() touches an iframe that may not exist and postMessages into
-      // it; if it throws, navigation never runs and the link reads as dead.
-      // Navigation is the point here, so it must not depend on cleanup.
       try { hideEmbed(); } catch (err) {}
-      location.assign(href);
-      return;
+      openNativeRoute(href, a.id); return;
     }
     var entry = byId(a.id) || byRoute(href);
     // Our pages load as ordinary pages rather than docking as an iframe over the

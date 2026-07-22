@@ -123,25 +123,77 @@
 <script src="/api/v1/achi/ui/drawing.js?v=2"></script>
 <script>
 /* Same-origin as the SPA, so the JWT it stored is ours to reuse. */
-function getToken(){
-  const isJwt=s=>typeof s==='string'&&/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
-  const d=localStorage.getItem('oe_access_token'); if(isJwt(d))return d;
+const isJwt=s=>typeof s==='string'&&/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
+function jwtPayload(t){
+  try{ let p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4) p+='=';
+    return JSON.parse(atob(p)); }catch(e){ return null; }
+}
+/* Both tokens this API issues are JWTs, so "looks like a JWT" cannot tell them
+   apart. The scan below walks every storage key, and a refresh token in one of
+   them would be sent as a bearer — which the API rejects, so every request 401s
+   permanently and re-signing-in does not help. The payload carries
+   type:"access"|"refresh"; anything typed "refresh" is excluded. Tokens with no
+   type claim still pass, so older sessions keep working. */
+const isAccessJwt=s=>isJwt(s)&&(jwtPayload(s)||{}).type!=='refresh';
+function scanStorage(match){
   for(const st of [localStorage,sessionStorage]){
     for(let i=0;i<st.length;i++){ const v=st.getItem(st.key(i));
-      if(isJwt(v))return v;
-      if(v&&v[0]==='{'){ try{const o=JSON.parse(v);const c=o.access_token||o.token||(o.state&&(o.state.access_token||o.state.token));if(isJwt(c))return c;}catch(e){} } }
+      if(match(v))return v;
+      if(v&&v[0]==='{'){ try{const o=JSON.parse(v);
+        for(const c of [o.access_token,o.refresh_token,o.token,o.state&&o.state.access_token,o.state&&o.state.refresh_token,o.state&&o.state.token])
+          if(match(c))return c;
+      }catch(e){} } }
   }
   return null;
 }
-const TOKEN=getToken(), API='/api/v1/achi';
+function getToken(){
+  const d=localStorage.getItem('oe_access_token'); if(isAccessJwt(d))return d;
+  return scanStorage(isAccessJwt);
+}
+function getRefreshToken(){
+  const d=localStorage.getItem('oe_refresh_token'); if(isJwt(d))return d;
+  return scanStorage(s=>isJwt(s)&&(jwtPayload(s)||{}).type==='refresh');
+}
+let TOKEN=getToken();   // reassigned by refreshToken() when the access token expires
+const API='/api/v1/achi';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 
-async function api(path,opts={}){
+/* Access tokens last an hour (expires_in 3600). Leave this page open longer and
+   every call 401s. A refresh token is issued alongside, so swap it for a new
+   access token and retry once — the user sees nothing. Shared promise so a
+   burst of parallel 401s triggers one refresh, not one per request. */
+let refreshing=null;
+function refreshToken(){
+  if(refreshing) return refreshing;
+  const rt=getRefreshToken();
+  if(!rt) return Promise.resolve(false);
+  refreshing=fetch('/api/v1/users/auth/refresh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:rt})})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{ if(d&&d.access_token){ TOKEN=d.access_token;
+      try{ localStorage.setItem('oe_access_token',TOKEN); if(d.refresh_token) localStorage.setItem('oe_refresh_token',d.refresh_token); }catch(e){}
+      return true; } return false; })
+    .catch(()=>false)
+    .finally(()=>{ refreshing=null; });
+  return refreshing;
+}
+/* Attachment upload/download need the raw Response (FormData in, blob out), so
+   they cannot go through api(). Same refresh-and-retry, without the JSON step. */
+async function authFetch(url,opts={},retried){
+  const r=await fetch(url,{...opts,headers:{Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
+  if(r.status===401 && !retried && await refreshToken()) return authFetch(url,opts,true);
+  return r;
+}
+async function api(path,opts={},retried){
   const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
-  if(r.status===401){ fail('Session expired — open the main app on this host, sign in, then reload.'); throw new Error('401'); }
+  if(r.status===401){
+    if(!retried && await refreshToken()) return api(path,opts,true);
+    // message, not "401": every caller does fail(e.message), which used to
+    // overwrite the explanation with the bare status code
+    const m='Session expired — open the main app on this host, sign in, then reload.';
+    fail(m); throw new Error(m); }
   if(r.status===204) return {};
   const b=await r.json().catch(()=>({}));
   if(!r.ok){ const d=b.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
@@ -335,7 +387,7 @@ async function upload(files){
   for(const f of files){
     try{
       const fd=new FormData(); fd.append('file',f,f.name);
-      const r=await fetch(`${API}/surveys/${current.id}/attachments`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+      const r=await authFetch(`${API}/surveys/${current.id}/attachments`,{method:'POST',body:fd});
       if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||`Could not upload ${f.name}`); }
     }catch(e){ fail(e.message); }
   }
@@ -353,7 +405,7 @@ function renderShots(){
   // with the token and hand the browser a blob instead.
   el.querySelectorAll('img[data-src]').forEach(async img=>{
     try{
-      const r=await fetch(`${API}/survey-attachments/${img.dataset.src}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+      const r=await authFetch(`${API}/survey-attachments/${img.dataset.src}/download`);
       if(r.ok) img.src=URL.createObjectURL(await r.blob());
     }catch(e){}
   });
@@ -365,7 +417,7 @@ function renderShots(){
   el.querySelectorAll('.shot').forEach(s=>s.onclick=async e=>{
     if(e.target.closest('[data-del]')) return;
     const a=shots.find(x=>x.id===s.dataset.id); if(!a) return;
-    try{ const r=await fetch(`${API}/survey-attachments/${a.id}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+    try{ const r=await authFetch(`${API}/survey-attachments/${a.id}/download`);
       if(r.ok) window.open(URL.createObjectURL(await r.blob()),'_blank');
     }catch(err){}
   });
