@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.storage import get_storage_backend
 from app.modules.contacts import bridge
 from app.modules.contacts.models import Contact
+from app.modules.users.models import User
 
 from .models import ContactFile, FileLog, LogAttachment
 from .schemas import ContactFileCreate, ContactFileUpdate, FileLogCreate, PersonIn, QuickLogCreate
@@ -530,11 +531,18 @@ class ContactFileService:
         return row.scalar_one_or_none()
 
     async def list_logs(self, *, limit: int = 200) -> list[tuple]:
-        """Log rows joined to their file — one query, not N+1."""
+        """Log rows joined to their file — one query, not N+1.
+
+        User is joined for the owner's name: the grid shows initials, and without
+        this it only had owner_user_id — a UUID, whose first two characters are
+        what produced avatars like "5C". outerjoin because owner_user_id is
+        nullable and is not a real FK, so a stale id must not drop the row.
+        """
         q = (
-            select(FileLog, ContactFile, Contact)
+            select(FileLog, ContactFile, Contact, User.full_name)
             .join(ContactFile, FileLog.file_id == ContactFile.id)
             .outerjoin(Contact, ContactFile.contact_id == Contact.id)
+            .outerjoin(User, ContactFile.owner_user_id == User.id)
             .order_by(FileLog.created_at.desc())
             .limit(limit)
         )

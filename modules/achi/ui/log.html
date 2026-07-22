@@ -442,7 +442,20 @@ const tagv=v=>v?`<span class="tag">${esc(label(v))}</span>`:'<span class="mt">�
 const dash=v=>v?esc(v):'<span class="mt">—</span>';
 const selOpts=(o,v)=>o.map(x=>`<option value="${x}"${x===v?' selected':''}>${esc(label(x))}</option>`).join('');
 function phone(m){ if(!m)return '<span class="mt">—</span>'; const d=m.replace(/[^0-9]/g,''); return `<span class="ph">${esc(m)}</span><a class="wa" href="https://wa.me/${d}" target="_blank" rel="noreferrer" title="WhatsApp">${SVG.wa}</a>`; }
-function avatar(id){ if(!id)return '<span class="mt">—</span>'; return `<span class="avatar" title="${esc(id)}">${esc(String(id).slice(0,2).toUpperCase())}</span>`; }
+/* Owner initials: first letter of the first name + first letter of the last.
+   "Paul Smith" -> PS, "Paul" -> P, nothing usable -> X. Previously this sliced
+   the first two characters off owner_user_id, so a UUID rendered as "5C".
+   OCE's User has a single full_name, so first/last come from splitting it;
+   middle names are ignored — first word and last word only. */
+function initials(name){
+  const parts=String(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return 'X';
+  const first=parts[0][0]||'';
+  const last=parts.length>1?(parts[parts.length-1][0]||''):'';
+  return (first+last).toUpperCase() || 'X';
+}
+function avatar(name,id){ if(!name&&!id)return '<span class="mt">—</span>';
+  return `<span class="avatar" title="${esc(name||id)}">${esc(initials(name))}</span>`; }
 function openEmailCompose(email){
   document.querySelector('.compose')?.remove();
   const panel=document.createElement('section'); panel.className='compose'; panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
@@ -526,7 +539,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'company': return dash(r.company_name);
   case 'desc': return (r.description?esc(r.description):'<span class="mt">—</span>')+marks(r);
   case 'location': return dash(r.site_location);
-  case 'owner': return avatar(r.owner);
+  case 'owner': return avatar(r.owner_name,r.owner);
   case 'type': return tagv(r.log_type);
   case 'category': return tagv(r.category);
   case 'mobile': return phone(r.mobile);

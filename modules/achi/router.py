@@ -384,9 +384,12 @@ async def list_logs(
 ) -> list[LogRowOut]:
     svc = ContactFileService(session)
     rows = await svc.list_logs(limit=limit)
-    counts = await svc.attachment_counts([log.id for log, _f, _c in rows])
+    # index rather than unpack: list_logs' tuple width changes when a column is
+    # added to its select (owner name was the last one), and a positional unpack
+    # here breaks the endpoint when it does
+    counts = await svc.attachment_counts([r[0].id for r in rows])
     out: list[LogRowOut] = []
-    for log, f, contact in rows:
+    for log, f, contact, owner_name in rows:
         # A row only has a Contact when a phone or email was given. Without one the
         # identity lives on the file exactly as it was typed, so fall back to that
         # rather than showing a blank row.
@@ -434,6 +437,7 @@ async def list_logs(
                 country=f.country,
                 maps_url=f.maps_url,
                 owner=f.owner_user_id,
+                owner_name=owner_name,
                 contact_id=f.contact_id,
                 company_contact_id=f.company_contact_id,
                 contact_name=name,
