@@ -400,6 +400,23 @@ async def delete_attachment(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.get(
+    "/contacts/{contact_id}/links",
+    summary="Everything linked to one contact, across ACHI and CRM",
+    description=(
+        "Read-only view of the shared contact. ACHI files match exactly on "
+        "contact_id; CRM opportunities on primary_contact_id; CRM leads only by "
+        "email, because oe_crm_lead stores no contact id. Returns crm_available "
+        "false when the CRM module is disabled rather than failing."
+    ),
+)
+async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentUserId) -> dict:
+    links = await ContactFileService(session).contact_links(contact_id)
+    if not links:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
+    return links
+
+
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
 async def list_logs(
     session: SessionDep, _user_id: CurrentUserId, limit: int = Query(default=200, ge=1, le=1000)
