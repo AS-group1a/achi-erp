@@ -29,6 +29,8 @@
   var ID = ENTRIES[0].id;
   var CONTACTS_ID = 'achi-nav-contacts';
   var CRM_ID = 'achi-nav-crm';
+  var CONTACTS_ROUTE = '/contacts';
+  var CRM_ROUTE = '/crm';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
   var ORDER_KEY = 'achi_sidebar_module_order_v2';
@@ -116,6 +118,16 @@
     for (var i = 0; i < s.length; i++) if (s[i].textContent && s[i].textContent.trim()) { s[i].textContent = t; return; }
     el.setAttribute('title', t);
   }
+  function configureLink(link, id, route, label, icon) {
+    if (!link) return;
+    link.id = id;
+    link.setAttribute('href', route);
+    link.setAttribute('data-achi-route', route);
+    link.removeAttribute('aria-current');
+    link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
+    setLabel(link, label);
+    if (icon) setIcon(link, icon);
+  }
   function moduleNav() {
     var pf = projectFilesLink();
     return pf ? pf.closest('nav') : null;
@@ -192,9 +204,9 @@
     var logItem = log && log.closest('li');
     if (!logItem || !logItem.parentNode) return null;
     var specs = [
-      { id: CONTACTS_ID, route: '/contacts', label: 'Contacts',
+      { id: CONTACTS_ID, route: CONTACTS_ROUTE, label: 'Contacts',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
-      { id: CRM_ID, route: '/crm', label: 'CRM',
+      { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' }
     ];
     var previous = logItem;
@@ -205,13 +217,11 @@
         item = logItem.cloneNode(true);
         link = directLink(item);
         if (!link) return;
-        link.id = spec.id;
-        link.setAttribute('href', spec.route);
-        link.removeAttribute('aria-current');
-        link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
-        setLabel(link, spec.label);
-        setIcon(link, spec.icon);
       }
+      // React may rebuild or recycle sidebar DOM. Reassert the canonical route
+      // even when the synthetic row already exists so it cannot retain another
+      // module's stale href.
+      configureLink(link, spec.id, spec.route, spec.label, spec.icon);
       if (item.parentNode !== logItem.parentNode || item !== previous.nextElementSibling) {
         logItem.parentNode.insertBefore(item, previous.nextSibling);
       }
@@ -222,7 +232,7 @@
     moduleItems().forEach(function (item) {
       var link = directLink(item), href = link ? orderId(link) : '';
       if (link && link.id !== CONTACTS_ID && link.id !== CRM_ID &&
-          (href === '/contacts' || href === '/crm')) {
+          (href === CONTACTS_ROUTE || href === CRM_ROUTE)) {
         item.style.display = 'none';
         item.setAttribute('aria-hidden', 'true');
       }
@@ -399,6 +409,13 @@
     holdTitle(null);   // release it; the SPA names its own real pages
   }
 
+  function navigateInMainApp(route) {
+    // BrowserRouter listens for popstate and renders the native page without a
+    // full local-page reload or reliance on a cloned link's React handler.
+    history.pushState(history.state, '', route);
+    window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+  }
+
   function inject() {
     var pf = projectFilesLink();
     if (!pf) return;
@@ -408,15 +425,15 @@
     for (var i = 0; i < ENTRIES.length; i++) {
       var e = ENTRIES[i];
       var existing = document.getElementById(e.id);
-      if (existing) { after = existing.closest('li') || after; continue; }
+      if (existing) {
+        configureLink(existing, e.id, e.route, e.label, e.icon);
+        after = existing.closest('li') || after;
+        continue;
+      }
       var item = sourceItem.cloneNode(true);
       var link = directLink(item);
       if (!link) continue;
-      link.id = e.id; link.setAttribute('href', e.route);
-      link.removeAttribute('aria-current');
-      link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
-      setLabel(link, e.label);
-      setIcon(link, e.icon);
+      configureLink(link, e.id, e.route, e.label, e.icon);
       after.parentNode.insertBefore(item, after.nextSibling);
       after = item;
     }
@@ -449,30 +466,17 @@
     dragged.classList.remove('achi-sidebar-dragging'); saveOrder(); dragged = null; draggedAt = Date.now();
   }, true);
 
-  function openNativeRoute(route, syntheticId) {
-    var items = moduleItems();
-    for (var i = 0; i < items.length; i++) {
-      var link = directLink(items[i]);
-      if (link && link.id !== syntheticId && orderId(link) === route) {
-        link.click();
-        return;
-      }
-    }
-    location.assign(route);
-  }
-
   // ONE global capture listener handles show + hide, regardless of re-renders.
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a');
     if (!a) return;
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
-    var href = a.getAttribute('href') || '';
+    var href = a.getAttribute('data-achi-route') || a.getAttribute('href') || '';
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
-      // These rows are visual clones. Forward to the hidden React-owned link so
-      // the SPA performs exactly one native navigation and keeps its router
-      // state; a hard reload races the one-second sidebar reinjection timer.
+      var route = a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE;
       e.preventDefault(); e.stopImmediatePropagation(); hideEmbed();
-      openNativeRoute(href, a.id); return;
+      navigateInMainApp(route);
+      return;
     }
     var entry = byId(a.id) || byRoute(href);
     if (entry) { e.preventDefault(); e.stopImmediatePropagation(); showEmbed(entry, true); return; }
