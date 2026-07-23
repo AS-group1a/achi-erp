@@ -1442,14 +1442,9 @@ $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRo
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 $('rx-body').addEventListener('change',e=>{
   const el=e.target;
-  if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); return; }
-  if(el.dataset&&el.dataset.k&&(el.tagName==='SELECT'||el.type==='date')) rxSave(el);
+  if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals(); });
-$('rx-body').addEventListener('focusout',e=>{
-  const el=e.target;
-  if(el.dataset&&el.dataset.k&&el.tagName!=='SELECT'&&el.type!=='date') rxSave(el);
-});
 $('rx-body').addEventListener('click',e=>{ if(e.target.closest('#rx-q-draft')) rxDraftQuotation(); });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
    or dragging a column edge would also flip the whole selection. */
