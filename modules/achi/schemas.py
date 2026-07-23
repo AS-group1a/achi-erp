@@ -310,6 +310,7 @@ class LogRowOut(BaseModel):
     country: str | None = None
     maps_url: str | None = None
     owner: str | None = None
+    owner_name: str | None = None   # User.full_name; the grid derives initials from it
     # contact (from the canonical directory; None when the row had no phone/email,
     # in which case the name fields below come from the file as typed)
     contact_id: str | None = None
