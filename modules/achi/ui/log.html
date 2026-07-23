@@ -378,7 +378,7 @@
     <div class="nav">
       <div class="nav-actions">
         <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
-        <button class="tb-exp" id="expand-row" type="button" title="Open the selected row as a full page" hidden>
+        <button class="tb-exp" id="expand-row" type="button" title="Open the full form — a selected row to edit, or blank for a new entry">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/><line x1="14" y1="2" x2="9" y2="7"/><line x1="2" y1="14" x2="7" y2="9"/></svg>
           Expand Row
         </button>
@@ -970,7 +970,10 @@ function refreshDeleteButton(){
   const n=logKeys().length+draftKeys().length, del=$('btn-del');
   if(del){ del.classList.toggle('on', n>0); const c=$('del-count'); if(c) c.textContent=n; }
   // Expand needs exactly one saved row — the same condition the card uses.
-  const exp=$('expand-row'); if(exp) exp.hidden=!selectedLogId();
+  // Expand Row is always available now: with a selection it edits that row,
+  // without one it opens a blank form that creates a new entry. Only the tooltip
+  // changes with the selection.
+  const exp=$('expand-row'); if(exp) exp.title=selectedLogId()?'Open the selected row to edit':'Open a blank form for a new entry';
   refreshQuickQuote();
 }
 
@@ -1064,20 +1067,32 @@ function rxMapHTML(r){
 }
 
 function openExpandedRow(){
-  const id=selectedLogId(); if(!id) return;
-  const r=ROWS.find(x=>x.id===id); if(!r) return;
-  rxRowId=id;
-  const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'—';
-  $('rx-title').textContent=r.file_number||'Row';
-  $('rx-sub').textContent=`${who}${r.created_at?' · '+fmtDT(r.created_at):''}`;
+  // With a row selected, edit it. Without one, open blank and CREATE on save —
+  // rxRowId === null is the flag the save path reads to tell edit from create.
+  const id=selectedLogId();
+  const r=id?ROWS.find(x=>x.id===id):null;
+  rxRowId=r?id:null;
+  const isNew=!r;
+  const src=r||{};   // empty object -> every field renders blank
+  if(isNew){
+    $('rx-title').textContent='New entry';
+    $('rx-sub').textContent='Fill in what you have — saved as a new call log';
+  }else{
+    const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'—';
+    $('rx-title').textContent=r.file_number||'Row';
+    $('rx-sub').textContent=`${who}${r.created_at?' · '+fmtDT(r.created_at):''}`;
+  }
 
   let html='';
   for(const s of RX_SECTIONS){
     const cols=COLS.filter(c=>c.tab===s.tab&&c.edit);
     if(!cols.length) continue;
-    html+=`<div class="rx-sec"><h3>${esc(s.title)}</h3>${cols.map(c=>rxFieldHTML(c,r)).join('')}</div>`;
+    html+=`<div class="rx-sec"><h3>${esc(s.title)}</h3>${cols.map(c=>rxFieldHTML(c,src)).join('')}</div>`;
   }
-  html+=`<div class="rx-sec"><h3>Location</h3>${rxMapHTML(r)}</div>`;
+  html+=`<div class="rx-sec"><h3>Location</h3>${rxMapHTML(src)}</div>`;
+  // A quotation is addressed to a saved file, so it can't be drafted before the
+  // entry exists. Disabled until the new entry is created.
+  const draftAttr=isNew?'disabled title="Save the entry first"':'';
   html+=`<div class="rx-sec"><h3>Quotation</h3>
     <div class="rx-f"><label for="rx-q-area">Area (m²)</label><input id="rx-q-area" type="number" min="0" step="0.01"></div>
     <div class="rx-f"><label for="rx-q-weeks">Weeks</label><input id="rx-q-weeks" type="number" min="0" step="0.5"></div>
@@ -1095,18 +1110,59 @@ function openExpandedRow(){
         <span class="qv-total">Total <b id="rx-q-tot">0.00</b></span>
       </div>
       <div class="qv-actions"><span class="qv-msg" id="rx-q-msg"></span>
-        <button type="button" class="qv-draft alt" id="rx-q-draft">Draft quotation</button></div>
+        <button type="button" class="qv-draft alt" id="rx-q-draft" ${draftAttr}>Draft quotation</button></div>
     </div></div>`;
   $('rx-body').innerHTML=html;
   $('rx').hidden=false;
 
   // Tiles need the real width, which only exists once the sheet is laid out.
   const wrap=$('rx-mapwrap');
-  if(wrap){ const url=normalizeMapsUrl(r.maps_url), c=mapsCoords(url);
+  if(wrap){ const url=normalizeMapsUrl(src.maps_url), c=mapsCoords(url);
     if(c) wrap.innerHTML=tileMap(c.lat,c.lng,wrap.clientWidth||500,170,15); }
   $('rx-body').scrollTop=0;
 }
+/* Collect the sheet's fields into the {person, site, log} shape POST /logs/
+   expects — the same shape draftPayload builds for the grid's own rows, so a
+   new entry made here is indistinguishable from one typed into the table. */
+function rxCollectNew(){
+  const v={};
+  $('rx-body').querySelectorAll('[data-k]').forEach(el=>{ v[el.dataset.k]=el.value.trim(); });
+  const first=v.first||'', last=v.last||'', company=v.company||'';
+  const isCo=!!company && !first && !last;           // company with no person name -> a company contact
+  const mob=v.mobile||null;
+  const person=isCo
+    ? {is_company:true, company_name:company, mobile:mob, email:v.email||null}
+    : {is_company:false, prefix:v.prefix||null, first_name:first||null, last_name:last||null,
+       company_name:company||null, mobile:mob, email:v.email||null};
+  const hasSite=v.country||v.district||v.city||v.street||v.maps||v.location;
+  const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
+    street:v.street||null, maps_url:v.maps||null, site_location:v.location||null}:null;
+  return {person, site, status:v.status||'open', log_type:v.type||'inbound_call',
+    category:v.category||null, description:v.desc||'', updates:v.updates||'',
+    follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
+}
+
+async function rxCreateNew(){
+  const btn=$('rx-save'), st=$('rx-status');
+  const payload=rxCollectNew();
+  // A file needs an identity — the same rule the grid enforces before saving.
+  if(!(payload.person.first_name||payload.person.last_name||payload.person.company_name)){
+    st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return;
+  }
+  if(payload.person.email && !validEmail(payload.person.email)){
+    st.textContent='Invalid email'; st.className='rx-status bad'; return;
+  }
+  btn.disabled=true; st.textContent='Saving…'; st.className='rx-status';
+  try{
+    await api('/logs/',{method:'POST',body:JSON.stringify(payload)});
+    st.textContent='Created'; st.className='rx-status ok';
+    await load();                               // pull the new row into the grid
+    setTimeout(closeExpandedRow,700);
+  }catch(e){ st.textContent=e.message||'Could not create'; st.className='rx-status bad'; btn.disabled=false; }
+}
+
 async function rxSaveAll(){
+  if(rxRowId===null) return rxCreateNew();        // blank sheet -> create, don't patch
   const btn=$('rx-save'), st=$('rx-status');
   const fields=[...$('rx-body').querySelectorAll('[data-k]')];
   const r=ROWS.find(x=>x.id===rxRowId);
