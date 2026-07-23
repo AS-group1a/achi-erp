@@ -18,7 +18,7 @@
   // icon; ?v= busts the service-worker cache when a page changes.
   var ENTRIES = [
     { id: 'achi-nav-log', label: 'Call Log', route: '/call-log',
-      href: '/api/v1/achi/ui?v=18',
+      href: '/api/v1/achi/ui?v=21',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
     { id: 'achi-nav-survey', label: 'Site Survey', route: '/site-survey',
       href: '/api/v1/achi/survey/ui?v=1',
@@ -432,13 +432,6 @@
     holdTitle(null);   // release it; the SPA names its own real pages
   }
 
-  function navigateInMainApp(route) {
-    // BrowserRouter listens for popstate and renders the native page without a
-    // full local-page reload or reliance on a cloned link's React handler.
-    history.pushState(history.state, '', route);
-    window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
-  }
-
   function inject() {
     var pf = projectFilesLink();
     if (!pf) return;
@@ -496,15 +489,10 @@
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('data-achi-route') || a.getAttribute('href') || '';
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
-      // main's navigateInMainApp supersedes openNativeRoute: it hands the route
-      // to the SPA's own router instead of reloading, so the sidebar reinjection
-      // timer is never raced. hideEmbed() postMessages into an iframe that may
-      // not exist — guarded so a throw in cleanup cannot stop the navigation,
-      // which is the whole point of this branch.
       var route = a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE;
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
-      navigateInMainApp(route);
+      location.assign(route);
       return;
     }
     var entry = byId(a.id) || byRoute(href);

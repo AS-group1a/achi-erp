@@ -267,6 +267,12 @@
   .pg-ac-item{padding:7px 13px;cursor:pointer;font-size:12.5px;color:#1e3f85;background:#fff;white-space:nowrap}
   .pg-ac-item.pg-ac-active{background:#fff;color:#1e3f85}
   .pg-ac-item:hover{background:#1e3f85;color:#fff}
+  .contact-match-drop{min-width:300px;max-width:min(460px,calc(100vw - 16px))}
+  .contact-match{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .contact-match-main{min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+  .contact-match-meta{min-width:0;color:#64748b;font-size:11px;overflow:hidden;text-overflow:ellipsis}
+  .contact-match.pg-ac-active{background:#1e3f85;color:#fff}
+  .contact-match:hover .contact-match-meta,.contact-match.pg-ac-active .contact-match-meta{color:rgba(255,255,255,.78)}
   .empty{padding:20px 14px;text-align:center;color:#9ca3af}
 
   /* draft rows: top permanent + appended bottom ones */
@@ -587,6 +593,16 @@ async function api(path,opts={},retried){
   if(!r.ok){ const d=body.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
   return body;
 }
+async function searchContacts(q,retried){
+  const url='/api/v1/contacts/search/?q='+encodeURIComponent(q)+'&limit=12';
+  const r=await fetch(url,{headers:{Authorization:'Bearer '+TOKEN}});
+  if(r.status===401){
+    if(!retried && await refreshToken()) return searchContacts(q,true);
+    throw new Error('Session expired'); }
+  const body=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(body.detail||r.status);
+  return Array.isArray(body.items)?body.items:[];
+}
 function fmtDT(s){ const d=new Date(s); if(isNaN(d))return String(s||'').slice(0,16).replace('T',' ');
   const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 const badge=s=>`<span class="badge b-${esc(s)}">${esc(s)}</span>`;
@@ -789,7 +805,7 @@ function draftCell(c,dp,st,rowNumber){
       + `<input class="din tel-num" id="${id}" data-dp="${dp}" data-dk="mobilenum" placeholder="70 123 456" value="${esc(st.mobilenum||'')}"></span>`; }
   if(c.draft==='text'){
     const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||'';
-    const type=c.k==='email'?' type="email" inputmode="email" autocomplete="email"':'';
+    const type=c.k==='email'?' type="email" inputmode="email" autocomplete="email"':c.k==='first'?' autocomplete="off"':'';
     const inp=`<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${type}${c.note?' data-note="1"':''}>`;
     if(c.note) return `<span class="note-wrap">${inp}<button type="button" class="note-exp" data-noteexp data-for="${id}" title="Open notes, files and drawing">${SVG.expand}</button></span>`;
     if(c.k==='email') return `<span class="draft-email">${inp}<button class="draft-compose" type="button" data-draft-compose="${id}" title="Compose email"${validEmail(st[c.k])&&st[c.k]?'':' hidden'}>${SVG.mail}</button></span>`;
@@ -1130,6 +1146,82 @@ async function deleteSelected(){
 /* ── draft interactions (delegated once) ── */
 function stateFor(dp){ return dp==='d'?topDraft:bottomDrafts[+dp.slice(1)]; }
 function draftInputs(dp){ return [...$('rows').querySelectorAll(`.din[data-dp="${dp}"]`)]; }
+let contactMatchTimer=null,contactMatchSeq=0,contactMatchDrop=null;
+let contactMatchItems=[],contactMatchActive=0,contactMatchInput=null;
+function closeContactMatches(){
+  clearTimeout(contactMatchTimer);
+  if(contactMatchDrop)contactMatchDrop.remove();
+  contactMatchDrop=null;contactMatchItems=[];contactMatchInput=null;
+}
+function contactName(c){return [c.first_name,c.last_name].filter(Boolean).join(' ').trim()||c.company_name||'Unnamed contact';}
+function contactPrefix(c){
+  for(const v of Object.values(c.custom_properties||{}))if(v&&typeof v==='object'&&v.prefix)return v.prefix;
+  return '';
+}
+function contactPhoneParts(phone){
+  const raw=String(phone||'').trim();
+  const found=[...COUNTRIES].sort((a,b)=>b[2].length-a[2].length).find(c=>raw.startsWith(c[2]));
+  return found?{iso:found[0],dial:found[2],mobilenum:raw.slice(found[2].length).trim()}:{iso:DEFAULT_ISO,dial:DEFAULT_DIAL,mobilenum:raw};
+}
+function contactAddress(c){return c.address&&typeof c.address==='object'?c.address:{};}
+function fillDraftFromContact(dp,c){
+  const st=stateFor(dp);if(!st)return;
+  st.__choosingContact=true;
+  const phone=contactPhoneParts(c.primary_phone),address=contactAddress(c);
+  Object.assign(st,{prefix:contactPrefix(c),first:c.first_name||'',last:c.last_name||'',company:c.company_name||'',
+    email:c.primary_email||'',iso:phone.iso,dial:phone.dial,mobilenum:phone.mobilenum,
+    country:address.country||address.country_name||c.country_code||'',district:address.district||address.state||'',
+    city:address.city||'',street:address.street||address.address_line_1||''});
+  closeContactMatches();
+  const outer=$('touter'),left=outer.scrollLeft,top=outer.scrollTop;
+  render();outer.scrollLeft=left;outer.scrollTop=top;
+  const next=$(dp+'-desc')||$(dp+'-last');if(next){next.focus();next.scrollIntoView({inline:'center',block:'nearest'});}
+  setTimeout(()=>{delete st.__choosingContact;},0);
+}
+function placeContactMatches(){
+  if(!contactMatchDrop||!contactMatchInput)return;
+  const r=contactMatchInput.getBoundingClientRect(),w=Math.max(300,r.width);
+  contactMatchDrop.style.left=Math.max(8,Math.min(r.left,innerWidth-w-8))+'px';
+  contactMatchDrop.style.top=Math.min(innerHeight-8,r.bottom+2)+'px';
+  contactMatchDrop.style.width=w+'px';
+}
+function renderContactMatches(){
+  if(!contactMatchDrop)return;
+  contactMatchDrop.innerHTML='';
+  contactMatchItems.forEach((c,i)=>{
+    const item=document.createElement('div');item.className='pg-ac-item contact-match'+(i===contactMatchActive?' pg-ac-active':'');
+    const main=document.createElement('span');main.className='contact-match-main';main.textContent=contactName(c);
+    const meta=document.createElement('span');meta.className='contact-match-meta';meta.textContent=[c.company_name,c.primary_phone,c.primary_email].filter(Boolean).join(' · ');
+    item.append(main,meta);item.onmousedown=e=>{e.preventDefault();fillDraftFromContact(contactMatchInput.dataset.dp,c);};
+    contactMatchDrop.appendChild(item);
+  });
+  contactMatchDrop.style.display='block';
+  placeContactMatches();
+}
+async function showContactMatches(input){
+  const q=input.value.trim(),seq=++contactMatchSeq;
+  if(q.length<2){closeContactMatches();return;}
+  try{
+    const items=await searchContacts(q);if(seq!==contactMatchSeq||!input.isConnected||document.activeElement!==input)return;
+    const prefix=q.toLowerCase();
+    contactMatchItems=items.filter(c=>[c.first_name,c.last_name,c.company_name,contactName(c)]
+      .some(v=>String(v||'').toLowerCase().startsWith(prefix)));
+    contactMatchActive=0;contactMatchInput=input;
+    if(!contactMatchItems.length){closeContactMatches();return;}
+    if(contactMatchDrop)contactMatchDrop.remove();
+    contactMatchDrop=document.createElement('div');contactMatchDrop.className='pg-ac-drop contact-match-drop';
+    document.body.appendChild(contactMatchDrop);renderContactMatches();
+  }catch(e){if(seq===contactMatchSeq)closeContactMatches();}
+}
+function queueContactMatches(input){clearTimeout(contactMatchTimer);contactMatchTimer=setTimeout(()=>showContactMatches(input),180);}
+function contactMatchKey(e){
+  if(!contactMatchDrop||e.target!==contactMatchInput)return false;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();e.stopPropagation();contactMatchActive=(contactMatchActive+(e.key==='ArrowDown'?1:-1)+contactMatchItems.length)%contactMatchItems.length;renderContactMatches();return true;}
+  if(e.key==='Enter'&&contactMatchItems[contactMatchActive]){e.preventDefault();e.stopPropagation();fillDraftFromContact(e.target.dataset.dp,contactMatchItems[contactMatchActive]);return true;}
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeContactMatches();return true;}
+  return false;
+}
 function addBottomRow(){
   // Keep the user's horizontal position on the row-number column. Focusing the
   // first editable field (Pre) made the browser scroll the grid sideways.
@@ -1221,6 +1313,7 @@ $('rows').addEventListener('focusout',e=>{
     if(a&&a.closest&&(a.closest('tr.draft')===tr||a.closest('.cc-drop')||a.closest('.pg-note-workspace'))) return;
     if(document.querySelector('.pg-note-workspace')) return;   // workspace open for this row
     const st=stateFor(dp);
+    if(st&&st.__choosingContact)return;
     if(st&&draftIsSaveable(st)) commitDraft(dp);
   },140);
 });
@@ -1231,6 +1324,7 @@ $('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.d
     const s=document.getElementById(dp+'-prefix'); if(s) s.focus();
     return; }
   st[el.dataset.dk]=el.value;
+  if(el.dataset.dk==='first')queueContactMatches(el);
   if(el.dataset.dk==='mobilenum'&&validDraftMobile(st))el.classList.remove('email-invalid');
   if(el.dataset.dk==='email'){const valid=validEmail(el.value);if(valid)el.classList.remove('email-invalid');const button=el.closest('.draft-email')?.querySelector('.draft-compose');if(button)button.hidden=!(el.value.trim()&&valid); }
 });
@@ -1243,6 +1337,7 @@ $('rows').addEventListener('click',e=>{
   });
 });
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
+  if(el.dataset.dk==='first'&&contactMatchKey(e))return;
   if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp,st=stateFor(dp); if(el.dataset.dk==='mobilenum'&&!validDraftMobile(st)){showInvalidMobile(el);return;} if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='email'&&!validEmail(el.value))showInvalidEmail(el);});
