@@ -23,6 +23,8 @@
   .feedback-body{padding:20px;color:#334155;font-size:13.5px;line-height:1.65}
   .feedback-foot{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #eef2f7;background:#f8fafc}
   .feedback-ok{min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .save-feedback{position:fixed;z-index:2147483001;right:24px;bottom:24px;display:flex;align-items:center;gap:10px;min-width:220px;padding:14px 20px;border:2px solid #fff;border-radius:12px;background:linear-gradient(135deg,#1e3f85,#2f62bd);color:#fff;box-shadow:0 18px 44px rgba(15,35,75,.28);font-size:14px;font-weight:800}
+  .save-feedback-mark{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#fff;color:#1e3f85;font-size:16px}
   .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
   .email-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;cursor:pointer;padding:3px 0;text-decoration:none}
   .email-btn:hover{text-decoration:underline}
@@ -502,7 +504,7 @@ const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
 const validLebanonMobile=n=>/^(?:03\d{6}|3\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
 const validMobile=v=>{const s=String(v||'').trim();if(!s)return true;if(!/^([0-9 +_\-,.*#()]){1,20}$/.test(s))return false;const digits=s.replace(/\D/g,'');if(/^\+?961(?:\D|$)/.test(s))return validLebanonMobile(digits.slice(3));return digits.length>=7&&digits.length<=15;};
-function showInvalidValue(input,title,message){
+function showFeedback(title,message,input=null){
   input&&input.classList.add('email-invalid');
   const existing=document.querySelector('.feedback');
   if(existing) return;
@@ -516,8 +518,16 @@ function showInvalidValue(input,title,message){
   modal.onkeydown=e=>{ if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();close();} };
   requestAnimationFrame(()=>modal.querySelector('.feedback-ok').focus());
 }
-const showInvalidEmail=input=>showInvalidValue(input,'Invalid Email','Please Enter a valid Email address');
-const showInvalidMobile=input=>showInvalidValue(input,'Invalid Mobile','Please Enter a valid Mobile number');
+function showSavedFeedback(){
+  document.querySelector('.save-feedback')?.remove();
+  const popup=document.createElement('div');
+  popup.className='save-feedback';popup.setAttribute('role','status');popup.setAttribute('aria-live','polite');
+  popup.innerHTML='<span class="save-feedback-mark">✓</span><span>Log saved</span>';
+  document.body.appendChild(popup);
+  setTimeout(()=>popup.remove(),2600);
+}
+const showInvalidEmail=input=>showFeedback('Invalid Email','Please Enter a valid Email address',input);
+const showInvalidMobile=input=>showFeedback('Invalid Mobile','Please Enter a valid Mobile number',input);
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
@@ -1259,6 +1269,7 @@ async function commitDraft(dp){
   if(committing.has(dp)) return;
   committing.add(dp);
   try{
+    const showSaved=!!((st.first||'').trim() || (st.company||'').trim());
     const made=await api('/logs/',{method:'POST',body:JSON.stringify(draftPayload(st))});
     const logId=made&&made.log&&made.log.id;
     if(logId&&st.__drawing){ await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({drawing:st.__drawing})}); }
@@ -1271,6 +1282,7 @@ async function commitDraft(dp){
     }
     if(dp==='d') topDraft={}; else bottomDrafts.splice(+dp.slice(1),1);
     await load();
+    if(showSaved) showSavedFeedback();
   }catch(e){ fail(e.message); }
   finally{ committing.delete(dp); }
 }
@@ -1338,6 +1350,8 @@ $('rows').addEventListener('click',e=>{
 });
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
   if(el.dataset.dk==='first'&&contactMatchKey(e))return;
+  if(e.key==='Enter'&&(el.dataset.dk==='first'||el.dataset.dk==='company')){
+    e.preventDefault();e.stopPropagation();commitDraft(el.dataset.dp);return;}
   if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp,st=stateFor(dp); if(el.dataset.dk==='mobilenum'&&!validDraftMobile(st)){showInvalidMobile(el);return;} if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='email'&&!validEmail(el.value))showInvalidEmail(el);});
