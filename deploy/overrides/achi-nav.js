@@ -18,17 +18,22 @@
   // icon; ?v= busts the service-worker cache when a page changes.
   var ENTRIES = [
     { id: 'achi-nav-log', label: 'Call Log', route: '/call-log',
-      href: '/api/v1/achi/ui?v=19',
+      href: '/api/v1/achi/ui?v=23',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
     { id: 'achi-nav-survey', label: 'Site Survey', route: '/site-survey',
-      href: '/api/v1/achi/survey/ui?v=2',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' }
+      href: '/api/v1/achi/survey/ui?v=1',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' },
+    { id: 'achi-nav-quotes', label: 'Quotations', route: '/quotations',
+      href: '/api/v1/achi/quotations/ui?v=1',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h3"/></svg>' }
   ];
   var byRoute = function (r) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].route === r) return ENTRIES[i]; return null; };
   var byId = function (id) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].id === id) return ENTRIES[i]; return null; };
   var ID = ENTRIES[0].id;
   var CONTACTS_ID = 'achi-nav-contacts';
   var CRM_ID = 'achi-nav-crm';
+  var CONTACTS_ROUTE = '/contacts';
+  var CRM_ROUTE = '/crm';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
   var ORDER_KEY = 'achi_sidebar_module_order_v2';
@@ -116,6 +121,16 @@
     for (var i = 0; i < s.length; i++) if (s[i].textContent && s[i].textContent.trim()) { s[i].textContent = t; return; }
     el.setAttribute('title', t);
   }
+  function configureLink(link, id, route, label, icon) {
+    if (!link) return;
+    link.id = id;
+    link.setAttribute('href', route);
+    link.setAttribute('data-achi-route', route);
+    link.removeAttribute('aria-current');
+    link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
+    setLabel(link, label);
+    if (icon) setIcon(link, icon);
+  }
   function moduleNav() {
     var pf = projectFilesLink();
     return pf ? pf.closest('nav') : null;
@@ -187,14 +202,28 @@
     }
     return item;
   }
+  // Upstream's own <li> for a route, so a clone of it inherits the right icon.
+  // Matches on href only — label text is localised and would break in German.
+  // Skips our own clones so this never re-clones a copy of a copy.
+  function originalItemFor(route) {
+    var a = links();
+    for (var i = 0; i < a.length; i++) {
+      var el = a[i];
+      if (el.id === CONTACTS_ID || el.id === CRM_ID || el.id === ID) continue;
+      var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
+      if (href === route) { var li = el.closest('li'); if (li) return li; }
+    }
+    return null;
+  }
+
   function ensureOverviewModules() {
     var log = document.getElementById(ID);
     var logItem = log && log.closest('li');
     if (!logItem || !logItem.parentNode) return null;
     var specs = [
-      { id: CONTACTS_ID, route: '/contacts', label: 'Contacts',
+      { id: CONTACTS_ID, route: CONTACTS_ROUTE, label: 'Contacts',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
-      { id: CRM_ID, route: '/crm', label: 'CRM',
+      { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' }
     ];
     var previous = logItem;
@@ -202,16 +231,20 @@
       var link = document.getElementById(spec.id);
       var item = link && link.closest('li');
       if (!link) {
-        item = logItem.cloneNode(true);
+        // Clone the REAL entry for this route, not the Call Log row: the source
+        // carries its own icon, and cloning Call Log's gave Contacts and CRM a
+        // phone glyph (setLabel rewrites the text but never the <svg>). Falling
+        // back to the Call Log row keeps the entry present if upstream has not
+        // rendered the original yet — wrong icon beats a missing link.
+        var source = originalItemFor(spec.route) || logItem;
+        item = source.cloneNode(true);
         link = directLink(item);
         if (!link) return;
-        link.id = spec.id;
-        link.setAttribute('href', spec.route);
-        link.removeAttribute('aria-current');
-        link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
-        setLabel(link, spec.label);
-        setIcon(link, spec.icon);
       }
+      // React may rebuild or recycle sidebar DOM. Reassert the canonical route
+      // even when the synthetic row already exists so it cannot retain another
+      // module's stale href.
+      configureLink(link, spec.id, spec.route, spec.label, spec.icon);
       if (item.parentNode !== logItem.parentNode || item !== previous.nextElementSibling) {
         logItem.parentNode.insertBefore(item, previous.nextSibling);
       }
@@ -222,7 +255,7 @@
     moduleItems().forEach(function (item) {
       var link = directLink(item), href = link ? orderId(link) : '';
       if (link && link.id !== CONTACTS_ID && link.id !== CRM_ID &&
-          (href === '/contacts' || href === '/crm')) {
+          (href === CONTACTS_ROUTE || href === CRM_ROUTE)) {
         item.style.display = 'none';
         item.setAttribute('aria-hidden', 'true');
       }
@@ -408,15 +441,15 @@
     for (var i = 0; i < ENTRIES.length; i++) {
       var e = ENTRIES[i];
       var existing = document.getElementById(e.id);
-      if (existing) { after = existing.closest('li') || after; continue; }
+      if (existing) {
+        configureLink(existing, e.id, e.route, e.label, e.icon);
+        after = existing.closest('li') || after;
+        continue;
+      }
       var item = sourceItem.cloneNode(true);
       var link = directLink(item);
       if (!link) continue;
-      link.id = e.id; link.setAttribute('href', e.route);
-      link.removeAttribute('aria-current');
-      link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
-      setLabel(link, e.label);
-      setIcon(link, e.icon);
+      configureLink(link, e.id, e.route, e.label, e.icon);
       after.parentNode.insertBefore(item, after.nextSibling);
       after = item;
     }
@@ -449,42 +482,46 @@
     dragged.classList.remove('achi-sidebar-dragging'); saveOrder(); dragged = null; draggedAt = Date.now();
   }, true);
 
-  function openNativeRoute(route, syntheticId) {
-    var items = moduleItems();
-    for (var i = 0; i < items.length; i++) {
-      var link = directLink(items[i]);
-      if (link && link.id !== syntheticId && orderId(link) === route) {
-        link.click();
-        return;
-      }
-    }
-    location.assign(route);
-  }
-
   // ONE global capture listener handles show + hide, regardless of re-renders.
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a');
     if (!a) return;
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
-    var href = a.getAttribute('href') || '';
+    var href = a.getAttribute('data-achi-route') || a.getAttribute('href') || '';
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
-      // These rows are visual clones. Forward to the hidden React-owned link so
-      // the SPA performs exactly one native navigation and keeps its router
-      // state; a hard reload races the one-second sidebar reinjection timer.
-      e.preventDefault(); e.stopImmediatePropagation(); hideEmbed();
-      openNativeRoute(href, a.id); return;
+      var route = a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE;
+      e.preventDefault(); e.stopImmediatePropagation();
+      try { hideEmbed(); } catch (err) {}
+      location.assign(route);
+      return;
     }
     var entry = byId(a.id) || byRoute(href);
-    if (entry) { e.preventDefault(); e.stopImmediatePropagation(); showEmbed(entry, true); return; }
+    // Our pages load as ordinary pages rather than docking as an iframe over the
+    // content area. They render their own sidebar (ui/chrome.js) when they are
+    // not framed, so this is a real navigation to a real page, not an overlay.
+    if (entry) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      try { hideEmbed(); } catch (err) {}
+      location.assign(entry.href);
+      return;
+    }
     if (a.closest('nav, aside, [class*="sidebar" i]')) hideEmbed();   // real navigation elsewhere
   }, true);
 
-  // On a hard load straight to /call-log, cover the 404 flash immediately.
-  if (byRoute(location.pathname)) showCover();
-
-  // Keep the embed in sync with the URL: /call-log shows it, anything else hides.
-  function syncToUrl() { var e = byRoute(location.pathname); if (e) showEmbed(e, false); else hideEmbed(); }
-  window.addEventListener('popstate', syncToUrl);
+  // A hard load of /call-log (an old bookmark, a shared link, a back button into
+  // a URL the previous embed pushed) hits a route the SPA's router does not know
+  // and renders its 404. Now that these pages load natively, send the browser to
+  // the real page instead. replace(), not assign(), so Back does not bounce
+  // between the two. The cover still runs first so the 404 never flashes.
+  function redirectIfOurRoute() {
+    var e = byRoute(location.pathname);
+    if (!e) return false;
+    showCover();
+    location.replace(e.href);
+    return true;
+  }
+  redirectIfOurRoute();
+  window.addEventListener('popstate', redirectIfOurRoute);
   function reposition() { var f = document.getElementById(EMBED); if (f && f.style.display !== 'none') positionEmbed(f); }
   window.addEventListener('resize', reposition);
   window.addEventListener('scroll', reposition, true);
@@ -500,9 +537,9 @@
     if (log && survey && contacts && crm) return;
     inject();
     ensureOverviewModules();
-    var entry = byRoute(location.pathname);
-    if (entry) showEmbed(entry, false);
   }, 1000);
-  function boot() { wireSidebarHover(); inject(); syncToUrl(); }
+  // wireSidebarHover() is Grece's hover-expand; redirectIfOurRoute() replaces
+  // the old syncToUrl() now that our pages load natively instead of embedding.
+  function boot() { wireSidebarHover(); inject(); redirectIfOurRoute(); }
   if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();

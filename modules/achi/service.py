@@ -196,10 +196,49 @@ class ContactFileService:
         Contact identity is owned by the Contacts directory, but the grid lets the
         front desk fix a typo without leaving the log. Only the sent fields change.
         """
-        c = await self.session.get(Contact, file.contact_id)
-        if c is None:
-            return
         d = data.model_dump(exclude_unset=True)
+        c = await self.session.get(Contact, file.contact_id) if file.contact_id else None
+
+        # No contact yet. This is the normal state for a name-only row: by the
+        # rules in _resolve_contacts, a name we cannot reach does not earn a
+        # directory Contact. Returning here silently dropped the edit — the API
+        # answered 200 {"ok": true} and the phone number the user had just typed
+        # never landed anywhere, so it also never reached Contacts. Instead:
+        # write what was typed onto the file, and promote it to a real contact
+        # the moment a phone or email makes it reachable.
+        if c is None:
+            if "first_name" in d:
+                file.lead_first_name = d["first_name"] or None
+            if "last_name" in d:
+                file.lead_last_name = d["last_name"] or None
+            if "company_name" in d:
+                file.lead_company = d["company_name"] or None
+            if "prefix" in d:
+                file.lead_prefix = d["prefix"] or None
+            if "mobile" in d:
+                file.lead_mobile = d["mobile"] or None
+            if "email" in d:
+                file.lead_email = (d["email"] or "").strip().lower() or None
+
+            phone = (file.lead_mobile or "").strip()
+            email = (file.lead_email or "").strip()
+            if phone or email:
+                # Reachable now — same resolution the quick-create path uses, so
+                # a row promoted here and a row created complete end up identical.
+                person, company_contact = await self._resolve_contacts(
+                    first=(file.lead_first_name or "").strip(),
+                    last=(file.lead_last_name or "").strip(),
+                    company=(file.lead_company or "").strip(),
+                    phone=phone, email=email,
+                    prefix=file.lead_prefix, user_id=file.owner_user_id,
+                )
+                if person is not None:
+                    file.contact_id = str(person.id)
+                if company_contact is not None:
+                    file.company_contact_id = str(company_contact.id)
+            await self.session.commit()
+            return
+
         if "first_name" in d:
             c.first_name = d["first_name"] or None
         if "last_name" in d:
@@ -547,3 +586,81 @@ class ContactFileService:
             .limit(limit)
         )
         return list((await self.session.execute(q)).all())
+
+    # ── cross-module links ────────────────────────────────────────────────
+    async def contact_links(self, contact_id: str) -> dict:
+        """Everything attached to one contact, across ACHI and upstream CRM.
+
+        The contact is already the shared spine: quick_log writes through
+        contacts/bridge.py, so an ACHI file and a CRM record about the same
+        person point at the same Contact row. This reads that relationship back
+        rather than duplicating anything — deliberately no CRM Lead is created
+        from a call log, because ACHI already runs its own stage pipeline and a
+        mirrored lead would be a second source of truth for the same enquiry.
+
+        Join reliability differs per record type and the caller should know it:
+
+          achi files    exact   — ContactFile.contact_id
+          opportunities exact   — Opportunity.primary_contact_id, though that
+                                  column carries no FK constraint upstream, so
+                                  nothing guarantees it points at a Contact
+          crm leads     BY EMAIL — oe_crm_lead stores contact_name/email/phone
+                                  and no contact id at all. A lead with no email,
+                                  or a different one, cannot be matched. This is
+                                  the same key the bridge dedupes contacts on.
+
+        CRM is imported inside the function on purpose: the partner pack can
+        disable upstream modules, and a top-level import would take this module
+        down with it.
+        """
+        contact = await self.session.get(Contact, contact_id)
+        if contact is None:
+            return {}
+
+        files = (await self.session.execute(
+            select(ContactFile)
+            .where(ContactFile.contact_id == str(contact_id))
+            .order_by(ContactFile.created_at.desc())
+        )).scalars().all()
+
+        leads: list = []
+        opps: list = []
+        crm_available = True
+        try:
+            from app.modules.crm.models import Lead as CrmLead
+            from app.modules.crm.models import Opportunity as CrmOpportunity
+
+            email = (contact.primary_email or "").strip().lower()
+            if email:
+                leads = list((await self.session.execute(
+                    select(CrmLead).where(func.lower(CrmLead.contact_email) == email)
+                )).scalars().all())
+            opps = list((await self.session.execute(
+                select(CrmOpportunity).where(CrmOpportunity.primary_contact_id == contact.id)
+            )).scalars().all())
+        except Exception:          # CRM disabled or its schema moved
+            crm_available = False
+            logger.info("achi: CRM not available for contact links")
+
+        return {
+            "contact_id": str(contact.id),
+            "contact_name": _display_name(contact),
+            "email": contact.primary_email,
+            "phone": contact.primary_phone,
+            "crm_available": crm_available,
+            "achi_files": [
+                {"id": f.id, "file_number": f.file_number, "stage": f.stage,
+                 "status": f.status, "subject": f.subject, "project_id": f.project_id}
+                for f in files
+            ],
+            "crm_leads": [
+                {"id": str(l.id), "contact_name": l.contact_name, "status": l.status,
+                 "source": l.source, "matched_on": "email"}
+                for l in leads
+            ],
+            "crm_opportunities": [
+                {"id": str(o.id), "name": getattr(o, "name", None),
+                 "stage": getattr(o, "stage", None), "amount": getattr(o, "amount", None)}
+                for o in opps
+            ],
+        }

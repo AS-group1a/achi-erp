@@ -254,3 +254,23 @@ aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child::afte
   color: rgba(255, 255, 255, .58);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
+
+/* --- 5. Hide the "Uberization of Construction" article card ----------------
+ *
+ * A promotional card linking out to openconstructionerp.com, pinned above the
+ * sidebar footer. Hidden here because it competes for attention in a sidebar
+ * the crew reads all day; it is not a notice we are required to keep.
+ *
+ * SCOPE, deliberately: this hides ONE marketing card. It does NOT touch the
+ * copyright, licence or provenance notices --ddc-sig / --ddc-origin / --__rev-c
+ * / --__lc-rev / --ddc-author, nor the "v11.9.0 · AGPL-3.0" footer, all of which
+ * TRADEMARK.md §6 requires retaining and which stay exactly as upstream ships
+ * them. Read `deploy/overrides/README.md` before extending this rule.
+ *
+ * `data-testid` is a stable hook (upstream's own test selector), so this is less
+ * fragile than matching the generated Tailwind classes beside it. If upstream
+ * renames it the card simply comes back — visibly, not silently.
+ */
+[data-testid="sidebar-article-news"] {
+  display: none !important;
+}

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quotations · ACHI</title>
+<style>
+  :root{--navy:#284F9E;--tx:#1d1d1f}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--tx)}
+  .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin:12px 16px;display:none}
+  main{padding:16px}
+  .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .bar h1{font-size:15px;font-weight:800;color:var(--navy)}
+  .bar .sp{flex:1}
+  .search{font:inherit;font-size:12.5px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;min-width:220px;background:#fff}
+  .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:var(--navy);color:rgba(255,255,255,.86);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  tbody td{padding:10px 12px;border-bottom:1px solid #eef1f6;font-size:12.5px;vertical-align:top}
+  tbody tr:hover{background:#f7f9fd}
+  .num{font-weight:700;color:var(--navy);white-space:nowrap}
+  .money{text-align:right;white-space:nowrap;font-weight:700}
+  .badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:10.5px;font-weight:700;text-transform:capitalize}
+  .b-draft{background:#eef2f7;color:#475569}
+  .b-sent{background:#e8f4fd;color:#014486}
+  .b-accepted{background:#e7f6ec;color:#15803d}
+  .b-rejected{background:#fde8e8;color:#ba0517}
+  .b-expired{background:#f4f0e8;color:#8a6d1f}
+  .empty{padding:34px 16px;text-align:center;color:#64748b;font-size:12.5px}
+</style>
+</head>
+<body data-achi-title="Quotations">
+<main>
+  <div class="err" id="err"></div>
+  <div class="bar">
+    <h1>Quotations</h1>
+    <span class="sp"></span>
+    <input class="search" id="q" placeholder="Search number, customer, city…">
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Number</th><th>Customer</th><th>Company</th><th>City</th>
+        <th>Area</th><th>Weeks</th><th class="money">Total</th><th>Status</th><th>Created</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>No quotations yet. Draft one from a row in the Call Log.</div>
+  </div>
+</main>
+<script>
+const API='/api/v1/achi';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dash=v=>v==null||v===''?'—':esc(v);
+// Same token the app already holds: these pages are same-origin, so there is no
+// second sign-in. See log.html for the refresh path; this page is read-only and
+// simply reports an expired session rather than silently showing nothing.
+const TOKEN=localStorage.getItem('oe_access_token');
+let ROWS=[];
+function fail(m){ const e=$('err'); e.textContent=m; e.style.display='block'; }
+function fmtDT(s){ const d=new Date(s); if(isNaN(d))return String(s||'').slice(0,16).replace('T',' ');
+  const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function render(){
+  const q=$('q').value.trim().toLowerCase();
+  const rows=q?ROWS.filter(r=>[r.quotation_number,r.customer_name,r.customer_company,r.site_city]
+    .some(v=>String(v||'').toLowerCase().includes(q))):ROWS;
+  $('empty').hidden=rows.length>0;
+  $('rows').innerHTML=rows.map(r=>`<tr>
+    <td class="num">${esc(r.quotation_number)}</td>
+    <td>${dash(r.customer_name)}</td>
+    <td>${dash(r.customer_company)}</td>
+    <td>${dash(r.site_city)}</td>
+    <td>${dash(r.area_sqm)}</td>
+    <td>${dash(r.duration_weeks)}</td>
+    <td class="money">${dash(r.total)} ${esc(r.currency||'')}</td>
+    <td><span class="badge b-${esc(r.status)}">${esc(r.status)}</span></td>
+    <td>${r.created_at?fmtDT(r.created_at):'—'}</td>
+  </tr>`).join('');
+}
+async function load(){
+  try{
+    const res=await fetch(API+'/quotations/',{headers:{Authorization:'Bearer '+TOKEN}});
+    if(res.status===401){ fail('Session expired — open the main app on this exact host, sign in, then reload.'); return; }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    ROWS=await res.json(); render();
+  }catch(e){ fail(e.message||'Could not load quotations'); }
+}
+$('q').oninput=render;
+if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
+else load();
+</script>
+<script src="/api/v1/achi/ui/chrome.js?v=9"></script>
+</body>
+</html>

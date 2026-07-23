@@ -28,12 +28,14 @@ from .schemas import (
     ModuleInfo,
 )
 from .service import ContactFileService
+from .quotation_router import quotation_router
 from .survey_router import survey_router
 
 router = APIRouter()
 
 # Site survey lives in its own file; the loader only looks for `router` here.
 router.include_router(survey_router)
+router.include_router(quotation_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
@@ -83,6 +85,26 @@ def ui_drawing_js() -> PlainTextResponse:
     """
     return PlainTextResponse(
         (_UI_DIR / "drawing.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/ui/chrome.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Sidebar and top bar for our own pages",
+)
+def ui_chrome_js() -> PlainTextResponse:
+    """The app furniture our pages wear.
+
+    Served beside them rather than duplicated into each, so the sidebar cannot
+    drift between Call Log and Site Survey. Unauthenticated for the same reason
+    as the pages themselves: it is inert markup with no data in it.
+    """
+    return PlainTextResponse(
+        (_UI_DIR / "chrome.js").read_text(encoding="utf-8"),
         media_type="application/javascript",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
@@ -376,6 +398,23 @@ async def delete_attachment(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
     await svc.delete_attachment(att)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/contacts/{contact_id}/links",
+    summary="Everything linked to one contact, across ACHI and CRM",
+    description=(
+        "Read-only view of the shared contact. ACHI files match exactly on "
+        "contact_id; CRM opportunities on primary_contact_id; CRM leads only by "
+        "email, because oe_crm_lead stores no contact id. Returns crm_available "
+        "false when the CRM module is disabled rather than failing."
+    ),
+)
+async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentUserId) -> dict:
+    links = await ContactFileService(session).contact_links(contact_id)
+    if not links:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
+    return links
 
 
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")

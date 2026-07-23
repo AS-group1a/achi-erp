@@ -18,18 +18,20 @@
   main{margin:0;padding:16px 18px 40px}
   .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none}
   .feedback{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;padding:72px 20px 20px;background:rgba(15,35,75,.24);backdrop-filter:blur(2px)}
-  .feedback-box{width:min(430px,calc(100vw - 32px));overflow:hidden;border:1px solid #d8e3f3;border-top:4px solid var(--navy);border-radius:18px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.18),0 4px 14px rgba(15,23,42,.08)}
+  .feedback-box{width:min(430px,calc(100vw - 32px));overflow:hidden;border:1px solid #d8e3f3;border-top:4px solid var(--navy);border-radius:12px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.18),0 4px 14px rgba(15,23,42,.08)}
   .feedback-head{padding:14px 20px;border-bottom:1px solid #dce6f5;background:linear-gradient(135deg,#edf4ff 0%,#f7faff 58%,#fff 100%);color:#1e3f85;font-size:16px;font-weight:800}
   .feedback-body{padding:20px;color:#334155;font-size:13.5px;line-height:1.65}
   .feedback-foot{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #eef2f7;background:#f8fafc}
-  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:9px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .save-feedback{position:fixed;z-index:2147483001;right:24px;bottom:24px;display:flex;align-items:center;gap:10px;min-width:220px;padding:14px 20px;border:2px solid #fff;border-radius:12px;background:linear-gradient(135deg,#1e3f85,#2f62bd);color:#fff;box-shadow:0 18px 44px rgba(15,35,75,.28);font-size:14px;font-weight:800}
+  .save-feedback-mark{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#fff;color:#1e3f85;font-size:16px}
   .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
   .email-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;cursor:pointer;padding:3px 0;text-decoration:none}
   .email-btn:hover{text-decoration:underline}
   .email-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .draft-email{display:flex;align-items:center;gap:5px;width:100%}
   .draft-email .din{min-width:0;flex:1}
-  .draft-compose{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px;border:1.5px solid #bfdbfe;border-radius:50%;background:#eff6ff;color:var(--navy);cursor:pointer;padding:0}
+  .draft-compose{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px;border:1.5px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:var(--navy);cursor:pointer;padding:0}
   .draft-compose:hover{background:#dbeafe}
   .draft-compose[hidden]{display:none}
   .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -38,21 +40,21 @@
   .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
   .compose-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;letter-spacing:.02em}
   .compose-title svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .compose-close{width:28px;height:28px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:19px;line-height:1;cursor:pointer}
+  .compose-close{width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;font-size:19px;line-height:1;cursor:pointer}
   .compose-close:hover{background:rgba(255,255,255,.32)}
   .compose-row{display:flex;align-items:center;min-height:44px;padding:0 20px;border-bottom:1px solid #f0f0f5}
   .compose-label{width:64px;flex-shrink:0;color:#9ca3af;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-  .compose-recipient{display:inline-flex;align-items:center;padding:5px 10px;border:1.5px solid #bfdbfe;border-radius:99px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:500}
+  .compose-recipient{display:inline-flex;align-items:center;padding:5px 10px;border:1.5px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:500}
   .compose-subject{flex:1;border:0;outline:0;background:transparent;color:#111827;font:inherit;font-size:13px}
   .compose-subject::placeholder,.compose-body::placeholder{color:#d1d5db}
   .compose-body{display:block;width:100%;min-height:210px;padding:16px 20px;border:0;outline:0;resize:none;color:#374151;font:inherit;font-size:13px;line-height:1.7}
   .compose-foot{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1.5px solid #e8e8f0;background:#f6f9fe}
-  .compose-send{padding:8px 22px;border:0;border-radius:99px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
-  .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:99px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .compose-send{padding:8px 22px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
+  .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:8px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .compose-mailto:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
 
   .kpis{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
-  .kpi{flex:1 1 180px;border-radius:14px;padding:15px 18px;color:#fff;transition:transform .15s ease}
+  .kpi{flex:1 1 180px;border-radius:12px;padding:15px 18px;color:#fff;transition:transform .15s ease}
   .kpi:hover{transform:translateY(-2px)}
   .kpi.btn{cursor:pointer}
   .kpi .n{font-size:28px;font-weight:900;line-height:1.05}
@@ -61,30 +63,26 @@
   .k1{background:#0176d3}.k2{background:#032d60}.k3{background:#014486}.k4{background:#0e7490}
   .kpi.on{outline:3px solid rgba(255,255,255,.55);outline-offset:-3px}
 
-  .shell{background:#fff;border:1px solid var(--bd);border-radius:14px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
+  .shell{background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
   .nav{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;background:var(--navy);padding:11px 16px}
   .nav-actions{display:flex;align-items:center;gap:8px;justify-self:start}
   .nav-right{display:flex;align-items:center;gap:10px;justify-self:end;min-width:0}
-  .pt{position:relative;display:inline-flex;justify-self:center;background:rgba(0,0,0,.2);border-radius:99px;padding:4px}
-  .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:99px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
+  .pt{position:relative;display:inline-flex;justify-self:center;background:rgba(0,0,0,.2);border-radius:8px;padding:4px}
+  .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
   .pill-tab{position:relative;z-index:1;border:0;background:transparent;padding:7px 15px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.58);cursor:pointer;white-space:nowrap;font-family:inherit}
   .pill-tab:hover{color:rgba(255,255,255,.88)}
   .pill-tab.on{color:var(--navy);font-weight:800}
-  .search{height:32px;width:200px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
+  .search{height:32px;width:200px;border-radius:8px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
   .search::placeholder{color:rgba(255,255,255,.42)}
-  .tb-add{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:99px;background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22);transition:transform .15s,box-shadow .15s}
+  .tb-add{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:8px;background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22);transition:transform .15s,box-shadow .15s}
   .tb-add:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.28)}
   .tb-add-plus{font-size:17px;line-height:1}
-  .tb-select{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid rgba(255,255,255,.55);border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,transform .12s}
-  .tb-select:hover{background:rgba(255,255,255,.22);border-color:#fff;transform:translateY(-1px)}
-  .tb-select.on{background:#fff;color:var(--navy);border-color:#fff}
-  .tb-select svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   /* delete selected */
-  .tb-del{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:99px;background:rgba(255,255,255,.1);color:#fca5a5;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0;pointer-events:none;max-width:0;padding:0;overflow:hidden;transition:opacity .18s,max-width .18s}
+  .tb-del{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;background:rgba(255,255,255,.1);color:#fca5a5;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0;pointer-events:none;max-width:0;padding:0;overflow:hidden;transition:opacity .18s,max-width .18s}
   .tb-del.on{opacity:1;pointer-events:all;max-width:200px;padding:7px 13px;border:1.5px solid rgba(252,165,165,.45)}
   .tb-del:hover{background:rgba(239,68,68,.25);border-color:#fca5a5;color:#fff}
   .tb-del svg{width:13px;height:13px}
-  .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
+  .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:8px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
   /* phone: country-code picker + number */
   .tel-wrap{display:flex;align-items:center;gap:4px;width:100%}
   .tel-cc{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;height:30px;padding:0 6px;border:1px solid #cfd9e8;border-radius:6px;background:#fff;cursor:pointer;font:inherit;font-size:12px;color:#1e293b}
@@ -106,6 +104,91 @@
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
   thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  /* Expand Row — the whole row as one vertical page. Sits next to Add Row and
+     appears only with a selection, because there is nothing to expand without
+     one. Same pill shape as its neighbours. */
+  .tb-exp{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid rgba(255,255,255,.55);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .tb-exp:hover{background:rgba(255,255,255,.22);border-color:#fff}
+  .tb-exp svg{width:13px;height:13px}
+
+  /* The expanded row. A sheet rather than a dialog: one column, scrolls
+     vertically, reads the way the same record would on a phone. */
+  .rx{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  .rx[hidden]{display:none}
+  .rx-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .rx-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;flex:0 0 auto}
+  .rx-head h2{font-size:14px;font-weight:800;letter-spacing:.01em}
+  .rx-head p{font-size:11px;opacity:.8;margin-top:2px}
+  .rx-x{border:0;background:rgba(255,255,255,.16);color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .rx-x:hover{background:rgba(255,255,255,.3)}
+  .rx-x svg{width:13px;height:13px}
+  .rx-body{overflow-y:auto;padding:4px 0 0;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+  .rx-sec{border-bottom:1px solid #eef1f6;padding:12px 18px 14px}
+  .rx-sec:last-child{border-bottom:0}
+  .rx-sec h3{font-size:10px;font-weight:800;color:#64748b;letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px}
+  .rx-f{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .rx-f>label{font-size:10.5px;font-weight:700;color:#475569;letter-spacing:.02em}
+  .rx-f input,.rx-f textarea,.rx-f select{font:inherit;font-size:13px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--tx);width:100%}
+  .rx-f input:focus,.rx-f textarea:focus,.rx-f select:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .rx-f textarea{resize:vertical;min-height:64px}
+  .rx-f .rx-saved{font-size:10.5px;color:#15803d;font-weight:700}
+  .rx-f .rx-err{font-size:10.5px;color:#ba0517;font-weight:700}
+  .rx-map{border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;background:#eef2f7}
+  .rx-map .mapwrap{position:relative;height:170px;overflow:hidden}
+  .rx-map a{display:block;padding:8px 10px;font-size:11.5px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
+  .rx-none{font-size:12px;color:#94a3b8;padding:8px 0}
+  /* Sticky footer: on a long sheet Save must be reachable without scrolling
+     back down, which is the whole point of a one-column layout on a phone. */
+  .rx-foot{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 18px;border-top:1px solid #e2e8f0;background:#fff}
+  .rx-status{font-size:11.5px;color:#475569}
+  .rx-status.ok{color:#15803d;font-weight:700}
+  .rx-status.bad{color:#ba0517;font-weight:700}
+  .rx-save{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:9px 20px;cursor:pointer}
+  .rx-save:hover{background:#1F3F80}
+  .rx-save:disabled{opacity:.55;cursor:not-allowed}
+  /* Drafting a quotation is a secondary action next to Save — same blue family,
+     lighter weight, so the primary action stays obvious. */
+  .qv-draft.alt{background:#e8f0fd;color:var(--navy);border:1px solid #b9d0f2}
+  .qv-draft.alt:hover{background:#dbe8fb}
+
+  /* Quick quotation card. Light blue so it reads as a working surface attached
+     to the selection rather than another table. Radii follow OCE's scale. */
+  .qv{margin:14px 0 8px;border:1px solid #bcd6f5;background:#eff6ff;border-radius:12px;padding:14px 16px}
+  .qv-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .qv-head h2{font-size:13px;font-weight:800;color:var(--navy);letter-spacing:.01em}
+  .qv-for{font-size:11.5px;color:#4a5568;margin-top:2px}
+  .qv-x{border:0;background:transparent;color:#64748b;cursor:pointer;padding:4px;border-radius:6px;display:inline-flex}
+  .qv-x:hover{background:#dbeafe;color:var(--navy)}
+  .qv-x svg{width:14px;height:14px}
+  .qv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px}
+  .qv-grid-wide{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:9px}
+  .qv-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .qv-f>span{font-size:10.5px;font-weight:700;color:#475569;letter-spacing:.03em;text-transform:uppercase}
+  .qv-f input,.qv-f textarea{font:inherit;font-size:12.5px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--tx);min-width:0;width:100%}
+  .qv-f input:focus,.qv-f textarea:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .qv-f textarea{resize:vertical}
+  .qv-span{grid-column:1/-1}
+  .qv-more{margin-top:10px}
+  .qv-more summary{font-size:11.5px;font-weight:700;color:var(--navy);cursor:pointer;user-select:none;padding:4px 0}
+  .qv-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:13px;padding-top:11px;border-top:1px solid #bcd6f5}
+  .qv-totals{display:flex;align-items:center;gap:16px;font-size:11.5px;color:#475569;flex-wrap:wrap}
+  .qv-totals b{color:var(--tx);font-weight:700;margin-left:4px}
+  .qv-total{font-size:13px;color:var(--navy);font-weight:700}
+  .qv-total b{color:var(--navy);font-size:15px;font-weight:800}
+  .qv-actions{display:flex;align-items:center;gap:10px}
+  .qv-msg{font-size:11.5px;color:#475569}
+  .qv-msg.ok{color:#15803d;font-weight:700}
+  .qv-msg.bad{color:#ba0517;font-weight:700}
+  .qv-draft{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:9px 16px;cursor:pointer;white-space:nowrap}
+  .qv-draft:hover{background:#1F3F80}
+  .qv-draft:disabled{opacity:.55;cursor:not-allowed}
+
+  /* # header doubles as select-all. It has to read as pressable — an unstyled
+     <th> gives no hint that it does anything. .on is the all-selected state. */
+  thead th.num-head{cursor:pointer;user-select:none}
+  thead th.num-head:hover{background:#2f5cb3;color:#fff}
+  thead th.num-head:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+  thead th.num-head.on{background:#fff;color:var(--navy)}
   /* column resize (ported from tabbed_grid.js .pg-rz). The handle positions
      against the th, which is already `position:sticky` and therefore a
      containing block for absolute children. */
@@ -142,16 +225,19 @@
   .tag{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;background:#f1f5f9;color:#475569;text-transform:capitalize;white-space:nowrap}
   /* maps cell (ported from the tabbed grid): Open button + copy + hover preview */
   .maps-cell{display:inline-flex;align-items:center;gap:5px}
-  .maps-btn{display:inline-flex;align-items:center;gap:4px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px;background:#eff6ff;white-space:nowrap}
+  .maps-btn{display:inline-flex;align-items:center;gap:4px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;padding:3px 9px;border-radius:8px;background:#eff6ff;white-space:nowrap}
   .maps-btn:hover{background:#dbeafe}
   .maps-btn .pin{display:inline-flex;color:#ef4444}
   .maps-btn svg,.pin svg{width:13px;height:13px}
-  .map-copy{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
-  .map-copy svg{width:12px;height:12px}
+  /* flex:0 0 auto matters: .maps-cell and .draft-map-wrap are flex rows, and a
+     fixed width/height alone does NOT stop flex from shrinking these. In a narrow
+     column the circles were squeezed into ovals and the icons with them. */
+  .map-copy{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
+  .map-copy svg{width:12px;height:12px;flex:0 0 auto}
   .map-copy:hover{background:#dbeafe}
   .map-copy.copied{border-color:#16a34a;background:#dcfce7;color:#16a34a}
-  .map-edit{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
-  .map-edit svg{width:12px;height:12px}
+  .map-edit{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
+  .map-edit svg{width:12px;height:12px;flex:0 0 auto}
   .map-edit:hover{background:#dbeafe}
   .draft-map-wrap{display:flex;align-items:center;gap:5px}
   .draft-map-wrap .din{min-width:0}
@@ -183,17 +269,23 @@
   .pg-ac-item{padding:7px 13px;cursor:pointer;font-size:12.5px;color:#1e3f85;background:#fff;white-space:nowrap}
   .pg-ac-item.pg-ac-active{background:#fff;color:#1e3f85}
   .pg-ac-item:hover{background:#1e3f85;color:#fff}
+  .contact-match-drop{min-width:300px;max-width:min(460px,calc(100vw - 16px))}
+  .contact-match{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .contact-match-main{min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+  .contact-match-meta{min-width:0;color:#64748b;font-size:11px;overflow:hidden;text-overflow:ellipsis}
+  .contact-match.pg-ac-active{background:#1e3f85;color:#fff}
+  .contact-match:hover .contact-match-meta,.contact-match.pg-ac-active .contact-match-meta{color:rgba(255,255,255,.78)}
   .empty{padding:20px 14px;text-align:center;color:#9ca3af}
 
   /* draft rows: top permanent + appended bottom ones */
   tr.draft td{background:#f2f6fd;border-bottom:1px solid #cdddf5}
   tr.draft.dtop td{border-bottom:2px solid #cdddf5}
-  tr.draft .din{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:1px solid #cfd9e8;border-radius:5px;padding:2px 6px;background:#fff}
+  tr.draft .din{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:1px solid #cfd9e8;border-radius:6px;padding:2px 6px;background:#fff}
   tr.draft select.din{padding:2px 3px}
   tr.draft .din:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(40,79,158,.15)}
   .addbtn2{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--navy);color:#fff;font-weight:900;font-size:16px;border:0;cursor:pointer;line-height:1;padding:0}
   .addbtn2:hover{background:var(--navy-2)}
-  .rmbtn{width:24px;height:24px;border-radius:7px;border:0;background:#fde8e8;color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
+  .rmbtn{width:24px;height:24px;border-radius:6px;border:0;background:#fde8e8;color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
   .rmbtn:hover{background:#f7c9c9}
 
   /* bottom drag strip to resize the table height */
@@ -202,7 +294,7 @@
   body.resizing{cursor:row-resize!important;user-select:none!important}
 
   /* back-to-top FAB (cloned from the tabbed grid) */
-  .totop{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:50%;background:var(--navy);color:#fff;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28);display:none;align-items:center;justify-content:center;font-size:20px;line-height:1;z-index:60;transition:transform .15s ease,opacity .15s ease;opacity:0}
+  .totop{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:8px;background:var(--navy);color:#fff;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28);display:none;align-items:center;justify-content:center;font-size:20px;line-height:1;z-index:60;transition:transform .15s ease,opacity .15s ease;opacity:0}
   .totop.show{display:inline-flex;opacity:1}
   .totop:hover{transform:translateY(-2px);background:var(--navy-2)}
   .totop svg{width:18px;height:18px}
@@ -212,27 +304,27 @@
   .pg-note-workspace{position:fixed;inset:0;z-index:2147482400;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
   /* expand affordance on long-text cells: click to type, arrow to open the popup */
   td.notecell{position:relative}
-  .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:5px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
+  .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
   td.notecell:hover .note-exp,.note-wrap:hover .note-exp{opacity:1}
   .note-exp:hover{background:#dbeafe}
   .note-exp svg{width:12px;height:12px}
   .note-wrap{position:relative;display:block;width:100%}
   .note-wrap .note-exp{right:3px;bottom:5px}
-  .pg-note-workspace-box{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:18px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .pg-note-workspace-box{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
   .pg-note-workspace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
   .pg-note-workspace-title{font-size:16px;font-weight:800;letter-spacing:.02em}
   .pg-note-workspace-sub{margin-top:3px;font-size:11.5px;color:rgba(255,255,255,.76)}
   .pg-note-workspace-head-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
-  .pg-note-head-tool{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid rgba(255,255,255,.34);border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+  .pg-note-head-tool{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid rgba(255,255,255,.34);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
   .pg-note-head-tool:hover,.pg-note-head-tool.has-content{background:#fff;color:#1e3f85}
   .pg-note-head-tool:disabled{opacity:.55;cursor:wait}
-  .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
+  .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
   .pg-note-workspace-body{padding:20px 22px;overflow:auto;background:#f7faff}
   .pg-note-workspace-label{display:block;margin-bottom:7px;color:#1e3f85;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   .pg-note-workspace-text{width:100%;min-height:210px;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
   .pg-note-workspace-text:focus{border-color:#284f9e;box-shadow:0 0 0 3px rgba(40,79,158,.12)}
   .pg-note-files{margin-top:14px;display:flex;flex-direction:column;gap:7px}
-  .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:9px;background:#fff;color:#334155;font-size:12px}
+  .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:8px;background:#fff;color:#334155;font-size:12px}
   .pg-note-file a{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#1e3f85;text-decoration:none}
   .pg-note-file a:hover{text-decoration:underline}
   .pg-note-file-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -243,7 +335,7 @@
   .pg-note-workspace-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid #dce6f5;background:#fff}
   .pg-note-workspace-hint{color:#718096;font-size:11px}
   .pg-note-workspace-actions{display:flex;gap:9px}
-  .pg-note-cancel,.pg-note-save{height:36px;padding:0 18px;border-radius:9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .pg-note-cancel,.pg-note-save{height:36px;padding:0 18px;border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
   .pg-note-cancel{border:1.5px solid #cbd9f1;background:#fff;color:#1e3f85}
   .pg-note-save{border:0;background:#1e3f85;color:#fff;box-shadow:0 4px 12px rgba(30,63,133,.22)}
   .pg-note-save:disabled{opacity:.55;cursor:wait}
@@ -260,7 +352,7 @@
   }
 </style>
 </head>
-<body>
+<body data-achi-title="Call Log">
 <main>
   <div class="err" id="err"></div>
 
@@ -275,7 +367,10 @@
     <div class="nav">
       <div class="nav-actions">
         <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
-        <button class="tb-select" id="select-all" type="button" aria-pressed="false" title="Select or unselect all rows"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5 8l2 2 4-4"/></svg><span id="select-all-label">Select All</span></button>
+        <button class="tb-exp" id="expand-row" type="button" title="Open the selected row as a full page" hidden>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/><line x1="14" y1="2" x2="9" y2="7"/><line x1="2" y1="14" x2="7" y2="9"/></svg>
+          Expand Row
+        </button>
         <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
       </div>
       <div class="pt" id="tabs">
@@ -294,6 +389,72 @@
     </div>
     <div class="vrz" id="vrz" title="Drag to resize table height"></div>
   </div>
+
+  <!-- Expanded row. Built by JS from COLS so it cannot drift from the table:
+       add a column there and it appears here too. -->
+  <div class="rx" id="rx" hidden>
+    <div class="rx-box" role="dialog" aria-modal="true" aria-labelledby="rx-title">
+      <div class="rx-head">
+        <div>
+          <h2 id="rx-title">Row</h2>
+          <p id="rx-sub"></p>
+        </div>
+        <button type="button" class="rx-x" id="rx-close" aria-label="Close">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="rx-body" id="rx-body"></div>
+      <div class="rx-foot">
+        <span class="rx-status" id="rx-status"></span>
+        <button type="button" class="rx-save" id="rx-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick quotation. Below the table, like the ERPNext quick view it replaces.
+       Hidden until exactly one saved row is selected: a quotation is addressed to
+       one customer, and drafting from a blank draft row would address nobody. -->
+  <section class="qv" id="qv" hidden>
+    <div class="qv-head">
+      <div>
+        <h2>Quick quotation</h2>
+        <p class="qv-for" id="qv-for"></p>
+      </div>
+      <button type="button" class="qv-x" id="qv-collapse" title="Hide" aria-label="Hide quick quotation">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="qv-grid">
+      <label class="qv-f"><span>Area (m²)</span><input id="qv-area" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label class="qv-f"><span>Weeks</span><input id="qv-weeks" type="number" min="0" step="0.5" placeholder="0"></label>
+      <label class="qv-f"><span>Rate /m²/week</span><input id="qv-rate" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Erection</span><input id="qv-erection" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Transport</span><input id="qv-transport" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Extras</span><input id="qv-extras" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Discount</span><input id="qv-discount" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>VAT %</span><input id="qv-vat" type="number" min="0" step="0.1" placeholder="11"></label>
+    </div>
+    <details class="qv-more" id="qv-more">
+      <summary>Add more information</summary>
+      <div class="qv-grid qv-grid-wide">
+        <label class="qv-f qv-span"><span>Scope of work</span><textarea id="qv-scope" rows="2" placeholder="What is being erected, where, and for how long"></textarea></label>
+        <label class="qv-f"><span>Site city</span><input id="qv-city" type="text"></label>
+        <label class="qv-f"><span>Valid until</span><input id="qv-valid" type="date"></label>
+        <label class="qv-f qv-span"><span>Notes</span><textarea id="qv-notes" rows="2" placeholder="Anything the customer should see on the quotation"></textarea></label>
+      </div>
+    </details>
+    <div class="qv-foot">
+      <div class="qv-totals">
+        <span>Subtotal <b id="qv-sub">0.00</b></span>
+        <span>VAT <b id="qv-vatv">0.00</b></span>
+        <span class="qv-total">Total <b id="qv-tot">0.00</b></span>
+      </div>
+      <div class="qv-actions">
+        <span class="qv-msg" id="qv-msg"></span>
+        <button type="button" class="qv-draft" id="qv-draft">Draft quotation</button>
+      </div>
+    </div>
+  </section>
 </main>
 
 <button class="totop" id="totop" title="Back to top">&#8963;</button>
@@ -343,7 +504,7 @@ const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
 const validLebanonMobile=n=>/^(?:03\d{6}|3\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
 const validMobile=v=>{const s=String(v||'').trim();if(!s)return true;if(!/^([0-9 +_\-,.*#()]){1,20}$/.test(s))return false;const digits=s.replace(/\D/g,'');if(/^\+?961(?:\D|$)/.test(s))return validLebanonMobile(digits.slice(3));return digits.length>=7&&digits.length<=15;};
-function showInvalidValue(input,title,message){
+function showFeedback(title,message,input=null){
   input&&input.classList.add('email-invalid');
   const existing=document.querySelector('.feedback');
   if(existing) return;
@@ -357,8 +518,16 @@ function showInvalidValue(input,title,message){
   modal.onkeydown=e=>{ if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();close();} };
   requestAnimationFrame(()=>modal.querySelector('.feedback-ok').focus());
 }
-const showInvalidEmail=input=>showInvalidValue(input,'Invalid Email','Please Enter a valid Email address');
-const showInvalidMobile=input=>showInvalidValue(input,'Invalid Mobile','Please Enter a valid Mobile number');
+function showSavedFeedback(){
+  document.querySelector('.save-feedback')?.remove();
+  const popup=document.createElement('div');
+  popup.className='save-feedback';popup.setAttribute('role','status');popup.setAttribute('aria-live','polite');
+  popup.innerHTML='<span class="save-feedback-mark">✓</span><span>Log saved</span>';
+  document.body.appendChild(popup);
+  setTimeout(()=>popup.remove(),2600);
+}
+const showInvalidEmail=input=>showFeedback('Invalid Email','Please Enter a valid Email address',input);
+const showInvalidMobile=input=>showFeedback('Invalid Mobile','Please Enter a valid Mobile number',input);
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
@@ -400,7 +569,6 @@ const SVG={
   plus:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>`,
   expand:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/><line x1="14" y1="2" x2="9" y2="7"/><line x1="2" y1="14" x2="7" y2="9"/></svg>`,
   chev:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg>`,
-  selall:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2.5"/><polyline points="5,8 7,10 11,6"/></svg>`,
   trash:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,4 14,4"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/><path d="M6 7v5m4-5v5"/><rect x="3" y="4" width="10" height="9" rx="1.5"/></svg>`,
   wa:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`,
 };
@@ -434,6 +602,16 @@ async function api(path,opts={},retried){
   const body=await r.json().catch(()=>({}));
   if(!r.ok){ const d=body.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
   return body;
+}
+async function searchContacts(q,retried){
+  const url='/api/v1/contacts/search/?q='+encodeURIComponent(q)+'&limit=12';
+  const r=await fetch(url,{headers:{Authorization:'Bearer '+TOKEN}});
+  if(r.status===401){
+    if(!retried && await refreshToken()) return searchContacts(q,true);
+    throw new Error('Session expired'); }
+  const body=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(body.detail||r.status);
+  return Array.isArray(body.items)?body.items:[];
 }
 function fmtDT(s){ const d=new Date(s); if(isNaN(d))return String(s||'').slice(0,16).replace('T',' ');
   const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
@@ -556,7 +734,17 @@ function cellHTML(c,r,i){switch(c.k){
   case 'funotes': return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
 }}
 
+const ROW_CACHE_KEY='achi_log_rows_v1';
 let ROWS=[], openOnly=false, activeTab=0;
+/* A full refresh destroys the page before /logs/ can answer. Keep the last
+   successful result for this browser tab so the existing table remains visible
+   while the fresh request runs. Do not restore it without a login token. */
+if(TOKEN){
+  try{
+    const cached=JSON.parse(sessionStorage.getItem(ROW_CACHE_KEY)||'[]');
+    if(Array.isArray(cached)) ROWS=cached;
+  }catch(_){}
+}
 const selectedRows=new Set();
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
 let selected=new Set();             // selected log ids
@@ -580,9 +768,16 @@ function saveColWidths(){
 }
 const colWidth=c=>Math.max(COLW_MIN, Number(COLW[c.k])||c.w);
 function buildHead(){
-  $('thead').innerHTML=COLS.map(c=>
-    `<th data-tab="${c.tab??''}" data-k="${c.k}" class="${c.cls||''}" style="width:${colWidth(c)}px">`
-    +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`).join('');
+  $('thead').innerHTML=COLS.map(c=>{
+    // The # header doubles as select-all: the rows already select by clicking
+    // their own number cell, so the column header toggling the whole column is
+    // where people look for it. role/aria-pressed because a <th> is not a button.
+    const sel=c.k==='num'
+      ? ` class="${c.cls||''} num-head" role="button" tabindex="0" aria-pressed="false" title="Select or unselect all rows"`
+      : ` class="${c.cls||''}"`;
+    return `<th data-tab="${c.tab??''}" data-k="${c.k}"${sel} style="width:${colWidth(c)}px">`
+      +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
+  }).join('');
 }
 /* Pointer events rather than mouse, so this works on the tablet a surveyor
    carries as well as a desktop. One delegated listener on the header survives
@@ -643,7 +838,7 @@ function draftCell(c,dp,st,rowNumber){
       + `<input class="din tel-num" id="${id}" data-dp="${dp}" data-dk="mobilenum" placeholder="70 123 456" value="${esc(st.mobilenum||'')}"></span>`; }
   if(c.draft==='text'){
     const ph={prefix:'Mr/Ms',first:'First',last:'Last',company:'Company',desc:'What was said…',location:'Location',mobile:'+961…',email:'Email',maps:'Maps URL',country:'Country',district:'District',city:'City',street:'Street',updates:'Updates',funotes:'Notes'}[c.k]||'';
-    const type=c.k==='email'?' type="email" inputmode="email" autocomplete="email"':'';
+    const type=c.k==='email'?' type="email" inputmode="email" autocomplete="email"':c.k==='first'?' autocomplete="off"':'';
     const inp=`<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" placeholder="${ph}" value="${v}"${type}${c.note?' data-note="1"':''}>`;
     if(c.note) return `<span class="note-wrap">${inp}<button type="button" class="note-exp" data-noteexp data-for="${id}" title="Open notes, files and drawing">${SVG.expand}</button></span>`;
     if(c.k==='email') return `<span class="draft-email">${inp}<button class="draft-compose" type="button" data-draft-compose="${id}" title="Compose email"${validEmail(st[c.k])&&st[c.k]?'':' hidden'}>${SVG.mail}</button></span>`;
@@ -671,11 +866,29 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
 }</tr>`; }
 
 function visibleSelectableRows(){ return [...$('rows').querySelectorAll('tr.selectable-row')]; }
+/* Select-all skips the top draft row. It is the permanent blank "new entry" row,
+   not a record — sweeping it in meant Delete counted a row that does not exist
+   yet. Clicking its own number cell still selects it, which is the only way it
+   can be selected deliberately. */
+function selectAllTargets(){ return visibleSelectableRows().filter(tr=>!tr.classList.contains('dtop')); }
+function allRowsSelected(){
+  const rows=selectAllTargets();
+  return rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
+}
+/* Reflect the selection state on the # header. Guarded because render() calls
+   this and the header may not be built yet on the very first pass. */
 function refreshSelectionButton(){
-  const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
-  $('select-all').classList.toggle('on',all);
-  $('select-all').setAttribute('aria-pressed',String(all));
-  $('select-all-label').textContent=all?'Unselect All':'Select All';
+  const th=$('thead').querySelector('th[data-k="num"]');
+  if(!th) return;
+  const all=allRowsSelected();
+  th.classList.toggle('on',all);
+  th.setAttribute('aria-pressed',String(all));
+  th.setAttribute('title',all?'Unselect all rows':'Select all rows');
+}
+function toggleSelectAll(){
+  const rows=selectAllTargets(), all=allRowsSelected();
+  rows.forEach(tr=>toggleRowSelection(tr,!all));
+  refreshSelectionButton(); refreshDeleteButton();
 }
 function toggleRowSelection(tr,force){
   const id=tr.dataset.rowKey, on=force===undefined?!selectedRows.has(id):force;
@@ -710,6 +923,232 @@ const draftKeys=()=>[...selectedRows].filter(k=>String(k).startsWith('draft:'));
 function refreshDeleteButton(){
   const n=logKeys().length+draftKeys().length, del=$('btn-del');
   if(del){ del.classList.toggle('on', n>0); const c=$('del-count'); if(c) c.textContent=n; }
+  // Expand needs exactly one saved row — the same condition the card uses.
+  const exp=$('expand-row'); if(exp) exp.hidden=!selectedLogId();
+  refreshQuickQuote();
+}
+
+/* ── quick quotation ────────────────────────────────────────────────────────
+   Drafts a customer quotation from the selected row. OCE has no sales-side
+   quotation module — rfq_bidding, bid_management and tendering all model us
+   soliciting bids — so this posts to our own /logs/{id}/quotation.
+
+   Shown only for exactly ONE selected saved row: a quotation is addressed to a
+   single customer, and a draft row has no id to address it to. */
+// qvHidden is scoped to ONE row: dismissing the card should not suppress it for
+// the rest of the session, so selecting a different row brings it back.
+let qvHidden=false, qvLastId=null;
+const qvNum=id=>{ const v=parseFloat($(id).value); return isNaN(v)?0:v; };
+function selectedLogId(){
+  const logs=logKeys();
+  if(logs.length!==1) return null;
+  return logs[0].slice(4);   // strip "log:"
+}
+function refreshQuickQuote(){
+  const card=$('qv'); if(!card) return;
+  const id=selectedLogId();
+  if(id!==qvLastId){ qvLastId=id; qvHidden=false; qvMsg(''); }
+  if(!id||qvHidden){ card.hidden=true; return; }
+  const r=ROWS.find(x=>x.id===id);
+  if(!r){ card.hidden=true; return; }
+  card.hidden=false;
+  const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'this enquiry';
+  $('qv-for').textContent=`${r.file_number?r.file_number+' — ':''}${who}`;
+  if(!$('qv-city').value && r.city) $('qv-city').value=r.city;
+  qvTotals();
+}
+/* Totals mirror quotation_service.compute_totals. Duplicated deliberately: this
+   is a live preview and must not wait on a round trip. The SERVER's numbers are
+   the ones stored — if the two ever disagree, the server is right. */
+function qvTotals(){
+  const hire=qvNum('qv-area')*qvNum('qv-weeks')*qvNum('qv-rate');
+  let sub=hire+qvNum('qv-erection')+qvNum('qv-transport')+qvNum('qv-extras')-qvNum('qv-discount');
+  if(sub<0) sub=0;
+  const vat=sub*qvNum('qv-vat')/100;
+  $('qv-sub').textContent=sub.toFixed(2);
+  $('qv-vatv').textContent=vat.toFixed(2);
+  $('qv-tot').textContent=(sub+vat).toFixed(2);
+}
+function qvMsg(text,cls){ const m=$('qv-msg'); m.textContent=text||''; m.className='qv-msg'+(cls?' '+cls:''); }
+
+/* ── expanded row ───────────────────────────────────────────────────────────
+   The selected row as one vertical page: every field stacked, the map rendered
+   rather than linked, and quotation drafting at the bottom. Sections come from
+   COLS' own tab numbers, so a column added to the table shows up here without
+   anyone remembering to update this. */
+const RX_SECTIONS=[
+  {tab:null,title:'Status'},
+  {tab:0,   title:'Log details'},
+  {tab:1,   title:'Contact'},
+  {tab:2,   title:'Site'},
+  {tab:3,   title:'Follow-up'},
+];
+const RX_LONG=new Set(['desc','updates','funotes']);
+let rxRowId=null;
+
+function rxFieldHTML(c,r){
+  const v=c.edit&&c.edit.val?String(c.edit.val(r)??''):'';
+  const id='rx-'+c.k;
+  const attrs=`id="${id}" data-k="${c.k}"`;
+  let control;
+  if(RX_LONG.has(c.k)) control=`<textarea ${attrs}>${esc(v)}</textarea>`;
+  else if(c.edit&&c.edit.kind==='date') control=`<input type="date" ${attrs} value="${esc(v)}">`;
+  else if(c.edit&&(c.edit.kind==='status'||c.edit.kind==='type'||c.edit.kind==='category'||c.edit.kind==='prefix')){
+    // Same option sets the grid's popup uses, so the two cannot disagree —
+    // minus the "＋ Add new…" sentinel, which is a command, not a value. In a
+    // real <select> it is directly selectable and would be saved as a prefix.
+    const opts=(selectPopupChoices(c.edit.kind)||[]).filter(o=>(typeof o==='string'?o:o.value)!==PREFIX_ADD);
+    control=`<select ${attrs}>${opts.map(o=>{
+      const val=typeof o==='string'?o:o.value; const lab=typeof o==='string'?label(o):(o.label||label(o.value));
+      return `<option value="${esc(val)}"${String(val)===String(v)?' selected':''}>${esc(lab)}</option>`;}).join('')}</select>`;
+  }
+  else control=`<input type="text" ${attrs} value="${esc(v)}">`;
+  return `<div class="rx-f"><label for="${id}">${esc(c.h)}</label>${control}<span class="rx-note" id="${id}-note"></span></div>`;
+}
+
+function rxMapHTML(r){
+  const url=r.maps_url?normalizeMapsUrl(r.maps_url):null;
+  if(!url) return '<div class="rx-none">No map link on this row.</div>';
+  const c=mapsCoords(url);
+  if(!c) return `<div class="rx-none">Preview unavailable for this link.</div><a href="${esc(url)}" target="_blank" rel="noreferrer">${esc(url)}</a>`;
+  // Tiles as <img>, never an embed iframe: the CSP allows https images but
+  // blocks third-party frames, so an embed renders blank. See tileMap().
+  return `<div class="rx-map"><div class="mapwrap" id="rx-mapwrap"></div>`
+    +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>`;
+}
+
+function openExpandedRow(){
+  const id=selectedLogId(); if(!id) return;
+  const r=ROWS.find(x=>x.id===id); if(!r) return;
+  rxRowId=id;
+  const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'—';
+  $('rx-title').textContent=r.file_number||'Row';
+  $('rx-sub').textContent=`${who}${r.created_at?' · '+fmtDT(r.created_at):''}`;
+
+  let html='';
+  for(const s of RX_SECTIONS){
+    const cols=COLS.filter(c=>c.tab===s.tab&&c.edit);
+    if(!cols.length) continue;
+    html+=`<div class="rx-sec"><h3>${esc(s.title)}</h3>${cols.map(c=>rxFieldHTML(c,r)).join('')}</div>`;
+  }
+  html+=`<div class="rx-sec"><h3>Location</h3>${rxMapHTML(r)}</div>`;
+  html+=`<div class="rx-sec"><h3>Quotation</h3>
+    <div class="rx-f"><label for="rx-q-area">Area (m²)</label><input id="rx-q-area" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-weeks">Weeks</label><input id="rx-q-weeks" type="number" min="0" step="0.5"></div>
+    <div class="rx-f"><label for="rx-q-rate">Rate /m²/week</label><input id="rx-q-rate" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-erection">Erection</label><input id="rx-q-erection" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-transport">Transport</label><input id="rx-q-transport" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-extras">Extras</label><input id="rx-q-extras" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-discount">Discount</label><input id="rx-q-discount" type="number" min="0" step="0.01"></div>
+    <div class="rx-f"><label for="rx-q-vat">VAT %</label><input id="rx-q-vat" type="number" min="0" step="0.1"></div>
+    <div class="rx-f"><label for="rx-q-scope">Scope of work</label><textarea id="rx-q-scope" rows="2"></textarea></div>
+    <div class="qv-foot" style="border-top-color:#e2e8f0">
+      <div class="qv-totals">
+        <span>Subtotal <b id="rx-q-sub">0.00</b></span>
+        <span>VAT <b id="rx-q-vatv">0.00</b></span>
+        <span class="qv-total">Total <b id="rx-q-tot">0.00</b></span>
+      </div>
+      <div class="qv-actions"><span class="qv-msg" id="rx-q-msg"></span>
+        <button type="button" class="qv-draft alt" id="rx-q-draft">Draft quotation</button></div>
+    </div></div>`;
+  $('rx-body').innerHTML=html;
+  $('rx').hidden=false;
+
+  // Tiles need the real width, which only exists once the sheet is laid out.
+  const wrap=$('rx-mapwrap');
+  if(wrap){ const url=normalizeMapsUrl(r.maps_url), c=mapsCoords(url);
+    if(c) wrap.innerHTML=tileMap(c.lat,c.lng,wrap.clientWidth||500,170,15); }
+  $('rx-body').scrollTop=0;
+}
+async function rxSaveAll(){
+  const btn=$('rx-save'), st=$('rx-status');
+  const fields=[...$('rx-body').querySelectorAll('[data-k]')];
+  const r=ROWS.find(x=>x.id===rxRowId);
+  if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
+  const changed=fields.filter(el=>{
+    const c=COLS.find(x=>x.k===el.dataset.k);
+    return c&&c.edit&&String(c.edit.val(r)??'')!==el.value.trim();
+  });
+  if(!changed.length){ st.textContent='Nothing to save'; st.className='rx-status'; return; }
+  btn.disabled=true; st.textContent='Saving…'; st.className='rx-status';
+  // Sequential, not Promise.all: these PATCH the same file and contact, and
+  // firing them together interleaves writes to one row.
+  let failed=0;
+  for(const el of changed){ try{ await rxSave(el); }catch(e){ failed++; } }
+  btn.disabled=false;
+  if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
+  else { st.textContent='Saved'; st.className='rx-status ok'; setTimeout(()=>{ st.textContent=''; },2000); }
+}
+function closeExpandedRow(){ $('rx').hidden=true; rxRowId=null; }
+
+/* Field saves go through the SAME endpoints as the grid's inline editors, keyed
+   off each column's own edit.target — so nothing here can save to a different
+   place than the table would. */
+async function rxSave(el){
+  const c=COLS.find(x=>x.k===el.dataset.k); if(!c||!c.edit||!rxRowId) return;
+  const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
+  const note=$(el.id+'-note'), field=c.edit.field, target=c.edit.target;
+  const nv=el.value.trim();
+  if(String(c.edit.val(r)??'')===nv) return;                // nothing changed
+  if(field==='email'&&nv&&!validEmail(nv)){ note.textContent='Invalid email'; note.className='rx-note rx-err'; return; }
+  try{
+    if(target==='file') await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
+    else if(target==='contact') await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
+    else await api('/logs/'+r.id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
+    ROWS.forEach(x=>{ if((target==='log'&&x.id===r.id)||(target!=='log'&&x.file_id===r.file_id)) x[field]=nv; });
+    note.textContent='Saved'; note.className='rx-note rx-saved';
+    setTimeout(()=>{ if(note) note.textContent=''; },1600);
+    render();                                                // keep the grid in step
+  }catch(e){ note.textContent=e.message||'Could not save'; note.className='rx-note rx-err'; }
+}
+function rxTotals(){
+  const n=id=>{ const v=parseFloat(($(id)||{}).value); return isNaN(v)?0:v; };
+  let sub=n('rx-q-area')*n('rx-q-weeks')*n('rx-q-rate')+n('rx-q-erection')+n('rx-q-transport')+n('rx-q-extras')-n('rx-q-discount');
+  if(sub<0) sub=0;
+  const vat=sub*n('rx-q-vat')/100;
+  $('rx-q-sub').textContent=sub.toFixed(2); $('rx-q-vatv').textContent=vat.toFixed(2);
+  $('rx-q-tot').textContent=(sub+vat).toFixed(2);
+}
+async function rxDraftQuotation(){
+  if(!rxRowId) return;
+  const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
+  const m=$('rx-q-msg'), btn=$('rx-q-draft');
+  const val=id=>{ const el=$(id); const v=el?el.value.trim():''; return v===''?undefined:v; };
+  const body={area_sqm:val('rx-q-area'),duration_weeks:val('rx-q-weeks'),rate:val('rx-q-rate'),
+    erection:val('rx-q-erection'),transport:val('rx-q-transport'),extras:val('rx-q-extras'),
+    discount:val('rx-q-discount'),vat_percent:val('rx-q-vat'),scope:val('rx-q-scope')};
+  Object.keys(body).forEach(k=>body[k]===undefined&&delete body[k]);
+  btn.disabled=true; m.textContent='Drafting…'; m.className='qv-msg';
+  try{
+    const q=await api(`/logs/${encodeURIComponent(r.file_id)}/quotation`,{method:'POST',body:JSON.stringify(body)});
+    m.textContent=`Saved ${q.quotation_number} — total ${q.total} ${q.currency}`; m.className='qv-msg ok';
+  }catch(e){ m.textContent=e.message||'Could not draft quotation'; m.className='qv-msg bad'; }
+  finally{ btn.disabled=false; }
+}
+async function draftQuotation(){
+  const id=selectedLogId();
+  if(!id){ qvMsg('Select one row first.','bad'); return; }
+  const btn=$('qv-draft'); btn.disabled=true; qvMsg('Drafting…');
+  // Blank stays blank: the server fills customer fields from the row, and an
+  // empty string here would overwrite them with nothing.
+  const val=id2=>{ const v=$(id2).value.trim(); return v===''?undefined:v; };
+  const body={
+    area_sqm:val('qv-area'), duration_weeks:val('qv-weeks'), rate:val('qv-rate'),
+    erection:val('qv-erection'), transport:val('qv-transport'), extras:val('qv-extras'),
+    discount:val('qv-discount'), vat_percent:val('qv-vat'),
+    scope:val('qv-scope'), notes:val('qv-notes'), site_city:val('qv-city'),
+    valid_until:val('qv-valid'),
+  };
+  Object.keys(body).forEach(k=>body[k]===undefined&&delete body[k]);
+  // The endpoint keys off the FILE, not the log row: a file is the enquiry a
+  // quotation is addressed to, and one file can carry several log entries.
+  const row=ROWS.find(x=>x.id===id);
+  if(!row){ qvMsg('Row not loaded — reload and try again.','bad'); btn.disabled=false; return; }
+  try{
+    const q=await api(`/logs/${encodeURIComponent(row.file_id)}/quotation`,{method:'POST',body:JSON.stringify(body)});
+    qvMsg(`Saved ${q.quotation_number} — total ${q.total} ${q.currency}`,'ok');
+  }catch(e){ qvMsg(e.message||'Could not draft quotation','bad'); }
+  finally{ btn.disabled=false; }
 }
 async function deleteSelected(){
   const logs=logKeys(), drafts=draftKeys();
@@ -740,6 +1179,82 @@ async function deleteSelected(){
 /* ── draft interactions (delegated once) ── */
 function stateFor(dp){ return dp==='d'?topDraft:bottomDrafts[+dp.slice(1)]; }
 function draftInputs(dp){ return [...$('rows').querySelectorAll(`.din[data-dp="${dp}"]`)]; }
+let contactMatchTimer=null,contactMatchSeq=0,contactMatchDrop=null;
+let contactMatchItems=[],contactMatchActive=0,contactMatchInput=null;
+function closeContactMatches(){
+  clearTimeout(contactMatchTimer);
+  if(contactMatchDrop)contactMatchDrop.remove();
+  contactMatchDrop=null;contactMatchItems=[];contactMatchInput=null;
+}
+function contactName(c){return [c.first_name,c.last_name].filter(Boolean).join(' ').trim()||c.company_name||'Unnamed contact';}
+function contactPrefix(c){
+  for(const v of Object.values(c.custom_properties||{}))if(v&&typeof v==='object'&&v.prefix)return v.prefix;
+  return '';
+}
+function contactPhoneParts(phone){
+  const raw=String(phone||'').trim();
+  const found=[...COUNTRIES].sort((a,b)=>b[2].length-a[2].length).find(c=>raw.startsWith(c[2]));
+  return found?{iso:found[0],dial:found[2],mobilenum:raw.slice(found[2].length).trim()}:{iso:DEFAULT_ISO,dial:DEFAULT_DIAL,mobilenum:raw};
+}
+function contactAddress(c){return c.address&&typeof c.address==='object'?c.address:{};}
+function fillDraftFromContact(dp,c){
+  const st=stateFor(dp);if(!st)return;
+  st.__choosingContact=true;
+  const phone=contactPhoneParts(c.primary_phone),address=contactAddress(c);
+  Object.assign(st,{prefix:contactPrefix(c),first:c.first_name||'',last:c.last_name||'',company:c.company_name||'',
+    email:c.primary_email||'',iso:phone.iso,dial:phone.dial,mobilenum:phone.mobilenum,
+    country:address.country||address.country_name||c.country_code||'',district:address.district||address.state||'',
+    city:address.city||'',street:address.street||address.address_line_1||''});
+  closeContactMatches();
+  const outer=$('touter'),left=outer.scrollLeft,top=outer.scrollTop;
+  render();outer.scrollLeft=left;outer.scrollTop=top;
+  const next=$(dp+'-desc')||$(dp+'-last');if(next){next.focus();next.scrollIntoView({inline:'center',block:'nearest'});}
+  setTimeout(()=>{delete st.__choosingContact;},0);
+}
+function placeContactMatches(){
+  if(!contactMatchDrop||!contactMatchInput)return;
+  const r=contactMatchInput.getBoundingClientRect(),w=Math.max(300,r.width);
+  contactMatchDrop.style.left=Math.max(8,Math.min(r.left,innerWidth-w-8))+'px';
+  contactMatchDrop.style.top=Math.min(innerHeight-8,r.bottom+2)+'px';
+  contactMatchDrop.style.width=w+'px';
+}
+function renderContactMatches(){
+  if(!contactMatchDrop)return;
+  contactMatchDrop.innerHTML='';
+  contactMatchItems.forEach((c,i)=>{
+    const item=document.createElement('div');item.className='pg-ac-item contact-match'+(i===contactMatchActive?' pg-ac-active':'');
+    const main=document.createElement('span');main.className='contact-match-main';main.textContent=contactName(c);
+    const meta=document.createElement('span');meta.className='contact-match-meta';meta.textContent=[c.company_name,c.primary_phone,c.primary_email].filter(Boolean).join(' · ');
+    item.append(main,meta);item.onmousedown=e=>{e.preventDefault();fillDraftFromContact(contactMatchInput.dataset.dp,c);};
+    contactMatchDrop.appendChild(item);
+  });
+  contactMatchDrop.style.display='block';
+  placeContactMatches();
+}
+async function showContactMatches(input){
+  const q=input.value.trim(),seq=++contactMatchSeq;
+  if(q.length<2){closeContactMatches();return;}
+  try{
+    const items=await searchContacts(q);if(seq!==contactMatchSeq||!input.isConnected||document.activeElement!==input)return;
+    const prefix=q.toLowerCase();
+    contactMatchItems=items.filter(c=>[c.first_name,c.last_name,c.company_name,contactName(c)]
+      .some(v=>String(v||'').toLowerCase().startsWith(prefix)));
+    contactMatchActive=0;contactMatchInput=input;
+    if(!contactMatchItems.length){closeContactMatches();return;}
+    if(contactMatchDrop)contactMatchDrop.remove();
+    contactMatchDrop=document.createElement('div');contactMatchDrop.className='pg-ac-drop contact-match-drop';
+    document.body.appendChild(contactMatchDrop);renderContactMatches();
+  }catch(e){if(seq===contactMatchSeq)closeContactMatches();}
+}
+function queueContactMatches(input){clearTimeout(contactMatchTimer);contactMatchTimer=setTimeout(()=>showContactMatches(input),180);}
+function contactMatchKey(e){
+  if(!contactMatchDrop||e.target!==contactMatchInput)return false;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();e.stopPropagation();contactMatchActive=(contactMatchActive+(e.key==='ArrowDown'?1:-1)+contactMatchItems.length)%contactMatchItems.length;renderContactMatches();return true;}
+  if(e.key==='Enter'&&contactMatchItems[contactMatchActive]){e.preventDefault();e.stopPropagation();fillDraftFromContact(e.target.dataset.dp,contactMatchItems[contactMatchActive]);return true;}
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeContactMatches();return true;}
+  return false;
+}
 function addBottomRow(){
   // Keep the user's horizontal position on the row-number column. Focusing the
   // first editable field (Pre) made the browser scroll the grid sideways.
@@ -777,6 +1292,7 @@ async function commitDraft(dp){
   if(committing.has(dp)) return;
   committing.add(dp);
   try{
+    const showSaved=!!((st.first||'').trim() || (st.company||'').trim());
     const made=await api('/logs/',{method:'POST',body:JSON.stringify(draftPayload(st))});
     const logId=made&&made.log&&made.log.id;
     if(logId&&st.__drawing){ await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({drawing:st.__drawing})}); }
@@ -789,6 +1305,7 @@ async function commitDraft(dp){
     }
     if(dp==='d') topDraft={}; else bottomDrafts.splice(+dp.slice(1),1);
     await load();
+    if(showSaved) showSavedFeedback();
   }catch(e){ fail(e.message); }
   finally{ committing.delete(dp); }
 }
@@ -831,6 +1348,7 @@ $('rows').addEventListener('focusout',e=>{
     if(a&&a.closest&&(a.closest('tr.draft')===tr||a.closest('.cc-drop')||a.closest('.pg-note-workspace'))) return;
     if(document.querySelector('.pg-note-workspace')) return;   // workspace open for this row
     const st=stateFor(dp);
+    if(st&&st.__choosingContact)return;
     if(st&&draftIsSaveable(st)) commitDraft(dp);
   },140);
 });
@@ -841,6 +1359,7 @@ $('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.d
     const s=document.getElementById(dp+'-prefix'); if(s) s.focus();
     return; }
   st[el.dataset.dk]=el.value;
+  if(el.dataset.dk==='first')queueContactMatches(el);
   if(el.dataset.dk==='mobilenum'&&validDraftMobile(st))el.classList.remove('email-invalid');
   if(el.dataset.dk==='email'){const valid=validEmail(el.value);if(valid)el.classList.remove('email-invalid');const button=el.closest('.draft-email')?.querySelector('.draft-compose');if(button)button.hidden=!(el.value.trim()&&valid); }
 });
@@ -853,16 +1372,49 @@ $('rows').addEventListener('click',e=>{
   });
 });
 $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&el.classList.contains('din')))return;
+  if(el.dataset.dk==='first'&&contactMatchKey(e))return;
+  if(e.key==='Enter'&&(el.dataset.dk==='first'||el.dataset.dk==='company')){
+    e.preventDefault();e.stopPropagation();commitDraft(el.dataset.dp);return;}
   if(e.key==='Enter'){ e.preventDefault(); const dp=el.dataset.dp,st=stateFor(dp); if(el.dataset.dk==='mobilenum'&&!validDraftMobile(st)){showInvalidMobile(el);return;} if(el.dataset.dk==='email'&&!validEmail(el.value)){showInvalidEmail(el);return;} const ins=draftInputs(dp); const i=ins.indexOf(el);
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='email'&&!validEmail(el.value))showInvalidEmail(el);});
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='mobilenum'&&!validDraftMobile(stateFor(el.dataset.dp)))showInvalidMobile(el);});
 $('add-row').addEventListener('click',addBottomRow);
 $('btn-del').addEventListener('click',deleteSelected);
-$('select-all').addEventListener('click',()=>{
-  const rows=visibleSelectableRows(), all=rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.rowKey));
-  rows.forEach(tr=>toggleRowSelection(tr,!all));
-  refreshSelectionButton(); refreshDeleteButton();
+/* Quick quotation. One delegated listener on the card so the eight number
+   inputs do not each need wiring, and so the totals stay live while typing. */
+$('qv').addEventListener('input',e=>{ if(e.target.matches('input[type="number"]')) qvTotals(); });
+$('qv-draft').addEventListener('click',draftQuotation);
+$('qv-collapse').addEventListener('click',()=>{ qvHidden=true; $('qv').hidden=true; });
+/* Expanded row. Delegated so the sheet's contents can be rebuilt on every open
+   without re-binding: change saves selects/dates immediately, blur saves text
+   once the user has stopped typing. */
+$('expand-row').addEventListener('click',openExpandedRow);
+$('rx-close').addEventListener('click',closeExpandedRow);
+$('rx-save').addEventListener('click',rxSaveAll);
+$('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
+$('rx-body').addEventListener('change',e=>{
+  const el=e.target;
+  if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); return; }
+  if(el.dataset&&el.dataset.k&&(el.tagName==='SELECT'||el.type==='date')) rxSave(el);
+});
+$('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals(); });
+$('rx-body').addEventListener('focusout',e=>{
+  const el=e.target;
+  if(el.dataset&&el.dataset.k&&el.tagName!=='SELECT'&&el.type!=='date') rxSave(el);
+});
+$('rx-body').addEventListener('click',e=>{ if(e.target.closest('#rx-q-draft')) rxDraftQuotation(); });
+/* Select-all lives on the # header. Ignore clicks that land on the resize grip,
+   or dragging a column edge would also flip the whole selection. */
+$('thead').addEventListener('click',e=>{
+  if(e.target.closest('.rz')) return;
+  if(e.target.closest('th[data-k="num"]')) toggleSelectAll();
+});
+$('thead').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ') return;
+  if(!e.target.closest('th[data-k="num"]')) return;
+  e.preventDefault(); toggleSelectAll();
 });
 $('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); if(ccb){ openCc(ccb); return; }
   const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); refreshDeleteButton(); return; }
@@ -977,7 +1529,7 @@ function openMapsLocationPopup(target){
   const ov=document.createElement('div'); ov.id='pg-loc-popup'; ov.className='pg-modal-overlay pg-loc-overlay';
   ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Set Map Location');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2147482200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
-  ov.innerHTML=`<div style="background:#fff;border-radius:16px;width:min(440px,calc(100vw - 32px));box-shadow:0 8px 40px rgba(0,0,0,.22);overflow:hidden;">
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;width:min(440px,calc(100vw - 32px));box-shadow:0 8px 40px rgba(0,0,0,.22);overflow:hidden;">
     <div style="background:linear-gradient(135deg,#1e3f85,#2563eb);padding:18px 20px 14px;color:#fff;"><div style="font-size:14px;font-weight:700;margin-bottom:4px;">Set Map Location</div><div style="font-size:11.5px;opacity:.8;">Use your current GPS position or paste a link</div></div>
     <div style="padding:18px 20px;"><button id="pg-loc-use-gps" type="button" style="width:100%;height:40px;border:none;border-radius:10px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;"><svg viewBox="0 0 16 16" fill="none" width="14" height="14"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg>Use My Current Location</button>
       <div style="font-size:11px;color:#9ca3af;text-align:center;margin-bottom:10px;">- or paste link manually -</div>
@@ -1346,7 +1898,11 @@ function openDraftNoteWorkspace(input){
   draw.classList.toggle('has-content',!!st.__drawing); renderFiles(); requestAnimationFrame(()=>ta.focus());
 }
 
-async function load(){ try{ ROWS=await api('/logs/'); stats(); render(); }catch(e){ fail(e.message); } }
+async function load(){ try{
+  ROWS=await api('/logs/');
+  try{ sessionStorage.setItem(ROW_CACHE_KEY,JSON.stringify(ROWS)); }catch(_){}
+  stats(); render();
+}catch(e){ fail(e.message); } }
 
 /* tabs = scroll positions */
 const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
@@ -1382,5 +1938,6 @@ loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); }
 </script>
+<script src="/api/v1/achi/ui/chrome.js?v=9"></script>
 </body>
 </html>

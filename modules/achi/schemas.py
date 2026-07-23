@@ -447,3 +447,99 @@ class SurveyRowOut(BaseModel):
     has_drawing: int = 0
     photo_count: int = 0
     created_at: datetime
+
+
+# ── quotations ────────────────────────────────────────────────────────────
+# Money crosses this boundary as a decimal STRING ("1250.00"), not a float, and
+# is converted to integer minor units in quotation_service. See to_minor there.
+
+QUOTATION_STATUSES = ("draft", "sent", "accepted", "rejected", "expired")
+
+
+class QuotationEstimate(BaseModel):
+    """The quick estimate, as the card sends it."""
+
+    area_sqm: str | None = None
+    duration_weeks: str | None = None
+    rate: str | None = None          # per m² per week
+    erection: str | None = None
+    transport: str | None = None
+    extras: str | None = None
+    discount: str | None = None
+    vat_percent: str | None = None
+    currency: str = "USD"
+
+
+class QuotationDraftFromLog(QuotationEstimate):
+    """Draft a quotation from a call log row.
+
+    Customer fields are optional overrides: left blank they are taken from the
+    row, so the common case is the estimate numbers and nothing else.
+    """
+
+    customer_name: str | None = None
+    customer_company: str | None = None
+    customer_mobile: str | None = None
+    customer_email: str | None = None
+    site_city: str | None = None
+    site_address: str | None = None
+    scope: str | None = None
+    notes: str | None = None
+    valid_until: date | None = None
+
+
+class QuotationUpdate(QuotationEstimate):
+    customer_name: str | None = None
+    customer_company: str | None = None
+    customer_mobile: str | None = None
+    customer_email: str | None = None
+    site_city: str | None = None
+    site_address: str | None = None
+    scope: str | None = None
+    notes: str | None = None
+    valid_until: date | None = None
+    status: str | None = None
+
+    @model_validator(mode="after")
+    def _check_status(self):
+        if self.status is not None and self.status not in QUOTATION_STATUSES:
+            raise ValueError(f"status must be one of {QUOTATION_STATUSES}")
+        return self
+
+
+class QuotationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    quotation_number: str
+    file_id: str | None = None
+    survey_id: str | None = None
+    contact_id: str | None = None
+
+    customer_name: str | None = None
+    customer_company: str | None = None
+    customer_mobile: str | None = None
+    customer_email: str | None = None
+    site_city: str | None = None
+    site_address: str | None = None
+
+    area_sqm: str | None = None
+    duration_weeks: str | None = None
+    currency: str = "USD"
+    vat_percent: str | None = None
+
+    # Decimal strings for display; the integers stay server-side.
+    rate: str | None = None
+    erection: str | None = None
+    transport: str | None = None
+    extras: str | None = None
+    discount: str | None = None
+    subtotal: str | None = None
+    vat: str | None = None
+    total: str | None = None
+
+    scope: str | None = None
+    notes: str | None = None
+    valid_until: date | None = None
+    status: str
+    created_at: datetime | None = None
