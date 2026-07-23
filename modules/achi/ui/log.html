@@ -102,8 +102,9 @@
   td.num{cursor:pointer}
 
   .tscroll{overflow:auto;height:var(--bh,58vh)}
-  table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
-  thead th{position:sticky;top:0;z-index:1;background:var(--navy);color:rgba(255,255,255,.82);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
+  table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;margin-bottom:0;font-size:13px;table-layout:fixed}
+  thead tr{background:var(--navy)}
+  thead th{position:sticky;top:0;z-index:2;background:transparent;color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:left;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
   /* Expand Row — the whole row as one vertical page. Sits next to Add Row and
      appears only with a selection, because there is nothing to expand without
      one. Same pill shape as its neighbours. */
@@ -197,10 +198,17 @@
   .rz:hover,.rz.rz-active{background:rgba(255,255,255,.28)}
   body.col-resizing{cursor:col-resize!important;user-select:none}
   body.col-resizing *{cursor:col-resize!important}
-  tbody td{height:40px;padding:0 12px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  tbody td{height:46px;padding:0 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;position:relative}
   tbody td.wide{max-width:340px}
   tbody tr.data:nth-child(even) td{background:#f8faff}
   tbody tr.data:hover td{background:#eef4fd}
+  /* Frappe GridShell fixed-column contract. */
+  .pg-f{position:sticky;z-index:1}
+  tbody td.pg-f{background:#fff;z-index:3;pointer-events:auto}
+  tbody tr.data:nth-child(even) td.pg-f{background:#f8faff}
+  thead th.pg-f{z-index:4;background:var(--navy)}
+  .pg-f-shadow{box-shadow:4px 0 10px -2px rgba(0,0,0,.10)}
+  thead th.pg-f-shadow{box-shadow:4px 0 10px -2px rgba(0,0,0,.08)}
   .num{width:46px;text-align:center}
   tbody tr.selectable-row td.num{cursor:pointer;user-select:none;padding:0}
   .rn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:8px;background:#eff6ff;color:var(--navy);font-weight:800;font-size:11px}
@@ -209,6 +217,9 @@
   tbody tr.selectable-row.row-selected:hover td{background:#bfdbfe!important}
   tbody tr.selectable-row.row-selected .rn{background:var(--navy);color:#fff}
   .dt{font-variant-numeric:tabular-nums;color:#334155}
+  .pg-f-date .pg-dt-compact{display:none}
+  .pg-f-date.pg-dt-narrow .pg-dt-full{display:none}
+  .pg-f-date.pg-dt-narrow .pg-dt-compact{display:inline}
   .mt{color:#9ca3af}
   .name{font-weight:700;color:#111827}
   .lnk{color:var(--navy);text-decoration:none}.lnk:hover{text-decoration:underline}
@@ -615,6 +626,9 @@ async function searchContacts(q,retried){
 }
 function fmtDT(s){ const d=new Date(s); if(isNaN(d))return String(s||'').slice(0,16).replace('T',' ');
   const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function fmtCompactDT(s){ const d=new Date(s); if(isNaN(d))return String(s||'');
+  return `${String(d.getDate()).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}`; }
+const dateTimeHTML=s=>`<span class="dt pg-dt-full">${esc(fmtDT(s))}</span><span class="dt pg-dt-compact">${esc(fmtCompactDT(s))}</span>`;
 const badge=s=>`<span class="badge b-${esc(s)}">${esc(s)}</span>`;
 const tagv=v=>v?`<span class="tag">${esc(label(v))}</span>`:'<span class="mt">—</span>';
 const dash=v=>v?esc(v):'<span class="mt">—</span>';
@@ -670,9 +684,9 @@ const COUNTRIES=[
 const flagSrc=iso=>`https://flagcdn.com/24x18/${iso}.png`;
 
 const COLS=[
-  {k:'num',    h:'#',              tab:null, cls:'num', w:46},
-  {k:'when',   h:'Date & Time',    tab:null, w:150},
-  {k:'status', h:'Status',         tab:null, w:120, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
+  {k:'num',    h:'#',              tab:null, cls:'num pg-f-num', w:42},
+  {k:'when',   h:'Date & Time',    tab:null, cls:'pg-f-date', w:132},
+  {k:'status', h:'Status',         tab:null, cls:'pg-f-stat', w:105, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
   {k:'prefix', h:'Pre',            tab:0, w:70,  draft:'select', edit:{kind:'prefix',target:'contact',field:'prefix',val:r=>r.prefix||''}},
   {k:'first',  h:'First',          tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
   {k:'last',   h:'Last',           tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
@@ -693,10 +707,11 @@ const COLS=[
   {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
   {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
 ];
+const FIXED_KEYS=['num','when','status'];
 const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 function cellHTML(c,r,i){switch(c.k){
   case 'num': return `<span class="rn">${i+1}</span>`;
-  case 'when': return `<span class="dt">${esc(fmtDT(r.occurred_at||r.created_at))}</span>`;
+  case 'when': return dateTimeHTML(r.occurred_at||r.created_at);
   case 'status': return badge(r.status);
   case 'prefix': return dash(r.prefix);
   case 'first': return dash(r.first_name);
@@ -745,7 +760,7 @@ function stats(){ const now=new Date();
  * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
  * so setting the th width is what actually sizes the column — the body cells
  * follow it and nothing has to be touched per row. */
-const COLW_KEY='achi_log_col_widths', COLW_MIN=48;
+const COLW_KEY='achi_log_col_widths_v2', COLW_MIN=42;
 let COLW={};
 function loadColWidths(){
   try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY)||'{}')||{}; }catch(e){ COLW={}; }
@@ -754,15 +769,45 @@ function saveColWidths(){
   try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){}
 }
 const colWidth=c=>Math.max(COLW_MIN, Number(COLW[c.k])||c.w);
+function fixedLeft(key){
+  let left=0;
+  for(const k of FIXED_KEYS){
+    if(k===key) return left;
+    const c=COLS.find(x=>x.k===k); if(c) left+=colWidth(c);
+  }
+  return 0;
+}
+function colClass(c,extra=''){
+  return [extra,FIXED_KEYS.includes(c.k)?'pg-f':'',c.k==='status'?'pg-f-shadow':'',c.k==='when'&&colWidth(c)<=110?'pg-dt-narrow':''].filter(Boolean).join(' ');
+}
+function fixedStyle(c){
+  const width=colWidth(c);
+  return `${FIXED_KEYS.includes(c.k)?`position:sticky;left:${fixedLeft(c.k)}px;`:''}min-width:${width}px;width:${width}px;max-width:${width}px;`;
+}
+function applyFixedLayout(){
+  for(const c of COLS){
+    const width=colWidth(c);
+    document.querySelectorAll(`[data-k="${c.k}"]`).forEach(cell=>{
+      cell.classList.toggle('pg-dt-narrow',c.k==='when'&&colWidth(c)<=110);
+      cell.style.minWidth=width+'px';
+      cell.style.width=width+'px';
+      cell.style.maxWidth=width+'px';
+      if(FIXED_KEYS.includes(c.k)){
+        cell.style.position='sticky';
+        cell.style.left=fixedLeft(c.k)+'px';
+      }
+    });
+  }
+}
 function buildHead(){
   $('thead').innerHTML=COLS.map(c=>{
     // The # header doubles as select-all: the rows already select by clicking
     // their own number cell, so the column header toggling the whole column is
     // where people look for it. role/aria-pressed because a <th> is not a button.
     const sel=c.k==='num'
-      ? ` class="${c.cls||''} num-head" role="button" tabindex="0" aria-pressed="false" title="Select or unselect all rows"`
-      : ` class="${c.cls||''}"`;
-    return `<th data-tab="${c.tab??''}" data-k="${c.k}"${sel} style="width:${colWidth(c)}px">`
+      ? ` class="${colClass(c,`${c.cls||''} num-head`)}" role="button" tabindex="0" aria-pressed="false" title="Select or unselect all rows"`
+      : ` class="${colClass(c,c.cls||'')}"`;
+    return `<th data-tab="${c.tab??''}" data-k="${c.k}"${sel} style="${fixedStyle(c)}">`
       +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
   }).join('');
 }
@@ -784,7 +829,8 @@ function wireColResize(){
     handle.setPointerCapture&&handle.setPointerCapture(e.pointerId);
     const move=ev=>{
       const next=Math.max(COLW_MIN,Math.round(startW+ev.clientX-startX));
-      COLW[key]=next; th.style.width=next+'px';
+      COLW[key]=next;
+      applyFixedLayout();
     };
     const up=()=>{
       window.removeEventListener('pointermove',move);
@@ -802,7 +848,7 @@ function wireColResize(){
     const handle=e.target.closest('.rz'); if(!handle) return;
     const c=COLS.find(x=>x.k===handle.dataset.k); if(!c) return;
     delete COLW[c.k]; saveColWidths();
-    const th=handle.closest('th'); if(th) th.style.width=c.w+'px';
+    applyFixedLayout();
   });
 }
 function moveIndToActive(){ const b=tabsEl&&tabsEl.querySelector('.pill-tab.on'); if(b) moveInd(b); }
@@ -811,7 +857,7 @@ function draftCell(c,dp,st,rowNumber){
   if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
   // Frappe's CRM Log draft rows show the actual creation value as
   // DD/MM/YYYY HH:MM instead of the relative placeholder "now".
-  if(c.k==='when') return `<span class="dt">${esc(fmtDT(new Date()))}</span>`;
+  if(c.k==='when') return dateTimeHTML(new Date());
   if(c.k==='status') return `<input class="din pg-select-input draft-popup-select" id="${dp}-status" data-dp="${dp}" data-dk="status" data-select-value="${esc(st.status||'open')}" value="${esc(label(st.status||'open'))}" readonly>`;
   if(c.k==='owner') return `<span class="mt">you</span>`;
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
@@ -838,17 +884,17 @@ function draftRowHTML(dp,st,isTop,rowNumber){
   const key=`draft:${dp}`, selected=selectedRows.has(key)?' row-selected':'';
   return `<tr class="draft selectable-row ${isTop?'dtop':''}${selected}" data-row-key="${key}">${COLS.map(c=>{
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
-    return `<td data-tab="${c.tab??''}" class="${[c.cls||'',c.wide?'wide':''].join(' ').trim()}" ${select}>${draftCell(c,dp,st,rowNumber)}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${colClass(c,[c.cls||'',c.wide?'wide':''].filter(Boolean).join(' '))}" style="${fixedStyle(c)}" ${select}>${draftCell(c,dp,st,rowNumber)}</td>`;
   }).join('')}</tr>`;
 }
 
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix'].includes(c.edit.kind)?'sel':'ed'):''].join(' ').trim();
+    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 
