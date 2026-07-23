@@ -721,7 +721,17 @@ function cellHTML(c,r,i){switch(c.k){
   case 'funotes': return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
 }}
 
+const ROW_CACHE_KEY='achi_log_rows_v1';
 let ROWS=[], openOnly=false, activeTab=0;
+/* A full refresh destroys the page before /logs/ can answer. Keep the last
+   successful result for this browser tab so the existing table remains visible
+   while the fresh request runs. Do not restore it without a login token. */
+if(TOKEN){
+  try{
+    const cached=JSON.parse(sessionStorage.getItem(ROW_CACHE_KEY)||'[]');
+    if(Array.isArray(cached)) ROWS=cached;
+  }catch(_){}
+}
 const selectedRows=new Set();
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
 let selected=new Set();             // selected log ids
@@ -1875,7 +1885,11 @@ function openDraftNoteWorkspace(input){
   draw.classList.toggle('has-content',!!st.__drawing); renderFiles(); requestAnimationFrame(()=>ta.focus());
 }
 
-async function load(){ try{ ROWS=await api('/logs/'); stats(); render(); }catch(e){ fail(e.message); } }
+async function load(){ try{
+  ROWS=await api('/logs/');
+  try{ sessionStorage.setItem(ROW_CACHE_KEY,JSON.stringify(ROWS)); }catch(_){}
+  stats(); render();
+}catch(e){ fail(e.message); } }
 
 /* tabs = scroll positions */
 const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
