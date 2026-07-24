@@ -995,6 +995,35 @@ function render(){
   refreshDeleteButton();
 }
 
+/* Keep row creation spatially obvious. The grid has its own vertical scroll
+   container, so scrolling the page is not enough: target the exact rendered
+   <tr> while preserving the user's horizontal column position. */
+function revealGridRow(selector,focusId){
+  requestAnimationFrame(()=>{
+    const row=$('rows').querySelector(selector);
+    if(!row)return;
+    const box=$('touter'),br=box.getBoundingClientRect(),rr=row.getBoundingClientRect();
+    const top=box.scrollTop+(rr.top-br.top)-Math.max(0,(box.clientHeight-rr.height)/2);
+    box.scrollTo({top:Math.max(0,top),left:box.scrollLeft,behavior:'smooth'});
+    const input=focusId&&$(focusId);
+    if(input)input.focus({preventScroll:true});
+  });
+}
+
+function revealSavedRow(logId){
+  if(!logId)return;
+  let selector=`tr[data-log="${CSS.escape(String(logId))}"]`;
+  // A search can hide the row that was just created. Clear only when necessary
+  // so "Save" always lands on the actual saved row instead of leaving it lost.
+  if(!$('rows').querySelector(selector)){
+    $('q').value='';
+    openOnly=false;
+    $('k-open-card').classList.remove('on');
+    render();
+  }
+  revealGridRow(selector);
+}
+
 /* Delete the selected rows. Uses the shared selectedRows set (keys are `log:<id>`)
    so it stays in step with the select-all / row-number selection. */
 /* Draft rows are selectable too, and their keys are `draft:<dp>` rather than
@@ -1244,6 +1273,7 @@ async function rxCreateNew(keepOpen){
     const newLogId=res&&res.log&&res.log.id;
     st.textContent='Created'; st.className='rx-status ok';
     await load();                               // pull the new row into the grid
+    revealSavedRow(newLogId);
     rxBusy(false);
     // Save & continue: reopen on the row we just made so editing carries on,
     // including files/drawing which need a saved log. Plain Save: close.
@@ -1457,12 +1487,11 @@ function contactMatchKey(e){
   return false;
 }
 function addBottomRow(){
-  // Keep the user's horizontal position on the row-number column. Focusing the
-  // first editable field (Pre) made the browser scroll the grid sideways.
-  const left=$('touter').scrollLeft;
+  const index=bottomDrafts.length, left=$('touter').scrollLeft;
   bottomDrafts.push({});
   render();
   $('touter').scrollLeft=left;
+  revealGridRow(`tr[data-row-key="draft:b${index}"]`,`b${index}-first`);
 }
 function removeBottomRow(dp){ bottomDrafts.splice(+dp.slice(1),1); render(); }
 function draftMobile(st){
@@ -1484,7 +1513,7 @@ function draftPayload(st){
 const committing=new Set();
 /* A row is saveable the moment it has an identity: a first name or a company.
    Everything else on the row is optional and can be filled in afterwards. */
-function draftIsSaveable(st){ return !!((st.first||'').trim() || (st.company||'').trim() || (st.last||'').trim()); }
+function draftIsSaveable(st){ return !!((st.first||'').trim() || (st.company||'').trim()); }
 async function commitDraft(dp){
   const st=stateFor(dp); if(!st) return;
   if(!validDraftMobile(st)){ showInvalidMobile($(dp+'-mobile')); return; }
@@ -1506,6 +1535,7 @@ async function commitDraft(dp){
     }
     if(dp==='d') topDraft={}; else bottomDrafts.splice(+dp.slice(1),1);
     await load();
+    revealSavedRow(logId);
     if(showSaved) showSavedFeedback();
   }catch(e){ fail(e.message); }
   finally{ committing.delete(dp); }
@@ -1536,17 +1566,20 @@ window.addEventListener('pagehide',flushDrafts);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushDrafts(); });
 window.addEventListener('message',e=>{ if(e&&e.data&&e.data.type==='achi-flush') flushDrafts(); });
 
-/* Auto-save: leaving a draft row saves it as soon as it has a name or company.
-   Moving between fields inside the same row, opening the country picker, or
-   opening the notes workspace are not "leaving" — those keep the row open. */
+/* First Name OR Company is enough to create the row. Leaving either identity
+   field saves immediately, even when the next field is in the same draft row;
+   other fields still wait until the user leaves the row. Pickers and the notes
+   workspace never count as leaving. */
 $('rows').addEventListener('focusout',e=>{
   const el=e.target;
   if(!(el.classList&&el.classList.contains('din'))) return;
   const tr=el.closest('tr.draft'), dp=el.dataset&&el.dataset.dp;
   if(!tr||!dp) return;
+  const identityComplete=(el.dataset.dk==='first'||el.dataset.dk==='company')&&!!el.value.trim();
   setTimeout(()=>{
     const a=document.activeElement;
-    if(a&&a.closest&&(a.closest('tr.draft')===tr||a.closest('.cc-drop')||a.closest('.pg-note-workspace'))) return;
+    if(a&&a.closest&&(a.closest('.cc-drop')||a.closest('.pg-note-workspace'))) return;
+    if(!identityComplete&&a&&a.closest&&a.closest('tr.draft')===tr) return;
     if(document.querySelector('.pg-note-workspace')) return;   // workspace open for this row
     const st=stateFor(dp);
     if(st&&st.__choosingContact)return;
