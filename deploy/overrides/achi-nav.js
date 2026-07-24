@@ -418,7 +418,6 @@
     f.style.display = 'block';
     clearCurrent();
     holdTitle(entry);
-    var link = document.getElementById(entry.id); if (link) link.setAttribute('aria-current', 'page');
   }
   function hideEmbed() {
     var f = document.getElementById(EMBED);
@@ -496,9 +495,9 @@
       return;
     }
     var entry = byId(a.id) || byRoute(href);
-    // Our pages load as ordinary pages rather than docking as an iframe over the
-    // content area. They render their own sidebar (ui/chrome.js) when they are
-    // not framed, so this is a real navigation to a real page, not an overlay.
+    // ACHI pages open as ordinary top-level pages. Their shared chrome renders
+    // the second sidebar; this preserves the original two-sidebar navigation
+    // flow requested for Call Log and the other ACHI pages.
     if (entry) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
@@ -508,11 +507,8 @@
     if (a.closest('nav, aside, [class*="sidebar" i]')) hideEmbed();   // real navigation elsewhere
   }, true);
 
-  // A hard load of /call-log (an old bookmark, a shared link, a back button into
-  // a URL the previous embed pushed) hits a route the SPA's router does not know
-  // and renders its 404. Now that these pages load natively, send the browser to
-  // the real page instead. replace(), not assign(), so Back does not bounce
-  // between the two. The cover still runs first so the 404 never flashes.
+  // A hard load of an ACHI route hits a route the SPA does not own. Send it to
+  // the real module page, where the second sidebar is rendered.
   function redirectIfOurRoute() {
     var e = byRoute(location.pathname);
     if (!e) return false;
@@ -538,8 +534,8 @@
     inject();
     ensureOverviewModules();
   }, 1000);
-  // wireSidebarHover() is Grece's hover-expand; redirectIfOurRoute() replaces
-  // the old syncToUrl() now that our pages load natively instead of embedding.
+  // wireSidebarHover() owns the native sidebar; redirectIfOurRoute() hands ACHI
+  // routes to their standalone pages and shared second sidebar.
   function boot() { wireSidebarHover(); inject(); redirectIfOurRoute(); }
   if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();

@@ -29,15 +29,17 @@
   // Docked in the SPA? Upstream's sidebar is already there — stand down.
   if (window.top !== window.self) return;
 
-  // Our pages first, then the upstream destinations worth a jump from here.
+  // Keep this list exact and ordered: these seven primary destinations followed
+  // by the six admin destinations in TOOLS below. Do not add utility links to
+  // the rendered navigation; Call Log's sidebar intentionally has 13 modules.
   var LINKS = [
-    { k: 'calllog',  label: 'Call Log',      href: '/api/v1/achi/ui',        icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
-    { k: 'survey',   label: 'Site Survey',   href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
-    { k: 'quotes',   label: 'Quotations',   href: '/api/v1/achi/quotations/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h3"/>' },
-    { k: 'contacts', label: 'Contacts',      href: '/contacts',              icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
-    { k: 'crm',      label: 'CRM',           href: '/crm',                   icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
-    { k: 'projects', label: 'Projects',      href: '/projects',              icon: '<path d="M3 7h6l2 2h10v10H3z"/>' },
-    { k: 'files',    label: 'Project Files', href: '/files',                 icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' }
+    { label: 'Call Log',      href: '/api/v1/achi/ui',        icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
+    { label: 'Site Survey',   href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
+    { label: 'Quotations',    href: '/api/v1/achi/quotations/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h3"/>' },
+    { label: 'Contacts',      href: '/contacts',              icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
+    { label: 'CRM',           href: '/crm',                   icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
+    { label: 'Projects',      href: '/projects',              icon: '<path d="M3 7h6l2 2h10v10H3z"/>' },
+    { label: 'Project Files', href: '/files',                 icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' }
   ];
 
   /* The admin cluster upstream pins at the bottom of its sidebar — a literal
@@ -58,14 +60,6 @@
     { label: 'About',      href: '/about',      icon: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>' }
   ];
 
-  function activeKey() {
-    var p = location.pathname;
-    if (p.indexOf('/achi/survey/ui') !== -1) return 'survey';
-    if (p.indexOf('/achi/quotations/ui') !== -1) return 'quotes';
-    if (p.indexOf('/achi/ui') !== -1) return 'calllog';
-    return '';
-  }
-
   // #284F9E is the same navy achi-theme.css paints upstream's sidebar with —
   // sampled from the logo so the mark's square background dissolves into it.
   /* Type scale is upstream's, read out of the compiled stylesheet rather than
@@ -77,39 +71,34 @@
    */
   var FONT = '-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif';
   var CSS = ''
-    /* Hover-expand, mirroring Grece's behaviour on the app sidebar: start
-     * collapsed, expand on hover, settle back after a beat. Widths are
+    /* Hover-expand, mirroring the app sidebar: start collapsed, expand on
+     * mouseenter, and settle back 120 ms after mouseleave. Widths are
      * upstream's exact 64/248 rather than our old 216 — when the two sidebars
      * are different widths, every crossing between an app page and one of ours
      * shifts the whole layout, which is the flash. Same width, no jump.
-     * CSS-only here: there is no React state to hand off to, so hover does not
-     * need JS, and a pure-CSS transition cannot desync from the pointer. */
+     * The class is driven below instead of using :hover so the close delay is
+     * exactly the same as the initial sidebar. */
     /* The expanded sidebar OVERLAYS the page; it never widens the content gutter.
      * Driving body's padding from hover reflowed the whole page on every expand
      * — on a wide grid that reads as fields jumping and getting cropped. The
      * gutter is therefore pinned to the collapsed width and never animates. */
     + ':root{--achi-sb:64px}'
     + '.achi-chrome{position:fixed;left:0;top:0;bottom:0;width:var(--achi-sb);background:#284F9E;color:#fff;display:flex;flex-direction:column;z-index:40;font-family:' + FONT + ';overflow:hidden;transition:width .2s ease}'
-    + '.achi-chrome:hover{width:248px;box-shadow:6px 0 24px rgba(0,0,0,.18)}'
+    + '.achi-chrome.achi-expanded{width:248px;box-shadow:6px 0 24px rgba(0,0,0,.18)}'
     /* Collapsed: icons only. Labels stay in the DOM for screen readers and fade
      * back in on expand — display:none would make them unreadable to AT too. */
-    + '.achi-chrome:not(:hover) .achi-link span,.achi-chrome:not(:hover) .achi-back span,'
-    +   '.achi-chrome:not(:hover) .achi-tool span,.achi-chrome:not(:hover) .achi-brand div,'
-    +   '.achi-chrome:not(:hover) .achi-foot{opacity:0;pointer-events:none}'
-    + '.achi-chrome:not(:hover) .achi-tools{grid-template-columns:1fr}'
-    + '.achi-link span,.achi-back span,.achi-tool span,.achi-brand div,.achi-foot{transition:opacity .15s ease}'
+    + '.achi-chrome:not(.achi-expanded) .achi-link span,'
+    +   '.achi-chrome:not(.achi-expanded) .achi-tool span,.achi-chrome:not(.achi-expanded) .achi-brand div,'
+    +   '.achi-chrome:not(.achi-expanded) .achi-foot{opacity:0;pointer-events:none}'
+    + '.achi-chrome:not(.achi-expanded) .achi-tools{grid-template-columns:1fr}'
+    + '.achi-link span,.achi-tool span,.achi-brand div,.achi-foot{transition:opacity .15s ease}'
     + '.achi-brand{display:flex;align-items:center;gap:10px;padding:16px 16px 14px}'
     + '.achi-brand img{width:28px;height:28px;flex:0 0 auto;border-radius:6px;object-fit:contain}'
-    + '.achi-back{display:flex;align-items:center;gap:9px;margin:0 8px 6px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:11px;line-height:1.36;font-weight:500}'
-    + '.achi-back:hover{background:rgba(255,255,255,.12);color:#fff}'
-    + '.achi-back svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
-    + '.achi-sep{height:1px;background:rgba(255,255,255,.14);margin:2px 16px 8px}'
     + '.achi-brand b{font-size:13px;line-height:1.46;font-weight:600;letter-spacing:.02em;display:block}'
     + '.achi-brand span{font-size:11px;line-height:1.36;opacity:.72;display:block}'
-    + '.achi-nav{padding:6px 8px;overflow:auto;flex:1}'
+    + '.achi-nav{padding:6px 8px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}'
     + '.achi-link{display:flex;align-items:center;gap:10px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.86);text-decoration:none;font-size:13px;line-height:1.46;font-weight:500;margin-bottom:2px}'
     + '.achi-link:hover{background:rgba(255,255,255,.12);color:#fff}'
-    + '.achi-link.on{background:rgba(255,255,255,.16);color:#fff;font-weight:600}'
     + '.achi-link svg{width:16px;height:16px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
     /* Cluster metrics are upstream's, translated from its Tailwind classes:
      * py-2 px-2 container over a bg-black/[0.02] wash, grid-cols-2 gap-1,
@@ -122,8 +111,8 @@
     + '.achi-cluster{position:relative;padding:8px;background:rgba(0,0,0,.02)}'
     + '.achi-cluster::before{content:"";position:absolute;top:0;left:12px;right:12px;height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,.22),transparent)}'
     + '.achi-tools{display:grid;grid-template-columns:1fr 1fr;gap:4px;list-style:none;margin:0;padding:0}'
-    + '.achi-tool{display:flex;align-items:center;justify-content:flex-start;gap:6px;height:32px;padding:0 8px;border-radius:6px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:rgba(255,255,255,.82);text-decoration:none;font-size:11px;line-height:1;font-weight:500;min-width:0;transition:background .12s,color .12s,border-color .12s}'
-    + '.achi-tool:hover{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.3)}'
+    + '.achi-tool{display:flex;align-items:center;justify-content:flex-start;gap:6px;height:32px;padding:0 8px;border-radius:6px;border:0;background:transparent;color:rgba(255,255,255,.82);text-decoration:none;font-size:11px;line-height:1;font-weight:500;min-width:0;transition:background .12s,color .12s}'
+    + '.achi-tool:hover{background:rgba(255,255,255,.12);color:#fff}'
     + '.achi-tool span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
     + '.achi-tool svg{width:14px;height:14px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}'
     + '.achi-foot{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px 12px;font-size:10px;line-height:1.36;color:rgba(255,255,255,.5)}'
@@ -143,7 +132,7 @@
     + '@media (max-width:900px){'
     + ' body{padding-left:0}'
     + ' .achi-chrome{transform:translateX(-100%);transition:transform .18s ease;box-shadow:0 0 40px rgba(0,0,0,.3)}'
-    + ' .achi-chrome.open{transform:none}'
+    + ' .achi-chrome.open{transform:none;width:248px}'
     + ' .achi-burger{display:inline-flex}'
     + '}';
 
@@ -157,13 +146,9 @@
       '<div class="achi-brand">'
       + '<img id="achi-logo" src="/logo.svg" alt="" onerror="this.style.display=\'none\'">'
       + '<div><b>ACHI</b><span id="achi-credit">by ACHI Scaffolding</span></div></div>'
-      + '<a class="achi-back" href="/modules">'
-      + '<svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>'
-      + '<span>All modules</span></a>'
-      + '<div class="achi-sep"></div>'
       + '<div class="achi-nav">'
       + LINKS.map(function (l) {
-          return '<a class="achi-link' + (l.k === activeKey() ? ' on' : '') + '" href="' + l.href + '">'
+          return '<a class="achi-link" href="' + l.href + '">'
             + '<svg viewBox="0 0 24 24">' + l.icon + '</svg><span>' + l.label + '</span></a>';
         }).join('')
       + '</div>'
@@ -188,6 +173,22 @@
     top.className = 'achi-top';
     top.innerHTML = '<button class="achi-burger" type="button" aria-label="Menu">&#9776;</button><h1>' + title + '</h1>';
     top.querySelector('.achi-burger').addEventListener('click', function () { side.classList.toggle('open'); });
+
+    var collapseTimer = null;
+    side.addEventListener('mouseenter', function () {
+      if (collapseTimer !== null) {
+        window.clearTimeout(collapseTimer);
+        collapseTimer = null;
+      }
+      side.classList.add('achi-expanded');
+    });
+    side.addEventListener('mouseleave', function () {
+      if (collapseTimer !== null) window.clearTimeout(collapseTimer);
+      collapseTimer = window.setTimeout(function () {
+        collapseTimer = null;
+        side.classList.remove('achi-expanded');
+      }, 120);
+    });
 
     var style = document.createElement('style');
     style.textContent = CSS;
