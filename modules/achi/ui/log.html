@@ -119,7 +119,7 @@
 
   /* The expanded row. A sheet rather than a dialog: one column, scrolls
      vertically, reads the way the same record would on a phone. */
-  .rx{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  .rx{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
   .rx[hidden]{display:none}
   /* No border: a 1px border with overflow:hidden + border-radius clips unevenly
      at the rounded corners (the "clipping" you keep seeing). The shadow alone
@@ -173,7 +173,7 @@
   .rx-copy-h{font-size:11.5px;color:#8a8f98;flex:1 1 auto}
   .rx-cancel{border:1px solid #d7dde8;background:#fff;color:#1d1d1f;border-radius:8px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
   .rx-cancel:hover{background:#f4f6fa}
-  .rx-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .rx-box{width:min(1340px,calc(100vw - 32px));height:min(860px,calc(100vh - 32px));max-height:calc(100vh - 32px);display:flex;flex-direction:column;overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
   .rx-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;flex:0 0 auto}
   .rx-head h2{font-size:14px;font-weight:800;letter-spacing:.01em}
   .rx-head p{font-size:11px;opacity:.8;margin-top:2px}
