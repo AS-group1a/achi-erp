@@ -8,7 +8,12 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 # converting into a project.
 STAGES = ("prospect", "lead", "site_survey", "measurements")
 STATUSES = ("open", "scheduled", "viewed", "cancelled", "done")
-LOG_TYPES = ("inbound_call", "outbound_call", "quotation", "field", "job", "transfer", "note")
+# What the Add Log dropdown offers. NOT a closed set: the field is validated by
+# length, not by membership, so the UI can add an option without a deploy and the
+# rows already carrying the older values (inbound_call, quotation, note) stay
+# editable instead of failing validation on their next save.
+LOG_TYPES = ("Prospect", "Lead", "Client", "Field", "Fleet", "Yard",
+             "Invoice", "Balance", "General")
 
 
 class ModuleInfo(BaseModel):
@@ -102,7 +107,7 @@ class FileConvertRequest(BaseModel):
 class FileLogCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    log_type: str = Field(default="note", pattern="^(%s)$" % "|".join(LOG_TYPES))
+    log_type: str = Field(default="General", max_length=64)
     category: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
@@ -130,7 +135,7 @@ class FileLogUpdate(BaseModel):
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    log_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(LOG_TYPES))
+    log_type: str | None = Field(default=None, max_length=64)
     category: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
@@ -245,7 +250,7 @@ class QuickLogCreate(BaseModel):
     site: SiteIn | None = None
 
     status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
-    log_type: str = Field(default="inbound_call", pattern="^(%s)$" % "|".join(LOG_TYPES))
+    log_type: str = Field(default="General", max_length=64)
     category: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)

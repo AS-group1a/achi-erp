@@ -653,7 +653,7 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       CITIES=['Achrafieh','Hamra','Mar Mikhael','Verdun','Ras Beirut','Ain el Mreisseh',
               'Gemmayzeh','Sodeco','Badaro','Mazraa'];
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
-      TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
+      TYPES=['Prospect','Lead','Client','Field','Fleet','Yard','Invoice','Balance','General'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
       /* "Pre" pulldown, ported from erp_next_custom tabbed_grid.js (#pg-cm-pre).
          Same option set and order. Upstream marks both Eng and Arch `selected`
@@ -666,6 +666,24 @@ const STATUSES=['open','scheduled','viewed','cancelled','done'],
    Kept in localStorage beside achi_bh; that means per-browser, NOT shared across
    the team. A shared list would need a real endpoint. */
 const PREFIX_KEY='achi_prefixes', PREFIX_ADD='__add__';
+/* Custom log types. The API validates this field by length rather than
+   membership, so a new option needs no deploy — only somewhere to remember it.
+   localStorage means per-browser, like the prefixes; a shared list needs an
+   endpoint. Rows still carrying the older values (inbound_call, note …) are
+   folded in so their dropdown shows what they actually hold. */
+const TYPE_KEY='achi_log_types', TYPE_ADD='__addtype__';
+const customTypes=()=>{ try{ const a=JSON.parse(localStorage.getItem(TYPE_KEY)||'[]');
+  return Array.isArray(a)?a.filter(x=>typeof x==='string'&&x.trim()):[]; }catch(e){ return []; } };
+const allTypes=(current)=>{ const seen=new Set(TYPES), out=[...TYPES];
+  for(const t of [...customTypes(),current]) if(t&&!seen.has(t)){ seen.add(t); out.push(t); }
+  return out; };
+function addType(){
+  const v=(window.prompt('New log type (max 64 characters):')||'').trim();
+  if(!v) return null;
+  if(v.length>64){ fail('Log type must be 64 characters or fewer.'); return null; }
+  if(!allTypes().includes(v)) localStorage.setItem(TYPE_KEY,JSON.stringify([...customTypes(),v]));
+  clearErr(); return v;
+}
 const customPrefixes=()=>{ try{ const a=JSON.parse(localStorage.getItem(PREFIX_KEY)||'[]');
   return Array.isArray(a)?a.filter(x=>typeof x==='string'&&x.trim()):[]; }catch(e){ return []; } };
 const allPrefixes=()=>[...PREFIXES,...customPrefixes().filter(x=>!PREFIXES.includes(x))];
@@ -1220,7 +1238,7 @@ function rxFieldHTML(c,r){
     // Same option sets the grid's popup uses, so the two cannot disagree —
     // minus the "＋ Add new…" sentinel, which is a command, not a value. In a
     // real <select> it is directly selectable and would be saved as a prefix.
-    const opts=(selectPopupChoices(c.edit.kind)||[]).filter(o=>(typeof o==='string'?o:o.value)!==PREFIX_ADD);
+    const opts=(selectPopupChoices(c.edit.kind)||[]).filter(o=>{const v=(typeof o==='string'?o:o.value);return v!==PREFIX_ADD&&v!==TYPE_ADD;});
     control=`<select ${attrs}>${opts.map(o=>{
       const val=typeof o==='string'?o:o.value; const lab=typeof o==='string'?label(o):(o.label||label(o.value));
       return `<option value="${esc(val)}"${String(val)===String(v)?' selected':''}>${esc(lab)}</option>`;}).join('')}</select>`;
@@ -1286,7 +1304,7 @@ function openExpandedRow(explicitId){
     <input class="rx-in" data-nosave placeholder="@handle"></div>
     <button type="button" class="rx-addh" data-nosave>+ Add handle</button></div>`;
   html+=g('rx-g2',
-    F('Log type',    SEL('type',TYPES,val('type'),false)),
+    F('Log type',    SEL('type',allTypes(val('type')),val('type'),false)),
     F('Log subject', SEL('subject',SUBJECTS,'',true,true)));
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +g('rx-g2', F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps'))),
@@ -1733,6 +1751,7 @@ $('rows').addEventListener('click',e=>{
   const kind=el.dataset.dk, st=stateFor(el.dataset.dp); if(!st)return;
   openSelectPopup(el.closest('td'),el,selectPopupChoices(kind),value=>{
     if(kind==='prefix'&&value===PREFIX_ADD){const added=addPrefix();if(!added)return;value=added;}
+    if(kind==='type'&&value===TYPE_ADD){const added=addType();if(!added)return;value=added;}
     st[kind]=value; el.dataset.selectValue=value; el.value=(kind==='category'||kind==='type'||kind==='status')?label(value):value; el.focus();
   });
 });
@@ -2021,7 +2040,7 @@ function selectPopupChoices(kind){
   if(kind==='district') return ['',...DISTRICTS].map(value=>({value,label:value||'—'}));
   if(kind==='city')     return ['',...CITIES].map(value=>({value,label:value||'—'}));
   if(kind==='country')  return ['',...COUNTRIES].map(value=>({value,label:value||'—'}));
-  if(kind==='type') return TYPES.map(value=>({value,label:label(value)}));
+  if(kind==='type') return [...allTypes(),TYPE_ADD].map(value=>({value,label:value===TYPE_ADD?'＋ Add new…':value}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
   return ['',...allPrefixes(),PREFIX_ADD].map(value=>({value,label:value===PREFIX_ADD?'＋ Add new…':value||'—'}));
 }
@@ -2117,6 +2136,7 @@ function openEditor(td){
     finish(true,false); });
   if(frappeSelect) openSelectPopup(td,el,selectPopupChoices(kind),value=>{
     if(kind==='prefix'&&value===PREFIX_ADD){const added=addPrefix();if(!added){ran=true;refreshCell(td);return;}value=added;}
+    if(kind==='type'&&value===TYPE_ADD){const added=addType();if(!added){ran=true;refreshCell(td);return;}value=added;}
     el.dataset.selectValue=value;el.value=(kind==='category'||kind==='type'||kind==='status')?label(value):value;finish(true,false);
   });
 }
