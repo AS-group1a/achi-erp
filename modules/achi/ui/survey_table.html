@@ -106,13 +106,12 @@ const COLS=[
   {k:'num',            h:'#',             w:46,  fixed:true, cls:'num'},
   {k:'status',         h:'Status',        w:130, fixed:true, opts:STATUSES, badge:true},
   {k:'survey_date',    h:'Survey Date',   w:130, fixed:true, type:'date'},
-  {k:'site_location',  h:'Site Location', w:230, fixed:true},
-  {k:'survey_number',  h:'Survey',      tab:0, w:140, ro:true},
-  {k:'assigned_to',    h:'Surveyor',    tab:0, w:150},
+  {k:'assigned_to',    h:'Surveyor',      w:150, fixed:true},
   {k:'customer',       h:'Customer',    tab:0, w:170},
   {k:'lead',           h:'Lead',        tab:0, w:150},
   {k:'contact',        h:'Contact',     tab:0, w:150},
-  {k:'google_maps_url',h:'Google Maps', tab:1, w:180},
+  {k:'site_location',  h:'Site Location',tab:1, w:230},
+  {k:'google_maps_url',h:'Maps',        tab:1, w:180},
   {k:'site_type',      h:'Site Type', tab:1, w:140, opts:SITE_TYPES},
   {k:'roof_type',      h:'Roof Type', tab:1, w:130, opts:ROOF_TYPES},
   {k:'site_area',      h:'Area (m²)',  tab:1, w:110},
@@ -139,13 +138,8 @@ function initials(name){
 const isLink=v=>/^https?:\/\//i.test(String(v||''));
 
 function cell(c,r,i){
-  if(c.k==='num') return `<span class="rn">${i+1}</span>`;
+  if(c.k==='num') return `<a class="rn" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the complete survey form">${i+1}</a>`;
   if(c.k==='owner') return `<span class="avatar" title="${esc(r.owner_name||'')}">${esc(initials(r.owner_name))}</span>`;
-  /* the survey number opens the step-by-step form for this row — that view is
-     still the right one for filling a survey in while standing on the site */
-  if(c.k==='survey_number') return r.survey_number
-    ? `<a class="lnk" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the survey form">${esc(r.survey_number)}</a>`
-    : '<span class="mt">—</span>';
   if(c.formLink){
     const n=c.count?Number(r[c.count]||0):0;
     const present=c.flag?Boolean(r[c.flag]):n>0;
