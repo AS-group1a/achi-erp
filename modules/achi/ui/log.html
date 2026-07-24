@@ -116,7 +116,10 @@
      vertically, reads the way the same record would on a phone. */
   .rx{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
   .rx[hidden]{display:none}
-  .rx-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  /* No border: a 1px border with overflow:hidden + border-radius clips unevenly
+     at the rounded corners (the "clipping" you keep seeing). The shadow alone
+     defines the edge cleanly. */
+  .rx-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
   .rx-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;flex:0 0 auto}
   .rx-head h2{font-size:14px;font-weight:800;letter-spacing:.01em}
   .rx-head p{font-size:11px;opacity:.8;margin-top:2px}
@@ -125,7 +128,15 @@
   .rx-x svg{width:13px;height:13px}
   /* Cards on a soft grey field, the way the design reference reads: each section
      is its own white rounded card rather than a divider between flat rows. */
-  .rx-body{overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:11px;flex:1 1 auto;background:#eef1f6;-webkit-overflow-scrolling:touch}
+  /* inset top shadow gives depth under the header without a box-shadow that the
+     overflow-hidden box would clip into a hard line (the "clipping" seam). */
+  .rx-body{overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:11px;flex:1 1 auto;background:#eef1f6;box-shadow:inset 0 7px 7px -7px rgba(15,35,75,.18);-webkit-overflow-scrolling:touch}
+  .rx-att-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .rx-att-count{font-size:12.5px;color:#475569;font-weight:600}
+  .rx-files-btn{border:1px solid #b9d0f2;border-radius:8px;background:#e8f0fd;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer}
+  .rx-files-btn:hover{background:#dbe8fb}
+  .rx-files-btn:disabled{opacity:.5;cursor:not-allowed}
+  .rx-att-btns{display:flex;gap:7px}
   .rx-sec{background:#fff;border:1px solid #e6ebf3;border-radius:13px;padding:14px 16px;box-shadow:0 1px 3px rgba(20,40,90,.05)}
   .rx-sec h3{font-size:9.5px;font-weight:800;color:#8492ab;letter-spacing:.1em;text-transform:uppercase;margin-bottom:11px}
   /* The cost card picks up the pale-blue working surface from the reference. */
@@ -135,8 +146,8 @@
   .rx-name-wrap{margin-bottom:4px}
   .rx-name{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:transparent;padding:0 0 4px;cursor:pointer;font:inherit}
   .rx-name .nm{font-size:17px;font-weight:800;color:#1d2b45;letter-spacing:-.01em}
-  .rx-name .pen{width:13px;height:13px;flex:0 0 auto;color:#aab4c6}
-  .rx-name:hover .pen{color:var(--navy)}
+  .rx-name svg{width:14px;height:14px;flex:0 0 auto;color:#aab4c6;stroke:currentColor}
+  .rx-name:hover svg{color:var(--navy)}
   .rx-name-edit{display:grid;grid-template-columns:82px 1fr 1fr;gap:7px;max-height:0;opacity:0;overflow:hidden;transition:max-height .26s ease,opacity .18s ease,margin .2s ease}
   .rx-name-wrap.on .rx-name-edit{max-height:64px;opacity:1;margin-bottom:6px}
   .rx-name-wrap.on .rx-name{display:none}
@@ -161,9 +172,13 @@
   .rx-status{font-size:11.5px;color:#475569}
   .rx-status.ok{color:#15803d;font-weight:700}
   .rx-status.bad{color:#ba0517;font-weight:700}
+  .rx-foot-btns{display:flex;align-items:center;gap:8px}
   .rx-save{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:9px 20px;cursor:pointer}
   .rx-save:hover{background:#1F3F80}
   .rx-save:disabled{opacity:.55;cursor:not-allowed}
+  .rx-save-cont{border:1px solid #b9d0f2;border-radius:8px;background:#eff4fd;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;padding:9px 16px;cursor:pointer}
+  .rx-save-cont:hover{background:#dbe8fb}
+  .rx-save-cont:disabled{opacity:.55;cursor:not-allowed}
   /* Drafting a quotation is a secondary action next to Save — same blue family,
      lighter weight, so the primary action stays obvious. */
   .qv-draft.alt{background:#e8f0fd;color:var(--navy);border:1px solid #b9d0f2}
@@ -329,7 +344,9 @@
   .muted{color:var(--tx-3)}
 
   /* description popup — ported from the frappe grid's note workspace, same blue/white */
-  .pg-note-workspace{position:fixed;inset:0;z-index:2147482400;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  /* Above the expand-row sheet (2147482500): the files/drawing workspace opens
+     FROM the sheet, so it has to sit on top of it, not behind. */
+  .pg-note-workspace{position:fixed;inset:0;z-index:2147482600;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
   /* expand affordance on long-text cells: click to type, arrow to open the popup */
   td.notecell{position:relative}
   .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
@@ -434,7 +451,10 @@
       <div class="rx-body" id="rx-body"></div>
       <div class="rx-foot">
         <span class="rx-status" id="rx-status"></span>
-        <button type="button" class="rx-save" id="rx-save">Save</button>
+        <div class="rx-foot-btns">
+          <button type="button" class="rx-save-cont" id="rx-save-cont">Save &amp; continue</button>
+          <button type="button" class="rx-save" id="rx-save">Save</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1049,9 +1069,10 @@ function qvMsg(text,cls){ const m=$('qv-msg'); m.textContent=text||''; m.classNa
    tabs). Add a column to COLS and add its key here to show it in the sheet. */
 const RX_CARDS=[
   {title:'Contact',   name:true, keys:['company','mobile','email']},
-  {title:'Log',       keys:['status','type','category','desc']},
+  {title:'Log',       keys:['status','type','category']},
   {title:'Site',      map:true, keys:['location','country','district','city','street','maps']},
-  {title:'Follow-up', keys:['followup','funotes','updates']},
+  {title:'Follow-up', keys:['followup']},
+  {title:'Notes',     keys:['desc','updates','funotes']},
 ];
 const RX_LONG=new Set(['desc','updates','funotes']);
 
@@ -1114,10 +1135,11 @@ function rxMapHTML(r){
     +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>`;
 }
 
-function openExpandedRow(){
-  // With a row selected, edit it. Without one, open blank and CREATE on save —
-  // rxRowId === null is the flag the save path reads to tell edit from create.
-  const id=selectedLogId();
+function openExpandedRow(explicitId){
+  // With a row selected (or an explicit id from "Save & continue"), edit it.
+  // Without one, open blank and CREATE on save — rxRowId === null is the flag
+  // the save path reads to tell edit from create.
+  const id=explicitId||selectedLogId();
   const r=id?ROWS.find(x=>x.id===id):null;
   rxRowId=r?id:null;
   const isNew=!r;
@@ -1139,6 +1161,19 @@ function openExpandedRow(){
     if(card.map){ inner+=rxMapHTML(src); }
     if(inner) html+=`<div class="rx-sec"><h3>${esc(card.title)}</h3>${inner}</div>`;
   }
+  // Files + drawing reuse the grid's note workspace (openNoteWorkspace), which
+  // already does upload, list, download and the drawing canvas. Attachments hang
+  // off the log, so this needs a saved row — disabled in new mode.
+  const filesAttr=isNew?'disabled title="Save the entry first"':'';
+  const attN=src.attachment_count||0;
+  const attLabel=`${attN} file${attN===1?'':'s'}${src.has_drawing?' · drawing':''}`;
+  html+=`<div class="rx-sec"><h3>Attachments &amp; drawing</h3>
+    <div class="rx-att-row"><span class="rx-att-count">${attLabel}</span>
+      <span class="rx-att-btns">
+        <button type="button" class="rx-files-btn" id="rx-files" ${filesAttr}>Files</button>
+        <button type="button" class="rx-files-btn" id="rx-draw" ${filesAttr}>Drawing</button>
+      </span></div></div>`;
+
   // A quotation is addressed to a saved file, so it can't be drafted before the
   // entry exists. Disabled until the new entry is created.
   const draftAttr=isNew?'disabled title="Save the entry first"':'';
@@ -1191,8 +1226,10 @@ function rxCollectNew(){
     follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
 }
 
-async function rxCreateNew(){
-  const btn=$('rx-save'), st=$('rx-status');
+function rxBusy(on){ const a=$('rx-save'),b=$('rx-save-cont'); if(a)a.disabled=on; if(b)b.disabled=on; }
+
+async function rxCreateNew(keepOpen){
+  const st=$('rx-status');
   const payload=rxCollectNew();
   // A file needs an identity — the same rule the grid enforces before saving.
   if(!(payload.person.first_name||payload.person.last_name||payload.person.company_name)){
@@ -1201,18 +1238,23 @@ async function rxCreateNew(){
   if(payload.person.email && !validEmail(payload.person.email)){
     st.textContent='Invalid email'; st.className='rx-status bad'; return;
   }
-  btn.disabled=true; st.textContent='Saving…'; st.className='rx-status';
+  rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
   try{
-    await api('/logs/',{method:'POST',body:JSON.stringify(payload)});
+    const res=await api('/logs/',{method:'POST',body:JSON.stringify(payload)});
+    const newLogId=res&&res.log&&res.log.id;
     st.textContent='Created'; st.className='rx-status ok';
     await load();                               // pull the new row into the grid
-    setTimeout(closeExpandedRow,700);
-  }catch(e){ st.textContent=e.message||'Could not create'; st.className='rx-status bad'; btn.disabled=false; }
+    rxBusy(false);
+    // Save & continue: reopen on the row we just made so editing carries on,
+    // including files/drawing which need a saved log. Plain Save: close.
+    if(keepOpen && newLogId && ROWS.find(x=>x.id===newLogId)){ openExpandedRow(newLogId); }
+    else setTimeout(closeExpandedRow,700);
+  }catch(e){ st.textContent=e.message||'Could not create'; st.className='rx-status bad'; rxBusy(false); }
 }
 
-async function rxSaveAll(){
-  if(rxRowId===null) return rxCreateNew();        // blank sheet -> create, don't patch
-  const btn=$('rx-save'), st=$('rx-status');
+async function rxSaveAll(keepOpen){
+  if(rxRowId===null) return rxCreateNew(keepOpen);   // blank sheet -> create, don't patch
+  const st=$('rx-status');
   const fields=[...$('rx-body').querySelectorAll('[data-k]')];
   const r=ROWS.find(x=>x.id===rxRowId);
   if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
@@ -1220,15 +1262,22 @@ async function rxSaveAll(){
     const c=COLS.find(x=>x.k===el.dataset.k);
     return c&&c.edit&&String(c.edit.val(r)??'')!==el.value.trim();
   });
-  if(!changed.length){ st.textContent='Nothing to save'; st.className='rx-status'; return; }
-  btn.disabled=true; st.textContent='Saving…'; st.className='rx-status';
+  if(!changed.length){
+    st.textContent='Nothing to save'; st.className='rx-status';
+    if(!keepOpen) setTimeout(closeExpandedRow,500);
+    return;
+  }
+  rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
   // Sequential, not Promise.all: these PATCH the same file and contact, and
   // firing them together interleaves writes to one row.
   let failed=0;
   for(const el of changed){ try{ await rxSave(el); }catch(e){ failed++; } }
-  btn.disabled=false;
+  rxBusy(false);
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
-  else { st.textContent='Saved'; st.className='rx-status ok'; setTimeout(()=>{ st.textContent=''; },2000); }
+  else {
+    st.textContent='Saved'; st.className='rx-status ok'; setTimeout(()=>{ if($('rx-status'))$('rx-status').textContent=''; },2000);
+    if(!keepOpen) setTimeout(closeExpandedRow,450);
+  }
 }
 function closeExpandedRow(){ $('rx').hidden=true; rxRowId=null; }
 
@@ -1541,12 +1590,41 @@ $('qv-collapse').addEventListener('click',()=>{ qvHidden=true; $('qv').hidden=tr
 /* Expanded row. Delegated so the sheet's contents can be rebuilt on every open
    without re-binding: change saves selects/dates immediately, blur saves text
    once the user has stopped typing. */
-$('expand-row').addEventListener('click',openExpandedRow);
+// Arrow-function wrappers: wiring a handler directly passes the click Event as
+// the first argument — openExpandedRow(Event) and rxSaveAll(Event) both misread
+// that truthy Event as "explicit id" / "keep open".
+$('expand-row').addEventListener('click',()=>openExpandedRow());
 $('rx-close').addEventListener('click',closeExpandedRow);
-$('rx-save').addEventListener('click',rxSaveAll);
-// Name line <-> three inline boxes.
+$('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
+$('rx-save-cont').addEventListener('click',()=>rxSaveAll(true));    // save + stay
+
+// Open the shared note workspace for this row and jump straight to a tool, so
+// Files lands on the file picker and Drawing on the canvas — not the notes text.
+function rxOpenWorkspace(action){
+  if(!rxRowId){ fail('Save the entry first, then add files or a drawing.'); return; }
+  const td=document.querySelector(`tr[data-log="${rxRowId}"] td[data-field="description"]`);
+  const col=COLS.find(c=>c.k==='desc');
+  if(!td||!col){ fail('Open the row in the table first, then reopen.'); return; }
+  openNoteWorkspace(td,col);                    // owns upload/list/download/drawing
+  const btn=document.querySelector('.pg-note-workspace '+(action==='draw'?'.pg-note-drawing':'.pg-note-upload'));
+  if(btn) btn.click();                          // synchronous: keeps the user gesture
+}
+// Name line <-> three inline boxes; Files / Drawing open the shared workspace.
 $('rx-body').addEventListener('click',e=>{
-  if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } }
+  if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
+  if(e.target.closest('#rx-files')){ rxOpenWorkspace('files'); return; }
+  if(e.target.closest('#rx-draw')){ rxOpenWorkspace('draw'); return; }
+});
+// Enter advances to the next field, like Tab (Tab still works natively). Skips
+// textareas so notes can hold line breaks, and lets selects open normally.
+$('rx-body').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.shiftKey) return;
+  const t=e.target;
+  if(t.tagName==='TEXTAREA') return;
+  e.preventDefault();
+  const f=[...$('rx-body').querySelectorAll('input,select,textarea,button')].filter(el=>!el.disabled&&el.offsetParent!==null);
+  const i=f.indexOf(t);
+  if(i>=0&&i+1<f.length) f[i+1].focus();
 });
 $('rx-body').addEventListener('focusout',e=>{
   const w=$('rx-name-wrap'); if(!w||!w.classList.contains('on')) return;
