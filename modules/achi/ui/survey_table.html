@@ -25,8 +25,7 @@
         <span class="pt-ind" id="ind"></span>
         <button class="pill-tab on" data-tab="0">Survey Details</button>
         <button class="pill-tab" data-tab="1">Site</button>
-        <button class="pill-tab" data-tab="2">Access</button>
-        <button class="pill-tab" data-tab="3">Visit</button>
+        <button class="pill-tab" data-tab="2">Attachments</button>
       </div>
       <input class="search" id="q" placeholder="Search name, company, city, survey…">
     </div>
@@ -95,35 +94,31 @@ async function api(path,opts={},retried){
   return b;
 }
 
-const STATUSES=['planned','on_site','surveyed','quoted','cancelled'];
-const TRUCK=['unknown','yes','tight','no'];
-const PARKING=['unknown','on_site','street','none'];
+const STATUSES=['Draft','Scheduled','In Progress','Completed','Cancelled'];
+const SITE_TYPES=['','Residential','Commercial','Industrial'];
+const ROOF_TYPES=['','Flat','Pitched','Mixed','N/A'];
 const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 
 /* Fixed columns first, then tab 0..3 — the Call Log's ordering. */
 const COLS=[
-  {k:'num',           h:'#',              w:46,  fixed:true, cls:'num'},
-  {k:'created_at',    h:'Date & Time',    w:132, fixed:true, ro:true},
-  {k:'status',        h:'Status',         w:120, fixed:true, opts:STATUSES, badge:true},
-  {k:'survey_number', h:'Survey',   tab:0, w:130, ro:true},
-  {k:'lead_name',     h:'Name',     tab:0, w:150},
-  {k:'lead_company',  h:'Company',  tab:0, w:170},
-  {k:'lead_mobile',   h:'Mobile',   tab:0, w:150},
-  {k:'owner',         h:'Owner',    tab:0, w:80,  ro:true},
-  {k:'scheduled_for', h:'Scheduled',tab:0, w:150, type:'datetime-local'},
-  {k:'country',       h:'Country',  tab:1, w:100},
-  {k:'district',      h:'District', tab:1, w:120},
-  {k:'city',          h:'City',     tab:1, w:110},
-  {k:'street',        h:'Street',   tab:1, w:140},
-  {k:'site_location', h:'Location', tab:1, w:200},
-  {k:'maps_url',      h:'Google Maps', tab:1, w:150},
-  {k:'truck_access',  h:'Truck Access', tab:2, w:130, opts:TRUCK},
-  {k:'parking',       h:'Parking',      tab:2, w:130, opts:PARKING},
-  {k:'road_notes',    h:'Road Notes',   tab:2, w:220},
-  {k:'access_notes',  h:'Access Notes', tab:2, w:220},
-  {k:'arrived_at',    h:'Arrived',      tab:3, w:150, ro:true},
-  {k:'people_met',    h:'People Met',   tab:3, w:180},
-  {k:'description',   h:'Description',  tab:3, w:320},
+  {k:'num',            h:'#',             w:46,  fixed:true, cls:'num'},
+  {k:'created_at',     h:'Date & Time',   w:132, fixed:true, ro:true},
+  {k:'status',         h:'Status',        w:130, fixed:true, opts:STATUSES, badge:true},
+  {k:'survey_number',  h:'Survey',  tab:0, w:140, ro:true},
+  {k:'customer',       h:'Customer',tab:0, w:170},
+  {k:'lead',           h:'Lead',    tab:0, w:150},
+  {k:'contact',        h:'Contact', tab:0, w:150},
+  {k:'assigned_to',    h:'Assigned',tab:0, w:150},
+  {k:'owner',          h:'Owner',   tab:0, w:80,  ro:true},
+  {k:'survey_date',    h:'Survey Date', tab:0, w:150, type:'datetime-local'},
+  {k:'site_location',  h:'Site Location', tab:1, w:260},
+  {k:'google_maps_url',h:'Google Maps',   tab:1, w:160},
+  {k:'site_type',      h:'Site Type', tab:1, w:140, opts:SITE_TYPES},
+  {k:'roof_type',      h:'Roof Type', tab:1, w:130, opts:ROOF_TYPES},
+  {k:'site_area',      h:'Site Area', tab:1, w:110},
+  {k:'has_drawing',    h:'Drawing',      tab:2, w:100, ro:true, bool:true},
+  {k:'has_measurements',h:'Measurements',tab:2, w:130, ro:true, bool:true},
+  {k:'photo_count',    h:'Photos',       tab:2, w:90,  ro:true},
 ];
 const FIXED=COLS.filter(c=>c.fixed).map(c=>c.k);
 const fixedLeft=k=>COLS.filter(c=>c.fixed).slice(0,FIXED.indexOf(k)).reduce((n,c)=>n+c.w,0);
@@ -150,10 +145,11 @@ function cell(c,r,i){
     ? `<a class="lnk" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the survey form">${esc(r.survey_number)}</a>`
     : '<span class="mt">—</span>';
   const v=r[c.k];
-  if(c.k==='created_at'||c.k==='scheduled_for'||c.k==='arrived_at')
+  if(c.k==='created_at'||c.k==='survey_date')
     return v?`<span class="dt">${esc(fmtDT(v))}</span>`:'<span class="mt">—</span>';
   if(v===null||v===undefined||v==='') return '<span class="mt">—</span>';
-  if(c.badge) return `<span class="badge b-${esc(v)}">${esc(label(v))}</span>`;
+  if(c.bool) return v?'<span class="tag">Yes</span>':'<span class="mt">—</span>';
+  if(c.badge) return `<span class="badge b-${esc(String(v).replace(/\s+/g,'-'))}">${esc(v)}</span>`;
   if(c.opts) return `<span class="tag">${esc(label(v))}</span>`;
   if(isLink(v)) return `<a class="lnk" href="${esc(v)}" target="_blank" rel="noreferrer">${esc(v)}</a>`;
   return esc(v);
@@ -167,8 +163,8 @@ function buildHead(){
    standing on the site. The draft row therefore offers just these; anything else
    would be accepted by the input and silently dropped by the API. Those cells
    fill in by inline edit once the row exists. */
-const CREATABLE=new Set(['lead_name','lead_company','lead_mobile','country','district',
-                         'city','street','site_location','maps_url','scheduled_for']);
+const CREATABLE=new Set(['status','survey_date','assigned_to','customer','lead','contact',
+                         'site_location','google_maps_url','site_type','roof_type','site_area']);
 function draftCell(c){
   if(c.k==='num') return '<span class="rn">+</span>';
   if(c.k==='created_at') return '<span class="mt">now</span>';
@@ -252,7 +248,7 @@ $('q').oninput=()=>{ clearTimeout(searchTimer); searchTimer=setTimeout(render_fi
 let ALL=[];
 function render_filtered(){
   const q=$('q').value.trim().toLowerCase();
-  ROWS=!q?ALL:ALL.filter(r=>[r.lead_name,r.lead_company,r.city,r.survey_number,r.district,r.people_met,r.description]
+  ROWS=!q?ALL:ALL.filter(r=>[r.customer,r.lead,r.contact,r.survey_number,r.site_location,r.assigned_to,r.notes]
     .some(v=>String(v||'').toLowerCase().includes(q)));
   render();
 }
