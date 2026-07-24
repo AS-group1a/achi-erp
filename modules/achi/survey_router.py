@@ -86,6 +86,7 @@ async def list_surveys(
     out = []
     for r in rows:
         o = SurveyRowOut.model_validate(r)
+        o.measurement_count = len(r.measurements)
         o.photo_count = counts.get(r.id, 0)
         out.append(o)
     return out

@@ -445,7 +445,7 @@ class SurveyOut(BaseModel):
 
 
 class SurveyRowOut(BaseModel):
-    """Flat row for the survey list — no attachments, no drawing blob."""
+    """Flat row for the survey list — summaries instead of file/blob payloads."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -462,8 +462,11 @@ class SurveyRowOut(BaseModel):
     site_type: str | None = None
     roof_type: str | None = None
     site_area: float | None = None
+    notes: str | None = None
+    updates: str | None = None
     has_drawing: int = 0
     has_measurements: int = 0
+    measurement_count: int = 0
     photo_count: int = 0
     created_at: datetime
 

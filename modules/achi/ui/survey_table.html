@@ -8,10 +8,11 @@
 <style>
   /* Survey statuses have no badge classes in the shared sheet — the Call Log's
      vocabulary is different. Same shapes, survey colours. */
-  .b-planned{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
-  .b-on_site{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
-  .b-surveyed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
-  .b-quoted{background:#ece9f5;color:#3e3794;border-color:#c5bde8}
+  .b-Draft{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
+  .b-Scheduled{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
+  .b-In-Progress{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
+  .b-Completed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
+  .b-Cancelled{background:#fbeaea;color:#8b2635;border-color:#e8b4bb}
 </style>
 </head>
 <body>
@@ -23,9 +24,10 @@
       <span class="cnt" id="count">· 0</span>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
-        <button class="pill-tab on" data-tab="0">Survey Details</button>
-        <button class="pill-tab" data-tab="1">Site</button>
-        <button class="pill-tab" data-tab="2">Attachments</button>
+        <button class="pill-tab on" data-tab="0">Assignment</button>
+        <button class="pill-tab" data-tab="1">Site Info</button>
+        <button class="pill-tab" data-tab="2">Measurements</button>
+        <button class="pill-tab" data-tab="3">Field Capture</button>
       </div>
       <input class="search" id="q" placeholder="Search name, company, city, survey…">
     </div>
@@ -34,7 +36,7 @@
     </div>
   </div>
 </main>
-<script src="/api/v1/achi/ui/chrome.js?v=14"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=15"></script>
 <script>
 /* Site Survey table — the Call Log grid's contract, on survey rows.
    Design comes from the shared grid.css rather than a copy, so the two tables
@@ -102,23 +104,23 @@ const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase(
 /* Fixed columns first, then tab 0..3 — the Call Log's ordering. */
 const COLS=[
   {k:'num',            h:'#',             w:46,  fixed:true, cls:'num'},
-  {k:'created_at',     h:'Date & Time',   w:132, fixed:true, ro:true},
   {k:'status',         h:'Status',        w:130, fixed:true, opts:STATUSES, badge:true},
-  {k:'survey_number',  h:'Survey',  tab:0, w:140, ro:true},
-  {k:'customer',       h:'Customer',tab:0, w:170},
-  {k:'lead',           h:'Lead',    tab:0, w:150},
-  {k:'contact',        h:'Contact', tab:0, w:150},
-  {k:'assigned_to',    h:'Assigned',tab:0, w:150},
-  {k:'owner',          h:'Owner',   tab:0, w:80,  ro:true},
-  {k:'survey_date',    h:'Survey Date', tab:0, w:150, type:'datetime-local'},
-  {k:'site_location',  h:'Site Location', tab:1, w:260},
-  {k:'google_maps_url',h:'Google Maps',   tab:1, w:160},
+  {k:'survey_date',    h:'Survey Date',   w:130, fixed:true, type:'date'},
+  {k:'site_location',  h:'Site Location', w:230, fixed:true},
+  {k:'survey_number',  h:'Survey',      tab:0, w:140, ro:true},
+  {k:'assigned_to',    h:'Surveyor',    tab:0, w:150},
+  {k:'customer',       h:'Customer',    tab:0, w:170},
+  {k:'lead',           h:'Lead',        tab:0, w:150},
+  {k:'contact',        h:'Contact',     tab:0, w:150},
+  {k:'google_maps_url',h:'Google Maps', tab:1, w:180},
   {k:'site_type',      h:'Site Type', tab:1, w:140, opts:SITE_TYPES},
   {k:'roof_type',      h:'Roof Type', tab:1, w:130, opts:ROOF_TYPES},
-  {k:'site_area',      h:'Site Area', tab:1, w:110},
-  {k:'has_drawing',    h:'Drawing',      tab:2, w:100, ro:true, bool:true},
-  {k:'has_measurements',h:'Measurements',tab:2, w:130, ro:true, bool:true},
-  {k:'photo_count',    h:'Photos',       tab:2, w:90,  ro:true},
+  {k:'site_area',      h:'Area (m²)',  tab:1, w:110},
+  {k:'measurements',   h:'Measurements',tab:2, w:150, ro:true, formLink:true, count:'measurement_count'},
+  {k:'notes',          h:'Notes',       tab:3, w:260},
+  {k:'updates',        h:'Updates',     tab:3, w:260},
+  {k:'drawing',        h:'Drawing',     tab:3, w:110, ro:true, formLink:true, flag:'has_drawing'},
+  {k:'attachments',    h:'Files',       tab:3, w:110, ro:true, formLink:true, count:'photo_count'},
 ];
 const FIXED=COLS.filter(c=>c.fixed).map(c=>c.k);
 const fixedLeft=k=>COLS.filter(c=>c.fixed).slice(0,FIXED.indexOf(k)).reduce((n,c)=>n+c.w,0);
@@ -144,8 +146,16 @@ function cell(c,r,i){
   if(c.k==='survey_number') return r.survey_number
     ? `<a class="lnk" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the survey form">${esc(r.survey_number)}</a>`
     : '<span class="mt">—</span>';
+  if(c.formLink){
+    const n=c.count?Number(r[c.count]||0):0;
+    const present=c.flag?Boolean(r[c.flag]):n>0;
+    const text=c.count?(n?`${n} · Edit`:'Add'):(present?'Edit':'Add');
+    return `<a class="lnk" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open this field in the survey form">${esc(text)}</a>`;
+  }
   const v=r[c.k];
-  if(c.k==='created_at'||c.k==='survey_date')
+  if(c.k==='survey_date')
+    return v?`<span class="dt">${esc(String(v).slice(0,10))}</span>`:'<span class="mt">—</span>';
+  if(c.k==='created_at')
     return v?`<span class="dt">${esc(fmtDT(v))}</span>`:'<span class="mt">—</span>';
   if(v===null||v===undefined||v==='') return '<span class="mt">—</span>';
   if(c.bool) return v?'<span class="tag">Yes</span>':'<span class="mt">—</span>';
@@ -169,7 +179,7 @@ function draftCell(c){
   if(c.k==='num') return '<span class="rn">+</span>';
   if(c.k==='created_at') return '<span class="mt">now</span>';
   if(c.k==='owner') return '<span class="mt">you</span>';
-  if(c.k==='status') return '<span class="badge b-planned">Planned</span>';
+  if(c.k==='status') return '<span class="badge b-Draft">Draft</span>';
   if(!CREATABLE.has(c.k)) return '<span class="mt" title="Filled in on site, after the survey exists">—</span>';
   const v=esc(draft[c.k]??'');
   if(c.opts) return `<select class="din" data-dk="${c.k}">${c.opts.map(o=>`<option value="${esc(o)}"${o===(draft[c.k]||'')?' selected':''}>${esc(label(o))}</option>`).join('')}</select>`;
