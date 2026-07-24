@@ -144,6 +144,11 @@ const isLink=v=>/^https?:\/\//i.test(String(v||''));
 function cell(c,r,i){
   if(c.k==='num') return `<span class="rn">${i+1}</span>`;
   if(c.k==='owner') return `<span class="avatar" title="${esc(r.owner_name||'')}">${esc(initials(r.owner_name))}</span>`;
+  /* the survey number opens the step-by-step form for this row — that view is
+     still the right one for filling a survey in while standing on the site */
+  if(c.k==='survey_number') return r.survey_number
+    ? `<a class="lnk" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the survey form">${esc(r.survey_number)}</a>`
+    : '<span class="mt">—</span>';
   const v=r[c.k];
   if(c.k==='created_at'||c.k==='scheduled_for'||c.k==='arrived_at')
     return v?`<span class="dt">${esc(fmtDT(v))}</span>`:'<span class="mt">—</span>';
