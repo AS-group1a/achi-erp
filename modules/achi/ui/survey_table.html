@@ -205,7 +205,17 @@ $('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.d
   const st=el.dataset.dp==='top'?draft:bottomDrafts[Number(String(el.dataset.dp).split('-')[1])];
   if(st) st[el.dataset.dk]=el.value; });
 $('rows').addEventListener('keydown',e=>{ const el=e.target;
-  if(el.classList&&el.classList.contains('din')&&e.key==='Enter'){ e.preventDefault(); commitDraft(el.dataset.dp); } });
+  if(!(el.classList&&el.classList.contains('din'))||e.key!=='Enter') return;
+  /* Enter walks the draft row field by field and commits on the last one — the
+     Call Log's behaviour. Saving from wherever the cursor sat made entering a
+     record feel wrong. Scoped to the row being typed in, so a second draft row
+     does not pull focus out of the first. */
+  e.preventDefault();
+  const dp=el.dataset.dp;
+  const ins=[...$('rows').querySelectorAll(dp?`.din[data-dp="${dp}"]`:'tr.draft .din')];
+  const i=ins.indexOf(el);
+  if(i>-1&&i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); }
+  else commitDraft(dp); });
 function addBottomRow(){
   bottomDrafts.push({});
   render();
@@ -320,6 +330,28 @@ async function load(){
   try{ ALL=await api('/surveys/'); render_filtered(); clearErr(); }
   catch(e){ fail(e.message); }
 }
+/* Shift+R adds a row, ported from the Call Log (itself from tabbed_grid.js).
+   One document-level capture listener that CLICKS the button, so keyboard and
+   mouse share one path. Accepts the physical KeyR as well as the produced
+   "r"/"R" so non-QWERTY layouts work. */
+function isTypingTarget(t){
+  if(!t) return false;
+  if(t.isContentEditable) return true;
+  const tag=(t.tagName||'').toUpperCase();
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return true;
+  return !!(t.closest && t.closest('input,textarea,select,[contenteditable]'));
+}
+document.addEventListener('keydown',e=>{
+  if(!e.shiftKey||e.ctrlKey||e.metaKey||e.altKey) return;
+  if(e.code!=='KeyR' && String(e.key||'').toLowerCase()!=='r') return;
+  if(e.repeat) return;                                  // ignore held-key repeat
+  if(isTypingTarget(e.target)) return;                  // not while typing a cell
+  if($('rows').querySelector('.cellinput')) return;     // not while an editor is open
+  const btn=$('add-row'); if(!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  btn.click();
+},true);
+
 buildHead(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
 else load();
