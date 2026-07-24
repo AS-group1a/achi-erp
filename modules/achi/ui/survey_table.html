@@ -20,8 +20,11 @@
   <div class="err" id="err"></div>
   <div class="shell">
     <div class="nav">
-      <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
-      <span class="cnt" id="count">· 0</span>
+      <div class="nav-actions">
+        <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
+        <span class="cnt" id="count">· 0</span>
+        <button class="tb-del" id="btn-del" type="button" title="Delete selected surveys">Delete <span class="tb-cnt" id="del-count">0</span></button>
+      </div>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
         <button class="pill-tab on" data-tab="0">Assignment</button>
@@ -29,7 +32,9 @@
         <button class="pill-tab" data-tab="2">Measurements</button>
         <button class="pill-tab" data-tab="3">Field Capture</button>
       </div>
-      <input class="search" id="q" placeholder="Search name, company, city, survey…">
+      <div class="nav-right">
+        <input class="search" id="q" placeholder="Search surveys…">
+      </div>
     </div>
     <div class="tscroll" id="touter">
       <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
@@ -125,7 +130,8 @@ const FIXED=COLS.filter(c=>c.fixed).map(c=>c.k);
 const fixedLeft=k=>COLS.filter(c=>c.fixed).slice(0,FIXED.indexOf(k)).reduce((n,c)=>n+c.w,0);
 const colStyle=c=>`${c.fixed?`position:sticky;left:${fixedLeft(c.k)}px;`:''}min-width:${c.w}px;width:${c.w}px;max-width:${c.w}px;`;
 
-let ROWS=[], draft={};
+let ROWS=[], draft={}, bottomDrafts=[];
+const selectedRows=new Set();
 const fmtDT=s=>{ if(!s)return ''; const d=new Date(s); if(isNaN(d))return String(s).slice(0,16).replace('T',' ');
   const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 /* Owner initials: first letter of first name + first of last, X when unknown —
@@ -160,7 +166,7 @@ function cell(c,r,i){
 }
 function buildHead(){
   $('thead').innerHTML=COLS.map(c=>
-    `<th data-tab="${c.tab??''}" class="${c.fixed?'pg-f ':''}${c.cls||''}" style="${colStyle(c)}">${esc(c.h)}</th>`).join('');
+    `<th data-k="${c.k}" data-tab="${c.tab??''}" class="${c.fixed?'pg-f ':''}${c.cls||''}${c.k==='num'?' num-head':''}" style="${colStyle(c)}"${c.k==='num'?' role="button" tabindex="0" aria-pressed="false" title="Select all rows"':''}>${esc(c.h)}</th>`).join('');
 }
 /* POST /surveys/ takes identity and site only — the access and visit answers are
    update-only, because a survey is scheduled first and filled in once someone is
@@ -169,40 +175,94 @@ function buildHead(){
    fill in by inline edit once the row exists. */
 const CREATABLE=new Set(['status','survey_date','assigned_to','customer','lead','contact',
                          'site_location','google_maps_url','site_type','roof_type','site_area']);
-function draftCell(c){
+function draftCell(c,st,dp){
   if(c.k==='num') return '<span class="rn">+</span>';
   if(c.k==='created_at') return '<span class="mt">now</span>';
   if(c.k==='owner') return '<span class="mt">you</span>';
   if(c.k==='status') return '<span class="badge b-Draft">Draft</span>';
   if(!CREATABLE.has(c.k)) return '<span class="mt" title="Filled in on site, after the survey exists">—</span>';
-  const v=esc(draft[c.k]??'');
-  if(c.opts) return `<select class="din" data-dk="${c.k}">${c.opts.map(o=>`<option value="${esc(o)}"${o===(draft[c.k]||'')?' selected':''}>${esc(label(o))}</option>`).join('')}</select>`;
-  return `<input class="din" data-dk="${c.k}" type="${c.type||'text'}" value="${v}">`;
+  const v=esc(st[c.k]??'');
+  if(c.opts) return `<select class="din" data-dp="${dp}" data-dk="${c.k}">${c.opts.map(o=>`<option value="${esc(o)}"${o===(st[c.k]||'')?' selected':''}>${esc(label(o))}</option>`).join('')}</select>`;
+  return `<input class="din" data-dp="${dp}" data-dk="${c.k}" type="${c.type||'text'}" value="${v}">`;
 }
 function render(){
   $('count').textContent=`· ${ROWS.length}`;
   $('rows').innerHTML=[
-    `<tr class="draft dtop">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c)}</td>`).join('')}</tr>`,
-    ROWS.length?ROWS.map((r,i)=>`<tr class="data" data-id="${esc(r.id)}">${COLS.map(c=>{
+    `<tr class="draft dtop" data-dp="top">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c,draft,'top')}</td>`).join('')}</tr>`,
+    ROWS.length?ROWS.map((r,i)=>`<tr class="data selectable-row${selectedRows.has(r.id)?' row-selected':''}" data-id="${esc(r.id)}">${COLS.map(c=>{
       const ed=(c.ro||c.k==='num')?'':`data-edit data-k="${c.k}"`;
       const cls=[c.fixed?'pg-f':'',c.cls||'',(c.ro||c.k==='num')?'':(c.opts?'sel':'ed')].filter(Boolean).join(' ');
-      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${ed}>${cell(c,r,i)}</td>`;}).join('')}</tr>`).join('')
+      const select=c.k==='num'?`data-select-row="${esc(r.id)}" title="Select this row"`:'';
+      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${i+1}</span>`:cell(c,r,i)}</td>`;}).join('')}</tr>`).join('')
       :`<tr><td colspan="${COLS.length}" class="empty">No surveys yet — type in the highlighted row; Enter saves.</td></tr>`,
+    bottomDrafts.map((st,i)=>`<tr class="draft" data-dp="bottom-${i}">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c,st,'bottom-'+i)}</td>`).join('')}</tr>`).join(''),
   ].join('');
+  refreshSelection();
 }
 
 /* draft: type, Enter saves */
-$('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.dk) draft[el.dataset.dk]=el.value; });
+$('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.dataset.dk)) return;
+  const st=el.dataset.dp==='top'?draft:bottomDrafts[Number(String(el.dataset.dp).split('-')[1])];
+  if(st) st[el.dataset.dk]=el.value; });
 $('rows').addEventListener('keydown',e=>{ const el=e.target;
-  if(el.classList&&el.classList.contains('din')&&e.key==='Enter'){ e.preventDefault(); commitDraft(); } });
-$('add-row').addEventListener('click',commitDraft);
-async function commitDraft(){
-  if(!Object.values(draft).some(v=>String(v||'').trim())) return;
-  const body=Object.fromEntries(Object.entries(draft).filter(([k,v])=>CREATABLE.has(k)&&String(v||'').trim()));
+  if(el.classList&&el.classList.contains('din')&&e.key==='Enter'){ e.preventDefault(); commitDraft(el.dataset.dp); } });
+function addBottomRow(){
+  bottomDrafts.push({});
+  render();
+  requestAnimationFrame(()=>{
+    const row=$('rows').querySelector(`tr[data-dp="bottom-${bottomDrafts.length-1}"]`);
+    if(!row) return;
+    const box=$('touter');
+    box.scrollTo({top:box.scrollHeight,left:box.scrollLeft,behavior:'smooth'});
+    const input=row.querySelector('[data-dk="assigned_to"]');
+    if(input) input.focus({preventScroll:true});
+  });
+}
+$('add-row').addEventListener('click',addBottomRow);
+async function commitDraft(dp='top'){
+  const st=dp==='top'?draft:bottomDrafts[Number(String(dp).split('-')[1])];
+  if(!st||!Object.values(st).some(v=>String(v||'').trim())) return;
+  const body=Object.fromEntries(Object.entries(st).filter(([k,v])=>CREATABLE.has(k)&&String(v||'').trim()));
   if(!Object.keys(body).length) return;
-  try{ await api('/surveys/',{method:'POST',body:JSON.stringify(body)}); draft={}; await load(); clearErr(); }
+  try{ const made=await api('/surveys/',{method:'POST',body:JSON.stringify(body)});
+    if(dp==='top') draft={}; else bottomDrafts.splice(Number(String(dp).split('-')[1]),1);
+    await load(); clearErr();
+    requestAnimationFrame(()=>{ const row=$('rows').querySelector(`tr[data-id="${CSS.escape(String(made.id||''))}"]`); if(row) row.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'}); });
+  }
   catch(e){ fail(e.message); }
 }
+
+function visibleRows(){ return [...$('rows').querySelectorAll('tr.selectable-row')]; }
+function allRowsSelected(){ const rows=visibleRows(); return rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.id)); }
+function refreshSelection(){
+  const all=allRowsSelected(), head=$('thead').querySelector('th[data-k="num"]');
+  if(head){ head.classList.toggle('on',all); head.setAttribute('aria-pressed',String(all)); head.title=all?'Unselect all rows':'Select all rows'; }
+  const n=selectedRows.size, del=$('btn-del');
+  del.classList.toggle('on',n>0); $('del-count').textContent=n;
+}
+function toggleRow(id){
+  if(selectedRows.has(id)) selectedRows.delete(id); else selectedRows.add(id);
+  render();
+}
+function toggleAll(){
+  const rows=visibleRows(), all=allRowsSelected();
+  rows.forEach(tr=>{ if(all) selectedRows.delete(tr.dataset.id); else selectedRows.add(tr.dataset.id); });
+  render();
+}
+$('thead').addEventListener('click',e=>{ if(e.target.closest('th[data-k="num"]')) toggleAll(); });
+$('thead').addEventListener('keydown',e=>{ if(e.target.closest('th[data-k="num"]')&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); toggleAll(); } });
+$('rows').addEventListener('click',e=>{ const td=e.target.closest('td[data-select-row]'); if(td){ e.preventDefault(); toggleRow(td.dataset.selectRow); } });
+async function deleteSelected(){
+  const ids=[...selectedRows];
+  if(!ids.length||!window.confirm(`Delete ${ids.length} selected survey${ids.length===1?'':'s'}?`)) return;
+  const del=$('btn-del'); del.disabled=true;
+  try{
+    for(const id of ids){ await api('/surveys/'+encodeURIComponent(id),{method:'DELETE'}); selectedRows.delete(id); }
+    await load(); clearErr();
+  }catch(e){ fail(e.message); }
+  finally{ del.disabled=false; refreshSelection(); }
+}
+$('btn-del').addEventListener('click',deleteSelected);
 
 /* inline edit, one cell at a time */
 $('rows').addEventListener('click',e=>{
