@@ -583,6 +583,16 @@ function showSavedFeedback(){
 }
 const showInvalidEmail=input=>showFeedback('Invalid Email','Please Enter a valid Email address',input);
 const showInvalidMobile=input=>showFeedback('Invalid Mobile','Please Enter a valid Mobile number',input);
+/* Picklists for the expanded row. Free text on these fields let the same place
+   arrive spelled three ways, which made the grid's filters unreliable. The
+   values are the ones the team uses; DISTRICTS/CITIES are Lebanon-specific
+   because that is where the sites are. */
+const ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
+      SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
+                'Off-hire','Adaptation','Inspection','Complaint','Invoice'],
+      DISTRICTS=['Beirut','Mount Lebanon','North','South','Bekaa'],
+      CITIES=['Achrafieh','Hamra','Mar Mikhael','Verdun','Ras Beirut','Ain el Mreisseh',
+              'Gemmayzeh','Sodeco','Badaro','Mazraa'];
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['inbound_call','outbound_call','quotation','field','job','transfer','note'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
@@ -756,9 +766,9 @@ const COLS=[
   {k:'mobile', h:'Mobile',         tab:1, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
   {k:'email',  h:'Email',          tab:1, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
   {k:'maps',   h:'Maps',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
-  {k:'country',h:'Country',        tab:2, w:110, draft:'text', edit:{kind:'text',target:'file',field:'country',val:r=>r.country||''}},
-  {k:'district',h:'District',      tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'district',val:r=>r.district||''}},
-  {k:'city',   h:'City',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'city',val:r=>r.city||''}},
+  {k:'country',h:'Country',        tab:2, w:110, draft:'text', edit:{kind:'country',target:'file',field:'country',val:r=>r.country||''}},
+  {k:'district',h:'District',      tab:2, w:120, draft:'text', edit:{kind:'district',target:'file',field:'district',val:r=>r.district||''}},
+  {k:'city',   h:'City',           tab:2, w:120, draft:'text', edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
   {k:'street', h:'Street',         tab:2, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
   {k:'updates',h:'Updates',        tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
   {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
@@ -948,7 +958,7 @@ function draftRowHTML(dp,st,isTop,rowNumber){
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
+    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix','role','subject','district','city','country'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
     return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
@@ -1147,7 +1157,7 @@ function rxFieldHTML(c,r){
   let control;
   if(RX_LONG.has(c.k)) control=`<textarea ${attrs}>${esc(v)}</textarea>`;
   else if(c.edit&&c.edit.kind==='date') control=`<input type="date" ${attrs} value="${esc(v)}">`;
-  else if(c.edit&&(c.edit.kind==='status'||c.edit.kind==='type'||c.edit.kind==='category'||c.edit.kind==='prefix')){
+  else if(c.edit&&['status','type','category','prefix','role','subject','district','city','country'].includes(c.edit.kind)){
     // Same option sets the grid's popup uses, so the two cannot disagree —
     // minus the "＋ Add new…" sentinel, which is a command, not a value. In a
     // real <select> it is directly selectable and would be saved as a prefix.
@@ -1889,6 +1899,14 @@ function nextEditableInRow(td){ let n=td.nextElementSibling; while(n){ if(n.hasA
 function refreshCell(td){ const tr=td.closest('tr'); const r=ROWS.find(x=>x.id===tr.dataset.log); const c=COLS.find(x=>x.k===td.dataset.k); if(r&&c){ td.innerHTML=cellHTML(c,r,+tr.dataset.i); } }
 function selectPopupChoices(kind){
   if(kind==='status') return STATUSES.map(value=>({value,label:label(value)}));
+  /* Blank first: these are optional, and without it a row could not be cleared
+     once set. Values are shown verbatim — they are proper nouns, not the
+     snake_case the other lists carry. */
+  if(kind==='role')     return ['',...ROLES].map(value=>({value,label:value||'—'}));
+  if(kind==='subject')  return ['',...SUBJECTS].map(value=>({value,label:value||'—'}));
+  if(kind==='district') return ['',...DISTRICTS].map(value=>({value,label:value||'—'}));
+  if(kind==='city')     return ['',...CITIES].map(value=>({value,label:value||'—'}));
+  if(kind==='country')  return ['',...COUNTRIES].map(value=>({value,label:value||'—'}));
   if(kind==='type') return TYPES.map(value=>({value,label:label(value)}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
   return ['',...allPrefixes(),PREFIX_ADD].map(value=>({value,label:value===PREFIX_ADD?'＋ Add new…':value||'—'}));
