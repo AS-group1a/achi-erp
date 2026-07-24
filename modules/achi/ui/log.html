@@ -123,10 +123,27 @@
   .rx-x{border:0;background:rgba(255,255,255,.16);color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
   .rx-x:hover{background:rgba(255,255,255,.3)}
   .rx-x svg{width:13px;height:13px}
-  .rx-body{overflow-y:auto;padding:4px 0 0;flex:1 1 auto;-webkit-overflow-scrolling:touch}
-  .rx-sec{border-bottom:1px solid #eef1f6;padding:12px 18px 14px}
-  .rx-sec:last-child{border-bottom:0}
-  .rx-sec h3{font-size:10px;font-weight:800;color:#64748b;letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px}
+  /* Cards on a soft grey field, the way the design reference reads: each section
+     is its own white rounded card rather than a divider between flat rows. */
+  .rx-body{overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:11px;flex:1 1 auto;background:#eef1f6;-webkit-overflow-scrolling:touch}
+  .rx-sec{background:#fff;border:1px solid #e6ebf3;border-radius:13px;padding:14px 16px;box-shadow:0 1px 3px rgba(20,40,90,.05)}
+  .rx-sec h3{font-size:9.5px;font-weight:800;color:#8492ab;letter-spacing:.1em;text-transform:uppercase;margin-bottom:11px}
+  /* The cost card picks up the pale-blue working surface from the reference. */
+  .rx-sec.cost{background:#eff4fd;border-color:#cfe0f7}
+  /* Contact name: one line by default, splits into prefix/first/last on click.
+     max-height animates the reveal; the display line hides while editing. */
+  .rx-name-wrap{margin-bottom:4px}
+  .rx-name{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:transparent;padding:0 0 4px;cursor:pointer;font:inherit}
+  .rx-name .nm{font-size:17px;font-weight:800;color:#1d2b45;letter-spacing:-.01em}
+  .rx-name .pen{width:13px;height:13px;flex:0 0 auto;color:#aab4c6}
+  .rx-name:hover .pen{color:var(--navy)}
+  .rx-name-edit{display:grid;grid-template-columns:82px 1fr 1fr;gap:7px;max-height:0;opacity:0;overflow:hidden;transition:max-height .26s ease,opacity .18s ease,margin .2s ease}
+  .rx-name-wrap.on .rx-name-edit{max-height:64px;opacity:1;margin-bottom:6px}
+  .rx-name-wrap.on .rx-name{display:none}
+  .rx-name-edit input,.rx-name-edit select{font:inherit;font-size:13px;padding:8px;border:1px solid #cbd5e1;border-radius:7px;width:100%;background:#fff}
+  .rx-name-edit input:focus,.rx-name-edit select:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .rx-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .rx-badge{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);background:#e8f0fd;border:1px solid #cfe0f7;border-radius:6px;padding:3px 8px}
   .rx-f{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
   .rx-f>label{font-size:10.5px;font-weight:700;color:#475569;letter-spacing:.02em}
   .rx-f input,.rx-f textarea,.rx-f select{font:inherit;font-size:13px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--tx);width:100%}
@@ -1025,14 +1042,45 @@ function qvMsg(text,cls){ const m=$('qv-msg'); m.textContent=text||''; m.classNa
    rather than linked, and quotation drafting at the bottom. Sections come from
    COLS' own tab numbers, so a column added to the table shows up here without
    anyone remembering to update this. */
-const RX_SECTIONS=[
-  {tab:null,title:'Status'},
-  {tab:0,   title:'Log details'},
-  {tab:1,   title:'Contact'},
-  {tab:2,   title:'Site'},
-  {tab:3,   title:'Follow-up'},
+/* The sheet groups fields the way the design reference does — Contact, Log,
+   Site, Follow-up — by explicit column key rather than the table's tab numbers,
+   because the on-phone reading order is not the same as the grid's tab order
+   (a name and its phone belong together here; in the grid they sit in different
+   tabs). Add a column to COLS and add its key here to show it in the sheet. */
+const RX_CARDS=[
+  {title:'Contact',   name:true, keys:['company','mobile','email']},
+  {title:'Log',       keys:['status','type','category','desc']},
+  {title:'Site',      map:true, keys:['location','country','district','city','street','maps']},
+  {title:'Follow-up', keys:['followup','funotes','updates']},
 ];
 const RX_LONG=new Set(['desc','updates','funotes']);
+
+/* The name as one line — "Mr Test arara" — that splits into three inline boxes
+   (prefix / first / last) when tapped. The boxes carry the same data-k keys as
+   the grid columns, so they save through the exact same path as every other
+   field; nothing special downstream. */
+function rxNameHTML(src){
+  const pre=src.prefix||'', first=src.first_name||'', last=src.last_name||'';
+  const disp=[pre,first,last].filter(Boolean).join(' ')||'Add name';
+  const opts=(selectPopupChoices('prefix')||[]).filter(o=>(typeof o==='string'?o:o.value)!==PREFIX_ADD);
+  const prefixSel=`<select data-k="prefix" id="rx-prefix">${opts.map(o=>{
+    const v=typeof o==='string'?o:o.value; const l=typeof o==='string'?(o||'—'):(o.label||o.value||'—');
+    return `<option value="${esc(v)}"${String(v)===String(pre)?' selected':''}>${esc(l)}</option>`;}).join('')}</select>`;
+  return `<div class="rx-name-wrap" id="rx-name-wrap">
+    <button type="button" class="rx-name" id="rx-name-toggle"><span class="nm" id="rx-name-disp">${esc(disp)}</span>${SVG.pen}</button>
+    <div class="rx-name-edit">${prefixSel}`
+    +`<input type="text" data-k="first" id="rx-first" placeholder="First" value="${esc(first)}">`
+    +`<input type="text" data-k="last" id="rx-last" placeholder="Last" value="${esc(last)}"></div></div>`;
+}
+/* Linked badges from what the row actually has — never fabricated. */
+function rxBadgesHTML(r){
+  const b=[];
+  if(r.company_contact_id) b.push('Company contact');
+  if(r.has_drawing) b.push('Linked: Site Survey');
+  if(r.attachment_count>0) b.push(`${r.attachment_count} attachment${r.attachment_count>1?'s':''}`);
+  if(!b.length) return '';
+  return `<div class="rx-badges">${b.map(x=>`<span class="rx-badge">${esc(x)}</span>`).join('')}</div>`;
+}
 let rxRowId=null;
 
 function rxFieldHTML(c,r){
@@ -1084,16 +1132,17 @@ function openExpandedRow(){
   }
 
   let html='';
-  for(const s of RX_SECTIONS){
-    const cols=COLS.filter(c=>c.tab===s.tab&&c.edit);
-    if(!cols.length) continue;
-    html+=`<div class="rx-sec"><h3>${esc(s.title)}</h3>${cols.map(c=>rxFieldHTML(c,src)).join('')}</div>`;
+  for(const card of RX_CARDS){
+    let inner='';
+    if(card.name){ inner+=rxBadgesHTML(src)+rxNameHTML(src); }
+    inner+=card.keys.map(k=>{ const c=COLS.find(x=>x.k===k&&x.edit); return c?rxFieldHTML(c,src):''; }).join('');
+    if(card.map){ inner+=rxMapHTML(src); }
+    if(inner) html+=`<div class="rx-sec"><h3>${esc(card.title)}</h3>${inner}</div>`;
   }
-  html+=`<div class="rx-sec"><h3>Location</h3>${rxMapHTML(src)}</div>`;
   // A quotation is addressed to a saved file, so it can't be drafted before the
   // entry exists. Disabled until the new entry is created.
   const draftAttr=isNew?'disabled title="Save the entry first"':'';
-  html+=`<div class="rx-sec"><h3>Quotation</h3>
+  html+=`<div class="rx-sec cost"><h3>Cost estimate</h3>
     <div class="rx-f"><label for="rx-q-area">Area (m²)</label><input id="rx-q-area" type="number" min="0" step="0.01"></div>
     <div class="rx-f"><label for="rx-q-weeks">Weeks</label><input id="rx-q-weeks" type="number" min="0" step="0.5"></div>
     <div class="rx-f"><label for="rx-q-rate">Rate /m²/week</label><input id="rx-q-rate" type="number" min="0" step="0.01"></div>
@@ -1103,7 +1152,7 @@ function openExpandedRow(){
     <div class="rx-f"><label for="rx-q-discount">Discount</label><input id="rx-q-discount" type="number" min="0" step="0.01"></div>
     <div class="rx-f"><label for="rx-q-vat">VAT %</label><input id="rx-q-vat" type="number" min="0" step="0.1"></div>
     <div class="rx-f"><label for="rx-q-scope">Scope of work</label><textarea id="rx-q-scope" rows="2"></textarea></div>
-    <div class="qv-foot" style="border-top-color:#e2e8f0">
+    <div class="qv-foot" style="border-top-color:#cfe0f7">
       <div class="qv-totals">
         <span>Subtotal <b id="rx-q-sub">0.00</b></span>
         <span>VAT <b id="rx-q-vatv">0.00</b></span>
@@ -1190,18 +1239,19 @@ async function rxSave(el){
   const c=COLS.find(x=>x.k===el.dataset.k); if(!c||!c.edit||!rxRowId) return;
   const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
   const note=$(el.id+'-note'), field=c.edit.field, target=c.edit.target;
+  const setNote=(t,cls)=>{ if(note){ note.textContent=t; note.className='rx-note '+(cls||''); } };
   const nv=el.value.trim();
   if(String(c.edit.val(r)??'')===nv) return;                // nothing changed
-  if(field==='email'&&nv&&!validEmail(nv)){ note.textContent='Invalid email'; note.className='rx-note rx-err'; return; }
+  if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); return; }
   try{
     if(target==='file') await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
     else if(target==='contact') await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
     else await api('/logs/'+r.id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
     ROWS.forEach(x=>{ if((target==='log'&&x.id===r.id)||(target!=='log'&&x.file_id===r.file_id)) x[field]=nv; });
-    note.textContent='Saved'; note.className='rx-note rx-saved';
-    setTimeout(()=>{ if(note) note.textContent=''; },1600);
+    setNote('Saved','rx-saved');
+    setTimeout(()=>setNote(''),1600);
     render();                                                // keep the grid in step
-  }catch(e){ note.textContent=e.message||'Could not save'; note.className='rx-note rx-err'; }
+  }catch(e){ setNote(e.message||'Could not save','rx-err'); }
 }
 function rxTotals(){
   const n=id=>{ const v=parseFloat(($(id)||{}).value); return isNaN(v)?0:v; };
@@ -1494,6 +1544,20 @@ $('qv-collapse').addEventListener('click',()=>{ qvHidden=true; $('qv').hidden=tr
 $('expand-row').addEventListener('click',openExpandedRow);
 $('rx-close').addEventListener('click',closeExpandedRow);
 $('rx-save').addEventListener('click',rxSaveAll);
+// Name line <-> three inline boxes.
+$('rx-body').addEventListener('click',e=>{
+  if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } }
+});
+$('rx-body').addEventListener('focusout',e=>{
+  const w=$('rx-name-wrap'); if(!w||!w.classList.contains('on')) return;
+  // Collapse only once focus has actually left the name block (a tick later, so
+  // tabbing prefix->first->last does not keep snapping it shut).
+  setTimeout(()=>{ if(w.contains(document.activeElement)) return;
+    const nm=[$('rx-prefix')?.value,$('rx-first')?.value,$('rx-last')?.value].map(x=>(x||'').trim()).filter(Boolean).join(' ')||'Add name';
+    const d=$('rx-name-disp'); if(d) d.textContent=nm;
+    w.classList.remove('on');
+  },0);
+});
 $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 $('rx-body').addEventListener('change',e=>{
