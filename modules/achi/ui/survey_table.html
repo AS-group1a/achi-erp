@@ -21,6 +21,7 @@
   <div class="shell">
     <div class="nav">
       <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
+      <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">× Delete <span id="del-count">0</span></button>
       <span class="cnt" id="count">· 0</span>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
@@ -160,7 +161,7 @@ function cell(c,r,i){
 }
 function buildHead(){
   $('thead').innerHTML=COLS.map(c=>
-    `<th data-tab="${c.tab??''}" class="${c.fixed?'pg-f ':''}${c.cls||''}" style="${colStyle(c)}">${esc(c.h)}</th>`).join('');
+    `<th data-tab="${c.tab??''}" data-k="${c.k}" class="${c.fixed?'pg-f ':''}${c.cls||''}" style="${colStyle(c)}">${esc(c.h)}</th>`).join('');
 }
 /* POST /surveys/ takes identity and site only — the access and visit answers are
    update-only, because a survey is scheduled first and filled in once someone is
@@ -179,22 +180,64 @@ function draftCell(c){
   if(c.opts) return `<select class="din" data-dk="${c.k}">${c.opts.map(o=>`<option value="${esc(o)}"${o===(draft[c.k]||'')?' selected':''}>${esc(label(o))}</option>`).join('')}</select>`;
   return `<input class="din" data-dk="${c.k}" type="${c.type||'text'}" value="${v}">`;
 }
+/* ── selection ─────────────────────────────────────────────────────────────
+   The Call Log's contract: the # cell is the select handle, the # header
+   toggles all, and Delete acts on the set. Keys are `sv:<id>` so a future row
+   type cannot collide. The top draft row is deliberately not sweepable by
+   select-all — it is the blank "new entry" row, not a record. */
+const selectedRows=new Set();
+const visibleSelectable=()=>[...$('rows').querySelectorAll('tr.selectable-row')];
+const allSelected=()=>{ const r=visibleSelectable(); return r.length>0&&r.every(tr=>selectedRows.has(tr.dataset.rowKey)); };
+function refreshSelectionButton(){
+  const th=$('thead').querySelector('th[data-k="num"]');
+  if(!th) return;
+  const all=allSelected();
+  th.classList.toggle('on',all);
+  th.setAttribute('aria-pressed',String(all));
+  th.setAttribute('title',all?'Unselect all rows':'Select all rows');
+}
+function refreshDeleteButton(){
+  const n=selectedRows.size, del=$('btn-del');
+  if(del){ del.classList.toggle('on',n>0); const c=$('del-count'); if(c) c.textContent=n; }
+}
+function toggleRowSelection(tr,force){
+  const id=tr.dataset.rowKey, on=force===undefined?!selectedRows.has(id):force;
+  if(on) selectedRows.add(id); else selectedRows.delete(id);
+  tr.classList.toggle('row-selected',on);
+  refreshSelectionButton(); refreshDeleteButton();
+}
+function toggleSelectAll(){
+  const rows=visibleSelectable(), all=allSelected();
+  rows.forEach(tr=>toggleRowSelection(tr,!all));
+}
+
 function render(){
   $('count').textContent=`· ${ROWS.length}`;
   $('rows').innerHTML=[
     `<tr class="draft dtop">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c)}</td>`).join('')}</tr>`,
-    ROWS.length?ROWS.map((r,i)=>`<tr class="data" data-id="${esc(r.id)}">${COLS.map(c=>{
+    ROWS.length?ROWS.map((r,i)=>{ const key=`sv:${r.id}`;
+      return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-id="${esc(r.id)}">${COLS.map(c=>{
       const ed=(c.ro||c.k==='num')?'':`data-edit data-k="${c.k}"`;
+      const sel=c.k==='num'?`data-select-row="${key}" title="Select this row"`:'';
       const cls=[c.fixed?'pg-f':'',c.cls||'',(c.ro||c.k==='num')?'':(c.opts?'sel':'ed')].filter(Boolean).join(' ');
-      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${ed}>${cell(c,r,i)}</td>`;}).join('')}</tr>`).join('')
-      :`<tr><td colspan="${COLS.length}" class="empty">No surveys yet — type in the highlighted row; Enter saves.</td></tr>`,
+      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${sel} ${ed}>${cell(c,r,i)}</td>`;}).join('')}</tr>`;}).join('')
+      :`<tr><td colspan="${COLS.length}" class="empty">No surveys yet — type in the highlighted row; Enter moves on, Enter on the last field saves.</td></tr>`,
   ].join('');
+  refreshSelectionButton(); refreshDeleteButton();
 }
 
 /* draft: type, Enter saves */
 $('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.dk) draft[el.dataset.dk]=el.value; });
+/* Enter walks the draft row field by field and saves on the last one — the Call
+   Log's behaviour, so typing a record feels the same on both tables. */
+const draftInputs=()=>[...$('rows').querySelectorAll('tr.draft .din')];
 $('rows').addEventListener('keydown',e=>{ const el=e.target;
-  if(el.classList&&el.classList.contains('din')&&e.key==='Enter'){ e.preventDefault(); commitDraft(); } });
+  if(!(el.classList&&el.classList.contains('din'))) return;
+  if(e.key!=='Enter') return;
+  e.preventDefault();
+  const ins=draftInputs(), i=ins.indexOf(el);
+  if(i>-1 && i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); }
+  else commitDraft(); });
 $('add-row').addEventListener('click',commitDraft);
 async function commitDraft(){
   if(!Object.values(draft).some(v=>String(v||'').trim())) return;
@@ -206,10 +249,13 @@ async function commitDraft(){
 
 /* inline edit, one cell at a time */
 $('rows').addEventListener('click',e=>{
+  const num=e.target.closest('td[data-select-row]');
+  if(num){ toggleRowSelection(num.closest('tr.selectable-row')); return; }
   const td=e.target.closest('td[data-edit]'); if(!td||!td.closest('tr.data'))return;
   if(e.target.closest('a')) return;
   openEditor(td);
 });
+$('thead').addEventListener('click',e=>{ if(e.target.closest('th[data-k="num"]')) toggleSelectAll(); });
 function openEditor(td){
   if(td.querySelector('input,select')) return;
   const k=td.dataset.k, c=COLS.find(x=>x.k===k), tr=td.closest('tr'), id=tr.dataset.id;
@@ -260,6 +306,45 @@ async function load(){
   try{ ALL=await api('/surveys/'); render_filtered(); clearErr(); }
   catch(e){ fail(e.message); }
 }
+/* Delete the selected rows. One request each — the API has no bulk route — and a
+   failure on one row must not stop the rest, so each is caught and the survivors
+   are reported together. */
+$('btn-del').addEventListener('click',async()=>{
+  const keys=[...selectedRows];
+  if(!keys.length) return;
+  if(!confirm(`Delete ${keys.length} survey${keys.length>1?'s':''}? This cannot be undone.`)) return;
+  const failed=[];
+  for(const k of keys){
+    const id=k.slice(3);
+    try{ await api('/surveys/'+id,{method:'DELETE'}); selectedRows.delete(k); }
+    catch(e){ failed.push(e.message); }
+  }
+  await load();
+  if(failed.length) fail(`${failed.length} row(s) could not be deleted: ${failed[0]}`); else clearErr();
+});
+
+/* Shift+R adds a row, ported from the Call Log (itself from tabbed_grid.js).
+   One document-level capture listener that CLICKS the button, so keyboard and
+   mouse share a single path. Accepts the physical KeyR as well as the produced
+   "r"/"R" so non-QWERTY layouts work. */
+function isTypingTarget(t){
+  if(!t) return false;
+  if(t.isContentEditable) return true;
+  const tag=(t.tagName||'').toUpperCase();
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return true;
+  return !!(t.closest && t.closest('input,textarea,select,[contenteditable]'));
+}
+document.addEventListener('keydown',e=>{
+  if(!e.shiftKey||e.ctrlKey||e.metaKey||e.altKey) return;
+  if(e.code!=='KeyR' && String(e.key||'').toLowerCase()!=='r') return;
+  if(e.repeat) return;                                    // ignore held-key repeat
+  if(isTypingTarget(e.target)) return;                    // not while typing a cell
+  if($('rows').querySelector('.cellinput')) return;       // not while an editor is open
+  const btn=$('add-row'); if(!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  btn.click();
+},true);
+
 buildHead(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
 else load();
