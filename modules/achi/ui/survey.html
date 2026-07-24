@@ -56,27 +56,17 @@
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(40,79,158,.13)}
   textarea{min-height:96px;resize:vertical}
 
-  /* segmented choice — the truck questions, one tap each */
-  .seg{display:flex;gap:8px;flex-wrap:wrap}
-  .seg button{flex:1 1 auto;min-width:84px;padding:10px 12px;border:1.5px solid #cfd9e8;border-radius:10px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--tx-2);cursor:pointer}
-  .seg button:hover{border-color:var(--navy)}
-  .seg button.on{background:var(--navy);border-color:var(--navy);color:#fff}
-  .seg button.on.warn{background:#b45309;border-color:#b45309}
-  .seg button.on.bad{background:#b91c1c;border-color:#b91c1c}
-
   .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;text-transform:capitalize;border:1px solid transparent}
-  .b-planned{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
-  .b-on_site{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
-  .b-surveyed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
-  .b-quoted{background:#ece9f5;color:#3e3794;border-color:#c5bde8}
+  .b-draft{background:#f3f4f6;color:#4b5563;border-color:#d1d5db}
+  .b-scheduled{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
+  .b-in-progress{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
+  .b-completed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
   .b-cancelled{background:#f3f3f3;color:#706e6b;border-color:#c9c7c5}
   .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:600}
 
-  /* arrival */
-  .arrive{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .arrive .big{padding:13px 20px;font-size:14px;background:#16a34a;color:#fff;border:0;border-radius:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,.3)}
-  .arrive .big:hover{background:#15803d}
-  .arrive .done{font-size:13px;color:#166534;font-weight:700}
+  .measurement-row{display:grid;grid-template-columns:minmax(180px,2fr) minmax(100px,1fr) minmax(100px,1fr) auto;gap:8px;align-items:center;margin-bottom:8px}
+  .measurement-row .danger{padding:8px 11px}
+  @media(max-width:700px){.measurement-row{grid-template-columns:1fr 1fr}.measurement-row input:first-child{grid-column:1/-1}}
 
   /* photos */
   .drop{border:2px dashed #cfd9e8;border-radius:12px;padding:16px;text-align:center;color:var(--tx-3);font-size:13px;cursor:pointer;background:#fbfcff}
@@ -226,6 +216,12 @@ function tileMap(lat,lng,W,H,z){
 }
 
 let SURVEYS=[], current=null, shots=[];
+const SURVEY_STATUSES=['Draft','Scheduled','In Progress','Completed','Cancelled'];
+const SITE_TYPES=['','Residential','Commercial','Industrial'];
+const ROOF_TYPES=['','Flat','Pitched','Mixed','N/A'];
+const MEASUREMENT_UNITS=['m','m²','m³','cm','mm','ft','in','kg','g','L','mL','pcs','units'];
+const badgeClass=s=>'b-'+String(s||'Draft').toLowerCase().replace(/\s+/g,'-');
+const opts=(items,value)=>items.map(v=>`<option value="${esc(v)}"${v===String(value||'')?' selected':''}>${esc(v)}</option>`).join('');
 
 /* ── list ── */
 async function load(sel){
@@ -237,17 +233,18 @@ async function load(sel){
 }
 function renderList(){
   const q=$('q').value.trim().toLowerCase();
-  const rows=q?SURVEYS.filter(s=>[s.survey_number,s.lead_name,s.lead_company,s.city,s.site_location].some(v=>String(v||'').toLowerCase().includes(q))):SURVEYS;
+  const rows=q?SURVEYS.filter(s=>[s.survey_number,s.assigned_to,s.customer,s.lead,s.contact,s.site_location,s.site_type,s.roof_type].some(v=>String(v||'').toLowerCase().includes(q))):SURVEYS;
   $('list-head').textContent=`Surveys · ${rows.length}`;
   $('list').innerHTML = rows.length ? rows.map(s=>`
     <button class="sv ${current&&current.id===s.id?'on':''}" data-id="${s.id}" type="button">
       <div class="n">${esc(s.survey_number)}</div>
-      <div class="who">${esc(s.lead_name||s.lead_company||'Unnamed site')}</div>
-      <div class="where">${esc([s.site_location,s.city].filter(Boolean).join(' · ')||'No location yet')}</div>
+      <div class="who">${esc(s.customer||s.lead||s.contact||'Unnamed survey')}</div>
+      <div class="where">${esc(s.site_location||'No location yet')}</div>
       <div class="meta">
-        <span class="badge b-${esc(s.status)}">${esc(s.status.replace('_',' '))}</span>
+        <span class="badge ${badgeClass(s.status)}">${esc(s.status)}</span>
         ${s.photo_count?`<span class="chip">${s.photo_count} file${s.photo_count>1?'s':''}</span>`:''}
         ${s.has_drawing?`<span class="chip">sketch</span>`:''}
+        ${s.has_measurements?`<span class="chip">measurements</span>`:''}
       </div>
     </button>`).join('') : `<div class="empty">No surveys yet.<br>Raise one before you drive out.</div>`;
   $('list').querySelectorAll('.sv').forEach(b=>b.onclick=()=>open(b.dataset.id));
@@ -263,75 +260,68 @@ async function open(id){
     renderDetail(); renderList();
   }catch(e){ fail(e.message); }
 }
-function seg(field,value,opts){
-  return `<div class="seg">${opts.map(o=>`<button type="button" data-seg="${field}" data-v="${o.v}" class="${value===o.v?'on '+(o.tone||''):''}">${esc(o.l)}</button>`).join('')}</div>`;
-}
 function renderDetail(){
-  const s=current, c=mapsCoords(s.maps_url);
+  const s=current, c=mapsCoords(s.google_maps_url);
   $('detail').innerHTML=`
   <div class="step">
-    <div class="step-h"><span class="step-n">1</span><div><div class="step-t">Where am I going</div>
-      <div class="step-s">${esc(s.survey_number)} · <span class="badge b-${esc(s.status)}">${esc(s.status.replace('_',' '))}</span></div></div></div>
+    <div class="step-h"><span class="step-n">1</span><div><div class="step-t">Assignment</div>
+      <div class="step-s">${esc(s.survey_number)} · <span class="badge ${badgeClass(s.status)}">${esc(s.status)}</span></div></div></div>
     <div class="step-b">
       <div class="grid">
-        <label class="f"><span>Client / contact</span><input data-f="lead_name" value="${esc(s.lead_name||'')}" placeholder="Who asked for this"></label>
-        <label class="f"><span>Company</span><input data-f="lead_company" value="${esc(s.lead_company||'')}"></label>
-        <label class="f"><span>Mobile</span><input data-f="lead_mobile" value="${esc(s.lead_mobile||'')}" placeholder="+961…"></label>
-        <label class="f"><span>Visit planned for</span><input type="datetime-local" data-f="scheduled_for" value="${forInput(s.scheduled_for)}"></label>
+        <label class="f"><span>Status</span><select data-f="status">${opts(SURVEY_STATUSES,s.status)}</select></label>
+        <label class="f"><span>Survey Date</span><input type="date" data-f="survey_date" value="${esc(s.survey_date||'')}"></label>
+        <label class="f"><span>Surveyor</span><input data-f="assigned_to" value="${esc(s.assigned_to||'')}"></label>
+        <label class="f"><span>Customer</span><input data-f="customer" value="${esc(s.customer||'')}"></label>
+        <label class="f"><span>Lead</span><input data-f="lead" value="${esc(s.lead||'')}"></label>
+        <label class="f"><span>Contact</span><input data-f="contact" value="${esc(s.contact||'')}"></label>
       </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-h"><span class="step-n">2</span><div><div class="step-t">Site Info</div>
+      <div class="step-s">Physical characteristics of the survey site</div></div></div>
+    <div class="step-b">
       <div class="grid" style="margin-top:12px">
-        <label class="f"><span>City</span><input data-f="city" value="${esc(s.city||'')}"></label>
-        <label class="f"><span>District</span><input data-f="district" value="${esc(s.district||'')}"></label>
-        <label class="f"><span>Street</span><input data-f="street" value="${esc(s.street||'')}"></label>
-        <label class="f"><span>Country</span><input data-f="country" value="${esc(s.country||'Lebanon')}"></label>
+        <label class="f"><span>Site Location</span><input data-f="site_location" value="${esc(s.site_location||'')}"></label>
+        <label class="f"><span>Maps</span><input data-f="google_maps_url" value="${esc(s.google_maps_url||'')}" placeholder="Paste a Google Maps link"></label>
+        <label class="f"><span>Site Type</span><select data-f="site_type">${opts(SITE_TYPES,s.site_type)}</select></label>
+        <label class="f"><span>Roof Type</span><select data-f="roof_type">${opts(ROOF_TYPES,s.roof_type)}</select></label>
+        <label class="f"><span>Area (m²)</span><input type="number" min="0" step="any" data-f="site_area" value="${esc(s.site_area??'')}"></label>
       </div>
-      <label class="f" style="margin-top:12px"><span>Site / landmark</span><input data-f="site_location" value="${esc(s.site_location||'')}" placeholder="Villa behind the church, rear facade…"></label>
-      <label class="f" style="margin-top:12px"><span>Maps link</span><input data-f="maps_url" value="${esc(s.maps_url||'')}" placeholder="Paste a Google Maps link"></label>
       ${c?tileMap(c.lat,c.lng,520,190,16):''}
-      ${s.maps_url?`<div style="margin-top:8px"><a href="${esc(s.maps_url)}" target="_blank" rel="noreferrer" style="color:var(--navy);font-weight:700;font-size:13px">Open in Maps ↗</a></div>`:''}
+      ${s.google_maps_url?`<div style="margin-top:8px"><a href="${esc(s.google_maps_url)}" target="_blank" rel="noreferrer" style="color:var(--navy);font-weight:700;font-size:13px">Open in Maps ↗</a></div>`:''}
     </div>
   </div>
 
   <div class="step">
-    <div class="step-h"><span class="step-n">2</span><div><div class="step-t">Can we get the kit in</div>
-      <div class="step-s">Access decides the price — answer before you leave the site</div></div></div>
+    <div class="step-h"><span class="step-n">3</span><div><div class="step-t">Measurements</div>
+      <div class="step-s">Description, value and unit — matching the Frappe child table</div></div></div>
     <div class="step-b">
-      <label class="f"><span>Can a truck reach the site</span></label>
-      ${seg('truck_access',s.truck_access,[{v:'yes',l:'Yes'},{v:'tight',l:'Tight',tone:'warn'},{v:'no',l:'No',tone:'bad'},{v:'unknown',l:'Not sure'}])}
-      <label class="f" style="margin-top:14px"><span>Where can we park</span></label>
-      ${seg('parking',s.parking,[{v:'on_site',l:'On site'},{v:'street',l:'Street'},{v:'none',l:'Nowhere',tone:'bad'},{v:'unknown',l:'Not sure'}])}
-      <label class="f" style="margin-top:14px"><span>The road in</span><textarea data-f="road_notes" placeholder="Width, gradient, low cables, gate size, turning space…">${esc(s.road_notes||'')}</textarea></label>
-      <label class="f" style="margin-top:12px"><span>Other access notes</span><textarea data-f="access_notes" placeholder="Stairs, lift, permissions, working hours, neighbours…">${esc(s.access_notes||'')}</textarea></label>
+      <div id="measurements">${(s.measurements||[]).map((m,i)=>`
+        <div class="measurement-row" data-mi="${i}">
+          <input data-mk="label" value="${esc(m.label||'')}" placeholder="Description">
+          <input data-mk="value" type="number" step="any" value="${esc(m.value??'')}" placeholder="Value">
+          <select data-mk="unit">${opts(MEASUREMENT_UNITS,m.unit)}</select>
+          <button class="danger" type="button" data-md="${i}" title="Remove measurement">&times;</button>
+        </div>`).join('')}</div>
+      <button class="btn btn-ghost" id="add-measurement" type="button">+ Add measurement</button>
     </div>
   </div>
 
   <div class="step">
-    <div class="step-h"><span class="step-n">3</span><div><div class="step-t">On site</div>
-      <div class="step-s">Arrive, then photograph everything you will be asked about later</div></div></div>
+    <div class="step-h"><span class="step-n">4</span><div><div class="step-t">Field Capture</div>
+      <div class="step-s">Notes, updates, drawing, photos and files</div></div></div>
     <div class="step-b">
-      <div class="arrive">
-        ${s.arrived_at?`<span class="done">✓ Arrived ${esc(fmtDT(s.arrived_at))}</span>`:`<button class="big" id="arrive" type="button">I'm on site</button>`}
-      </div>
+      <label class="f"><span>Site Notes</span><textarea data-f="notes">${esc(s.notes||'')}</textarea></label>
+      <label class="f" style="margin-top:12px"><span>Updates</span><textarea data-f="updates">${esc(s.updates||'')}</textarea></label>
       <div class="drop" id="drop" style="margin-top:14px">Tap to add photos or a PDF — or drop files here</div>
       <input type="file" id="file" multiple accept="image/*,application/pdf" style="display:none">
       <div class="shots" id="shots"></div>
-    </div>
-  </div>
-
-  <div class="step">
-    <div class="step-h"><span class="step-n">4</span><div><div class="step-t">Who I met and what I saw</div>
-      <div class="step-s">Sketch what a photo cannot show</div></div></div>
-    <div class="step-b">
-      <label class="f"><span>People met</span><textarea data-f="people_met" placeholder="Name, role, phone — who to call back">${esc(s.people_met||'')}</textarea></label>
-      <label class="f" style="margin-top:12px"><span>Description</span><textarea data-f="description" style="min-height:130px" placeholder="Heights, elevations, ground, obstructions, what they actually want…">${esc(s.description||'')}</textarea></label>
       <button class="btn btn-ghost ${s.has_drawing?'has-drawing':''}" id="draw" type="button" style="margin-top:12px;color:var(--navy);border-color:var(--bd);background:#fff">
-        ${s.has_drawing?'Edit sketch':'Add a sketch'}</button>
+        ${s.has_drawing?'Edit drawing':'Add drawing'}</button>
     </div>
     <div class="row-actions">
-      <label class="f" style="margin:0"><span>Status</span>
-        <select data-f="status">
-          ${['planned','on_site','surveyed','quoted','cancelled'].map(v=>`<option value="${v}"${s.status===v?' selected':''}>${v.replace('_',' ')}</option>`).join('')}
-        </select></label>
       <span class="sp" style="flex:1"></span>
       <span class="saved" id="saved">Saved</span>
       <button class="danger" id="del" type="button">Delete survey</button>
@@ -346,7 +336,7 @@ function wireDetail(){
   $('detail').querySelectorAll('[data-f]').forEach(el=>{
     const commit=async()=>{
       const f=el.dataset.f; let v=el.value;
-      if(f==='scheduled_for') v=v?new Date(v).toISOString():null;
+      if(f==='site_area') v=v===''?null:Number(v);
       if((current[f]??'')===(v??'')) return;
       try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({[f]:v===''?null:v})});
         clearErr(); flash(); renderList();
@@ -355,13 +345,33 @@ function wireDetail(){
     el.addEventListener('change',commit);
     el.addEventListener('blur',commit);
   });
-  $('detail').querySelectorAll('[data-seg]').forEach(b=>b.onclick=async()=>{
-    try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({[b.dataset.seg]:b.dataset.v})});
+  const saveMeasurements=async()=>{
+    const measurements=[...$('measurements').querySelectorAll('.measurement-row')].map(row=>{
+      const get=k=>row.querySelector(`[data-mk="${k}"]`).value;
+      return {label:get('label')||null,value:get('value')===''?null:Number(get('value')),unit:get('unit')||null};
+    });
+    try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({measurements})});
+      clearErr(); flash(); renderList();
+    }catch(e){ fail(e.message); }
+  };
+  $('measurements').querySelectorAll('input,select').forEach(el=>{
+    el.addEventListener('change',saveMeasurements);
+    el.addEventListener('blur',saveMeasurements);
+  });
+  $('measurements').querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{
+    const measurements=current.measurements
+      .filter((_,i)=>i!==+b.dataset.md)
+      .map(m=>({label:m.label||null,value:m.value??null,unit:m.unit||null}));
+    try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({measurements})});
       clearErr(); flash(); renderDetail(); renderList();
     }catch(e){ fail(e.message); }
   });
-  const arrive=$('arrive');
-  if(arrive) arrive.onclick=async()=>{ try{ current=await api(`/surveys/${current.id}/arrive`,{method:'POST'}); flash(); renderDetail(); renderList(); }catch(e){ fail(e.message); } };
+  $('add-measurement').onclick=()=>{
+    current.measurements.push({label:'',value:null,unit:'m'});
+    renderDetail();
+    const rows=$('measurements').querySelectorAll('.measurement-row');
+    rows[rows.length-1]?.querySelector('[data-mk="label"]')?.focus();
+  };
   $('drop').onclick=()=>$('file').click();
   $('drop').addEventListener('dragover',e=>{e.preventDefault();});
   $('drop').addEventListener('drop',e=>{e.preventDefault(); upload(e.dataTransfer.files);});
@@ -397,8 +407,8 @@ async function upload(files){
 function renderShots(){
   const el=$('shots'); if(!el) return;
   el.innerHTML=shots.map(a=>`<div class="shot" data-id="${a.id}">
-      ${a.content_type.startsWith('image/')?`<img data-src="${a.id}" alt="${esc(a.filename)}">`:`<div class="doc">${esc(a.filename.split('.').pop().toUpperCase())}<br>document</div>`}
-      <div class="nm" title="${esc(a.filename)}">${esc(a.filename)}</div>
+      ${a.content_type.startsWith('image/')?`<img data-src="${a.id}" alt="${esc(a.label||a.filename)}">`:`<div class="doc">${esc(a.filename.split('.').pop().toUpperCase())}<br>document</div>`}
+      <div class="nm" title="${esc(a.label||a.filename)}">${esc(a.label||a.filename)}</div>
       <button class="x" data-del="${a.id}" title="Remove">&times;</button>
     </div>`).join('');
   // The download route is bearer-only, so an <img src> would 401. Fetch the bytes
@@ -425,10 +435,11 @@ function renderShots(){
 
 /* ── new survey ── */
 $('new-survey').onclick=async()=>{
-  const who=prompt('Who is this survey for? (name or company)');
-  if(who===null) return;
+  const location=prompt('Site location for the new survey');
+  if(location===null) return;
   try{
-    const s=await api('/surveys/',{method:'POST',body:JSON.stringify({lead_name:who.trim()||null,country:'Lebanon'})});
+    const today=new Date().toISOString().slice(0,10);
+    const s=await api('/surveys/',{method:'POST',body:JSON.stringify({status:'Draft',survey_date:today,site_location:location.trim()||null})});
     await load(s.id);
   }catch(e){ fail(e.message); }
 };

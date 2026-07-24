@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 # No "client" stage: becoming a client isn't a file state, it's the file
 # converting into a project.
@@ -326,61 +326,78 @@ class LogRowOut(BaseModel):
 
 # ── Site survey ───────────────────────────────────────────────────────────
 
-TRUCK_ACCESS = ("unknown", "yes", "tight", "no")
-PARKING = ("unknown", "on_site", "street", "none")
-SURVEY_STATUS = ("planned", "on_site", "surveyed", "quoted", "cancelled")
+SURVEY_STATUSES = ("Draft", "Scheduled", "In Progress", "Completed", "Cancelled")
+SURVEY_SITE_TYPES = ("Residential", "Commercial", "Industrial")
+SURVEY_ROOF_TYPES = ("Flat", "Pitched", "Mixed", "N/A")
+SURVEY_UNITS = ("m", "m²", "m³", "cm", "mm", "ft", "in", "kg", "g", "L", "mL", "pcs", "units")
+LEGACY_SURVEY_STATUSES = {
+    "planned": "Scheduled",
+    "on_site": "In Progress",
+    "surveyed": "Completed",
+    "quoted": "Completed",
+    "cancelled": "Cancelled",
+}
+
+
+class SurveyMeasurementIn(BaseModel):
+    """Frappe ``Site Survey Measurement`` child row."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: str | None = Field(default=None, max_length=255)
+    value: float | None = None
+    unit: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_UNITS))
+
+
+class SurveyMeasurementOut(SurveyMeasurementIn):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    survey_id: str
 
 
 class SurveyCreate(BaseModel):
-    """Raise a survey — typically from the office, before driving out."""
+    """The writable fields from Frappe's ``Site Survey`` DocType."""
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    file_id: str | None = Field(default=None, max_length=36)
-    contact_id: str | None = Field(default=None, max_length=36)
-    lead_name: str | None = Field(default=None, max_length=255)
-    lead_company: str | None = Field(default=None, max_length=255)
-    lead_mobile: str | None = Field(default=None, max_length=32)
-
-    country: str | None = Field(default=None, max_length=64)
-    district: str | None = Field(default=None, max_length=128)
-    city: str | None = Field(default=None, max_length=128)
-    street: str | None = Field(default=None, max_length=255)
-    site_location: str | None = None
-    maps_url: str | None = Field(default=None, max_length=1024)
-    scheduled_for: datetime | None = None
+    status: str = Field(default="Draft", pattern="^(%s)$" % "|".join(SURVEY_STATUSES))
+    survey_date: date | None = None
+    assigned_to: str | None = Field(default=None, max_length=255)
+    customer: str | None = Field(default=None, max_length=255)
+    lead: str | None = Field(default=None, max_length=255)
+    contact: str | None = Field(default=None, max_length=255)
+    site_location: str | None = Field(default=None, max_length=255)
+    google_maps_url: str | None = Field(default=None, max_length=1000)
+    site_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_SITE_TYPES))
+    roof_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_ROOF_TYPES))
+    site_area: float | None = None
+    notes: str | None = None
+    updates: str | None = None
+    drawing: str | None = None
+    measurements: list[SurveyMeasurementIn] = Field(default_factory=list)
 
 
 class SurveyUpdate(BaseModel):
-    """Everything the surveyor fills in on site. All optional — the page saves
-    each section as it is completed rather than demanding the whole form."""
+    """Partial update using the same field names and Select options as Frappe."""
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    lead_name: str | None = Field(default=None, max_length=255)
-    lead_company: str | None = Field(default=None, max_length=255)
-    lead_mobile: str | None = Field(default=None, max_length=32)
-
-    country: str | None = Field(default=None, max_length=64)
-    district: str | None = Field(default=None, max_length=128)
-    city: str | None = Field(default=None, max_length=128)
-    street: str | None = Field(default=None, max_length=255)
-    site_location: str | None = None
-    maps_url: str | None = Field(default=None, max_length=1024)
-    scheduled_for: datetime | None = None
-
-    truck_access: str | None = Field(default=None, pattern="^(%s)$" % "|".join(TRUCK_ACCESS))
-    parking: str | None = Field(default=None, pattern="^(%s)$" % "|".join(PARKING))
-    road_notes: str | None = None
-    access_notes: str | None = None
-
-    arrived_at: datetime | None = None
-    people_met: str | None = None
-    description: str | None = None
-    # has_drawing is derived from the payload, never trusted from the client.
+    status: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_STATUSES))
+    survey_date: date | None = None
+    assigned_to: str | None = Field(default=None, max_length=255)
+    customer: str | None = Field(default=None, max_length=255)
+    lead: str | None = Field(default=None, max_length=255)
+    contact: str | None = Field(default=None, max_length=255)
+    site_location: str | None = Field(default=None, max_length=255)
+    google_maps_url: str | None = Field(default=None, max_length=1000)
+    site_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_SITE_TYPES))
+    roof_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_ROOF_TYPES))
+    site_area: float | None = None
+    notes: str | None = None
+    updates: str | None = None
     drawing: str | None = None
-
-    status: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_STATUS))
+    measurements: list[SurveyMeasurementIn] | None = None
 
 
 class SurveyAttachmentOut(BaseModel):
@@ -388,6 +405,8 @@ class SurveyAttachmentOut(BaseModel):
 
     id: str
     survey_id: str
+    label: str | None = None
+    url: str | None = None
     filename: str
     content_type: str
     size_bytes: int
@@ -399,33 +418,30 @@ class SurveyOut(BaseModel):
 
     id: str
     survey_number: str
-    file_id: str | None = None
-    contact_id: str | None = None
-    lead_name: str | None = None
-    lead_company: str | None = None
-    lead_mobile: str | None = None
-
-    country: str | None = None
-    district: str | None = None
-    city: str | None = None
-    street: str | None = None
+    status: str = "Draft"
+    survey_date: date | None = None
+    assigned_to: str | None = None
+    customer: str | None = None
+    lead: str | None = None
+    contact: str | None = None
     site_location: str | None = None
-    maps_url: str | None = None
-    scheduled_for: datetime | None = None
-
-    truck_access: str = "unknown"
-    parking: str = "unknown"
-    road_notes: str = ""
-    access_notes: str = ""
-
-    arrived_at: datetime | None = None
-    people_met: str = ""
-    description: str = ""
+    google_maps_url: str | None = None
+    site_type: str | None = None
+    roof_type: str | None = None
+    site_area: float | None = None
+    notes: str | None = None
+    updates: str | None = None
     has_drawing: int = 0
-
-    status: str = "planned"
+    drawing: str = ""
+    has_measurements: int = 0
     created_at: datetime
-    attachments: list[SurveyAttachmentOut] = []
+    attachments: list[SurveyAttachmentOut] = Field(default_factory=list)
+    measurements: list[SurveyMeasurementOut] = Field(default_factory=list)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def align_legacy_status(cls, value):
+        return LEGACY_SURVEY_STATUSES.get(str(value), value)
 
 
 class SurveyRowOut(BaseModel):
@@ -435,18 +451,26 @@ class SurveyRowOut(BaseModel):
 
     id: str
     survey_number: str
-    lead_name: str | None = None
-    lead_company: str | None = None
-    city: str | None = None
+    status: str = "Draft"
+    survey_date: date | None = None
+    assigned_to: str | None = None
+    customer: str | None = None
+    lead: str | None = None
+    contact: str | None = None
     site_location: str | None = None
-    truck_access: str = "unknown"
-    parking: str = "unknown"
-    status: str = "planned"
-    scheduled_for: datetime | None = None
-    arrived_at: datetime | None = None
+    google_maps_url: str | None = None
+    site_type: str | None = None
+    roof_type: str | None = None
+    site_area: float | None = None
     has_drawing: int = 0
+    has_measurements: int = 0
     photo_count: int = 0
     created_at: datetime
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def align_legacy_status(cls, value):
+        return LEGACY_SURVEY_STATUSES.get(str(value), value)
 
 
 # ── quotations ────────────────────────────────────────────────────────────

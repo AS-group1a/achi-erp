@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.storage import get_storage_backend
 
-from .models import SiteSurvey, SurveyAttachment
+from .models import SiteSurvey, SurveyAttachment, SurveyMeasurement
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +63,18 @@ class SiteSurveyService:
     # ── survey ────────────────────────────────────────────────────────────
 
     async def create(self, data, *, user_id: str | None) -> SiteSurvey:
+        payload = data.model_dump(exclude_unset=True)
+        measurements = payload.pop("measurements", [])
+        drawing = payload.get("drawing") or ""
         s = SiteSurvey(
             survey_number=await _next_survey_number(self.session),
             owner_user_id=user_id,
             tenant_id=user_id,
-            **data.model_dump(exclude_unset=True),
+            has_drawing=1 if _drawing_has_shapes(drawing) else 0,
+            has_measurements=1 if measurements else 0,
+            **payload,
         )
+        s.measurements = [SurveyMeasurement(**row) for row in measurements]
         self.session.add(s)
         await self.session.commit()
         await self.session.refresh(s)
@@ -86,11 +92,15 @@ class SiteSurveyService:
 
     async def update(self, s: SiteSurvey, data) -> SiteSurvey:
         payload = data.model_dump(exclude_unset=True)
+        measurements = payload.pop("measurements", None)
         if "drawing" in payload:
             # Derived, never taken from the client.
             s.has_drawing = 1 if _drawing_has_shapes(payload["drawing"] or "") else 0
         for k, v in payload.items():
             setattr(s, k, v)
+        if measurements is not None:
+            s.measurements = [SurveyMeasurement(**row) for row in measurements]
+            s.has_measurements = 1 if measurements else 0
         await self.session.commit()
         await self.session.refresh(s)
         return s
@@ -125,12 +135,15 @@ class SiteSurveyService:
         pointing at a key that was never written is a broken link the user sees."""
         att = SurveyAttachment(
             survey_id=s.id,
+            label=filename,
+            url="",
             filename=filename,
             content_type=content_type or "application/octet-stream",
             size_bytes=len(content),
             storage_key="",
             uploaded_by=user_id,
         )
+        att.url = f"/api/v1/achi/survey-attachments/{att.id}/download"
         att.storage_key = f"achi/surveys/{s.id}/{att.id}/{_safe_filename(filename)}"
         await get_storage_backend().put(att.storage_key, content)
         self.session.add(att)

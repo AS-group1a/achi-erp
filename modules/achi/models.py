@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -188,6 +188,22 @@ class SiteSurvey(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     survey_number: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
 
+    # Active Site Survey contract. These fields mirror frappe-bench's
+    # ``Site Survey`` DocType. Legacy ACHI workflow columns remain below because
+    # this installation heals schemas additively and never drops columns.
+    survey_date: Mapped[str | None] = mapped_column(Date, nullable=True)
+    assigned_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    customer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lead: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    google_maps_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    site_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    roof_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    site_area: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updates: Mapped[str | None] = mapped_column(Text, nullable=True)
+    has_measurements: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
     # Where it came from. A survey usually follows an enquiry, but one can be
     # raised on its own, so both links are optional.
     file_id: Mapped[str | None] = mapped_column(
@@ -224,7 +240,7 @@ class SiteSurvey(Base):
     has_drawing: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     # 4. Outcome
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="planned")  # planned|on_site|surveyed|quoted|cancelled
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="Draft")
 
     owner_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
@@ -233,6 +249,27 @@ class SiteSurvey(Base):
     attachments: Mapped[list["SurveyAttachment"]] = relationship(
         back_populates="survey", cascade="all, delete-orphan", lazy="selectin"
     )
+    measurements: Mapped[list["SurveyMeasurement"]] = relationship(
+        back_populates="survey", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class SurveyMeasurement(Base):
+    """One row from Frappe's ``Site Survey Measurement`` child DocType."""
+
+    __tablename__ = "achi_survey_measurement"
+    __table_args__ = (Index("ix_achi_survey_measurement_survey", "survey_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    survey_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("achi_site_survey.id", ondelete="CASCADE"), nullable=False
+    )
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    survey: Mapped[SiteSurvey] = relationship(back_populates="measurements")
 
 
 class SurveyAttachment(Base):
@@ -250,6 +287,10 @@ class SurveyAttachment(Base):
     survey_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("achi_site_survey.id", ondelete="CASCADE"), nullable=False
     )
+    # Frappe child-table fields. For uploaded ACHI files, label is the displayed
+    # filename and url is the authenticated download route.
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(128), nullable=False, default="application/octet-stream")
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
