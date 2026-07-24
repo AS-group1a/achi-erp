@@ -1281,7 +1281,7 @@ function openExpandedRow(explicitId){
      and are visual only until they have a column, so the design is reviewable
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
-    `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
+    `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(o===TYPE_ADD?'＋ Add new…':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
@@ -1304,7 +1304,7 @@ function openExpandedRow(explicitId){
     <input class="rx-in" data-nosave placeholder="@handle"></div>
     <button type="button" class="rx-addh" data-nosave>+ Add handle</button></div>`;
   html+=g('rx-g2',
-    F('Log type',    SEL('type',allTypes(val('type')),val('type'),false)),
+    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),false)),
     F('Log subject', SEL('subject',SUBJECTS,'',true,true)));
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +g('rx-g2', F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps'))),
@@ -1374,6 +1374,20 @@ function openExpandedRow(explicitId){
     <div class="rx-q-row"><div><b>Transport &amp; delivery</b><span>flat rate</span></div><div class="rx-q-amt">${money(transport)}</div></div>
     <div class="rx-q-tot"><span class="rx-q-h">Estimate total</span><span class="rx-q-big">${money(first+monthly+transport)}</span></div>
     <div class="rx-q-note">ex VAT · budget estimate from rate card, not a firm offer</div>`;
+  /* A native <select> has no pick hook to intercept, so "＋ Add new…" is caught
+     on change: prompt, store, then replace the sentinel with the new value.
+     Cancelling restores the previous selection, so the sentinel can never be
+     the value that gets saved. */
+  setTimeout(()=>{ const sel=$('rx-body').querySelector('select[data-k="type"]'); if(!sel) return;
+    let last=sel.value;
+    sel.addEventListener('change',()=>{
+      if(sel.value!==TYPE_ADD){ last=sel.value; return; }
+      const added=addType();
+      if(added){ if(![...sel.options].some(o=>o.value===added)) sel.add(new Option(added,added),sel.options.length-1);
+                 sel.value=added; last=added; }
+      else sel.value=last;
+    });
+  },0);
   $('rx-body').innerHTML=html;
   $('rx').hidden=false;
 
