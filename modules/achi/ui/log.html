@@ -124,6 +124,55 @@
   /* No border: a 1px border with overflow:hidden + border-radius clips unevenly
      at the rounded corners (the "clipping" you keep seeing). The shadow alone
      defines the edge cleanly. */
+  /* ── Expanded row, laid out to the Add Log mockups ──────────────────────
+     Two columns: the form scrolls on the left, the draft quotation prices
+     itself on the right. The header carries the log number, its time and its
+     state; the footer carries the copy-to target. */
+  .rx-head{display:flex;align-items:center;gap:12px;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;flex:0 0 auto;flex-wrap:wrap}
+  .rx-head h2{font-size:15px;font-weight:800;letter-spacing:.01em}
+  .rx-chip{background:rgba(255,255,255,.18);border-radius:6px;padding:4px 9px;font-size:11.5px;font-weight:700}
+  .rx-when{height:30px;border:0;border-radius:6px;padding:0 8px;font:inherit;font-size:12px;color:#1d1d1f}
+  .rx-state{height:30px;border:0;border-radius:99px;padding:0 12px;font:inherit;font-size:11.5px;font-weight:800;background:#0f2a5c;color:#fff;cursor:pointer}
+  .rx-tag{font-size:11.5px;opacity:.82;flex:1 1 auto}
+  .rx-cols{display:flex;flex:1 1 auto;min-height:0;background:#fff}
+  .rx-body{flex:1 1 auto;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;background:#fff;box-shadow:none}
+  .rx-quote{flex:0 0 300px;border-left:1px solid #e3e9f3;background:#f7faff;padding:16px;overflow-y:auto}
+  @media (max-width:820px){ .rx-cols{flex-direction:column} .rx-quote{flex:0 0 auto;border-left:0;border-top:1px solid #e3e9f3} }
+  .rx-grid{display:grid;gap:12px}
+  .rx-g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .rx-g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .rx-g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:700px){ .rx-g4,.rx-g3,.rx-g2{grid-template-columns:1fr 1fr} }
+  .rx-l{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a8f98;margin-bottom:5px}
+  .rx-l .req{color:#b91c1c}
+  .rx-in{width:100%;height:38px;border:1px solid #d7dde8;border-radius:7px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:#1d1d1f}
+  .rx-in:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(40,79,158,.12)}
+  select.rx-in{cursor:pointer}
+  .rx-fs{border:1px solid #e3e9f3;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
+  .rx-fs>h4{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
+  .rx-social{display:flex;gap:8px;align-items:center}
+  .rx-social select{flex:0 0 86px}
+  .rx-addh{align-self:flex-start;border:0;background:none;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:0}
+  .rx-map{height:38px;border:1px solid #cfe0f8;border-radius:7px;background:#eef4fd;color:var(--navy);font:inherit;font-size:11.5px;font-weight:800;letter-spacing:.06em;cursor:pointer}
+  .rx-notes{border:1px solid #f0d9a8;background:#fffdf5;border-radius:10px;padding:13px}
+  .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a5a12;margin-bottom:7px}
+  .rx-notes textarea{width:100%;min-height:78px;border:1px solid #e6d7ae;border-radius:7px;padding:9px 10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
+  .rx-q-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
+  .rx-q-sub{font-size:11.5px;color:#5b5e66;margin:5px 0 14px}
+  .rx-q-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #e6edf8}
+  .rx-q-row b{font-size:13px;font-weight:800;color:#111827}
+  .rx-q-row span{font-size:11.5px;color:#6b7280;display:block;margin-top:2px}
+  .rx-q-amt{font-size:14px;font-weight:800;color:#111827;white-space:nowrap}
+  .rx-q-tot{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
+  .rx-q-tot .rx-q-h{align-self:center}
+  .rx-q-big{font-size:26px;font-weight:900;color:var(--navy)}
+  .rx-q-note{font-size:11px;color:#8a8f98;margin-top:8px}
+  .rx-foot{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid #e3e9f3;background:#fff;flex-wrap:wrap}
+  .rx-copy-l{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a8f98}
+  .rx-copy{height:34px;border:1px solid #d7dde8;border-radius:7px;padding:0 9px;font:inherit;font-size:12.5px;background:#fff;cursor:pointer}
+  .rx-copy-h{font-size:11.5px;color:#8a8f98;flex:1 1 auto}
+  .rx-cancel{border:1px solid #d7dde8;background:#fff;color:#1d1d1f;border-radius:8px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+  .rx-cancel:hover{background:#f4f6fa}
   .rx-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
   .rx-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;flex:0 0 auto}
   .rx-head h2{font-size:14px;font-weight:800;letter-spacing:.01em}
@@ -447,20 +496,27 @@
   <div class="rx" id="rx" hidden>
     <div class="rx-box" role="dialog" aria-modal="true" aria-labelledby="rx-title">
       <div class="rx-head">
-        <div>
-          <h2 id="rx-title">Row</h2>
-          <p id="rx-sub"></p>
-        </div>
+        <h2 id="rx-title">Add Log</h2>
+        <span class="rx-chip" id="rx-num">Log</span>
+        <input type="datetime-local" class="rx-when" id="rx-when">
+        <select class="rx-state" id="rx-state"></select>
+        <p class="rx-tag" id="rx-sub">fill while you're on the call — everything prices itself live</p>
         <button type="button" class="rx-x" id="rx-close" aria-label="Close">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
         </button>
       </div>
-      <div class="rx-body" id="rx-body"></div>
+      <div class="rx-cols">
+        <div class="rx-body" id="rx-body"></div>
+        <aside class="rx-quote" id="rx-quote"></aside>
+      </div>
       <div class="rx-foot">
+        <label class="rx-copy-l" for="rx-copy">ON SAVE, COPY TO</label>
+        <select class="rx-copy" id="rx-copy"></select>
+        <span class="rx-copy-h">the log stays here — a linked copy opens the same popup from that module</span>
         <span class="rx-status" id="rx-status"></span>
         <div class="rx-foot-btns">
-          <button type="button" class="rx-save-cont" id="rx-save-cont">Save &amp; continue</button>
-          <button type="button" class="rx-save" id="rx-save">Save</button>
+          <button type="button" class="rx-cancel" id="rx-save-cont">Cancel</button>
+          <button type="button" class="rx-save" id="rx-save">Save Log</button>
         </div>
       </div>
     </div>
@@ -587,7 +643,10 @@ const showInvalidMobile=input=>showFeedback('Invalid Mobile','Please Enter a val
    arrive spelled three ways, which made the grid's filters unreliable. The
    values are the ones the team uses; DISTRICTS/CITIES are Lebanon-specific
    because that is where the sites are. */
-const ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
+const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
+      LOG_STATES=['OPEN','TRANSFERED','ONGOING','DONE','CANCELLED'],
+      COPY_TARGETS=['Call Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
+      ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
                 'Off-hire','Adaptation','Inspection','Complaint','Invoice'],
       DISTRICTS=['Beirut','Mount Lebanon','North','South','Bekaa'],
@@ -1199,14 +1258,49 @@ function openExpandedRow(explicitId){
     $('rx-sub').textContent=`${who}${r.created_at?' · '+fmtDT(r.created_at):''}`;
   }
 
+  /* Laid out to the Add Log mockups. Fields whose model column exists carry
+     data-k and save through the normal path; the rest are marked data-nosave
+     and are visual only until they have a column, so the design is reviewable
+     now without inventing fields the API would reject. */
+  const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
+    `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
+  const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
+  const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
+  const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
+  const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
+  const val=k=>{ const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
+
   let html='';
-  for(const card of RX_CARDS){
-    let inner='';
-    if(card.name){ inner+=rxBadgesHTML(src)+rxNameHTML(src); }
-    inner+=card.keys.map(k=>{ const c=COLS.find(x=>x.k===k&&x.edit); return c?rxFieldHTML(c,src):''; }).join('');
-    if(card.map){ inner+=rxMapHTML(src); }
-    if(inner) html+=`<div class="rx-sec"><h3>${esc(card.title)}</h3>${inner}</div>`;
-  }
+  html+=g('rx-g4',
+    F('Pre',        SEL('prefix',allPrefixes(),val('prefix'),true)),
+    F('First name', IN('first','Type or pick...',val('first')),true),
+    F('Last name',  IN('last','Type or pick...',val('last'))),
+    F('Role',       SEL('role',ROLES,'',true,true)));
+  html+=g('rx-g4',
+    F('Phone / WhatsApp', IN('mobile','+961 …',val('mobile'))),
+    F('Email',            IN('email','name@company.com',val('email'))),
+    F('Company',          IN('company','Type or pick',val('company'))),
+    F('Company type',     SEL('company_type',['All types','Contractor','Developer','Architect','Owner'],'',false,true)));
+  html+=`<div><label class="rx-l">Social handles</label><div class="rx-social">
+    <select class="rx-in" data-nosave>${opt(SOCIALS,'',false)}</select>
+    <input class="rx-in" data-nosave placeholder="@handle"></div>
+    <button type="button" class="rx-addh" data-nosave>+ Add handle</button></div>`;
+  html+=g('rx-g2',
+    F('Log type',    SEL('type',TYPES,val('type'),false)),
+    F('Log subject', SEL('subject',SUBJECTS,'',true,true)));
+  html+=`<div class="rx-fs"><h4>Site info</h4>`
+    +g('rx-g2', F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps'))),
+                `<div><label class="rx-l">&nbsp;</label><button type="button" class="rx-map" id="rx-mapbtn">MAP PREVIEW</button></div>`)
+    +g('rx-g3', F('Country',  SEL('country',COUNTRIES,val('country'),true)),
+                F('District', SEL('district',DISTRICTS,val('district'),true)),
+                F('City',     SEL('city',CITIES,val('city'),true)))
+    +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
+                F('No.',      IN('no','12','',true)),
+                F('Building', IN('bldg','Bldg','',true)),
+                F('Floor',    IN('floor','GF','',true)))
+    +`</div>`;
+  html+=`<div class="rx-notes"><h4>Quick notes — no time? dump everything here</h4>
+    <textarea data-k="desc" placeholder="Type fast while on the call — details can be sorted into the sections after hanging up…">${esc(val('desc'))}</textarea></div>`;
   // Files + drawing reuse the grid's note workspace (openNoteWorkspace), which
   // already does upload, list, download and the drawing canvas. Attachments hang
   // off the log, so this needs a saved row — disabled in new mode.
@@ -1242,6 +1336,26 @@ function openExpandedRow(explicitId){
       <div class="qv-actions"><span class="qv-msg" id="rx-q-msg"></span>
         <button type="button" class="qv-draft alt" id="rx-q-draft" ${draftAttr}>Draft quotation</button></div>
     </div></div>`;
+  /* Header and footer picklists. The state and copy-to values have no column
+     yet, so they are presentational — the log still saves through the normal
+     path and nothing is silently dropped, because they are never sent. */
+  const fill=(id,list)=>{ const el=$(id); if(el) el.innerHTML=list.map(o=>`<option>${esc(o)}</option>`).join(''); };
+  fill('rx-state',LOG_STATES); fill('rx-copy',COPY_TARGETS);
+  $('rx-num').textContent=r&&r.file_number?r.file_number:'New log';
+  const w=$('rx-when'); if(w) w.value=new Date(r&&r.created_at?r.created_at:Date.now()).toISOString().slice(0,16);
+  /* Draft quotation. Figures come from the rate card below; there is no pricing
+     endpoint yet, so this prices from area x rate and is labelled an estimate
+     rather than an offer. Wire it to a real rate card when one exists. */
+  const area=Number(String(val('area')||'').replace(/[^0-9.]/g,''))||160;
+  const first=area*15, monthly=area*3, transport=180;
+  const money=n=>'$'+n.toLocaleString('en-US');
+  $('rx-quote').innerHTML=`<div class="rx-q-h">Draft quotation</div>
+    <div class="rx-q-sub">Prices itself while you type — saved with the call.</div>
+    <div class="rx-q-row"><div><b>First month</b><span>${area} m² × $15/m²</span></div><div class="rx-q-amt">${money(first)}</div></div>
+    <div class="rx-q-row"><div><b>Monthly rental</b><span>${area} m² × $3/m² / month</span></div><div class="rx-q-amt">${money(monthly)}</div></div>
+    <div class="rx-q-row"><div><b>Transport &amp; delivery</b><span>flat rate</span></div><div class="rx-q-amt">${money(transport)}</div></div>
+    <div class="rx-q-tot"><span class="rx-q-h">Estimate total</span><span class="rx-q-big">${money(first+monthly+transport)}</span></div>
+    <div class="rx-q-note">ex VAT · budget estimate from rate card, not a firm offer</div>`;
   $('rx-body').innerHTML=html;
   $('rx').hidden=false;
 
