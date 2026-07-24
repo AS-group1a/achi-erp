@@ -104,7 +104,12 @@
   .tscroll{overflow:auto;height:var(--bh,58vh)}
   table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;margin-bottom:0;font-size:13px;table-layout:fixed}
   thead tr{background:var(--navy)}
-  thead th{position:sticky;top:0;z-index:2;background:transparent;color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:left;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
+  /* The header paints its own navy rather than inheriting the row's. A sticky
+     cell is lifted out of normal flow, and a <tr> background does not travel
+     with it — so a transparent th let scrolling rows show straight through the
+     column titles. z-index sits above tbody td.pg-f (3) so no body cell, sticky
+     or not, can paint over the header. */
+  thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:left;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
   /* Expand Row — the whole row as one vertical page. Sits next to Add Row and
      appears only with a selection, because there is nothing to expand without
      one. Same pill shape as its neighbours. */
@@ -238,7 +243,9 @@
   .pg-f{position:sticky;z-index:1}
   tbody td.pg-f{background:#fff;z-index:3;pointer-events:auto}
   tbody tr.data:nth-child(even) td.pg-f{background:#f8faff}
-  thead th.pg-f{z-index:4;background:var(--navy)}
+  /* Above thead th (6) so the frozen columns' titles win at the top-left corner,
+     where the sticky row and sticky column cross. */
+  thead th.pg-f{z-index:7;background:var(--navy)}
   .pg-f-shadow{box-shadow:4px 0 10px -2px rgba(0,0,0,.10)}
   thead th.pg-f-shadow{box-shadow:4px 0 10px -2px rgba(0,0,0,.08)}
   .num{width:46px;text-align:center}
