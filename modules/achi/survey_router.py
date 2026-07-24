@@ -38,11 +38,37 @@ _MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
     include_in_schema=False,
     summary="Site Survey UI",
 )
-def survey_ui() -> HTMLResponse:
-    """Our own page, same reasoning as the call log's: no frontend build, and
-    same-origin so it reuses the JWT the SPA already stored."""
+def survey_ui(id: str | None = Query(default=None, description="Open one survey in the form")) -> HTMLResponse:
+    """Site Survey. The table by default; the step-by-step form for one survey.
+
+    Serving the table from this URL — not only from /surveys/table — is
+    deliberate. achi-nav.js is cached CacheFirst by a service worker, so a
+    browser can hold an old copy whose Site Survey entry still points here. If
+    this route served the form, that stale nav would keep showing the form no
+    matter what the sidebar was changed to. Answering with the table means the
+    sidebar lands on it whichever nav version the browser is running.
+
+    ``?id=`` still opens the form for that survey, which is how the table's
+    survey-number link hands a row over to the on-site view.
+    """
+    page = "survey.html" if id else "survey_table.html"
     return HTMLResponse(
-        (_UI_DIR / "survey.html").read_text(encoding="utf-8"),
+        (_UI_DIR / page).read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@survey_router.get("/surveys/table", response_class=HTMLResponse, include_in_schema=False,
+                   summary="Site Survey table")
+def survey_table_ui() -> HTMLResponse:
+    """The surveys as a grid, beside the step-by-step form.
+
+    The form at /survey/ui is built for a phone on site; this is the same records
+    as a Call Log-style table for working through them at a desk. Both read the
+    same rows — neither is a copy of the other's data.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "survey_table.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 

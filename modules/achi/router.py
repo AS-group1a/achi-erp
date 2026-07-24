@@ -110,6 +110,25 @@ def ui_chrome_js() -> PlainTextResponse:
     )
 
 
+@router.get(
+    "/ui/grid.css",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Shared grid stylesheet",
+)
+def ui_grid_css() -> PlainTextResponse:
+    """The grid's look, served once instead of pasted into every page.
+
+    Inert styling with no data in it, so unauthenticated for the same reason as
+    the pages themselves.
+    """
+    return PlainTextResponse(
+        (_UI_DIR / "grid.css").read_text(encoding="utf-8"),
+        media_type="text/css",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
 @router.get("/info", response_model=ModuleInfo, summary="ACHI module info")
 def info() -> ModuleInfo:
     return ModuleInfo(

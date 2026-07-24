@@ -446,7 +446,9 @@ $('new-survey').onclick=async()=>{
 $('q').oninput=renderList;
 
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
-else load();
+/* ?id=<survey> opens that survey straight away, so the table can hand a row
+   over to this form without the user hunting for it in the list. */
+else load(new URLSearchParams(location.search).get('id')||undefined);
 </script>
 <script src="/api/v1/achi/ui/chrome.js?v=15"></script>
 </body>
