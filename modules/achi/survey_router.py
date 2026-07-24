@@ -47,6 +47,21 @@ def survey_ui() -> HTMLResponse:
     )
 
 
+@survey_router.get("/surveys/table", response_class=HTMLResponse, include_in_schema=False,
+                   summary="Site Survey table")
+def survey_table_ui() -> HTMLResponse:
+    """The surveys as a grid, beside the step-by-step form.
+
+    The form at /survey/ui is built for a phone on site; this is the same records
+    as a Call Log-style table for working through them at a desk. Both read the
+    same rows — neither is a copy of the other's data.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "survey_table.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
 @survey_router.get("/surveys/", response_model=list[SurveyRowOut], summary="Surveys, newest first")
 async def list_surveys(
     session: SessionDep,

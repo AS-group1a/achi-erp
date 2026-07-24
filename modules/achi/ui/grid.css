@@ -1,0 +1,406 @@
+/* ACHI grid stylesheet.
+ *
+ * Lifted verbatim from log.html so the Site Survey table is the Call Log table
+ * by construction, not by imitation. log.html is deliberately NOT edited to
+ * point here yet: three people are changing it daily and a refactor of that
+ * size would collide with their work. Pointing it at this file is a follow-up,
+ * and until then the two copies must be kept in step by hand.
+ */
+
+  :root{
+    --navy:#284F9E; --navy-d:#1F3F80; --navy-2:#305FB8; --accent:#3D6BC4; --light:#E3EDFB;
+    --bd:#dfe4ec; --hair:#eef1f6; --tx:#1d1d1f; --tx-2:#5b5e66; --tx-3:#8a8f98;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--tx);background:#f5f5f7}
+  header{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px}
+  header h1{font-size:16px;font-weight:600}
+  header .sp{flex:1}
+  header .who{font-size:12px;opacity:.75}
+  main{margin:0;padding:16px 18px 40px}
+  .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none}
+  .feedback{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;padding:72px 20px 20px;background:rgba(15,35,75,.24);backdrop-filter:blur(2px)}
+  .feedback-box{width:min(430px,calc(100vw - 32px));overflow:hidden;border:1px solid #d8e3f3;border-top:4px solid var(--navy);border-radius:12px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.18),0 4px 14px rgba(15,23,42,.08)}
+  .feedback-head{padding:14px 20px;border-bottom:1px solid #dce6f5;background:linear-gradient(135deg,#edf4ff 0%,#f7faff 58%,#fff 100%);color:#1e3f85;font-size:16px;font-weight:800}
+  .feedback-body{padding:20px;color:#334155;font-size:13.5px;line-height:1.65}
+  .feedback-foot{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #eef2f7;background:#f8fafc}
+  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .save-feedback{position:fixed;z-index:2147483001;right:24px;bottom:24px;display:flex;align-items:center;gap:10px;min-width:220px;padding:14px 20px;border:2px solid #fff;border-radius:12px;background:linear-gradient(135deg,#1e3f85,#2f62bd);color:#fff;box-shadow:0 18px 44px rgba(15,35,75,.28);font-size:14px;font-weight:800}
+  .save-feedback-mark{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#fff;color:#1e3f85;font-size:16px}
+  .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
+  .email-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;cursor:pointer;padding:3px 0;text-decoration:none}
+  .email-btn:hover{text-decoration:underline}
+  .email-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .draft-email{display:flex;align-items:center;gap:5px;width:100%}
+  .draft-email .din{min-width:0;flex:1}
+  .draft-compose{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px;border:1.5px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:var(--navy);cursor:pointer;padding:0}
+  .draft-compose:hover{background:#dbeafe}
+  .draft-compose[hidden]{display:none}
+  .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
+  @keyframes compose-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+  .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
+  .compose-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;letter-spacing:.02em}
+  .compose-title svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .compose-close{width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;font-size:19px;line-height:1;cursor:pointer}
+  .compose-close:hover{background:rgba(255,255,255,.32)}
+  .compose-row{display:flex;align-items:center;min-height:44px;padding:0 20px;border-bottom:1px solid #f0f0f5}
+  .compose-label{width:64px;flex-shrink:0;color:#9ca3af;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .compose-recipient{display:inline-flex;align-items:center;padding:5px 10px;border:1.5px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:500}
+  .compose-subject{flex:1;border:0;outline:0;background:transparent;color:#111827;font:inherit;font-size:13px}
+  .compose-subject::placeholder,.compose-body::placeholder{color:#d1d5db}
+  .compose-body{display:block;width:100%;min-height:210px;padding:16px 20px;border:0;outline:0;resize:none;color:#374151;font:inherit;font-size:13px;line-height:1.7}
+  .compose-foot{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1.5px solid #e8e8f0;background:#f6f9fe}
+  .compose-send{padding:8px 22px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
+  .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:8px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .compose-mailto:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
+
+  .kpis{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+  .kpi{flex:1 1 180px;border-radius:12px;padding:15px 18px;color:#fff;transition:transform .15s ease}
+  .kpi:hover{transform:translateY(-2px)}
+  .kpi.btn{cursor:pointer}
+  .kpi .n{font-size:28px;font-weight:900;line-height:1.05}
+  .kpi .l{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+  .kpi .s{font-size:11px;opacity:.82}
+  .k1{background:#0176d3}.k2{background:#032d60}.k3{background:#014486}.k4{background:#0e7490}
+  .kpi.on{outline:3px solid rgba(255,255,255,.55);outline-offset:-3px}
+
+  .shell{background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:0 4px 20px rgba(40,79,158,.08);overflow:hidden}
+  .nav{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;background:var(--navy);padding:11px 16px}
+  .nav-actions{display:flex;align-items:center;gap:8px;justify-self:start}
+  .nav-right{display:flex;align-items:center;gap:10px;justify-self:end;min-width:0}
+  .pt{position:relative;display:inline-flex;justify-self:center;background:rgba(0,0,0,.2);border-radius:8px;padding:4px}
+  .pt-ind{position:absolute;top:4px;bottom:4px;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.22);transition:left .18s cubic-bezier(.2,0,.2,1),width .18s cubic-bezier(.2,0,.2,1)}
+  .pill-tab{position:relative;z-index:1;border:0;background:transparent;padding:7px 15px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.58);cursor:pointer;white-space:nowrap;font-family:inherit}
+  .pill-tab:hover{color:rgba(255,255,255,.88)}
+  .pill-tab.on{color:var(--navy);font-weight:800}
+  .search{height:32px;width:200px;border-radius:8px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
+  .search::placeholder{color:rgba(255,255,255,.42)}
+  .tb-add{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:8px;background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22);transition:transform .15s,box-shadow .15s}
+  .tb-add:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.28)}
+  .tb-add-plus{font-size:17px;line-height:1}
+  /* delete selected */
+  .tb-del{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;background:rgba(255,255,255,.1);color:#fca5a5;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0;pointer-events:none;max-width:0;padding:0;overflow:hidden;transition:opacity .18s,max-width .18s}
+  .tb-del.on{opacity:1;pointer-events:all;max-width:200px;padding:7px 13px;border:1.5px solid rgba(252,165,165,.45)}
+  .tb-del:hover{background:rgba(239,68,68,.25);border-color:#fca5a5;color:#fff}
+  .tb-del svg{width:13px;height:13px}
+  .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:8px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
+  /* phone: country-code picker + number */
+  .tel-wrap{display:flex;align-items:center;gap:4px;width:100%}
+  .tel-cc{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;height:30px;padding:0 6px;border:1px solid #cfd9e8;border-radius:6px;background:#fff;cursor:pointer;font:inherit;font-size:12px;color:#1e293b}
+  .tel-cc:hover{border-color:var(--navy)}
+  .tel-cc img{width:20px;height:15px;object-fit:cover;border-radius:2px;display:block}
+  .tel-cc svg{width:11px;height:11px;opacity:.55}
+  .tel-num{flex:1 1 auto;min-width:0}
+  .cc-drop{position:fixed;z-index:2147482300;width:290px;background:#fff;border:1.5px solid #dfe4ec;border-radius:10px;box-shadow:0 12px 34px rgba(15,23,42,.22);overflow:hidden;display:none}
+  .cc-drop.vis{display:block}
+  .cc-search{width:100%;border:0;border-bottom:1px solid #eef1f6;padding:9px 11px;font:inherit;font-size:12.5px;outline:none}
+  .cc-list{max-height:230px;overflow:auto}
+  .cc-item{display:flex;align-items:center;gap:9px;padding:7px 11px;cursor:pointer;font-size:12.5px}
+  .cc-item:hover{background:var(--navy);color:#fff}
+  .cc-item img{width:22px;height:16px;object-fit:cover;border-radius:2px;flex:0 0 auto}
+  .cc-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cc-dial{font-variant-numeric:tabular-nums;opacity:.7;flex:0 0 auto}
+  td.num{cursor:pointer}
+
+  .tscroll{overflow:auto;height:var(--bh,58vh)}
+  table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;margin-bottom:0;font-size:13px;table-layout:fixed}
+  thead tr{background:var(--navy)}
+  /* The header paints its own navy rather than inheriting the row's. A sticky
+     cell is lifted out of normal flow, and a <tr> background does not travel
+     with it — so a transparent th let scrolling rows show straight through the
+     column titles. z-index sits above tbody td.pg-f (3) so no body cell, sticky
+     or not, can paint over the header. */
+  thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:left;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
+  /* Expand Row — the whole row as one vertical page. Sits next to Add Row and
+     appears only with a selection, because there is nothing to expand without
+     one. Same pill shape as its neighbours. */
+  .tb-exp{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid rgba(255,255,255,.55);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .tb-exp:hover{background:rgba(255,255,255,.22);border-color:#fff}
+  .tb-exp svg{width:13px;height:13px}
+
+  /* The expanded row. A sheet rather than a dialog: one column, scrolls
+     vertically, reads the way the same record would on a phone. */
+  .rx{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  .rx[hidden]{display:none}
+  /* No border: a 1px border with overflow:hidden + border-radius clips unevenly
+     at the rounded corners (the "clipping" you keep seeing). The shadow alone
+     defines the edge cleanly. */
+  .rx-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .rx-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;flex:0 0 auto}
+  .rx-head h2{font-size:14px;font-weight:800;letter-spacing:.01em}
+  .rx-head p{font-size:11px;opacity:.8;margin-top:2px}
+  .rx-x{border:0;background:rgba(255,255,255,.16);color:#fff;width:26px;height:26px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .rx-x:hover{background:rgba(255,255,255,.3)}
+  .rx-x svg{width:13px;height:13px}
+  /* Cards on a soft grey field, the way the design reference reads: each section
+     is its own white rounded card rather than a divider between flat rows. */
+  /* inset top shadow gives depth under the header without a box-shadow that the
+     overflow-hidden box would clip into a hard line (the "clipping" seam). */
+  .rx-body{overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:11px;flex:1 1 auto;background:#eef1f6;box-shadow:inset 0 7px 7px -7px rgba(15,35,75,.18);-webkit-overflow-scrolling:touch}
+  .rx-att-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .rx-att-count{font-size:12.5px;color:#475569;font-weight:600}
+  .rx-files-btn{border:1px solid #b9d0f2;border-radius:8px;background:#e8f0fd;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer}
+  .rx-files-btn:hover{background:#dbe8fb}
+  .rx-files-btn:disabled{opacity:.5;cursor:not-allowed}
+  .rx-att-btns{display:flex;gap:7px}
+  .rx-sec{background:#fff;border:1px solid #e6ebf3;border-radius:13px;padding:14px 16px;box-shadow:0 1px 3px rgba(20,40,90,.05)}
+  .rx-sec h3{font-size:9.5px;font-weight:800;color:#8492ab;letter-spacing:.1em;text-transform:uppercase;margin-bottom:11px}
+  /* The cost card picks up the pale-blue working surface from the reference. */
+  .rx-sec.cost{background:#eff4fd;border-color:#cfe0f7}
+  /* Contact name: one line by default, splits into prefix/first/last on click.
+     max-height animates the reveal; the display line hides while editing. */
+  .rx-name-wrap{margin-bottom:4px}
+  .rx-name{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:transparent;padding:0 0 4px;cursor:pointer;font:inherit}
+  .rx-name .nm{font-size:17px;font-weight:800;color:#1d2b45;letter-spacing:-.01em}
+  .rx-name svg{width:14px;height:14px;flex:0 0 auto;color:#aab4c6;stroke:currentColor}
+  .rx-name:hover svg{color:var(--navy)}
+  .rx-name-edit{display:grid;grid-template-columns:82px 1fr 1fr;gap:7px;max-height:0;opacity:0;overflow:hidden;transition:max-height .26s ease,opacity .18s ease,margin .2s ease}
+  .rx-name-wrap.on .rx-name-edit{max-height:64px;opacity:1;margin-bottom:6px}
+  .rx-name-wrap.on .rx-name{display:none}
+  .rx-name-edit input,.rx-name-edit select{font:inherit;font-size:13px;padding:8px;border:1px solid #cbd5e1;border-radius:7px;width:100%;background:#fff}
+  .rx-name-edit input:focus,.rx-name-edit select:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .rx-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .rx-badge{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);background:#e8f0fd;border:1px solid #cfe0f7;border-radius:6px;padding:3px 8px}
+  .rx-f{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .rx-f>label{font-size:10.5px;font-weight:700;color:#475569;letter-spacing:.02em}
+  .rx-f input,.rx-f textarea,.rx-f select{font:inherit;font-size:13px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--tx);width:100%}
+  .rx-f input:focus,.rx-f textarea:focus,.rx-f select:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .rx-f textarea{resize:vertical;min-height:64px}
+  .rx-f .rx-saved{font-size:10.5px;color:#15803d;font-weight:700}
+  .rx-f .rx-err{font-size:10.5px;color:#ba0517;font-weight:700}
+  .rx-map{border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;background:#eef2f7}
+  .rx-map .mapwrap{position:relative;height:170px;overflow:hidden}
+  .rx-map a{display:block;padding:8px 10px;font-size:11.5px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
+  .rx-none{font-size:12px;color:#94a3b8;padding:8px 0}
+  /* Sticky footer: on a long sheet Save must be reachable without scrolling
+     back down, which is the whole point of a one-column layout on a phone. */
+  .rx-foot{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 18px;border-top:1px solid #e2e8f0;background:#fff}
+  .rx-status{font-size:11.5px;color:#475569}
+  .rx-status.ok{color:#15803d;font-weight:700}
+  .rx-status.bad{color:#ba0517;font-weight:700}
+  .rx-foot-btns{display:flex;align-items:center;gap:8px}
+  .rx-save{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:9px 20px;cursor:pointer}
+  .rx-save:hover{background:#1F3F80}
+  .rx-save:disabled{opacity:.55;cursor:not-allowed}
+  .rx-save-cont{border:1px solid #b9d0f2;border-radius:8px;background:#eff4fd;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;padding:9px 16px;cursor:pointer}
+  .rx-save-cont:hover{background:#dbe8fb}
+  .rx-save-cont:disabled{opacity:.55;cursor:not-allowed}
+  /* Drafting a quotation is a secondary action next to Save — same blue family,
+     lighter weight, so the primary action stays obvious. */
+  .qv-draft.alt{background:#e8f0fd;color:var(--navy);border:1px solid #b9d0f2}
+  .qv-draft.alt:hover{background:#dbe8fb}
+
+  /* Quick quotation card. Light blue so it reads as a working surface attached
+     to the selection rather than another table. Radii follow OCE's scale. */
+  .qv{margin:14px 0 8px;border:1px solid #bcd6f5;background:#eff6ff;border-radius:12px;padding:14px 16px}
+  .qv-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .qv-head h2{font-size:13px;font-weight:800;color:var(--navy);letter-spacing:.01em}
+  .qv-for{font-size:11.5px;color:#4a5568;margin-top:2px}
+  .qv-x{border:0;background:transparent;color:#64748b;cursor:pointer;padding:4px;border-radius:6px;display:inline-flex}
+  .qv-x:hover{background:#dbeafe;color:var(--navy)}
+  .qv-x svg{width:14px;height:14px}
+  .qv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px}
+  .qv-grid-wide{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:9px}
+  .qv-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .qv-f>span{font-size:10.5px;font-weight:700;color:#475569;letter-spacing:.03em;text-transform:uppercase}
+  .qv-f input,.qv-f textarea{font:inherit;font-size:12.5px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--tx);min-width:0;width:100%}
+  .qv-f input:focus,.qv-f textarea:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+  .qv-f textarea{resize:vertical}
+  .qv-span{grid-column:1/-1}
+  .qv-more{margin-top:10px}
+  .qv-more summary{font-size:11.5px;font-weight:700;color:var(--navy);cursor:pointer;user-select:none;padding:4px 0}
+  .qv-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:13px;padding-top:11px;border-top:1px solid #bcd6f5}
+  .qv-totals{display:flex;align-items:center;gap:16px;font-size:11.5px;color:#475569;flex-wrap:wrap}
+  .qv-totals b{color:var(--tx);font-weight:700;margin-left:4px}
+  .qv-total{font-size:13px;color:var(--navy);font-weight:700}
+  .qv-total b{color:var(--navy);font-size:15px;font-weight:800}
+  .qv-actions{display:flex;align-items:center;gap:10px}
+  .qv-msg{font-size:11.5px;color:#475569}
+  .qv-msg.ok{color:#15803d;font-weight:700}
+  .qv-msg.bad{color:#ba0517;font-weight:700}
+  .qv-draft{border:0;border-radius:8px;background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:9px 16px;cursor:pointer;white-space:nowrap}
+  .qv-draft:hover{background:#1F3F80}
+  .qv-draft:disabled{opacity:.55;cursor:not-allowed}
+
+  /* # header doubles as select-all. It has to read as pressable — an unstyled
+     <th> gives no hint that it does anything. .on is the all-selected state. */
+  thead th.num-head{cursor:pointer;user-select:none}
+  thead th.num-head:hover{background:#2f5cb3;color:#fff}
+  thead th.num-head:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+  thead th.num-head.on{background:#fff;color:var(--navy)}
+  /* column resize (ported from tabbed_grid.js .pg-rz). The handle positions
+     against the th, which is already `position:sticky` and therefore a
+     containing block for absolute children. */
+  .rz{position:absolute;top:0;right:-2px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}
+  thead th:last-child .rz{right:0;width:4px}
+  .rz:hover,.rz.rz-active{background:rgba(255,255,255,.28)}
+  body.col-resizing{cursor:col-resize!important;user-select:none}
+  body.col-resizing *{cursor:col-resize!important}
+  tbody td{height:46px;padding:0 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;position:relative}
+  tbody td.wide{max-width:340px}
+  tbody tr.data:nth-child(even) td{background:#f8faff}
+  tbody tr.data:hover td{background:#eef4fd}
+  /* Frappe GridShell fixed-column contract. */
+  .pg-f{position:sticky;z-index:1}
+  tbody td.pg-f{background:#fff;z-index:3;pointer-events:auto}
+  tbody tr.data:nth-child(even) td.pg-f{background:#f8faff}
+  /* Above thead th (6) so the frozen columns' titles win at the top-left corner,
+     where the sticky row and sticky column cross. */
+  thead th.pg-f{z-index:7;background:var(--navy)}
+  .pg-f-shadow{box-shadow:4px 0 10px -2px rgba(0,0,0,.10)}
+  thead th.pg-f-shadow{box-shadow:4px 0 10px -2px rgba(0,0,0,.08)}
+  .num{width:46px;text-align:center}
+  tbody tr.selectable-row td.num{cursor:pointer;user-select:none;padding:0}
+  .rn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:8px;background:#eff6ff;color:var(--navy);font-weight:800;font-size:11px}
+  tbody tr.selectable-row:hover .rn{background:var(--navy);color:#fff}
+  tbody tr.selectable-row.row-selected td{background:#dbeafe!important}
+  tbody tr.selectable-row.row-selected:hover td{background:#bfdbfe!important}
+  tbody tr.selectable-row.row-selected .rn{background:var(--navy);color:#fff}
+  .dt{font-variant-numeric:tabular-nums;color:#334155}
+  .pg-f-date .pg-dt-compact{display:none}
+  .pg-f-date.pg-dt-narrow .pg-dt-full{display:none}
+  .pg-f-date.pg-dt-narrow .pg-dt-compact{display:inline}
+  .mt{color:#9ca3af}
+  .name{font-weight:700;color:#111827}
+  .lnk{color:var(--navy);text-decoration:none}.lnk:hover{text-decoration:underline}
+  .ph{font-variant-numeric:tabular-nums}
+  .wa{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;color:#15803d;background:#e7f5ee;border-radius:6px;padding:3px 5px;text-decoration:none}
+  .wa svg{width:14px;height:14px;display:block}
+  .avatar{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#334f8a;color:#fff;font-size:10px;font-weight:800}
+  .badge{display:inline-flex;align-items:center;padding:3px 11px;border-radius:99px;font-size:11px;font-weight:800;white-space:nowrap;border:1px solid transparent;text-transform:capitalize}
+  .b-open{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
+  .b-scheduled{background:#ece9f5;color:#3e3794;border-color:#c5bde8}
+  .b-viewed{background:#e0f5f5;color:#0a5f6e;border-color:#8dd5d8}
+  .b-cancelled{background:#f3f3f3;color:#706e6b;border-color:#c9c7c5}
+  .b-done{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
+  .tag{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;background:#f1f5f9;color:#475569;text-transform:capitalize;white-space:nowrap}
+  /* maps cell (ported from the tabbed grid): Open button + copy + hover preview */
+  .maps-cell{display:inline-flex;align-items:center;gap:5px}
+  .maps-btn{display:inline-flex;align-items:center;gap:4px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;padding:3px 9px;border-radius:8px;background:#eff6ff;white-space:nowrap}
+  .maps-btn:hover{background:#dbeafe}
+  .maps-btn .pin{display:inline-flex;color:#ef4444}
+  .maps-btn svg,.pin svg{width:13px;height:13px}
+  /* flex:0 0 auto matters: .maps-cell and .draft-map-wrap are flex rows, and a
+     fixed width/height alone does NOT stop flex from shrinking these. In a narrow
+     column the circles were squeezed into ovals and the icons with them. */
+  .map-copy{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
+  .map-copy svg{width:12px;height:12px;flex:0 0 auto}
+  .map-copy:hover{background:#dbeafe}
+  .map-copy.copied{border-color:#16a34a;background:#dcfce7;color:#16a34a}
+  .map-edit{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;cursor:pointer;padding:0}
+  .map-edit svg{width:12px;height:12px;flex:0 0 auto}
+  .map-edit:hover{background:#dbeafe}
+  .draft-map-wrap{display:flex;align-items:center;gap:5px}
+  .draft-map-wrap .din{min-width:0}
+  .maps-popup{position:fixed;z-index:2147482100;background:#fff;border-radius:12px;border:1.5px solid #e8e8f0;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;width:240px;opacity:0;transition:opacity .15s;pointer-events:none}
+  .maps-popup.vis{opacity:1;pointer-events:all}
+  .maps-popup-inner{position:relative}
+  /* tile-built map (CSP blocks third-party iframes; images are allowed) */
+  .tilemap{position:relative;overflow:hidden;background:#e9eef4;display:block}
+  .mt-tile{position:absolute;width:256px;height:256px;display:block;max-width:none}
+  .maps-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);color:#ef4444;pointer-events:none;z-index:1}
+  .maps-pin svg{width:24px;height:24px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+  .map-modal-body{max-width:100%;overflow:auto}
+  .maps-popup iframe{width:240px;height:160px;border:none;display:block}
+  /* expand affordance, ported from .pg-popup-expand */
+  .popup-expand{position:absolute;top:6px;left:6px;width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.88);border:1.5px solid #e8e8f0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;color:#6b7280;transition:background .12s,color .12s,border-color .12s;padding:0}
+  .popup-expand:hover{background:#eff6ff;color:#2563eb;border-color:#2563eb}
+  .popup-expand svg{width:13px;height:13px}
+  .maps-popup-fallback{padding:14px 12px;font-size:12px;color:#6b7280;white-space:normal;word-break:break-all}
+  .maps-popup-url{padding:7px 12px;font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f0f0f5}
+  td.ed{cursor:text}
+  td.ed:hover{box-shadow:inset 0 0 0 1.5px #bfdbfe}
+  td.sel{cursor:pointer}
+  /* inline editor never grows the cell: fills it exactly */
+  .cellinput{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:2px solid #2563eb;border-radius:4px;padding:2px 5px;outline:none;background:#fff;display:block}
+  select.cellinput{padding:2px 3px}
+  .pg-select-input{cursor:pointer;padding:0 8px;animation:pg-select-in .14s cubic-bezier(.2,0,.2,1) both}
+  @keyframes pg-select-in{from{opacity:0;transform:scaleY(.6) scaleX(.97);box-shadow:none}to{opacity:1;transform:none;box-shadow:0 4px 20px rgba(37,99,235,.18)}}
+  .pg-ac-drop{position:fixed;z-index:2147482100;display:none;max-height:220px;overflow-y:auto;background:#fff;border:1.5px solid #1e3f85;border-radius:10px;box-shadow:0 8px 24px rgba(30,63,133,.16)}
+  .pg-ac-item{padding:7px 13px;cursor:pointer;font-size:12.5px;color:#1e3f85;background:#fff;white-space:nowrap}
+  .pg-ac-item.pg-ac-active{background:#fff;color:#1e3f85}
+  .pg-ac-item:hover{background:#1e3f85;color:#fff}
+  .contact-match-drop{min-width:300px;max-width:min(460px,calc(100vw - 16px))}
+  .contact-match{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .contact-match-main{min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+  .contact-match-meta{min-width:0;color:#64748b;font-size:11px;overflow:hidden;text-overflow:ellipsis}
+  .contact-match.pg-ac-active{background:#1e3f85;color:#fff}
+  .contact-match:hover .contact-match-meta,.contact-match.pg-ac-active .contact-match-meta{color:rgba(255,255,255,.78)}
+  .empty{padding:20px 14px;text-align:center;color:#9ca3af}
+
+  /* draft rows: top permanent + appended bottom ones */
+  tr.draft td{background:#f2f6fd;border-bottom:1px solid #cdddf5}
+  tr.draft.dtop td{border-bottom:2px solid #cdddf5}
+  tr.draft .din{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:1px solid #cfd9e8;border-radius:6px;padding:2px 6px;background:#fff}
+  tr.draft select.din{padding:2px 3px}
+  tr.draft .din:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(40,79,158,.15)}
+  .addbtn2{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--navy);color:#fff;font-weight:900;font-size:16px;border:0;cursor:pointer;line-height:1;padding:0}
+  .addbtn2:hover{background:var(--navy-2)}
+  .rmbtn{width:24px;height:24px;border-radius:6px;border:0;background:#fde8e8;color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
+  .rmbtn:hover{background:#f7c9c9}
+
+  /* bottom drag strip to resize the table height */
+  .vrz{height:12px;cursor:row-resize;background:linear-gradient(#fff,#eef2f8);border-top:1px solid #e7edf6;display:flex;align-items:center;justify-content:center}
+  .vrz::after{content:'';width:40px;height:3px;border-radius:3px;background:#c2cddf}
+  body.resizing{cursor:row-resize!important;user-select:none!important}
+
+  /* back-to-top FAB (cloned from the tabbed grid) */
+  .totop{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:8px;background:var(--navy);color:#fff;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28);display:none;align-items:center;justify-content:center;font-size:20px;line-height:1;z-index:60;transition:transform .15s ease,opacity .15s ease;opacity:0}
+  .totop.show{display:inline-flex;opacity:1}
+  .totop:hover{transform:translateY(-2px);background:var(--navy-2)}
+  .totop svg{width:18px;height:18px}
+  .muted{color:var(--tx-3)}
+
+  /* description popup — ported from the frappe grid's note workspace, same blue/white */
+  /* Above the expand-row sheet (2147482500): the files/drawing workspace opens
+     FROM the sheet, so it has to sit on top of it, not behind. */
+  .pg-note-workspace{position:fixed;inset:0;z-index:2147482600;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
+  /* expand affordance on long-text cells: click to type, arrow to open the popup */
+  td.notecell{position:relative}
+  .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
+  td.notecell:hover .note-exp,.note-wrap:hover .note-exp{opacity:1}
+  .note-exp:hover{background:#dbeafe}
+  .note-exp svg{width:12px;height:12px}
+  .note-wrap{position:relative;display:block;width:100%}
+  .note-wrap .note-exp{right:3px;bottom:5px}
+  .pg-note-workspace-box{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 28px 80px rgba(15,35,75,.32)}
+  .pg-note-workspace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
+  .pg-note-workspace-title{font-size:16px;font-weight:800;letter-spacing:.02em}
+  .pg-note-workspace-sub{margin-top:3px;font-size:11.5px;color:rgba(255,255,255,.76)}
+  .pg-note-workspace-head-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .pg-note-head-tool{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid rgba(255,255,255,.34);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+  .pg-note-head-tool:hover,.pg-note-head-tool.has-content{background:#fff;color:#1e3f85}
+  .pg-note-head-tool:disabled{opacity:.55;cursor:wait}
+  .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
+  .pg-note-workspace-body{padding:20px 22px;overflow:auto;background:#f7faff}
+  .pg-note-workspace-label{display:block;margin-bottom:7px;color:#1e3f85;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .pg-note-workspace-text{width:100%;min-height:210px;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
+  .pg-note-workspace-text:focus{border-color:#284f9e;box-shadow:0 0 0 3px rgba(40,79,158,.12)}
+  .pg-note-files{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+  .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:8px;background:#fff;color:#334155;font-size:12px}
+  .pg-note-file a{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#1e3f85;text-decoration:none}
+  .pg-note-file a:hover{text-decoration:underline}
+  .pg-note-file-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .pg-note-file-pending{color:#64748b;font-size:10.5px;white-space:nowrap}
+  .pg-note-file-del{width:20px;height:20px;border:0;border-radius:6px;background:#fde8e8;color:#c0392b;font-weight:900;font-size:12px;line-height:1;cursor:pointer;padding:0}
+  .pg-note-file-del:hover{background:#f7c9c9}
+  .pg-note-workspace-status{min-height:18px;margin-top:10px;color:#64748b;font-size:11.5px}
+  .pg-note-workspace-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid #dce6f5;background:#fff}
+  .pg-note-workspace-hint{color:#718096;font-size:11px}
+  .pg-note-workspace-actions{display:flex;gap:9px}
+  .pg-note-cancel,.pg-note-save{height:36px;padding:0 18px;border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .pg-note-cancel{border:1.5px solid #cbd9f1;background:#fff;color:#1e3f85}
+  .pg-note-save{border:0;background:#1e3f85;color:#fff;box-shadow:0 4px 12px rgba(30,63,133,.22)}
+  .pg-note-save:disabled{opacity:.55;cursor:wait}
+  /* cell markers so a row shows it carries files or a sketch without opening it */
+  .cellmark{margin-left:6px;font-size:10px;color:#1e3f85;opacity:.75}
+  @media(max-width:640px){
+    .pg-note-workspace{padding:10px}
+    .pg-note-workspace-head{align-items:flex-start;flex-wrap:wrap}
+    .pg-note-workspace-head-actions{order:3;width:100%;margin-left:0}
+    .pg-note-head-tool{flex:1;justify-content:center}
+    .pg-note-workspace-foot{align-items:flex-end}
+    .pg-note-workspace-hint{max-width:150px}
+    .pg-note-workspace-text{min-height:180px}
+  }

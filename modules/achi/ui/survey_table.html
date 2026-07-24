@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Surveys · Achi Scaffolding ERP</title>
+<link rel="stylesheet" href="/api/v1/achi/ui/grid.css?v=1">
+<style>
+  /* Survey statuses have no badge classes in the shared sheet — the Call Log's
+     vocabulary is different. Same shapes, survey colours. */
+  .b-planned{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
+  .b-on_site{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
+  .b-surveyed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
+  .b-quoted{background:#ece9f5;color:#3e3794;border-color:#c5bde8}
+</style>
+</head>
+<body>
+<main>
+  <div class="err" id="err"></div>
+  <div class="shell">
+    <div class="nav">
+      <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
+      <span class="cnt" id="count">· 0</span>
+      <div class="pt" id="tabs">
+        <span class="pt-ind" id="ind"></span>
+        <button class="pill-tab on" data-tab="0">Survey Details</button>
+        <button class="pill-tab" data-tab="1">Site</button>
+        <button class="pill-tab" data-tab="2">Access</button>
+        <button class="pill-tab" data-tab="3">Visit</button>
+      </div>
+      <input class="search" id="q" placeholder="Search name, company, city, survey…">
+    </div>
+    <div class="tscroll" id="touter">
+      <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
+    </div>
+  </div>
+</main>
+<script src="/api/v1/achi/ui/chrome.js?v=14"></script>
+<script>
+/* Site Survey table — the Call Log grid's contract, on survey rows.
+   Design comes from the shared grid.css rather than a copy, so the two tables
+   cannot drift apart visually. */
+
+/* ── auth ──────────────────────────────────────────────────────────────────
+   Both tokens this API issues are JWTs, so "looks like a JWT" cannot tell them
+   apart; a refresh token sent as a bearer 401s forever and re-signing-in does
+   not clear it. Exclude anything typed "refresh". */
+const isJwt=s=>typeof s==='string'&&/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
+function jwtPayload(t){ try{ let p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4) p+='='; return JSON.parse(atob(p)); }catch(e){ return null; } }
+const isAccessJwt=s=>isJwt(s)&&(jwtPayload(s)||{}).type!=='refresh';
+function scanStorage(match){
+  for(const st of [localStorage,sessionStorage]){
+    for(let i=0;i<st.length;i++){ const v=st.getItem(st.key(i));
+      if(match(v))return v;
+      if(v&&v[0]==='{'){ try{const o=JSON.parse(v);
+        for(const c of [o.access_token,o.refresh_token,o.token,o.state&&o.state.access_token,o.state&&o.state.refresh_token])
+          if(match(c))return c; }catch(e){} } }
+  } return null;
+}
+const getToken=()=>isAccessJwt(localStorage.getItem('oe_access_token'))?localStorage.getItem('oe_access_token'):scanStorage(isAccessJwt);
+const getRefreshToken=()=>isJwt(localStorage.getItem('oe_refresh_token'))?localStorage.getItem('oe_refresh_token'):scanStorage(s=>isJwt(s)&&(jwtPayload(s)||{}).type==='refresh');
+let TOKEN=getToken();
+const API='/api/v1/achi';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
+const clearErr=()=>{$('err').style.display='none';};
+
+/* Access tokens last an hour; swap the refresh token in and retry once so an
+   expired session recovers silently. Shared promise: a burst of parallel 401s
+   triggers one refresh, not one each. */
+let refreshing=null;
+function refreshToken(){
+  if(refreshing) return refreshing;
+  const rt=getRefreshToken(); if(!rt) return Promise.resolve(false);
+  refreshing=fetch('/api/v1/users/auth/refresh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:rt})})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{ if(d&&d.access_token){ TOKEN=d.access_token;
+      try{ localStorage.setItem('oe_access_token',TOKEN); if(d.refresh_token) localStorage.setItem('oe_refresh_token',d.refresh_token); }catch(e){}
+      return true; } return false; })
+    .catch(()=>false).finally(()=>{ refreshing=null; });
+  return refreshing;
+}
+async function api(path,opts={},retried){
+  const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
+  if(r.status===401){
+    if(!retried && await refreshToken()) return api(path,opts,true);
+    /* message, not "401": callers do fail(e.message) and the bare status code
+       told the user nothing */
+    const m='Session expired — open the main app on this host, sign in, then reload.';
+    fail(m); throw new Error(m); }
+  if(r.status===204) return {};
+  const b=await r.json().catch(()=>({}));
+  if(!r.ok){ const d=b.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
+  return b;
+}
+
+const STATUSES=['planned','on_site','surveyed','quoted','cancelled'];
+const TRUCK=['unknown','yes','tight','no'];
+const PARKING=['unknown','on_site','street','none'];
+const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+
+/* Fixed columns first, then tab 0..3 — the Call Log's ordering. */
+const COLS=[
+  {k:'num',           h:'#',              w:46,  fixed:true, cls:'num'},
+  {k:'created_at',    h:'Date & Time',    w:132, fixed:true, ro:true},
+  {k:'status',        h:'Status',         w:120, fixed:true, opts:STATUSES, badge:true},
+  {k:'survey_number', h:'Survey',   tab:0, w:130, ro:true},
+  {k:'lead_name',     h:'Name',     tab:0, w:150},
+  {k:'lead_company',  h:'Company',  tab:0, w:170},
+  {k:'lead_mobile',   h:'Mobile',   tab:0, w:150},
+  {k:'owner',         h:'Owner',    tab:0, w:80,  ro:true},
+  {k:'scheduled_for', h:'Scheduled',tab:0, w:150, type:'datetime-local'},
+  {k:'country',       h:'Country',  tab:1, w:100},
+  {k:'district',      h:'District', tab:1, w:120},
+  {k:'city',          h:'City',     tab:1, w:110},
+  {k:'street',        h:'Street',   tab:1, w:140},
+  {k:'site_location', h:'Location', tab:1, w:200},
+  {k:'maps_url',      h:'Google Maps', tab:1, w:150},
+  {k:'truck_access',  h:'Truck Access', tab:2, w:130, opts:TRUCK},
+  {k:'parking',       h:'Parking',      tab:2, w:130, opts:PARKING},
+  {k:'road_notes',    h:'Road Notes',   tab:2, w:220},
+  {k:'access_notes',  h:'Access Notes', tab:2, w:220},
+  {k:'arrived_at',    h:'Arrived',      tab:3, w:150, ro:true},
+  {k:'people_met',    h:'People Met',   tab:3, w:180},
+  {k:'description',   h:'Description',  tab:3, w:320},
+];
+const FIXED=COLS.filter(c=>c.fixed).map(c=>c.k);
+const fixedLeft=k=>COLS.filter(c=>c.fixed).slice(0,FIXED.indexOf(k)).reduce((n,c)=>n+c.w,0);
+const colStyle=c=>`${c.fixed?`position:sticky;left:${fixedLeft(c.k)}px;`:''}min-width:${c.w}px;width:${c.w}px;max-width:${c.w}px;`;
+
+let ROWS=[], draft={};
+const fmtDT=s=>{ if(!s)return ''; const d=new Date(s); if(isNaN(d))return String(s).slice(0,16).replace('T',' ');
+  const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+/* Owner initials: first letter of first name + first of last, X when unknown —
+   the Call Log's rule, so one person reads the same on both tables. */
+function initials(name){
+  const parts=String(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return 'X';
+  return ((parts[0][0]||'')+(parts.length>1?(parts[parts.length-1][0]||''):'')).toUpperCase()||'X';
+}
+const isLink=v=>/^https?:\/\//i.test(String(v||''));
+
+function cell(c,r,i){
+  if(c.k==='num') return `<span class="rn">${i+1}</span>`;
+  if(c.k==='owner') return `<span class="avatar" title="${esc(r.owner_name||'')}">${esc(initials(r.owner_name))}</span>`;
+  const v=r[c.k];
+  if(c.k==='created_at'||c.k==='scheduled_for'||c.k==='arrived_at')
+    return v?`<span class="dt">${esc(fmtDT(v))}</span>`:'<span class="mt">—</span>';
+  if(v===null||v===undefined||v==='') return '<span class="mt">—</span>';
+  if(c.badge) return `<span class="badge b-${esc(v)}">${esc(label(v))}</span>`;
+  if(c.opts) return `<span class="tag">${esc(label(v))}</span>`;
+  if(isLink(v)) return `<a class="lnk" href="${esc(v)}" target="_blank" rel="noreferrer">${esc(v)}</a>`;
+  return esc(v);
+}
+function buildHead(){
+  $('thead').innerHTML=COLS.map(c=>
+    `<th data-tab="${c.tab??''}" class="${c.fixed?'pg-f ':''}${c.cls||''}" style="${colStyle(c)}">${esc(c.h)}</th>`).join('');
+}
+/* POST /surveys/ takes identity and site only — the access and visit answers are
+   update-only, because a survey is scheduled first and filled in once someone is
+   standing on the site. The draft row therefore offers just these; anything else
+   would be accepted by the input and silently dropped by the API. Those cells
+   fill in by inline edit once the row exists. */
+const CREATABLE=new Set(['lead_name','lead_company','lead_mobile','country','district',
+                         'city','street','site_location','maps_url','scheduled_for']);
+function draftCell(c){
+  if(c.k==='num') return '<span class="rn">+</span>';
+  if(c.k==='created_at') return '<span class="mt">now</span>';
+  if(c.k==='owner') return '<span class="mt">you</span>';
+  if(c.k==='status') return '<span class="badge b-planned">Planned</span>';
+  if(!CREATABLE.has(c.k)) return '<span class="mt" title="Filled in on site, after the survey exists">—</span>';
+  const v=esc(draft[c.k]??'');
+  if(c.opts) return `<select class="din" data-dk="${c.k}">${c.opts.map(o=>`<option value="${esc(o)}"${o===(draft[c.k]||'')?' selected':''}>${esc(label(o))}</option>`).join('')}</select>`;
+  return `<input class="din" data-dk="${c.k}" type="${c.type||'text'}" value="${v}">`;
+}
+function render(){
+  $('count').textContent=`· ${ROWS.length}`;
+  $('rows').innerHTML=[
+    `<tr class="draft dtop">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c)}</td>`).join('')}</tr>`,
+    ROWS.length?ROWS.map((r,i)=>`<tr class="data" data-id="${esc(r.id)}">${COLS.map(c=>{
+      const ed=(c.ro||c.k==='num')?'':`data-edit data-k="${c.k}"`;
+      const cls=[c.fixed?'pg-f':'',c.cls||'',(c.ro||c.k==='num')?'':(c.opts?'sel':'ed')].filter(Boolean).join(' ');
+      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${ed}>${cell(c,r,i)}</td>`;}).join('')}</tr>`).join('')
+      :`<tr><td colspan="${COLS.length}" class="empty">No surveys yet — type in the highlighted row; Enter saves.</td></tr>`,
+  ].join('');
+}
+
+/* draft: type, Enter saves */
+$('rows').addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.dk) draft[el.dataset.dk]=el.value; });
+$('rows').addEventListener('keydown',e=>{ const el=e.target;
+  if(el.classList&&el.classList.contains('din')&&e.key==='Enter'){ e.preventDefault(); commitDraft(); } });
+$('add-row').addEventListener('click',commitDraft);
+async function commitDraft(){
+  if(!Object.values(draft).some(v=>String(v||'').trim())) return;
+  const body=Object.fromEntries(Object.entries(draft).filter(([k,v])=>CREATABLE.has(k)&&String(v||'').trim()));
+  if(!Object.keys(body).length) return;
+  try{ await api('/surveys/',{method:'POST',body:JSON.stringify(body)}); draft={}; await load(); clearErr(); }
+  catch(e){ fail(e.message); }
+}
+
+/* inline edit, one cell at a time */
+$('rows').addEventListener('click',e=>{
+  const td=e.target.closest('td[data-edit]'); if(!td||!td.closest('tr.data'))return;
+  if(e.target.closest('a')) return;
+  openEditor(td);
+});
+function openEditor(td){
+  if(td.querySelector('input,select')) return;
+  const k=td.dataset.k, c=COLS.find(x=>x.k===k), tr=td.closest('tr'), id=tr.dataset.id;
+  const r=ROWS.find(x=>x.id===id)||{}; const val=r[k]??'';
+  let el;
+  if(c.opts){ el=document.createElement('select'); el.className='cellinput';
+    el.innerHTML=c.opts.map(o=>`<option value="${esc(o)}"${o===val?' selected':''}>${esc(label(o))}</option>`).join(''); }
+  else { el=document.createElement('input'); el.className='cellinput'; el.type=c.type||'text';
+    el.value=(c.type==='datetime-local'&&val)?String(val).slice(0,16):val; }
+  td.innerHTML=''; td.appendChild(el); el.focus();
+  if(el.select&&!c.opts) el.select();
+  let done=false;
+  const finish=async save=>{ if(done)return; done=true;
+    const nv=el.value;
+    if(save && String(nv)!==String(val)){
+      try{ const upd=await api('/surveys/'+id,{method:'PATCH',body:JSON.stringify({[k]:nv===''?null:nv})});
+        Object.assign(r,upd); clearErr(); }catch(err){ fail(err.message); } }
+    render();
+  };
+  el.addEventListener('blur',()=>finish(true));
+  el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ev.preventDefault();finish(true);} else if(ev.key==='Escape'){done=true;render();} });
+  if(el.tagName==='SELECT') el.addEventListener('change',()=>finish(true));
+}
+
+/* tabs scroll the grid horizontally, as the Call Log does */
+const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
+let activeTab=0;
+const moveInd=b=>{ ind.style.left=b.offsetLeft+'px'; ind.style.width=b.offsetWidth+'px'; };
+const firstThForTab=n=>$('thead').querySelector(`th[data-tab="${n}"]`);
+function setActivePill(n){ activeTab=n; tabsEl.querySelectorAll('.pill-tab').forEach(b=>{const on=+b.dataset.tab===n;b.classList.toggle('on',on);if(on)moveInd(b);}); }
+function scrollToTab(n){ const th=firstThForTab(n); if(th) outer.scrollTo({left:n===0?0:th.offsetLeft-8,behavior:'smooth'}); setActivePill(n); }
+tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dataset.tab));
+function tabFromScroll(){ const x=outer.scrollLeft+60; let best=0; [0,1,2,3].forEach(n=>{const th=firstThForTab(n); if(th&&th.offsetLeft<=x) best=n;}); if(best!==activeTab) setActivePill(best); }
+let sraf=0; outer.addEventListener('scroll',()=>{ if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
+window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
+
+/* search is client-side: /surveys/ takes no q parameter */
+let searchTimer=null;
+$('q').oninput=()=>{ clearTimeout(searchTimer); searchTimer=setTimeout(render_filtered,200); };
+let ALL=[];
+function render_filtered(){
+  const q=$('q').value.trim().toLowerCase();
+  ROWS=!q?ALL:ALL.filter(r=>[r.lead_name,r.lead_company,r.city,r.survey_number,r.district,r.people_met,r.description]
+    .some(v=>String(v||'').toLowerCase().includes(q)));
+  render();
+}
+async function load(){
+  try{ ALL=await api('/surveys/'); render_filtered(); clearErr(); }
+  catch(e){ fail(e.message); }
+}
+buildHead(); setActivePill(0); render();
+if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
+else load();
+</script>
+</body>
+</html>
