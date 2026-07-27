@@ -1702,6 +1702,39 @@ function rxDrawMap(box,url,c){
   box.innerHTML=`<div class="mapwrap">${tileMap(c.lat,c.lng,box.clientWidth||500,200,15)}</div>`
     +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
 }
+function rxGeoNorm(value){
+  return String(value||'').toLowerCase()
+    .replace(/\b(governorate|province|district|region|county|state)\b/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+function rxGeoChoice(value,options){
+  if(!value) return '';
+  const wanted=rxGeoNorm(value);
+  return (options||[]).find(option=>rxGeoNorm(option)===wanted)||value;
+}
+function rxFillGeocoded(id,options,value){
+  if(!value) return;
+  const selected=rxGeoChoice(value,options);
+  const commands=(options||[]).filter(option=>String(option).startsWith('__add_'));
+  const list=(options||[]).filter(option=>!commands.includes(option));
+  if(!list.includes(selected)) list.push(selected);
+  rxFillSelect(id,[...list,...commands],selected);
+}
+function rxApplyGeocodedAddress(data){
+  if(data.country){
+    rxFillGeocoded('country',GEO_COUNTRIES,data.country);
+    const country=$('rx-country')?.value||data.country;
+    if(data.district){
+      rxFillGeocoded('district',districtsFor(country)||[],data.district);
+      const district=$('rx-district')?.value||data.district;
+      if(data.city) rxFillGeocoded('city',cityOptions(country,district),data.city);
+    }else if(data.city){
+      rxFillGeocoded('city',[],data.city);
+    }
+  }
+  const street=$('rx-body').querySelector('[data-k="street"]');
+  if(street&&data.street) street.value=data.street;
+}
 function rxUpdateMapPreview(){
   const box=$('rx-mapprev'); if(!box) return;
   const inp=$('rx-body').querySelector('[data-k="maps"]');
@@ -1712,15 +1745,16 @@ function rxUpdateMapPreview(){
   if(!url){ box.hidden=true; box.innerHTML=''; return; }
   // Full links carry coordinates — draw immediately, no server round-trip.
   const inline=mapsCoords(url);
-  if(inline){ rxDrawMap(box,url,inline); return; }
-  // Short share links (maps.app.goo.gl) have no coordinates until followed. Ask
-  // the backend to resolve, debounced so typing doesn't hammer Google.
-  box.hidden=false; box.innerHTML='<div class="rx-map-load">Loading preview…</div>';
+  if(inline) rxDrawMap(box,url,inline);
+  // The backend resolves short links and reverse-geocodes both short and full
+  // links. Debounced so pasting/typing does not hammer either provider.
+  else { box.hidden=false; box.innerHTML='<div class="rx-map-load">Loading preview…</div>'; }
   rxMapTimer=setTimeout(async()=>{
     try{
       const c=await api('/resolve-maps?url='+encodeURIComponent(url));
       if(req!==rxMapReq) return;        // superseded — drop this result
       rxDrawMap(box,url,c);
+      rxApplyGeocodedAddress(c);
     }catch(_){
       if(req!==rxMapReq) return;
       box.hidden=false;
