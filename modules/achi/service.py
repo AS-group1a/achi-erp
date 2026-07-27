@@ -405,6 +405,7 @@ class ContactFileService:
             created_by=user_id,
             log_type=data.log_type,
             category=data.category,
+            reference=data.reference,
             occurred_at=data.occurred_at,
             duration_seconds=data.duration_seconds,
             description=data.description,

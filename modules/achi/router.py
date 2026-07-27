@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
+import httpx
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
@@ -30,14 +32,43 @@ from .schemas import (
 from .service import ContactFileService
 from .quotation_router import quotation_router
 from .survey_router import survey_router
+from .geo_router import geo_router
 
 router = APIRouter()
 
 # Site survey lives in its own file; the loader only looks for `router` here.
 router.include_router(survey_router)
 router.include_router(quotation_router)
+router.include_router(geo_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
+
+# Coordinate shapes a resolved Google Maps URL can carry. @lat,lng is the map
+# centre; !3d..!4d.. is the pinned place; q=/ll=/search/ are query forms.
+# The comma may be followed by a literal "+" (Google writes /search/lat,+lng).
+_MAPS_COORD_PATS = [
+    re.compile(r"@(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+    re.compile(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)"),
+    re.compile(r"[?&]q=(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+    re.compile(r"[?&]ll=(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+    re.compile(r"/search/(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+]
+
+
+def _is_google_maps_url(url: str) -> bool:
+    """Only Google Maps hosts, so this endpoint can't be turned into an open
+    fetcher (SSRF). Checked on the input AND the final hop after redirects."""
+    try:
+        p = urlparse(url)
+    except ValueError:
+        return False
+    if p.scheme not in ("http", "https"):
+        return False
+    host = (p.hostname or "").lower()
+    return (
+        host in {"maps.app.goo.gl", "goo.gl", "google.com", "maps.google.com"}
+        or host.endswith(".google.com")
+    )
 
 
 @router.get(
@@ -108,6 +139,74 @@ def ui_chrome_js() -> PlainTextResponse:
         media_type="application/javascript",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+@router.get("/tile/{z}/{x}/{y}", include_in_schema=False, summary="OSM map tile proxy")
+async def map_tile(z: int, x: int, y: int):
+    """Proxy an OpenStreetMap tile.
+
+    OSM's tile policy now blocks browser <img> hotlinking (no Referer / generic
+    UA). Fetching server-side with an identifying User-Agent is what the policy
+    actually asks for, and it makes the tiles same-origin so no referrer/CORS
+    games are needed. Cached hard in the browser so a preview is a handful of
+    fetches, not a stream — this is light, occasional use, which the policy
+    allows. If map usage ever grows, move to a keyed provider (MapTiler/Carto).
+    """
+    n = 1 << z
+    if not (0 <= z <= 19 and 0 <= x < n and 0 <= y < n):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tile out of range")
+    src = f"https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    try:
+        async with httpx.AsyncClient(
+            timeout=6.0,
+            headers={"User-Agent": "ACHI-Scaffolding-ERP/1.0 (+https://ararahx.net; site maps)"},
+        ) as client:
+            resp = await client.get(src)
+    except httpx.HTTPError:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Could not reach the tile server")
+    if resp.status_code != 200:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Tile server returned an error")
+    return Response(
+        content=resp.content,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800"},  # 7 days
+    )
+
+
+@router.get(
+    "/resolve-maps",
+    include_in_schema=False,
+    summary="Coordinates for a Google Maps share link",
+)
+async def resolve_maps(url: str = Query(..., max_length=2048)):
+    """Follow a Google Maps link server-side and return its lat/lng.
+
+    Short share links (maps.app.goo.gl) — what the Share button gives you — carry
+    no coordinates until followed, and the browser can't follow them (CORS). This
+    does it server-side. Restricted to Google hosts and re-checked after redirects,
+    and only coordinates are ever returned — never page content — so it cannot be
+    used as an open fetch/SSRF probe.
+    """
+    if not _is_google_maps_url(url):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Not a Google Maps link")
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            max_redirects=6,
+            timeout=6.0,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; ACHI/1.0)"},
+        ) as client:
+            resp = await client.get(url)
+    except httpx.HTTPError:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Could not reach Google Maps")
+    if not _is_google_maps_url(str(resp.url)):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Link redirected off Google")
+    hay = f"{resp.url}\n{resp.text[:40000]}"
+    for pat in _MAPS_COORD_PATS:
+        m = pat.search(hay)
+        if m:
+            return {"lat": float(m.group(1)), "lng": float(m.group(2))}
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "No coordinates found for this link")
 
 
 @router.get(
@@ -505,6 +604,7 @@ async def list_logs(
                 id=log.id,
                 log_type=log.log_type,
                 category=log.category,
+                reference=log.reference,
                 occurred_at=log.occurred_at,
                 description=log.description,
                 updates=log.updates,

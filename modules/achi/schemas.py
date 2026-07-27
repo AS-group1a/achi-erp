@@ -109,6 +109,7 @@ class FileLogCreate(BaseModel):
 
     log_type: str = Field(default="General", max_length=64)
     category: str | None = Field(default=None, max_length=64)
+    reference: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str = ""
@@ -137,6 +138,7 @@ class FileLogUpdate(BaseModel):
 
     log_type: str | None = Field(default=None, max_length=64)
     category: str | None = Field(default=None, max_length=64)
+    reference: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str | None = None
@@ -167,6 +169,7 @@ class FileLogOut(BaseModel):
     id: str
     file_id: str
     log_type: str
+    reference: str | None = None
     occurred_at: datetime | None
     duration_seconds: int | None
     description: str
@@ -252,6 +255,7 @@ class QuickLogCreate(BaseModel):
     status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
     log_type: str = Field(default="General", max_length=64)
     category: str | None = Field(default=None, max_length=64)
+    reference: str | None = Field(default=None, max_length=64)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str = ""
@@ -292,6 +296,7 @@ class LogRowOut(BaseModel):
     id: str
     log_type: str
     category: str | None = None
+    reference: str | None = None
     occurred_at: datetime | None
     description: str
     updates: str = ""
@@ -575,3 +580,28 @@ class QuotationOut(BaseModel):
     valid_until: date | None = None
     status: str
     created_at: datetime | None = None
+
+
+# ── custom cities (added on the fly, stored server-side) ────────────────────
+
+class GeoCityIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    country: str = Field(min_length=1, max_length=64)
+    district: str = Field(min_length=1, max_length=128)
+    city: str = Field(min_length=1, max_length=128)
+
+
+class GeoCityOut(GeoCityIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+
+
+class GeoDistrictIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    country: str = Field(min_length=1, max_length=64)
+    district: str = Field(min_length=1, max_length=128)
+
+
+class GeoDistrictOut(GeoDistrictIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
