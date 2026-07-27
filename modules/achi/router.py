@@ -228,6 +228,36 @@ def ui_grid_css() -> PlainTextResponse:
     )
 
 
+@router.get(
+    "/ui/quill.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Quill rich-text editor (vendored)",
+)
+def ui_quill_js() -> PlainTextResponse:
+    """Quill 2.0.3 JS served locally so it clears the app's script-src CSP."""
+    return PlainTextResponse(
+        (_UI_DIR / "quill.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
+@router.get(
+    "/ui/quill.snow.css",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Quill Snow theme (vendored)",
+)
+def ui_quill_snow_css() -> PlainTextResponse:
+    """Quill 2.0.3 Snow CSS served locally so it clears the app's style-src CSP."""
+    return PlainTextResponse(
+        (_UI_DIR / "quill.snow.css").read_text(encoding="utf-8"),
+        media_type="text/css",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
 @router.get("/info", response_model=ModuleInfo, summary="ACHI module info")
 def info() -> ModuleInfo:
     return ModuleInfo(
