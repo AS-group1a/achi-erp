@@ -342,3 +342,27 @@ aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child::afte
   letter-spacing: -0.02em;
   color: inherit;
 }
+
+/* --- Login screen: make the logo mark round, not a square -------------------
+ *
+ * The brand header renders the logo as <img class="… object-contain"> inside
+ * the same header row as the white-label pen button (see the credit rule above
+ * for the confirmed DOM). Scoped by :has(> button[… logo]) so it only affects
+ * the sign-in logo, never other object-contain images in the app.
+ *
+ * border-radius:50% on a replaced element (img) clips the bitmap straight to a
+ * circle — logo.png is a square (its background is one flat navy, ~87% of the
+ * pixels), so the crop just rounds the corners and the arch stays centred.
+ * aspect-ratio:1 + object-cover guarantee a true circle even if the source is
+ * not perfectly square, rather than an ellipse. overflow:hidden is belt-and-
+ * braces for any nested art.
+ */
+:has(> button[aria-label="Customise logo"]) img.object-contain,
+:has(> button[title="Customise logo"]) img.object-contain,
+:has(> button[aria-label="Customize logo"]) img.object-contain,
+:has(> button[title="Customize logo"]) img.object-contain {
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: cover !important;
+  overflow: hidden !important;
+}
