@@ -254,11 +254,9 @@
   .rx-mapprev{margin-top:8px;border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;background:#eef2f7}
   .rx-mapprev[hidden]{display:none}
   .rx-mapprev .mapwrap{position:relative;height:200px;overflow:hidden}
-  .rx-mapmeta{padding:9px 11px;background:#fff;border-top:1px solid #eef1f6}
-  .rx-mapaddr{font-size:12px;font-weight:700;color:#1d2b45;line-height:1.4}
-  .rx-mapplace{font-size:11px;color:#64748b;margin-top:2px}
-  .rx-mapprev a{display:block;margin-top:7px;font-size:11px;font-weight:700;color:#2563eb;text-decoration:none}
-  .rx-maploading{padding:14px;background:#fff;color:#64748b;font-size:12px}
+  .rx-mapprev a{display:block;padding:7px 10px;font-size:11px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
+  .rx-map-load{padding:14px;font-size:12px;color:#5b6472;text-align:center}
+  .rx-map-load a{display:inline;padding:0;border:0;background:none}
   .rx-none{font-size:12px;color:#94a3b8;padding:8px 0}
   /* Sticky footer: on a long sheet Save must be reachable without scrolling
      back down, which is the whole point of a one-column layout on a phone. */
@@ -1639,50 +1637,39 @@ function openExpandedRow(explicitId){
   $('rx-body').scrollTop=0;
 }
 
-let rxMapLookupTimer=0, rxMapLookupSeq=0;
-function rxSetPlace(kind,value){
-  if(!value) return;
-  const sel=$('rx-body').querySelector(`select[data-k="${kind}"]`);
-  if(!sel) return;
-  let option=[...sel.options].find(o=>o.value.toLowerCase()===String(value).toLowerCase());
-  if(!option){ option=new Option(value,value); sel.add(option); }
-  sel.value=option.value;
-  sel.dispatchEvent(new Event('change',{bubbles:true}));
-}
-function rxRenderMapPreview(box,data,openUrl){
-  const place=[data.city,data.district,data.country].filter(Boolean).join(' · ');
+/* Live preview under the Google-maps field. Reads the maps input, and if the
+   link resolves to coordinates, draws OSM tiles below it; otherwise hides. */
+let rxMapReq=0, rxMapTimer=null;
+function rxDrawMap(box,url,c){
   box.hidden=false;
-  box.innerHTML=`<div class="mapwrap">${tileMap(data.lat,data.lng,box.clientWidth||500,200,15)}</div>`
-    +`<div class="rx-mapmeta"><div class="rx-mapaddr">${esc(data.display_name||'Location found')}</div>`
-    +(place?`<div class="rx-mapplace">${esc(place)}</div>`:'')
-    +`<a href="${esc(openUrl)}" target="_blank" rel="noopener noreferrer">Open exact location in Google Maps ↗</a></div>`;
+  box.innerHTML=`<div class="mapwrap">${tileMap(c.lat,c.lng,box.clientWidth||500,200,15)}</div>`
+    +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
 }
-/* Preview immediately for coordinate-bearing links, then ask our authenticated
-   endpoint to resolve short links and fill the address fields before saving. */
 function rxUpdateMapPreview(){
   const box=$('rx-mapprev'); if(!box) return;
   const inp=$('rx-body').querySelector('[data-k="maps"]');
   const raw=(inp&&inp.value||'').trim();
-  const url=raw?normalizeMapsUrl(raw):null;
-  clearTimeout(rxMapLookupTimer);
-  const seq=++rxMapLookupSeq;
+  const url=raw?normalizeMapsUrl(raw):'';
+  clearTimeout(rxMapTimer);
+  const req=++rxMapReq;                 // newest input wins any in-flight resolve
   if(!url){ box.hidden=true; box.innerHTML=''; return; }
-  const immediate=mapsCoords(url);
-  if(immediate) rxRenderMapPreview(box,immediate,url);
-  else{ box.hidden=false; box.innerHTML='<div class="rx-maploading">Finding this location…</div>'; }
-  rxMapLookupTimer=setTimeout(async()=>{
+  // Full links carry coordinates — draw immediately, no server round-trip.
+  const inline=mapsCoords(url);
+  if(inline){ rxDrawMap(box,url,inline); return; }
+  // Short share links (maps.app.goo.gl) have no coordinates until followed. Ask
+  // the backend to resolve, debounced so typing doesn't hammer Google.
+  box.hidden=false; box.innerHTML='<div class="rx-map-load">Loading preview…</div>';
+  rxMapTimer=setTimeout(async()=>{
     try{
-      const data=await api('/maps/preview?url='+encodeURIComponent(url));
-      if(seq!==rxMapLookupSeq) return;
-      rxRenderMapPreview(box,data,data.url||url);
-      rxSetPlace('country',data.country);
-      rxSetPlace('district',data.district);
-      rxSetPlace('city',data.city);
-    }catch(e){
-      if(seq!==rxMapLookupSeq) return;
-      if(!immediate) box.innerHTML=`<div class="rx-maploading">${esc(e.message||'Preview unavailable for this link')}</div>`;
+      const c=await api('/resolve-maps?url='+encodeURIComponent(url));
+      if(req!==rxMapReq) return;        // superseded — drop this result
+      rxDrawMap(box,url,c);
+    }catch(_){
+      if(req!==rxMapReq) return;
+      box.hidden=false;
+      box.innerHTML=`<div class="rx-map-load">Preview not available — <a href="${esc(url)}" target="_blank" rel="noreferrer">open in Google Maps</a></div>`;
     }
-  },350);
+  },450);
 }
 /* Collect the sheet's fields into the {person, site, log} shape POST /logs/
    expects — the same shape draftPayload builds for the grid's own rows, so a
@@ -2316,7 +2303,7 @@ let mapsPopup=null, mapsTimer=null;
 function ensureMapsPopup(){ if(mapsPopup)return; mapsPopup=document.createElement('div'); mapsPopup.className='maps-popup';
   mapsPopup.addEventListener('mouseenter',()=>clearTimeout(mapsTimer)); mapsPopup.addEventListener('mouseleave',()=>{mapsTimer=setTimeout(hideMapsPopup,150);}); document.body.appendChild(mapsPopup); }
 function hideMapsPopup(){ if(mapsPopup) mapsPopup.classList.remove('vis'); }
-function mapsCoords(url){ const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/];
+function mapsCoords(url){ const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/];
   for(const p of pats){ const m=String(url||'').match(p); if(m) return {lat:parseFloat(m[1]),lng:parseFloat(m[2])}; } return null; }
 function normalizeMapsUrl(value){
   const raw=String(value||'').trim(); if(!raw)return '';
