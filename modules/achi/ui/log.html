@@ -2331,7 +2331,7 @@ function tileMap(lat,lng,W,H,z){
     for(let ty=Math.floor(tlY/256); ty*256<tlY+H; ty++){
       if(ty<0||ty>=n) continue;
       const xx=((tx%n)+n)%n;
-      out+=`<img class="mt-tile" src="https://tile.openstreetmap.org/${z}/${xx}/${ty}.png" style="left:${Math.round(tx*256-tlX)}px;top:${Math.round(ty*256-tlY)}px" alt="" referrerpolicy="no-referrer">`;
+      out+=`<img class="mt-tile" src="/api/v1/achi/tile/${z}/${xx}/${ty}" style="left:${Math.round(tx*256-tlX)}px;top:${Math.round(ty*256-tlY)}px" alt="" loading="lazy">`;
     }
   }
   return `<div class="tilemap" style="width:${W}px;height:${H}px">${out}<span class="maps-pin">${SVG.pin}</span></div>`;
