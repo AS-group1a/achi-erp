@@ -93,6 +93,7 @@
   .tel-cc svg{width:11px;height:11px;opacity:.55}
   .rx-body .tel-cc{height:38px;padding:0 8px}
   .tel-num{flex:1 1 auto;min-width:0}
+  .tel-num.tel-bad{border-color:#ef4444!important;background:#fff5f5}
   .cc-drop{position:fixed;z-index:2147482700;width:290px;background:#fff;border:1.5px solid #dfe4ec;border-radius:10px;box-shadow:0 12px 34px rgba(15,23,42,.22);overflow:hidden;display:none}
   .cc-drop.vis{display:block}
   .cc-search{width:100%;border:0;border-bottom:1px solid #eef1f6;padding:9px 11px;font:inherit;font-size:12.5px;outline:none}
@@ -1937,6 +1938,22 @@ function contactPhoneParts(phone){
   const found=[...COUNTRIES].sort((a,b)=>b[2].length-a[2].length).find(c=>raw.startsWith(c[2]));
   return found?{iso:found[0],dial:found[2],mobilenum:raw.slice(found[2].length).trim()}:{iso:DEFAULT_ISO,dial:DEFAULT_DIAL,mobilenum:raw};
 }
+/* Peel a country code off a pasted number. "0096170.." is normalised to "+96170.."
+   first. Returns {iso,dial,mobilenum} only when a KNOWN dial code leads the value,
+   so a bare national number ("70123456") is left untouched for the picker's
+   current country. */
+function detectPhone(raw){
+  const s=String(raw||'').trim().replace(/^00/,'+');
+  if(!s.startsWith('+')) return null;
+  const parts=contactPhoneParts(s);
+  return s.startsWith(parts.dial)?parts:null;
+}
+/* Set a .tel-wrap's country button (flag + dial) in place. */
+function setTelCountry(wrap,iso,dial){
+  const btn=wrap&&wrap.querySelector('.tel-cc'); if(!btn) return;
+  const img=btn.querySelector('img'); if(img) img.src=flagSrc(iso);
+  const cc=btn.querySelector('.cc'); if(cc) cc.textContent=dial;
+}
 function rxFieldValue(el){
   const value=el.value.trim();
   if(el.dataset.k!=='mobile'||!value) return value;
@@ -2167,6 +2184,18 @@ $('rows').addEventListener('keydown',e=>{ const el=e.target; if(!(el.classList&&
     if(i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); } else commitDraft(dp); } });
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='email'&&!validEmail(el.value))showInvalidEmail(el);});
 $('rows').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.dk==='mobilenum'&&!validDraftMobile(stateFor(el.dataset.dp)))showInvalidMobile(el);});
+/* Same paste-detect for the grid's draft phone cells: peel the country code into
+   the picker and the draft state, then mark validity. */
+$('rows').addEventListener('paste',e=>{
+  const el=e.target; if(!el.dataset||el.dataset.dk!=='mobilenum') return;
+  setTimeout(()=>{
+    const dp=el.dataset.dp, st=stateFor(dp); if(!st) return;
+    const p=detectPhone(el.value);
+    if(p){ st.iso=p.iso; st.dial=p.dial; st.mobilenum=p.mobilenum; el.value=p.mobilenum; setTelCountry(el.closest('.tel-wrap'),p.iso,p.dial); }
+    else { st.mobilenum=el.value; }
+    el.classList.toggle('tel-bad', !!el.value.trim() && !validDraftMobile(st));
+  },0);
+});
 $('add-row').addEventListener('click',addBottomRow);
 $('btn-del').addEventListener('click',deleteSelected);
 /* Quick quotation. One delegated listener on the card so the eight number
@@ -2262,6 +2291,23 @@ $('rx-body').addEventListener('focusout',e=>{
 $('rx-body').addEventListener('focusin',e=>{
   if(e.target.dataset.k==='first'||e.target.dataset.k==='last') queueContactMatches(e.target);
 });
+/* Paste a number into the Add Log phone field: if it carries a country code,
+   switch the picker to that country and drop the code from the field, then flag
+   whether the result is a valid number. Paste fires before the value updates, so
+   read it on the next tick. */
+function rxValidatePhone(el){
+  const dial=el.closest('.tel-wrap')?.querySelector('.tel-cc .cc')?.textContent?.trim()||DEFAULT_DIAL;
+  el.classList.toggle('tel-bad', !!el.value.trim() && !validMobile(`${dial} ${el.value}`));
+}
+$('rx-body').addEventListener('paste',e=>{
+  const el=e.target; if(!el.dataset||el.dataset.k!=='mobile') return;
+  setTimeout(()=>{
+    const p=detectPhone(el.value);
+    if(p){ setTelCountry(el.closest('.tel-wrap'),p.iso,p.dial); el.value=p.mobilenum; }
+    rxValidatePhone(el);
+  },0);
+});
+$('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&e.target.dataset.k==='mobile') rxValidatePhone(e.target); },true);
 $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 $('rx-body').addEventListener('change',e=>{
