@@ -112,6 +112,8 @@ class FileLog(Base):
     # Lead | Site Surveys | Measurements Take Off | Estimation | Quotation | Jobs
     # (the Frappe crm_log "Category" column). Free-form; the UI offers the set.
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # How the enquiry reached us. Free-form so Add Log's "+ Add New" values save.
+    reference: Mapped[str | None] = mapped_column(String(64), nullable=True)
     occurred_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

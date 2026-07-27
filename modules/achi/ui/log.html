@@ -820,13 +820,17 @@ const socialOptionsHTML=(selected='IG')=>[...allSocials(),SOCIAL_ADD_PLATFORM].m
     value===SOCIAL_ADD_PLATFORM?'+ Add New Platform':value
   }</option>`).join('');
 const ROLE_KEY='achi_roles', ROLE_ADD='__add_role__',
-      SUBJECT_KEY='achi_log_subjects', SUBJECT_ADD='__add_subject__';
+      SUBJECT_KEY='achi_log_subjects', SUBJECT_ADD='__add_subject__',
+      REFERENCE_KEY='achi_log_references', REFERENCE_ADD='__add_reference__';
 const customPicklistValues=key=>{ try{
   const values=JSON.parse(localStorage.getItem(key)||'[]');
   return Array.isArray(values)?values.filter(value=>typeof value==='string'&&value.trim()):[];
 }catch(e){ return []; } };
 const allRoles=()=>[...ROLES,...customPicklistValues(ROLE_KEY).filter(value=>!ROLES.includes(value))];
 const allSubjects=()=>[...SUBJECTS,...customPicklistValues(SUBJECT_KEY).filter(value=>!SUBJECTS.includes(value))];
+const REFERENCES=['Inbound Call','Outreach','Site Visit','Referral','Email','Website',
+                  'Instagram DM','Facebook DM','LinkedIn'];
+const allReferences=()=>[...REFERENCES,...customPicklistValues(REFERENCE_KEY).filter(value=>!REFERENCES.includes(value))];
 function addCustomPicklistValue({key,values,label}){
   const value=(window.prompt(`New ${label} (max 64 characters):`)||'').trim();
   if(!value) return null;
@@ -836,6 +840,7 @@ function addCustomPicklistValue({key,values,label}){
 }
 const addRole=()=>addCustomPicklistValue({key:ROLE_KEY,values:allRoles,label:'role'});
 const addSubject=()=>addCustomPicklistValue({key:SUBJECT_KEY,values:allSubjects,label:'log subject'});
+const addReference=()=>addCustomPicklistValue({key:REFERENCE_KEY,values:allReferences,label:'reference'});
 const addSocialPlatform=()=>addCustomPicklistValue({key:SOCIAL_KEY,values:allSocials,label:'social platform'});
 const COMPANY_KEY='achi_company_types', COMPANY_ADD='__add_company__';
 /* Base company types; the field is data-nosave (no model column yet), so a
@@ -1489,7 +1494,7 @@ function openRxSelect(select,button){
   closeRxState(); closeRxSelect();
   rxSelectSource=select; rxSelectButton=button;
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
-    `<button type="button" class="rx-select-option${option.value===SOCIAL_ADD_PLATFORM?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+    `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
   const r=button.getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
@@ -1585,7 +1590,7 @@ function openExpandedRow(explicitId){
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-      o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+      o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
@@ -1599,7 +1604,7 @@ function openExpandedRow(explicitId){
       +`<input class="rx-in tel-num" id="rx-mobile" data-k="mobile" inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${esc(phone.mobilenum)}"></span>`;
   };
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
-  const val=k=>{ const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
+  const val=k=>{ if(k==='reference') return src.reference||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
 
   let html='';
   html+=g('rx-g4',
@@ -1612,10 +1617,12 @@ function openExpandedRow(explicitId){
     F('Email',            EMAIL(val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
     F('Company type',     SEL('company_type',[...allCompanyTypes(),COMPANY_ADD],'',false,true)));
-  html+=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
+  const socialHandles=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
     <div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML()}</select>
     <input class="rx-in" data-nosave placeholder="@handle"></div></div>
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
+  html+=g('rx-g2',socialHandles,
+    F('Reference',SEL('reference',[...allReferences(),REFERENCE_ADD],val('reference'),true)));
   html+=g('rx-g2',
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
     F('Log subject', SEL('subject',[...allSubjects(),SUBJECT_ADD],'',true,true)));
@@ -1737,7 +1744,7 @@ function rxCollectNew(){
   const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
     street:v.street||null, maps_url:v.maps||null, site_location:v.location||null}:null;
   return {person, site, status:v.status||'open', log_type:v.type||'inbound_call',
-    category:v.category||null, description:v.desc||'', updates:v.updates||'',
+    category:v.category||null, reference:v.reference||null, description:v.desc||'', updates:v.updates||'',
     follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
 }
 
@@ -1782,6 +1789,7 @@ async function rxSaveAll(keepOpen){
   const r=ROWS.find(x=>x.id===rxRowId);
   if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
   const changed=fields.filter(el=>{
+    if(el.dataset.k==='reference') return String(r.reference||'')!==rxFieldValue(el);
     const c=COLS.find(x=>x.k===el.dataset.k);
     return c&&c.edit&&String(c.edit.val(r)??'')!==rxFieldValue(el);
   });
@@ -1808,6 +1816,14 @@ function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatche
    off each column's own edit.target — so nothing here can save to a different
    place than the table would. */
 async function rxSave(el){
+  if(el.dataset.k==='reference'){
+    if(!rxRowId) return;
+    const row=ROWS.find(x=>x.id===rxRowId); if(!row) return;
+    const value=rxFieldValue(el);
+    await api('/logs/'+row.id,{method:'PATCH',body:JSON.stringify({reference:value||null})});
+    row.reference=value;
+    return;
+  }
   const c=COLS.find(x=>x.k===el.dataset.k); if(!c||!c.edit||!rxRowId) return;
   const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
   const note=$(el.id+'-note'), field=c.edit.field, target=c.edit.target;
@@ -2258,6 +2274,8 @@ $('rx-body').addEventListener('change',e=>{
       ? {sentinel:PREFIX_ADD,add:addPrefix}
     : el.dataset.rxSelect==='company_type'&&el.value===COMPANY_ADD
       ? {sentinel:COMPANY_ADD,add:addCompanyType}
+    : el.dataset.rxSelect==='reference'&&el.value===REFERENCE_ADD
+      ? {sentinel:REFERENCE_ADD,add:addReference}
       : null;
   if(customPicklist){
     const previous=el.dataset.rxPreviousValue;

@@ -574,6 +574,7 @@ async def list_logs(
                 id=log.id,
                 log_type=log.log_type,
                 category=log.category,
+                reference=log.reference,
                 occurred_at=log.occurred_at,
                 description=log.description,
                 updates=log.updates,
