@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
@@ -40,6 +44,50 @@ router.include_router(quotation_router)
 _UI_DIR = Path(__file__).parent / "ui"
 
 
+def _is_google_maps_url(value: str) -> bool:
+    """Accept Google Maps links only; this endpoint must never become an SSRF proxy."""
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    path = parsed.path.lower()
+    google_host = (
+        host == "maps.app.goo.gl"
+        or (host == "goo.gl" and path.startswith("/maps"))
+        or host.startswith("maps.google.")
+        or host == "google.com"
+        or host.endswith(".google.com")
+        or host.startswith("www.google.")
+    )
+    return parsed.scheme in {"http", "https"} and google_host and (
+        host == "maps.app.goo.gl" or host == "goo.gl" or "/maps" in path
+    )
+
+
+class _GoogleMapsRedirects(HTTPRedirectHandler):
+    """Follow a short Maps link only while every hop remains on Google."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _is_google_maps_url(newurl):
+            raise HTTPError(newurl, code, "Unsafe Maps redirect", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _maps_coordinates(value: str) -> tuple[float, float] | None:
+    patterns = (
+        r"@(-?\d+(?:\.\d+)?),\+?(-?\d+(?:\.\d+)?)",
+        r"/maps/search/(-?\d+(?:\.\d+)?),\+?(-?\d+(?:\.\d+)?)",
+        r"[?&](?:q|ll)=(-?\d+(?:\.\d+)?),\+?(-?\d+(?:\.\d+)?)",
+        r"!3d(-?\d+(?:\.\d+))!4d(-?\d+(?:\.\d+))",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, value)
+        if match:
+            return float(match.group(1)), float(match.group(2))
+    return None
+
+
 @router.get(
     "/ui",
     response_class=HTMLResponse,
@@ -67,6 +115,76 @@ def ui() -> HTMLResponse:
         (_UI_DIR / "log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+@router.get("/maps/preview", summary="Resolve a Google Maps link and preview its address")
+def maps_preview(_user_id: CurrentUserId, url: str = Query(..., max_length=2048)) -> dict:
+    """Resolve short Google links, then reverse-geocode their exact coordinates.
+
+    Address lookup is deliberately best-effort: a valid coordinate link still
+    previews correctly when the external geocoder is temporarily unavailable.
+    """
+    candidate = url.strip()
+    if not _is_google_maps_url(candidate):
+        raise HTTPException(status_code=400, detail="Paste a valid Google Maps link.")
+
+    resolved = candidate
+    try:
+        request = Request(candidate, headers={"User-Agent": "ACHI-ERP/1.0"})
+        with build_opener(_GoogleMapsRedirects()).open(request, timeout=6) as response:
+            resolved = response.geturl()
+    except (HTTPError, URLError, TimeoutError, ValueError):
+        # Long links already contain everything needed and need no network.
+        if not _maps_coordinates(candidate):
+            raise HTTPException(
+                status_code=422,
+                detail="This short Google Maps link could not be resolved. Check the link and try again.",
+            )
+
+    coordinates = _maps_coordinates(resolved) or _maps_coordinates(candidate)
+    if not coordinates:
+        raise HTTPException(
+            status_code=422,
+            detail="Google Maps did not provide coordinates for this link.",
+        )
+    lat, lng = coordinates
+    result: dict = {"url": resolved, "lat": lat, "lng": lng}
+
+    reverse_url = (
+        "https://nominatim.openstreetmap.org/reverse"
+        f"?format=jsonv2&lat={quote(str(lat))}&lon={quote(str(lng))}&addressdetails=1"
+    )
+    try:
+        request = Request(
+            reverse_url,
+            headers={"User-Agent": "ACHI-ERP/1.0 (map preview address lookup)"},
+        )
+        with build_opener().open(request, timeout=6) as response:
+            place = json.loads(response.read().decode("utf-8"))
+        address = place.get("address") or {}
+        result.update(
+            display_name=place.get("display_name"),
+            country=address.get("country"),
+            city=next(
+                (
+                    address.get(key)
+                    for key in ("city", "town", "village", "municipality", "suburb")
+                    if address.get(key)
+                ),
+                None,
+            ),
+            district=next(
+                (
+                    address.get(key)
+                    for key in ("state_district", "county", "state")
+                    if address.get(key)
+                ),
+                None,
+            ),
+        )
+    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+        pass
+    return result
 
 
 @router.get(
