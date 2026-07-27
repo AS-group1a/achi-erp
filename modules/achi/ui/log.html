@@ -22,7 +22,8 @@
   .feedback-head{padding:14px 20px;border-bottom:1px solid #dce6f5;background:linear-gradient(135deg,#edf4ff 0%,#f7faff 58%,#fff 100%);color:#1e3f85;font-size:16px;font-weight:800}
   .feedback-body{padding:20px;color:#334155;font-size:13.5px;line-height:1.65}
   .feedback-foot{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #eef2f7;background:#f8fafc}
-  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .feedback-ok{appearance:none;min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .feedback-ok:hover,.feedback-ok:focus,.feedback-ok:focus-visible,.feedback-ok:active{outline:0;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;box-shadow:0 0 0 3px rgba(40,79,158,.2)}
   .save-feedback{position:fixed;z-index:2147483001;right:24px;bottom:24px;display:flex;align-items:center;gap:10px;min-width:220px;padding:14px 20px;border:2px solid #fff;border-radius:12px;background:linear-gradient(135deg,#1e3f85,#2f62bd);color:#fff;box-shadow:0 18px 44px rgba(15,35,75,.28);font-size:14px;font-weight:800}
   .save-feedback-mark{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#fff;color:#1e3f85;font-size:16px}
   .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
@@ -36,6 +37,7 @@
   .draft-compose[hidden]{display:none}
   .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
+  .compose.from-rx{z-index:2147482700}
   @keyframes compose-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
   .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
   .compose-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;letter-spacing:.02em}
@@ -938,9 +940,9 @@ function initials(name){
 }
 function avatar(name,id){ if(!name&&!id)return '<span class="mt">—</span>';
   return `<span class="avatar" title="${esc(name||id)}">${esc(initials(name))}</span>`; }
-function openEmailCompose(email){
+function openEmailCompose(email,fromRx=false){
   document.querySelector('.compose')?.remove();
-  const panel=document.createElement('section'); panel.className='compose'; panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
+  const panel=document.createElement('section'); panel.className='compose'+(fromRx?' from-rx':''); panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
   panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div><button class="compose-close" type="button" aria-label="Close message">&times;</button></div><div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div><div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div><textarea class="compose-body" placeholder="Write your message…"></textarea><div class="compose-foot"><button class="compose-send" type="button">Send</button><button class="compose-mailto" type="button">Open in mail app</button></div>`;
   document.body.appendChild(panel);
   const close=()=>{panel.remove();document.removeEventListener('keydown',onKey);};
@@ -1556,6 +1558,8 @@ function openExpandedRow(explicitId){
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
+  const EMAIL=v=>`<span class="draft-email"><input class="rx-in" id="rx-email" data-k="email" inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(v??'')}">`
+    +`<button class="draft-compose" type="button" data-rx-compose title="Compose email"${validEmail(v)&&String(v||'').trim()?'':' hidden'}>${SVG.mail}</button></span>`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const TEL=(v)=>{
     const phone=contactPhoneParts(v);
@@ -1574,7 +1578,7 @@ function openExpandedRow(explicitId){
     F('Role',       SEL('role',[...allRoles(),ROLE_ADD],'',true,true)));
   html+=g('rx-g4',
     F('Phone / WhatsApp', TEL(val('mobile'))),
-    F('Email',            IN('email','name@company.com',val('email'))),
+    F('Email',            EMAIL(val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
     F('Company type',     SEL('company_type',[...allCompanyTypes(),COMPANY_ADD],'',false,true)));
   html+=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
@@ -1702,7 +1706,7 @@ async function rxCreateNew(keepOpen){
     st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return;
   }
   if(payload.person.email && !validEmail(payload.person.email)){
-    st.textContent='Invalid email'; st.className='rx-status bad'; return;
+    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail($('rx-email')); return;
   }
   if(payload.person.mobile && !validMobile(payload.person.mobile)){
     st.textContent='Invalid mobile number'; st.className='rx-status bad'; showInvalidMobile($('rx-mobile')); return;
@@ -1725,6 +1729,10 @@ async function rxCreateNew(keepOpen){
 async function rxSaveAll(keepOpen){
   if(rxRowId===null) return rxCreateNew(keepOpen);   // blank sheet -> create, don't patch
   const st=$('rx-status');
+  const email=$('rx-email');
+  if(email&&!validEmail(email.value)){
+    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(email); return;
+  }
   const fields=[...$('rx-body').querySelectorAll('[data-k]')];
   const r=ROWS.find(x=>x.id===rxRowId);
   if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
@@ -1761,7 +1769,7 @@ async function rxSave(el){
   const setNote=(t,cls)=>{ if(note){ note.textContent=t; note.className='rx-note '+(cls||''); } };
   const nv=rxFieldValue(el);
   if(String(c.edit.val(r)??'')===nv) return;                // nothing changed
-  if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); return; }
+  if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); showInvalidEmail(el); return; }
   if(field==='mobile'&&nv&&!validMobile(nv)){ setNote('Invalid mobile','rx-err'); showInvalidMobile(el); return; }
   try{
     if(target==='file') await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
@@ -2152,6 +2160,12 @@ $('rx-body').addEventListener('click',e=>{
   const removeHandle=e.target.closest('.rx-social-remove');
   if(removeHandle){ closeRxSelect(); removeHandle.closest('.rx-social')?.remove(); return; }
   if(e.target.closest('#rx-add-handle')){ addRxSocialRow(); return; }
+  if(e.target.closest('[data-rx-compose]')){
+    const email=$('rx-email');
+    if(email&&validEmail(email.value)&&email.value.trim()) openEmailCompose(email.value.trim(),true);
+    else if(email) showInvalidEmail(email);
+    return;
+  }
   const countryCode=e.target.closest('.tel-cc[data-rx-phone]');
   if(countryCode){ openCc(countryCode); return; }
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
@@ -2171,6 +2185,10 @@ $('rx-body').addEventListener('keydown',e=>{
   if(i>=0&&i+1<f.length) f[i+1].focus();
 });
 $('rx-body').addEventListener('focusout',e=>{
+  if(e.target.dataset.k==='email'){
+    if(!validEmail(e.target.value)){ showInvalidEmail(e.target); return; }
+    e.target.classList.remove('email-invalid');
+  }
   const w=$('rx-name-wrap'); if(!w||!w.classList.contains('on')) return;
   // Collapse only once focus has actually left the name block (a tick later, so
   // tabbing prefix->first->last does not keep snapping it shut).
@@ -2232,6 +2250,12 @@ $('rx-body').addEventListener('change',e=>{
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
   if(e.target.dataset&&(e.target.dataset.k==='first'||e.target.dataset.k==='last')) queueContactMatches(e.target);
+  if(e.target.dataset&&e.target.dataset.k==='email'){
+    const valid=validEmail(e.target.value);
+    if(valid) e.target.classList.remove('email-invalid');
+    const button=e.target.closest('.draft-email')?.querySelector('[data-rx-compose]');
+    if(button) button.hidden=!(valid&&e.target.value.trim());
+  }
   if(e.target.dataset&&e.target.dataset.k==='maps') rxUpdateMapPreview(); });
 $('rx-body').addEventListener('click',e=>{ if(e.target.closest('#rx-q-draft')) rxDraftQuotation(); });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
