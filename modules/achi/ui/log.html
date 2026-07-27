@@ -22,7 +22,8 @@
   .feedback-head{padding:14px 20px;border-bottom:1px solid #dce6f5;background:linear-gradient(135deg,#edf4ff 0%,#f7faff 58%,#fff 100%);color:#1e3f85;font-size:16px;font-weight:800}
   .feedback-body{padding:20px;color:#334155;font-size:13.5px;line-height:1.65}
   .feedback-foot{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #eef2f7;background:#f8fafc}
-  .feedback-ok{min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .feedback-ok{appearance:none;min-width:72px;height:36px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+  .feedback-ok:hover,.feedback-ok:focus,.feedback-ok:focus-visible,.feedback-ok:active{outline:0;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;box-shadow:0 0 0 3px rgba(40,79,158,.2)}
   .save-feedback{position:fixed;z-index:2147483001;right:24px;bottom:24px;display:flex;align-items:center;gap:10px;min-width:220px;padding:14px 20px;border:2px solid #fff;border-radius:12px;background:linear-gradient(135deg,#1e3f85,#2f62bd);color:#fff;box-shadow:0 18px 44px rgba(15,35,75,.28);font-size:14px;font-weight:800}
   .save-feedback-mark{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#fff;color:#1e3f85;font-size:16px}
   .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
@@ -36,6 +37,7 @@
   .draft-compose[hidden]{display:none}
   .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
+  .compose.from-rx{z-index:2147482700}
   @keyframes compose-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
   .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
   .compose-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;letter-spacing:.02em}
@@ -712,14 +714,14 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
          accurate lists for the rest of the world cannot be hardcoded. */
       GEO={
         'Lebanon':{
-          'Beirut':['Achrafieh','Hamra','Verdun','Mar Mikhael','Ras Beirut','Gemmayzeh','Badaro','Mazraa','Sodeco','Ain el Mreisseh'],
-          'Mount Lebanon':['Baabda','Jounieh','Jbeil','Aley','Broummana','Bhamdoun','Dbayeh','Zalka','Antelias','Beit Mery'],
-          'North':['Tripoli','Zgharta','Batroun','Koura','Bcharre','Amioun','Chekka'],
-          'Akkar':['Halba','Qoubaiyat','Bebnine','Chadra'],
-          'Beqaa':['Zahle','Chtaura','Anjar','Bar Elias','Rayak'],
-          'Baalbek-Hermel':['Baalbek','Hermel','Deir el Ahmar'],
-          'South':['Sidon','Tyre','Jezzine','Sarafand'],
-          'Nabatieh':['Nabatieh','Marjayoun','Hasbaya','Bint Jbeil'],
+          'Beirut':['Achrafieh','Hamra','Verdun','Mar Mikhael','Ras Beirut','Gemmayzeh','Badaro','Mazraa','Sodeco','Ain el Mreisseh','Ras el Nabaa','Zqaq el Blat','Bachoura','Msaytbeh','Ain el Tineh','Manara','Clemenceau','Kantari','Saifi','Rmeil'],
+          'Mount Lebanon':['Baabda','Jounieh','Jbeil','Aley','Broummana','Bhamdoun','Dbayeh','Zalka','Antelias','Beit Mery','Bikfaya','Beit Chabab','Bteghrine','Baabdat','Zouk Mosbeh','Zouk Mikael','Kaslik','Jal el Dib','Naccache','Rabieh','Mansourieh','Dekwaneh','Sin el Fil','Hazmieh','Furn el Chebbak','Chiyah','Hadath','Kfarshima','Bsalim','Ain Saadeh','Bikfaya','Damour','Naameh','Choueifat','Bhamdoun','Sofar','Dhour Choueir','Bologna'],
+          'North':['Tripoli','Zgharta','Batroun','Koura','Bcharre','Amioun','Chekka','Mina','Qalamoun','Kousba','Enfeh','Deddeh','Bterram','Kfarhata','Ehden','Kfarsghab','Tannourine','Douma','Hasroun','Bziza'],
+          'Akkar':['Halba','Qoubaiyat','Bebnine','Chadra','Michmich','Fnaideq','Rahbeh','Bire','Aandqet','Tikrit','Cheikh Mohammad','Mounjez','Beino','Berqayel'],
+          'Beqaa':['Zahle','Chtaura','Anjar','Bar Elias','Rayak','Taalabaya','Saadnayel','Jdita','Kab Elias','Ferzol','Ablah','Qab Elias','Majdel Anjar','Riyaq','Mreijat'],
+          'Baalbek-Hermel':['Baalbek','Hermel','Deir el Ahmar','Ras Baalbek','Aarsal','Laboue','Nabi Chit','Douris','Chmistar','Britel','Younine','Fakiha'],
+          'South':['Sidon','Tyre','Jezzine','Sarafand','Ghazieh','Zahrani','Nabatieh','Qana','Maghdouche','Anqoun','Rmeileh','Aadloun','Bisariyeh','Kfar Hatta','Ain el Delb'],
+          'Nabatieh':['Nabatieh','Marjayoun','Hasbaya','Bint Jbeil','Kfar Roummane','Zawtar','Habbouch','Ansar','Doueir','Kfar Tibnit','Arnoun','Chaqra','Tebnine','Aitaroun','Ainata'],
         },
         'United Arab Emirates':{
           'Abu Dhabi':['Abu Dhabi','Al Ain','Ruwais','Madinat Zayed'],
@@ -758,6 +760,37 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       const GEO_COUNTRIES=Object.keys(GEO);
       const districtsFor=c=>GEO[c]?Object.keys(GEO[c]):null;              // null => free text
       const citiesFor=(c,d)=>GEO[c]&&GEO[c][d]?GEO[c][d]:null;
+  /* Custom cities added by users are stored server-side (achi_geo_city) so they
+     are shared, not per-browser. Loaded once into customCities and merged with
+     the predefined GEO towns. cityOptions appends the "+ Add New" sentinel when
+     a country and district are both chosen. */
+  const CITY_ADD='__add_city__';
+  let customCities={};
+  const cityKey=(c,d)=>String(c||'')+'|'+String(d||'');
+  const mergedCities=(c,d)=>[...new Set([...(citiesFor(c,d)||[]),...(customCities[cityKey(c,d)]||[])])];
+  const cityOptions=(c,d)=>(c&&d)?[...mergedCities(c,d),CITY_ADD]:[];
+  async function loadCustomCities(){
+    try{ const rows=await api('/geo/cities'); customCities={};
+      for(const r of rows){ const k=cityKey(r.country,r.district); (customCities[k]=customCities[k]||[]).push(r.city); }
+    }catch(e){/* dropdown still works from predefined lists */}
+  }
+  /* Add a city to the database and select it. Async because it hits the server;
+     the change handler calls it fire-and-forget. On failure the select falls
+     back to the current options with nothing chosen. */
+  async function addCityAndSelect(sel){
+    const country=$('rx-country')&&$('rx-country').value, district=$('rx-district')&&$('rx-district').value;
+    if(!country||!district){ rxFillSelect('city',cityOptions(country,district),''); return; }
+    const name=(window.prompt('New city for '+district+' (max 128 characters):')||'').trim();
+    if(!name){ rxFillSelect('city',cityOptions(country,district),''); return; }
+    if(name.length>128){ fail('City must be 128 characters or fewer.'); rxFillSelect('city',cityOptions(country,district),''); return; }
+    try{
+      const saved=await api('/geo/cities',{method:'POST',body:JSON.stringify({country,district,city:name})});
+      const k=cityKey(country,district), list=customCities[k]=customCities[k]||[];
+      if(!list.includes(saved.city)&&!(citiesFor(country,district)||[]).includes(saved.city)) list.push(saved.city);
+      rxFillSelect('city',cityOptions(country,district),saved.city);
+      clearErr();
+    }catch(e){ fail(e.message); rxFillSelect('city',cityOptions(country,district),''); }
+  }
   /* Module-scope so the change handler (also module-scope) can call it: rebuild
      a site-info select's options when the level above changes, refresh its
      enhanced button label. The menu reads <option>s on open, so this suffices. */
@@ -938,9 +971,9 @@ function initials(name){
 }
 function avatar(name,id){ if(!name&&!id)return '<span class="mt">—</span>';
   return `<span class="avatar" title="${esc(name||id)}">${esc(initials(name))}</span>`; }
-function openEmailCompose(email){
+function openEmailCompose(email,fromRx=false){
   document.querySelector('.compose')?.remove();
-  const panel=document.createElement('section'); panel.className='compose'; panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
+  const panel=document.createElement('section'); panel.className='compose'+(fromRx?' from-rx':''); panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
   panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div><button class="compose-close" type="button" aria-label="Close message">&times;</button></div><div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div><div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div><textarea class="compose-body" placeholder="Write your message…"></textarea><div class="compose-foot"><button class="compose-send" type="button">Send</button><button class="compose-mailto" type="button">Open in mail app</button></div>`;
   document.body.appendChild(panel);
   const close=()=>{panel.remove();document.removeEventListener('keydown',onKey);};
@@ -1552,10 +1585,12 @@ function openExpandedRow(explicitId){
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-      o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+      o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
+  const EMAIL=v=>`<span class="draft-email"><input class="rx-in" id="rx-email" data-k="email" inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(v??'')}">`
+    +`<button class="draft-compose" type="button" data-rx-compose title="Compose email"${validEmail(v)&&String(v||'').trim()?'':' hidden'}>${SVG.mail}</button></span>`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const TEL=(v)=>{
     const phone=contactPhoneParts(v);
@@ -1574,7 +1609,7 @@ function openExpandedRow(explicitId){
     F('Role',       SEL('role',[...allRoles(),ROLE_ADD],'',true,true)));
   html+=g('rx-g4',
     F('Phone / WhatsApp', TEL(val('mobile'))),
-    F('Email',            IN('email','name@company.com',val('email'))),
+    F('Email',            EMAIL(val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
     F('Company type',     SEL('company_type',[...allCompanyTypes(),COMPANY_ADD],'',false,true)));
   html+=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
@@ -1582,14 +1617,14 @@ function openExpandedRow(explicitId){
     <input class="rx-in" data-nosave placeholder="@handle"></div></div>
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',
-    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),false)),
+    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
     F('Log subject', SEL('subject',[...allSubjects(),SUBJECT_ADD],'',true,true)));
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
     +g('rx-g3', F('Country',  SEL('country',GEO_COUNTRIES,val('country'),true)),
                 F('District', SEL('district',districtsFor(val('country'))||[],val('district'),true)),
-                F('City',     SEL('city',citiesFor(val('country'),val('district'))||[],val('city'),true)))
+                F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12','',true)),
                 F('Building', IN('bldg','Bldg','',true)),
@@ -1605,6 +1640,20 @@ function openExpandedRow(explicitId){
   const currentState=String(r&&r.status||'OPEN').toUpperCase();
   prepareRxState(currentState);
   fill('rx-copy',COPY_TARGETS);
+  /* Save button follows the copy-to target: "Save Log" when the log stays put,
+     otherwise "Save & copy to <target>". CRM's option reads "CRM — new deal"; the
+     button says just "CRM". The copy-to select sits in the static footer, outside
+     rx-body, so its change is bound here rather than on the body handler. */
+  const updateSaveLabel=()=>{
+    const v=($('rx-copy')&&$('rx-copy').value)||'Call Log only';
+    const btn=$('rx-save'); if(!btn) return;
+    btn.textContent=v==='Call Log only'?'Save Log':'Save & copy to '+(v==='CRM — new deal'?'CRM':v);
+  };
+  if($('rx-copy')&&!$('rx-copy').dataset.saveLabelWired){
+    $('rx-copy').dataset.saveLabelWired='1';
+    $('rx-copy').addEventListener('change',updateSaveLabel);
+  }
+  updateSaveLabel();
   const rowIndex=r?ROWS.findIndex(row=>row.id===r.id):-1;
   $('rx-num').textContent=`Log #${r&&rowIndex>=0?ROWS.length-rowIndex:ROWS.length+1}`;
   const whenDate=new Date(r&&r.created_at?r.created_at:Date.now());
@@ -1702,7 +1751,7 @@ async function rxCreateNew(keepOpen){
     st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return;
   }
   if(payload.person.email && !validEmail(payload.person.email)){
-    st.textContent='Invalid email'; st.className='rx-status bad'; return;
+    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail($('rx-email')); return;
   }
   if(payload.person.mobile && !validMobile(payload.person.mobile)){
     st.textContent='Invalid mobile number'; st.className='rx-status bad'; showInvalidMobile($('rx-mobile')); return;
@@ -1725,6 +1774,10 @@ async function rxCreateNew(keepOpen){
 async function rxSaveAll(keepOpen){
   if(rxRowId===null) return rxCreateNew(keepOpen);   // blank sheet -> create, don't patch
   const st=$('rx-status');
+  const email=$('rx-email');
+  if(email&&!validEmail(email.value)){
+    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(email); return;
+  }
   const fields=[...$('rx-body').querySelectorAll('[data-k]')];
   const r=ROWS.find(x=>x.id===rxRowId);
   if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
@@ -1761,7 +1814,7 @@ async function rxSave(el){
   const setNote=(t,cls)=>{ if(note){ note.textContent=t; note.className='rx-note '+(cls||''); } };
   const nv=rxFieldValue(el);
   if(String(c.edit.val(r)??'')===nv) return;                // nothing changed
-  if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); return; }
+  if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); showInvalidEmail(el); return; }
   if(field==='mobile'&&nv&&!validMobile(nv)){ setNote('Invalid mobile','rx-err'); showInvalidMobile(el); return; }
   try{
     if(target==='file') await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
@@ -2152,6 +2205,12 @@ $('rx-body').addEventListener('click',e=>{
   const removeHandle=e.target.closest('.rx-social-remove');
   if(removeHandle){ closeRxSelect(); removeHandle.closest('.rx-social')?.remove(); return; }
   if(e.target.closest('#rx-add-handle')){ addRxSocialRow(); return; }
+  if(e.target.closest('[data-rx-compose]')){
+    const email=$('rx-email');
+    if(email&&validEmail(email.value)&&email.value.trim()) openEmailCompose(email.value.trim(),true);
+    else if(email) showInvalidEmail(email);
+    return;
+  }
   const countryCode=e.target.closest('.tel-cc[data-rx-phone]');
   if(countryCode){ openCc(countryCode); return; }
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
@@ -2171,6 +2230,10 @@ $('rx-body').addEventListener('keydown',e=>{
   if(i>=0&&i+1<f.length) f[i+1].focus();
 });
 $('rx-body').addEventListener('focusout',e=>{
+  if(e.target.dataset.k==='email'){
+    if(!validEmail(e.target.value)){ showInvalidEmail(e.target); return; }
+    e.target.classList.remove('email-invalid');
+  }
   const w=$('rx-name-wrap'); if(!w||!w.classList.contains('on')) return;
   // Collapse only once focus has actually left the name block (a tick later, so
   // tabbing prefix->first->last does not keep snapping it shut).
@@ -2226,12 +2289,19 @@ $('rx-body').addEventListener('change',e=>{
   }
   if(el.dataset.rxSelect==='district'){
     const country=$('rx-country')&&$('rx-country').value;
-    rxFillSelect('city',citiesFor(country,el.value),'');
+    rxFillSelect('city',cityOptions(country,el.value),'');
   }
+  if(el.dataset.rxSelect==='city'&&el.value===CITY_ADD){ addCityAndSelect(el); }
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
   if(e.target.dataset&&(e.target.dataset.k==='first'||e.target.dataset.k==='last')) queueContactMatches(e.target);
+  if(e.target.dataset&&e.target.dataset.k==='email'){
+    const valid=validEmail(e.target.value);
+    if(valid) e.target.classList.remove('email-invalid');
+    const button=e.target.closest('.draft-email')?.querySelector('[data-rx-compose]');
+    if(button) button.hidden=!(valid&&e.target.value.trim());
+  }
   if(e.target.dataset&&e.target.dataset.k==='maps') rxUpdateMapPreview(); });
 $('rx-body').addEventListener('click',e=>{ if(e.target.closest('#rx-q-draft')) rxDraftQuotation(); });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
@@ -2776,7 +2846,7 @@ $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
 loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
-else { load(); }
+else { load(); loadCustomCities(); }
 </script>
 <script src="/api/v1/achi/ui/chrome.js?v=16"></script>
 </body>

@@ -32,12 +32,14 @@ from .schemas import (
 from .service import ContactFileService
 from .quotation_router import quotation_router
 from .survey_router import survey_router
+from .geo_router import geo_router
 
 router = APIRouter()
 
 # Site survey lives in its own file; the loader only looks for `router` here.
 router.include_router(survey_router)
 router.include_router(quotation_router)
+router.include_router(geo_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 

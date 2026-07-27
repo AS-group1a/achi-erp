@@ -377,3 +377,31 @@ class Quotation(Base):
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class GeoCity(Base):
+    """A city added by a user for a (country, district) not covered by the
+    frontend's predefined GEO map.
+
+    The predefined towns live in the page; this table holds only the ones people
+    add on the fly. The dropdown shows predefined ∪ these. Kept server-side (not
+    per-browser localStorage like the other picklists) because the request was
+    explicit: a city added once should be there for everyone next time.
+
+    Unique on the triple so the same city can't be stored twice for one district;
+    the same city name can exist under different districts, which is correct
+    (there are many 'Zahle's-worth of repeated town names).
+    """
+
+    __tablename__ = "achi_geo_city"
+    __table_args__ = (
+        Index("ix_achi_geo_city_lookup", "country", "district"),
+        Index("uq_achi_geo_city", "country", "district", "city", unique=True),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    country: Mapped[str] = mapped_column(String(64), nullable=False)
+    district: Mapped[str] = mapped_column(String(128), nullable=False)
+    city: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
