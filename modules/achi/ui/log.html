@@ -162,10 +162,21 @@
   .rx-in{width:100%;height:38px;border:1px solid #d7dde8;border-radius:7px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:#1d1d1f}
   .rx-in:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(40,79,158,.12)}
   select.rx-in{cursor:pointer}
+  .rx-native-select{display:none!important}
+  .rx-select-btn{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;height:38px;border:1px solid #cfd9e8;border-radius:6px;padding:0 10px;background:#fff;color:#1e293b;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+  .rx-select-btn:hover,.rx-select-btn[aria-expanded="true"]{border-color:var(--navy);outline:none}
+  .rx-select-btn svg{width:12px;height:12px;flex:0 0 auto;color:#1e3f85;transition:transform .15s}
+  .rx-select-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+  .rx-select-menu{position:fixed;z-index:2147482750;min-width:150px;max-height:220px;overflow-y:auto;padding:0;background:#fff;border:1.5px solid #1e3f85;border-radius:10px;box-shadow:0 8px 24px rgba(30,63,133,.16)}
+  .rx-select-menu[hidden]{display:none}
+  .rx-select-option{display:block;width:100%;padding:7px 13px;border:0;border-radius:0;background:#fff;color:#1e3f85;font:inherit;font-size:12.5px;font-weight:400;text-align:left;white-space:nowrap;cursor:pointer}
+  .rx-select-option[aria-selected="true"]{background:#fff;color:#1e3f85}
+  .rx-select-option:hover,.rx-select-option:focus{outline:0;background:#1e3f85;color:#fff}
   .rx-fs{border:1px solid #e3e9f3;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
   .rx-fs>h4{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
   .rx-social{display:flex;gap:8px;align-items:center}
   .rx-social select{flex:0 0 86px}
+  .rx-social .rx-select-btn{flex:0 0 86px}
   .rx-addh{align-self:flex-start;border:0;background:none;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:0}
   .rx-map{height:38px;border:1px solid #cfe0f8;border-radius:7px;background:#eef4fd;color:var(--navy);font:inherit;font-size:11.5px;font-weight:800;letter-spacing:.06em;cursor:pointer}
   .rx-notes{border:1px solid #f0d9a8;background:#fffdf5;border-radius:10px;padding:13px}
@@ -184,6 +195,7 @@
   .rx-foot{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid #e3e9f3;background:#fff;flex-wrap:wrap}
   .rx-copy-l{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a8f98}
   .rx-copy{height:34px;border:1px solid #d7dde8;border-radius:7px;padding:0 9px;font:inherit;font-size:12.5px;background:#fff;cursor:pointer}
+  .rx-copy-btn{width:auto;min-width:136px;height:34px;font-size:12.5px}
   .rx-copy-h{font-size:11.5px;color:#8a8f98;flex:1 1 auto}
   .rx-cancel{border:1px solid #d7dde8;background:#fff;color:#1d1d1f;border-radius:8px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
   .rx-cancel:hover{background:#f4f6fa}
@@ -1270,6 +1282,86 @@ function closeRxState(){
   if(menu) menu.hidden=true;
   if(btn) btn.setAttribute('aria-expanded','false');
 }
+let rxSelectMenu=null, rxSelectSource=null, rxSelectButton=null;
+function rxSelectLabel(select){
+  const option=select.options[select.selectedIndex];
+  return option&&option.textContent.trim()?option.textContent.trim():'—';
+}
+function closeRxSelect(){
+  if(rxSelectMenu) rxSelectMenu.hidden=true;
+  if(rxSelectButton) rxSelectButton.setAttribute('aria-expanded','false');
+  rxSelectSource=null; rxSelectButton=null;
+}
+function ensureRxSelectMenu(){
+  if(rxSelectMenu) return;
+  rxSelectMenu=document.createElement('div');
+  rxSelectMenu.className='rx-select-menu';
+  rxSelectMenu.setAttribute('role','listbox');
+  rxSelectMenu.hidden=true;
+  document.body.appendChild(rxSelectMenu);
+  const choose=e=>{
+    const option=e.target.closest('.rx-select-option[data-index]');
+    if(!option||!rxSelectSource) return;
+    e.preventDefault();
+    const select=rxSelectSource, button=rxSelectButton;
+    select.selectedIndex=Number(option.dataset.index);
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+    button.querySelector('span').textContent=rxSelectLabel(select);
+    closeRxSelect();
+    button.focus();
+  };
+  rxSelectMenu.addEventListener('mousedown',choose);
+  rxSelectMenu.addEventListener('click',choose);
+  rxSelectMenu.addEventListener('keydown',e=>{
+    const options=[...rxSelectMenu.querySelectorAll('.rx-select-option')], current=options.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();
+      options[(current+(e.key==='ArrowDown'?1:-1)+options.length)%options.length]?.focus();
+    }else if(e.key==='Escape'){
+      e.preventDefault(); e.stopPropagation();
+      const button=rxSelectButton; closeRxSelect(); button?.focus();
+    }
+  });
+}
+function openRxSelect(select,button){
+  ensureRxSelectMenu();
+  if(rxSelectSource===select&&!rxSelectMenu.hidden){ closeRxSelect(); return; }
+  closeRxState(); closeRxSelect();
+  rxSelectSource=select; rxSelectButton=button;
+  rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
+    `<button type="button" class="rx-select-option" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+  const r=button.getBoundingClientRect();
+  const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
+  rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
+  rxSelectMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-width-8))+'px';
+  rxSelectMenu.style.top=(r.bottom+menuHeight+8<=window.innerHeight?r.bottom+4:Math.max(8,r.top-menuHeight-4))+'px';
+  rxSelectMenu.hidden=false;
+  button.setAttribute('aria-expanded','true');
+  const selected=rxSelectMenu.querySelector('[aria-selected="true"]');
+  selected?.scrollIntoView({block:'nearest'});
+}
+function enhanceRxSelect(select){
+  if(select.dataset.rxEnhanced){
+    const button=select._rxButton;
+    if(button) button.querySelector('span').textContent=rxSelectLabel(select);
+    return;
+  }
+  select.dataset.rxEnhanced='1';
+  select.classList.add('rx-native-select');
+  const button=document.createElement('button');
+  button.type='button';
+  button.className='rx-select-btn'+(select.id==='rx-copy'?' rx-copy-btn':'');
+  button.setAttribute('aria-haspopup','listbox');
+  button.setAttribute('aria-expanded','false');
+  button.innerHTML=`<span>${esc(rxSelectLabel(select))}</span><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m2.5 4.5 3.5 3 3.5-3"/></svg>`;
+  button.addEventListener('click',()=>openRxSelect(select,button));
+  select.insertAdjacentElement('afterend',button);
+  select._rxButton=button;
+}
+function enhanceRxSelects(){
+  $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
+  $('rx').querySelectorAll('select.rx-native-select').forEach(enhanceRxSelect);
+}
 
 function rxFieldHTML(c,r){
   const v=c.edit&&c.edit.val?String(c.edit.val(r)??''):'';
@@ -1441,6 +1533,7 @@ function openExpandedRow(explicitId){
     });
   },0);
   $('rx-body').innerHTML=html;
+  enhanceRxSelects();
   $('rx').hidden=false;
 
   // Tiles need the real width, which only exists once the sheet is laid out.
@@ -1527,7 +1620,7 @@ async function rxSaveAll(keepOpen){
     if(!keepOpen) setTimeout(closeExpandedRow,450);
   }
 }
-function closeExpandedRow(){ closeRxState(); $('rx').hidden=true; rxRowId=null; }
+function closeExpandedRow(){ closeRxState(); closeRxSelect(); $('rx').hidden=true; rxRowId=null; }
 
 /* Field saves go through the SAME endpoints as the grid's inline editors, keyed
    off each column's own edit.target — so nothing here can save to a different
@@ -1873,6 +1966,7 @@ $('rx-state-menu').addEventListener('click',e=>{
 document.addEventListener('mousedown',e=>{
   const picker=$('rx-state');
   if(picker&&!picker.contains(e.target)) closeRxState();
+  if(rxSelectMenu&&!rxSelectMenu.contains(e.target)&&!(rxSelectButton&&rxSelectButton.contains(e.target))) closeRxSelect();
 });
 
 // Open the shared note workspace for this row and jump straight to a tool, so
