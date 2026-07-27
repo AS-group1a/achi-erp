@@ -179,6 +179,7 @@
   .rx-select-option{display:block;width:100%;padding:7px 13px;border:0;border-radius:0;background:#fff;color:#1e3f85;font:inherit;font-size:12.5px;font-weight:400;text-align:left;white-space:nowrap;cursor:pointer}
   .rx-select-option[aria-selected="true"]{background:#fff;color:#1e3f85}
   .rx-select-option:hover,.rx-select-option:focus{outline:0;background:#1e3f85;color:#fff}
+  .rx-select-option.add-command{border-top:1px solid #dbe6f6;font-weight:700}
   .rx-fs{border:1px solid #e3e9f3;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
   .rx-fs>h4{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
   .rx-social{display:flex;gap:8px;align-items:center}
@@ -188,6 +189,8 @@
   .rx-social-remove{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;border:1px solid #d7dde8;border-radius:7px;background:#fff;color:#94a3b8;cursor:pointer;transition:color .15s,border-color .15s,background .15s,box-shadow .15s}
   .rx-social-remove svg{width:14px;height:14px;pointer-events:none}
   .rx-social-remove:hover,.rx-social-remove:focus{outline:0;background:#fff5f5;border-color:#efb5b5;color:#ba0517;box-shadow:0 0 0 3px rgba(186,5,23,.07)}
+  .rx-add-handle{display:inline-flex;align-items:center;margin-top:7px;padding:3px 0;border:0;background:transparent;color:#2453a6;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+  .rx-add-handle:hover,.rx-add-handle:focus{outline:0;color:#163b7a;text-decoration:underline}
   .rx-map{height:38px;border:1px solid #cfe0f8;border-radius:7px;background:#eef4fd;color:var(--navy);font:inherit;font-size:11.5px;font-weight:800;letter-spacing:.06em;cursor:pointer}
   .rx-notes{border:1px solid #f0d9a8;background:#fffdf5;border-radius:10px;padding:13px}
   .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a5a12;margin-bottom:7px}
@@ -251,7 +254,11 @@
   .rx-mapprev{margin-top:8px;border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;background:#eef2f7}
   .rx-mapprev[hidden]{display:none}
   .rx-mapprev .mapwrap{position:relative;height:200px;overflow:hidden}
-  .rx-mapprev a{display:block;padding:7px 10px;font-size:11px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
+  .rx-mapmeta{padding:9px 11px;background:#fff;border-top:1px solid #eef1f6}
+  .rx-mapaddr{font-size:12px;font-weight:700;color:#1d2b45;line-height:1.4}
+  .rx-mapplace{font-size:11px;color:#64748b;margin-top:2px}
+  .rx-mapprev a{display:block;margin-top:7px;font-size:11px;font-weight:700;color:#2563eb;text-decoration:none}
+  .rx-maploading{padding:14px;background:#fff;color:#64748b;font-size:12px}
   .rx-none{font-size:12px;color:#94a3b8;padding:8px 0}
   /* Sticky footer: on a long sheet Save must be reachable without scrolling
      back down, which is the whole point of a one-column layout on a phone. */
@@ -701,9 +708,70 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
                 'Off-hire','Adaptation','Inspection','Complaint','Invoice'],
-      DISTRICTS=['Beirut','Mount Lebanon','North','South','Bekaa'],
-      CITIES=['Achrafieh','Hamra','Mar Mikhael','Verdun','Ras Beirut','Ain el Mreisseh',
-              'Gemmayzeh','Sodeco','Badaro','Mazraa'];
+      /* Country -> District -> City, for the countries ACHI works in. District is
+         the top admin division (governorate/emirate/region), City the town under
+         it. A country not in this map keeps District and City as free text, since
+         accurate lists for the rest of the world cannot be hardcoded. */
+      GEO={
+        'Lebanon':{
+          'Beirut':['Achrafieh','Hamra','Verdun','Mar Mikhael','Ras Beirut','Gemmayzeh','Badaro','Mazraa','Sodeco','Ain el Mreisseh'],
+          'Mount Lebanon':['Baabda','Jounieh','Jbeil','Aley','Broummana','Bhamdoun','Dbayeh','Zalka','Antelias','Beit Mery'],
+          'North':['Tripoli','Zgharta','Batroun','Koura','Bcharre','Amioun','Chekka'],
+          'Akkar':['Halba','Qoubaiyat','Bebnine','Chadra'],
+          'Beqaa':['Zahle','Chtaura','Anjar','Bar Elias','Rayak'],
+          'Baalbek-Hermel':['Baalbek','Hermel','Deir el Ahmar'],
+          'South':['Sidon','Tyre','Jezzine','Sarafand'],
+          'Nabatieh':['Nabatieh','Marjayoun','Hasbaya','Bint Jbeil'],
+        },
+        'United Arab Emirates':{
+          'Abu Dhabi':['Abu Dhabi','Al Ain','Ruwais','Madinat Zayed'],
+          'Dubai':['Dubai','Jebel Ali','Hatta'],
+          'Sharjah':['Sharjah','Khor Fakkan','Kalba'],
+          'Ajman':['Ajman'],'Umm Al Quwain':['Umm Al Quwain'],
+          'Ras Al Khaimah':['Ras Al Khaimah'],'Fujairah':['Fujairah','Dibba'],
+        },
+        'Saudi Arabia':{
+          'Riyadh':['Riyadh','Al Kharj','Diriyah'],
+          'Makkah':['Mecca','Jeddah','Taif'],
+          'Madinah':['Medina','Yanbu'],
+          'Eastern Province':['Dammam','Khobar','Dhahran','Jubail','Al Ahsa'],
+          'Asir':['Abha','Khamis Mushait'],'Tabuk':['Tabuk'],'Qassim':['Buraidah','Unaizah'],
+        },
+        'Qatar':{
+          'Doha':['Doha'],'Al Rayyan':['Al Rayyan'],'Al Wakrah':['Al Wakrah'],
+          'Al Khor':['Al Khor'],'Umm Salal':['Umm Salal'],'Al Daayen':['Lusail'],
+        },
+        'Kuwait':{
+          'Al Asimah':['Kuwait City'],'Hawalli':['Hawalli','Salmiya'],'Farwaniya':['Farwaniya'],
+          'Ahmadi':['Ahmadi','Fahaheel'],'Jahra':['Jahra'],'Mubarak Al-Kabeer':['Mubarak Al-Kabeer'],
+        },
+        'Bahrain':{
+          'Capital':['Manama'],'Muharraq':['Muharraq'],
+          'Northern':['Hamad Town','Budaiya'],'Southern':['Riffa','Isa Town'],
+        },
+        'Oman':{
+          'Muscat':['Muscat','Seeb','Bawshar'],'Dhofar':['Salalah'],
+          'Al Batinah North':['Sohar'],'Al Batinah South':['Rustaq'],
+          'Musandam':['Khasab'],'Al Dakhiliyah':['Nizwa'],
+        },
+      };
+      /* Site-info country dropdown: the names ACHI works in, in the map's order.
+         Kept separate from the phone-picker COUNTRIES (which is dial-code triples). */
+      const GEO_COUNTRIES=Object.keys(GEO);
+      const districtsFor=c=>GEO[c]?Object.keys(GEO[c]):null;              // null => free text
+      const citiesFor=(c,d)=>GEO[c]&&GEO[c][d]?GEO[c][d]:null;
+  /* Module-scope so the change handler (also module-scope) can call it: rebuild
+     a site-info select's options when the level above changes, refresh its
+     enhanced button label. The menu reads <option>s on open, so this suffices. */
+  const rxFillSelect=(id,list,selected)=>{
+    const sel=$('rx-'+id); if(!sel) return;
+    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
+    sel.value=selected||'';
+    if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+  };
+      /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
+      const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
+            CITIES=[...new Set(Object.values(GEO).flatMap(d=>Object.values(d).flat()))];
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['Prospect','Lead','Client','Field','Fleet','Yard','Invoice','Balance','General'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
@@ -713,9 +781,13 @@ const STATUSES=['open','scheduled','viewed','cancelled','done'],
          (architect columns default to "Arch"), so on a general call log the
          blank stays the default here. */
       PREFIXES=['Mr','Ms','Mrs','Dr','Eng','Arch'];
-const SOCIAL_ADD='__add_handle__';
-const socialOptionsHTML=(selected='IG')=>[...SOCIALS,SOCIAL_ADD].map(value=>
-  `<option value="${value}"${value===selected?' selected':''}>${value===SOCIAL_ADD?'＋ Add handle':value}</option>`).join('');
+const SOCIAL_KEY='achi_social_platforms',
+      SOCIAL_ADD_PLATFORM='__add_social_platform__';
+const allSocials=()=>[...SOCIALS,...customPicklistValues(SOCIAL_KEY).filter(value=>!SOCIALS.includes(value))];
+const socialOptionsHTML=(selected='IG')=>[...allSocials(),SOCIAL_ADD_PLATFORM].map(value=>
+  `<option value="${value}"${value===selected?' selected':''}>${
+    value===SOCIAL_ADD_PLATFORM?'+ Add New Platform':value
+  }</option>`).join('');
 const ROLE_KEY='achi_roles', ROLE_ADD='__add_role__',
       SUBJECT_KEY='achi_log_subjects', SUBJECT_ADD='__add_subject__';
 const customPicklistValues=key=>{ try{
@@ -733,6 +805,7 @@ function addCustomPicklistValue({key,values,label}){
 }
 const addRole=()=>addCustomPicklistValue({key:ROLE_KEY,values:allRoles,label:'role'});
 const addSubject=()=>addCustomPicklistValue({key:SUBJECT_KEY,values:allSubjects,label:'log subject'});
+const addSocialPlatform=()=>addCustomPicklistValue({key:SOCIAL_KEY,values:allSocials,label:'social platform'});
 const COMPANY_KEY='achi_company_types', COMPANY_ADD='__add_company__';
 /* Base company types; the field is data-nosave (no model column yet), so a
    custom one lives only in the dropdown until that column exists — but the
@@ -1385,7 +1458,7 @@ function openRxSelect(select,button){
   closeRxState(); closeRxSelect();
   rxSelectSource=select; rxSelectButton=button;
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
-    `<button type="button" class="rx-select-option" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+    `<button type="button" class="rx-select-option${option.value===SOCIAL_ADD_PLATFORM?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
   const r=button.getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
@@ -1483,6 +1556,7 @@ function openExpandedRow(explicitId){
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
       o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
+
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const TEL=(v)=>{
@@ -1507,16 +1581,17 @@ function openExpandedRow(explicitId){
     F('Company type',     SEL('company_type',[...allCompanyTypes(),COMPANY_ADD],'',false,true)));
   html+=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
     <div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML()}</select>
-    <input class="rx-in" data-nosave placeholder="@handle"></div></div></div>`;
+    <input class="rx-in" data-nosave placeholder="@handle"></div></div>
+    <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),false)),
     F('Log subject', SEL('subject',[...allSubjects(),SUBJECT_ADD],'',true,true)));
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3', F('Country',  SEL('country',COUNTRIES,val('country'),true)),
-                F('District', SEL('district',DISTRICTS,val('district'),true)),
-                F('City',     SEL('city',CITIES,val('city'),true)))
+    +g('rx-g3', F('Country',  SEL('country',GEO_COUNTRIES,val('country'),true)),
+                F('District', SEL('district',districtsFor(val('country'))||[],val('district'),true)),
+                F('City',     SEL('city',citiesFor(val('country'),val('district'))||[],val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12','',true)),
                 F('Building', IN('bldg','Bldg','',true)),
@@ -1564,18 +1639,50 @@ function openExpandedRow(explicitId){
   $('rx-body').scrollTop=0;
 }
 
-/* Live preview under the Google-maps field. Reads the maps input, and if the
-   link resolves to coordinates, draws OSM tiles below it; otherwise hides. */
+let rxMapLookupTimer=0, rxMapLookupSeq=0;
+function rxSetPlace(kind,value){
+  if(!value) return;
+  const sel=$('rx-body').querySelector(`select[data-k="${kind}"]`);
+  if(!sel) return;
+  let option=[...sel.options].find(o=>o.value.toLowerCase()===String(value).toLowerCase());
+  if(!option){ option=new Option(value,value); sel.add(option); }
+  sel.value=option.value;
+  sel.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function rxRenderMapPreview(box,data,openUrl){
+  const place=[data.city,data.district,data.country].filter(Boolean).join(' · ');
+  box.hidden=false;
+  box.innerHTML=`<div class="mapwrap">${tileMap(data.lat,data.lng,box.clientWidth||500,200,15)}</div>`
+    +`<div class="rx-mapmeta"><div class="rx-mapaddr">${esc(data.display_name||'Location found')}</div>`
+    +(place?`<div class="rx-mapplace">${esc(place)}</div>`:'')
+    +`<a href="${esc(openUrl)}" target="_blank" rel="noopener noreferrer">Open exact location in Google Maps ↗</a></div>`;
+}
+/* Preview immediately for coordinate-bearing links, then ask our authenticated
+   endpoint to resolve short links and fill the address fields before saving. */
 function rxUpdateMapPreview(){
   const box=$('rx-mapprev'); if(!box) return;
   const inp=$('rx-body').querySelector('[data-k="maps"]');
   const raw=(inp&&inp.value||'').trim();
   const url=raw?normalizeMapsUrl(raw):null;
-  const c=url?mapsCoords(url):null;
-  if(!c){ box.hidden=true; box.innerHTML=''; return; }
-  box.hidden=false;
-  box.innerHTML=`<div class="mapwrap">${tileMap(c.lat,c.lng,box.clientWidth||500,200,15)}</div>`
-    +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
+  clearTimeout(rxMapLookupTimer);
+  const seq=++rxMapLookupSeq;
+  if(!url){ box.hidden=true; box.innerHTML=''; return; }
+  const immediate=mapsCoords(url);
+  if(immediate) rxRenderMapPreview(box,immediate,url);
+  else{ box.hidden=false; box.innerHTML='<div class="rx-maploading">Finding this location…</div>'; }
+  rxMapLookupTimer=setTimeout(async()=>{
+    try{
+      const data=await api('/maps/preview?url='+encodeURIComponent(url));
+      if(seq!==rxMapLookupSeq) return;
+      rxRenderMapPreview(box,data,data.url||url);
+      rxSetPlace('country',data.country);
+      rxSetPlace('district',data.district);
+      rxSetPlace('city',data.city);
+    }catch(e){
+      if(seq!==rxMapLookupSeq) return;
+      if(!immediate) box.innerHTML=`<div class="rx-maploading">${esc(e.message||'Preview unavailable for this link')}</div>`;
+    }
+  },350);
 }
 /* Collect the sheet's fields into the {person, site, log} shape POST /logs/
    expects — the same shape draftPayload builds for the grid's own rows, so a
@@ -2057,6 +2164,7 @@ function rxOpenWorkspace(action){
 $('rx-body').addEventListener('click',e=>{
   const removeHandle=e.target.closest('.rx-social-remove');
   if(removeHandle){ closeRxSelect(); removeHandle.closest('.rx-social')?.remove(); return; }
+  if(e.target.closest('#rx-add-handle')){ addRxSocialRow(); return; }
   const countryCode=e.target.closest('.tel-cc[data-rx-phone]');
   if(countryCode){ openCc(countryCode); return; }
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
@@ -2111,10 +2219,27 @@ $('rx-body').addEventListener('change',e=>{
     }else el.value=previous&&previous!==customPicklist.sentinel?previous:'';
     enhanceRxSelect(el);
   }
-  if(el.matches('select[data-social-platform]')&&el.value===SOCIAL_ADD){
+  if(el.matches('select[data-social-platform]')&&el.value===SOCIAL_ADD_PLATFORM){
     const previous=el.dataset.rxPreviousValue;
-    el.value=SOCIALS.includes(previous)?previous:'IG';
-    addRxSocialRow();
+    const added=addSocialPlatform();
+    if(added){
+      if(![...el.options].some(option=>option.value===added))
+        el.add(new Option(added,added),el.options.length-1);
+      el.value=added;
+    }else el.value=allSocials().includes(previous)?previous:'IG';
+    enhanceRxSelect(el);
+  }
+  /* Site-info cascade: District follows Country, City follows District. Choosing
+     a country repopulates its districts and clears the city; choosing a district
+     repopulates its cities. A country not in GEO leaves both empty (no data to
+     match), which is the honest state until that country's lists exist. */
+  if(el.dataset.rxSelect==='country'){
+    rxFillSelect('district',districtsFor(el.value),'');
+    rxFillSelect('city',null,'');
+  }
+  if(el.dataset.rxSelect==='district'){
+    const country=$('rx-country')&&$('rx-country').value;
+    rxFillSelect('city',citiesFor(country,el.value),'');
   }
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
@@ -2191,7 +2316,7 @@ let mapsPopup=null, mapsTimer=null;
 function ensureMapsPopup(){ if(mapsPopup)return; mapsPopup=document.createElement('div'); mapsPopup.className='maps-popup';
   mapsPopup.addEventListener('mouseenter',()=>clearTimeout(mapsTimer)); mapsPopup.addEventListener('mouseleave',()=>{mapsTimer=setTimeout(hideMapsPopup,150);}); document.body.appendChild(mapsPopup); }
 function hideMapsPopup(){ if(mapsPopup) mapsPopup.classList.remove('vis'); }
-function mapsCoords(url){ const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/];
+function mapsCoords(url){ const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/];
   for(const p of pats){ const m=String(url||'').match(p); if(m) return {lat:parseFloat(m[1]),lng:parseFloat(m[2])}; } return null; }
 function normalizeMapsUrl(value){
   const raw=String(value||'').trim(); if(!raw)return '';
@@ -2336,7 +2461,7 @@ function selectPopupChoices(kind){
   if(kind==='subject')  return ['',...SUBJECTS].map(value=>({value,label:value||'—'}));
   if(kind==='district') return ['',...DISTRICTS].map(value=>({value,label:value||'—'}));
   if(kind==='city')     return ['',...CITIES].map(value=>({value,label:value||'—'}));
-  if(kind==='country')  return ['',...COUNTRIES].map(value=>({value,label:value||'—'}));
+  if(kind==='country')  return ['',...GEO_COUNTRIES].map(value=>({value,label:value||'—'}));
   if(kind==='type') return [...allTypes(),TYPE_ADD].map(value=>({value,label:value===TYPE_ADD?'＋ Add new…':value}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
   return ['',...allPrefixes(),PREFIX_ADD].map(value=>({value,label:value===PREFIX_ADD?'＋ Add new…':value||'—'}));
