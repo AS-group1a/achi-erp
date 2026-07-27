@@ -576,7 +576,7 @@
         <span class="rx-copy-h">the log stays here — a linked copy opens the same popup from that module</span>
         <span class="rx-status" id="rx-status"></span>
         <div class="rx-foot-btns">
-          <button type="button" class="rx-cancel" id="rx-save-cont">Cancel</button>
+          <button type="button" class="rx-cancel" id="rx-cancel">Cancel</button>
           <button type="button" class="rx-save" id="rx-save">Save Log</button>
         </div>
       </div>
@@ -1792,7 +1792,7 @@ function rxCollectNew(){
     follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
 }
 
-function rxBusy(on){ const a=$('rx-save'),b=$('rx-save-cont'); if(a)a.disabled=on; if(b)b.disabled=on; }
+function rxBusy(on){ const a=$('rx-save'),b=$('rx-cancel'); if(a)a.disabled=on; if(b)b.disabled=on; }
 
 async function rxCreateNew(keepOpen){
   const st=$('rx-status');
@@ -2257,8 +2257,8 @@ $('qv-collapse').addEventListener('click',()=>{ qvHidden=true; $('qv').hidden=tr
 // that truthy Event as "explicit id" / "keep open".
 $('expand-row').addEventListener('click',()=>openExpandedRow());
 $('rx-close').addEventListener('click',closeExpandedRow);
+$('rx-cancel').addEventListener('click',closeExpandedRow);
 $('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
-$('rx-save-cont').addEventListener('click',()=>rxSaveAll(true));    // save + stay
 $('rx-when').addEventListener('change',e=>{ $('rx-when-label').textContent=fmtHeaderDT(e.target.value); });
 $('rx-state-btn').addEventListener('click',()=>{
   const menu=$('rx-state-menu'), btn=$('rx-state-btn');
