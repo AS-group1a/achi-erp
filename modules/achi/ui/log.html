@@ -733,6 +733,14 @@ function addCustomPicklistValue({key,values,label}){
 }
 const addRole=()=>addCustomPicklistValue({key:ROLE_KEY,values:allRoles,label:'role'});
 const addSubject=()=>addCustomPicklistValue({key:SUBJECT_KEY,values:allSubjects,label:'log subject'});
+const COMPANY_KEY='achi_company_types', COMPANY_ADD='__add_company__';
+/* Base company types; the field is data-nosave (no model column yet), so a
+   custom one lives only in the dropdown until that column exists — but the
+   picklist behaves like the others meanwhile. */
+const COMPANY_TYPES=['All types','Contractor','Developer','Architect','Owner'];
+const allCompanyTypes=()=>[...COMPANY_TYPES,...customPicklistValues(COMPANY_KEY).filter(v=>!COMPANY_TYPES.includes(v))];
+const addCompanyType=()=>addCustomPicklistValue({key:COMPANY_KEY,values:allCompanyTypes,label:'company type'});
+const PREFIX_ADD_LABEL='+ Add New';
 /* Custom prefixes. The backend stores prefix as a free string (ContactPatch caps
    it at 16), so a new option needs no API change — only somewhere to remember it.
    Kept in localStorage beside achi_bh; that means per-browser, NOT shared across
@@ -1473,7 +1481,7 @@ function openExpandedRow(explicitId){
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-      o===TYPE_ADD?'＋ Add new…':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+      o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
@@ -1488,7 +1496,7 @@ function openExpandedRow(explicitId){
 
   let html='';
   html+=g('rx-g4',
-    F('Pre',        SEL('prefix',allPrefixes(),val('prefix'),true)),
+    F('Pre',        SEL('prefix',[...allPrefixes(),PREFIX_ADD],val('prefix'),true)),
     F('First name', IN('first','Type or pick...',val('first')),true),
     F('Last name',  IN('last','Type or pick...',val('last'))),
     F('Role',       SEL('role',[...allRoles(),ROLE_ADD],'',true,true)));
@@ -1496,7 +1504,7 @@ function openExpandedRow(explicitId){
     F('Phone / WhatsApp', TEL(val('mobile'))),
     F('Email',            IN('email','name@company.com',val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
-    F('Company type',     SEL('company_type',['All types','Contractor','Developer','Architect','Owner'],'',false,true)));
+    F('Company type',     SEL('company_type',[...allCompanyTypes(),COMPANY_ADD],'',false,true)));
   html+=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
     <div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML()}</select>
     <input class="rx-in" data-nosave placeholder="@handle"></div></div></div>`;
@@ -2088,6 +2096,10 @@ $('rx-body').addEventListener('change',e=>{
     ? {sentinel:ROLE_ADD,add:addRole}
     : el.dataset.rxSelect==='subject'&&el.value===SUBJECT_ADD
       ? {sentinel:SUBJECT_ADD,add:addSubject}
+    : el.dataset.rxSelect==='prefix'&&el.value===PREFIX_ADD
+      ? {sentinel:PREFIX_ADD,add:addPrefix}
+    : el.dataset.rxSelect==='company_type'&&el.value===COMPANY_ADD
+      ? {sentinel:COMPANY_ADD,add:addCompanyType}
       : null;
   if(customPicklist){
     const previous=el.dataset.rxPreviousValue;
