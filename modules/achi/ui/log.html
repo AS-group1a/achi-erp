@@ -233,6 +233,14 @@
   .rx-map{border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;background:#eef2f7}
   .rx-map .mapwrap{position:relative;height:170px;overflow:hidden}
   .rx-map a{display:block;padding:8px 10px;font-size:11.5px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
+  /* Live map preview under the Google-maps field in Add Log — replaces the old
+     MAP PREVIEW button, which had no handler. 200px: big enough to read, not so
+     big it pushes the form. Tiles as <img>; CSP blocks embed iframes. */
+  .rx-mapfield{margin-bottom:10px}
+  .rx-mapprev{margin-top:8px;border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;background:#eef2f7}
+  .rx-mapprev[hidden]{display:none}
+  .rx-mapprev .mapwrap{position:relative;height:200px;overflow:hidden}
+  .rx-mapprev a{display:block;padding:7px 10px;font-size:11px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
   .rx-none{font-size:12px;color:#94a3b8;padding:8px 0}
   /* Sticky footer: on a long sheet Save must be reachable without scrolling
      back down, which is the whole point of a one-column layout on a phone. */
@@ -1357,8 +1365,8 @@ function openExpandedRow(explicitId){
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),false)),
     F('Log subject', SEL('subject',SUBJECTS,'',true,true)));
   html+=`<div class="rx-fs"><h4>Site info</h4>`
-    +g('rx-g2', F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps'))),
-                `<div><label class="rx-l">&nbsp;</label><button type="button" class="rx-map" id="rx-mapbtn">MAP PREVIEW</button></div>`)
+    +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
+    +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
     +g('rx-g3', F('Country',  SEL('country',COUNTRIES,val('country'),true)),
                 F('District', SEL('district',DISTRICTS,val('district'),true)),
                 F('City',     SEL('city',CITIES,val('city'),true)))
@@ -1444,10 +1452,22 @@ function openExpandedRow(explicitId){
   $('rx').hidden=false;
 
   // Tiles need the real width, which only exists once the sheet is laid out.
-  const wrap=$('rx-mapwrap');
-  if(wrap){ const url=normalizeMapsUrl(src.maps_url), c=mapsCoords(url);
-    if(c) wrap.innerHTML=tileMap(c.lat,c.lng,wrap.clientWidth||500,170,15); }
+  rxUpdateMapPreview();   // render for any link already on the row
   $('rx-body').scrollTop=0;
+}
+
+/* Live preview under the Google-maps field. Reads the maps input, and if the
+   link resolves to coordinates, draws OSM tiles below it; otherwise hides. */
+function rxUpdateMapPreview(){
+  const box=$('rx-mapprev'); if(!box) return;
+  const inp=$('rx-body').querySelector('[data-k="maps"]');
+  const raw=(inp&&inp.value||'').trim();
+  const url=raw?normalizeMapsUrl(raw):null;
+  const c=url?mapsCoords(url):null;
+  if(!c){ box.hidden=true; box.innerHTML=''; return; }
+  box.hidden=false;
+  box.innerHTML=`<div class="mapwrap">${tileMap(c.lat,c.lng,box.clientWidth||500,200,15)}</div>`
+    +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
 }
 /* Collect the sheet's fields into the {person, site, log} shape POST /logs/
    expects — the same shape draftPayload builds for the grid's own rows, so a
@@ -1921,7 +1941,8 @@ $('rx-body').addEventListener('change',e=>{
   const el=e.target;
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
-$('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals(); });
+$('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
+  if(e.target.dataset&&e.target.dataset.k==='maps') rxUpdateMapPreview(); });
 $('rx-body').addEventListener('click',e=>{ if(e.target.closest('#rx-q-draft')) rxDraftQuotation(); });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
    or dragging a column edge would also flip the whole selection. */
