@@ -2003,8 +2003,11 @@ function fillRxFromContact(c){
     if(img) img.src=flagSrc(phone.iso);
     if(dial) dial.textContent=phone.dial;
   }
+  /* Keep the user in the name workflow after choosing a saved contact. Focus
+     before closing so closeContactMatches also cancels the focus-triggered
+     autocomplete timer; otherwise the same surname list immediately reopens. */
+  body.querySelector('[data-k="last"]')?.focus();
   closeContactMatches();
-  body.querySelector('[data-k="company"]')?.focus();
 }
 function pickContactMatch(input,c){
   if(input.closest('#rx-body')) fillRxFromContact(c);
@@ -2232,6 +2235,7 @@ document.addEventListener('mousedown',e=>{
   const picker=$('rx-state');
   if(picker&&!picker.contains(e.target)) closeRxState();
   if(rxSelectMenu&&!rxSelectMenu.contains(e.target)&&!(rxSelectButton&&rxSelectButton.contains(e.target))) closeRxSelect();
+  if(contactMatchDrop&&!contactMatchDrop.contains(e.target)&&e.target!==contactMatchInput) closeContactMatches();
 });
 
 // Open the shared note workspace for this row and jump straight to a tool, so
