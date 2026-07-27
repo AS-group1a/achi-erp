@@ -1613,7 +1613,7 @@ function openExpandedRow(explicitId){
     <input class="rx-in" data-nosave placeholder="@handle"></div></div>
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',
-    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),false)),
+    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
     F('Log subject', SEL('subject',[...allSubjects(),SUBJECT_ADD],'',true,true)));
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
