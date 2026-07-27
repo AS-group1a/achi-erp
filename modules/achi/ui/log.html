@@ -755,6 +755,15 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       const GEO_COUNTRIES=Object.keys(GEO);
       const districtsFor=c=>GEO[c]?Object.keys(GEO[c]):null;              // null => free text
       const citiesFor=(c,d)=>GEO[c]&&GEO[c][d]?GEO[c][d]:null;
+  /* Module-scope so the change handler (also module-scope) can call it: rebuild
+     a site-info select's options when the level above changes, refresh its
+     enhanced button label. The menu reads <option>s on open, so this suffices. */
+  const rxFillSelect=(id,list,selected)=>{
+    const sel=$('rx-'+id); if(!sel) return;
+    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
+    sel.value=selected||'';
+    if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+  };
       /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
       const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
             CITIES=[...new Set(Object.values(GEO).flatMap(d=>Object.values(d).flat()))];
@@ -1537,15 +1546,7 @@ function openExpandedRow(explicitId){
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
       o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
-  /* Rebuild a site-info select's options in place when the level above it
-     changes, then refresh its enhanced button label. The pop-up menu reads the
-     <option>s on open, so replacing them is enough. */
-  const rxFillSelect=(id,list,selected)=>{
-    const sel=$('rx-'+id); if(!sel) return;
-    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
-    sel.value=selected||'';
-    if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
-  };
+
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const TEL=(v)=>{
