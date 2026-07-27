@@ -703,9 +703,61 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
                 'Off-hire','Adaptation','Inspection','Complaint','Invoice'],
-      DISTRICTS=['Beirut','Mount Lebanon','North','South','Bekaa'],
-      CITIES=['Achrafieh','Hamra','Mar Mikhael','Verdun','Ras Beirut','Ain el Mreisseh',
-              'Gemmayzeh','Sodeco','Badaro','Mazraa'];
+      /* Country -> District -> City, for the countries ACHI works in. District is
+         the top admin division (governorate/emirate/region), City the town under
+         it. A country not in this map keeps District and City as free text, since
+         accurate lists for the rest of the world cannot be hardcoded. */
+      GEO={
+        'Lebanon':{
+          'Beirut':['Achrafieh','Hamra','Verdun','Mar Mikhael','Ras Beirut','Gemmayzeh','Badaro','Mazraa','Sodeco','Ain el Mreisseh'],
+          'Mount Lebanon':['Baabda','Jounieh','Jbeil','Aley','Broummana','Bhamdoun','Dbayeh','Zalka','Antelias','Beit Mery'],
+          'North':['Tripoli','Zgharta','Batroun','Koura','Bcharre','Amioun','Chekka'],
+          'Akkar':['Halba','Qoubaiyat','Bebnine','Chadra'],
+          'Beqaa':['Zahle','Chtaura','Anjar','Bar Elias','Rayak'],
+          'Baalbek-Hermel':['Baalbek','Hermel','Deir el Ahmar'],
+          'South':['Sidon','Tyre','Jezzine','Sarafand'],
+          'Nabatieh':['Nabatieh','Marjayoun','Hasbaya','Bint Jbeil'],
+        },
+        'United Arab Emirates':{
+          'Abu Dhabi':['Abu Dhabi','Al Ain','Ruwais','Madinat Zayed'],
+          'Dubai':['Dubai','Jebel Ali','Hatta'],
+          'Sharjah':['Sharjah','Khor Fakkan','Kalba'],
+          'Ajman':['Ajman'],'Umm Al Quwain':['Umm Al Quwain'],
+          'Ras Al Khaimah':['Ras Al Khaimah'],'Fujairah':['Fujairah','Dibba'],
+        },
+        'Saudi Arabia':{
+          'Riyadh':['Riyadh','Al Kharj','Diriyah'],
+          'Makkah':['Mecca','Jeddah','Taif'],
+          'Madinah':['Medina','Yanbu'],
+          'Eastern Province':['Dammam','Khobar','Dhahran','Jubail','Al Ahsa'],
+          'Asir':['Abha','Khamis Mushait'],'Tabuk':['Tabuk'],'Qassim':['Buraidah','Unaizah'],
+        },
+        'Qatar':{
+          'Doha':['Doha'],'Al Rayyan':['Al Rayyan'],'Al Wakrah':['Al Wakrah'],
+          'Al Khor':['Al Khor'],'Umm Salal':['Umm Salal'],'Al Daayen':['Lusail'],
+        },
+        'Kuwait':{
+          'Al Asimah':['Kuwait City'],'Hawalli':['Hawalli','Salmiya'],'Farwaniya':['Farwaniya'],
+          'Ahmadi':['Ahmadi','Fahaheel'],'Jahra':['Jahra'],'Mubarak Al-Kabeer':['Mubarak Al-Kabeer'],
+        },
+        'Bahrain':{
+          'Capital':['Manama'],'Muharraq':['Muharraq'],
+          'Northern':['Hamad Town','Budaiya'],'Southern':['Riffa','Isa Town'],
+        },
+        'Oman':{
+          'Muscat':['Muscat','Seeb','Bawshar'],'Dhofar':['Salalah'],
+          'Al Batinah North':['Sohar'],'Al Batinah South':['Rustaq'],
+          'Musandam':['Khasab'],'Al Dakhiliyah':['Nizwa'],
+        },
+      };
+      /* Site-info country dropdown: the names ACHI works in, in the map's order.
+         Kept separate from the phone-picker COUNTRIES (which is dial-code triples). */
+      const GEO_COUNTRIES=Object.keys(GEO);
+      const districtsFor=c=>GEO[c]?Object.keys(GEO[c]):null;              // null => free text
+      const citiesFor=(c,d)=>GEO[c]&&GEO[c][d]?GEO[c][d]:null;
+      /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
+      const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
+            CITIES=[...new Set(Object.values(GEO).flatMap(d=>Object.values(d).flat()))];
 const STATUSES=['open','scheduled','viewed','cancelled','done'],
       TYPES=['Prospect','Lead','Client','Field','Fleet','Yard','Invoice','Balance','General'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
@@ -1485,6 +1537,15 @@ function openExpandedRow(explicitId){
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
       o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
+  /* Rebuild a site-info select's options in place when the level above it
+     changes, then refresh its enhanced button label. The pop-up menu reads the
+     <option>s on open, so replacing them is enough. */
+  const rxFillSelect=(id,list,selected)=>{
+    const sel=$('rx-'+id); if(!sel) return;
+    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
+    sel.value=selected||'';
+    if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+  };
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const TEL=(v)=>{
@@ -1516,9 +1577,9 @@ function openExpandedRow(explicitId){
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3', F('Country',  SEL('country',COUNTRIES,val('country'),true)),
-                F('District', SEL('district',DISTRICTS,val('district'),true)),
-                F('City',     SEL('city',CITIES,val('city'),true)))
+    +g('rx-g3', F('Country',  SEL('country',GEO_COUNTRIES,val('country'),true)),
+                F('District', SEL('district',districtsFor(val('country'))||[],val('district'),true)),
+                F('City',     SEL('city',citiesFor(val('country'),val('district'))||[],val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12','',true)),
                 F('Building', IN('bldg','Bldg','',true)),
@@ -2139,6 +2200,18 @@ $('rx-body').addEventListener('change',e=>{
     el.value=SOCIALS.includes(previous)?previous:'IG';
     addRxSocialRow();
   }
+  /* Site-info cascade: District follows Country, City follows District. Choosing
+     a country repopulates its districts and clears the city; choosing a district
+     repopulates its cities. A country not in GEO leaves both empty (no data to
+     match), which is the honest state until that country's lists exist. */
+  if(el.dataset.rxSelect==='country'){
+    rxFillSelect('district',districtsFor(el.value),'');
+    rxFillSelect('city',null,'');
+  }
+  if(el.dataset.rxSelect==='district'){
+    const country=$('rx-country')&&$('rx-country').value;
+    rxFillSelect('city',citiesFor(country,el.value),'');
+  }
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
@@ -2359,7 +2432,7 @@ function selectPopupChoices(kind){
   if(kind==='subject')  return ['',...SUBJECTS].map(value=>({value,label:value||'—'}));
   if(kind==='district') return ['',...DISTRICTS].map(value=>({value,label:value||'—'}));
   if(kind==='city')     return ['',...CITIES].map(value=>({value,label:value||'—'}));
-  if(kind==='country')  return ['',...COUNTRIES].map(value=>({value,label:value||'—'}));
+  if(kind==='country')  return ['',...GEO_COUNTRIES].map(value=>({value,label:value||'—'}));
   if(kind==='type') return [...allTypes(),TYPE_ADD].map(value=>({value,label:value===TYPE_ADD?'＋ Add new…':value}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
   return ['',...allPrefixes(),PREFIX_ADD].map(value=>({value,label:value===PREFIX_ADD?'＋ Add new…':value||'—'}));
