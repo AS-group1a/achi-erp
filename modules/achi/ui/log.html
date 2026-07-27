@@ -699,7 +699,7 @@ function showSavedFeedback(){
   setTimeout(()=>popup.remove(),2600);
 }
 const showInvalidEmail=input=>showFeedback('Invalid Email','Please Enter a valid Email address',input);
-const showInvalidMobile=input=>showFeedback('Invalid Mobile','Please Enter a valid Mobile number',input);
+const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter a valid Phone Number',input);
 /* Picklists for the expanded row. Free text on these fields let the same place
    arrive spelled three ways, which made the grid's filters unreliable. The
    values are the ones the team uses; DISTRICTS/CITIES are Lebanon-specific
@@ -2351,6 +2351,8 @@ $('rx-body').addEventListener('keydown',e=>{
   const t=e.target;
   if(t.tagName==='TEXTAREA') return;
   e.preventDefault();
+  if((t.dataset.k==='mobile'||t.id==='rx-mobile')&&t.value&&!validMobile(t.value)){ showInvalidMobile(t); return; }
+  if(t.dataset.k==='email'&&!validEmail(t.value)){ showInvalidEmail(t); return; }
   const f=[...$('rx-body').querySelectorAll('input,select,textarea,button')].filter(el=>!el.disabled&&el.offsetParent!==null);
   const i=f.indexOf(t);
   if(i>=0&&i+1<f.length) f[i+1].focus();
@@ -2360,6 +2362,7 @@ $('rx-body').addEventListener('focusout',e=>{
     if(!validEmail(e.target.value)){ showInvalidEmail(e.target); return; }
     e.target.classList.remove('email-invalid');
   }
+  if(e.target.dataset.k==='mobile'&&e.target.value&&!validMobile(e.target.value)){ showInvalidMobile(e.target); return; }
   const w=$('rx-name-wrap'); if(!w||!w.classList.contains('on')) return;
   // Collapse only once focus has actually left the name block (a tick later, so
   // tabbing prefix->first->last does not keep snapping it shut).
