@@ -240,6 +240,38 @@ def ui_chrome_js() -> PlainTextResponse:
     )
 
 
+@router.get("/tile/{z}/{x}/{y}", include_in_schema=False, summary="OSM map tile proxy")
+async def map_tile(z: int, x: int, y: int):
+    """Proxy an OpenStreetMap tile.
+
+    OSM's tile policy now blocks browser <img> hotlinking (no Referer / generic
+    UA). Fetching server-side with an identifying User-Agent is what the policy
+    actually asks for, and it makes the tiles same-origin so no referrer/CORS
+    games are needed. Cached hard in the browser so a preview is a handful of
+    fetches, not a stream — this is light, occasional use, which the policy
+    allows. If map usage ever grows, move to a keyed provider (MapTiler/Carto).
+    """
+    n = 1 << z
+    if not (0 <= z <= 19 and 0 <= x < n and 0 <= y < n):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tile out of range")
+    src = f"https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    try:
+        async with httpx.AsyncClient(
+            timeout=6.0,
+            headers={"User-Agent": "ACHI-Scaffolding-ERP/1.0 (+https://ararahx.net; site maps)"},
+        ) as client:
+            resp = await client.get(src)
+    except httpx.HTTPError:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Could not reach the tile server")
+    if resp.status_code != 200:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Tile server returned an error")
+    return Response(
+        content=resp.content,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800"},  # 7 days
+    )
+
+
 @router.get(
     "/resolve-maps",
     include_in_schema=False,
