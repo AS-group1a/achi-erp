@@ -138,11 +138,17 @@
   .rx-state-btn:hover,.rx-state-btn[aria-expanded="true"]{background:#12346d;border-color:rgba(255,255,255,.45)}
   .rx-state-btn .rx-state-arrow{width:11px;height:11px;margin-left:auto;opacity:.7;transition:transform .15s}
   .rx-state-btn[aria-expanded="true"] .rx-state-arrow{transform:rotate(180deg)}
-  .rx-state-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:#22c55e;color:#fff;font-size:11px;font-weight:900;line-height:1}
-  .rx-state-mark.transfered{background:#3b82f6}
-  .rx-state-mark.ongoing{background:#facc15}
-  .rx-state-mark.done{width:auto;height:auto;border-radius:0;background:transparent;color:#ef4444;font-size:15px}
-  .rx-state-mark.cancelled{background:#a7b1c1}
+  .rx-state-mark{--rx-state-glow:rgba(134,239,172,.58);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:#22c55e;color:#fff;font-size:11px;font-weight:900;line-height:1}
+  .rx-state-mark.transfered{--rx-state-glow:rgba(147,197,253,.58);background:#3b82f6}
+  .rx-state-mark.ongoing{--rx-state-glow:rgba(254,240,138,.62);background:#facc15}
+  .rx-state-mark.done{--rx-state-glow:rgba(252,165,165,.58);width:auto;height:auto;border-radius:0;background:transparent;color:#ef4444;font-size:15px}
+  .rx-state-mark.cancelled{--rx-state-glow:rgba(203,213,225,.62);background:#a7b1c1}
+  .rx-state-btn .rx-state-mark{transform-origin:center;animation:rx-state-pulse 1.8s ease-in-out infinite}
+  @keyframes rx-state-pulse{
+    0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 transparent)}
+    50%{transform:scale(1.18);filter:drop-shadow(0 0 4px var(--rx-state-glow))}
+  }
+  @media (prefers-reduced-motion:reduce){.rx-state-btn .rx-state-mark{animation:none}}
   .rx-state-menu{position:absolute;z-index:20;top:calc(100% + 5px);left:0;min-width:158px;padding:5px;background:#fff;border:1.5px solid #1e3f85;border-radius:9px;box-shadow:0 10px 28px rgba(15,35,75,.24)}
   .rx-state-menu[hidden]{display:none}
   .rx-state-option{display:flex;align-items:center;gap:9px;width:100%;height:34px;padding:0 10px;border:0;border-radius:6px;background:#fff;color:#1e3f85;font:inherit;font-size:12px;font-weight:750;text-align:left;cursor:pointer}
@@ -716,6 +722,23 @@ const STATUSES=['open','scheduled','viewed','cancelled','done'],
 const SOCIAL_ADD='__add_handle__';
 const socialOptionsHTML=(selected='IG')=>[...SOCIALS,SOCIAL_ADD].map(value=>
   `<option value="${value}"${value===selected?' selected':''}>${value===SOCIAL_ADD?'＋ Add handle':value}</option>`).join('');
+const ROLE_KEY='achi_roles', ROLE_ADD='__add_role__',
+      SUBJECT_KEY='achi_log_subjects', SUBJECT_ADD='__add_subject__';
+const customPicklistValues=key=>{ try{
+  const values=JSON.parse(localStorage.getItem(key)||'[]');
+  return Array.isArray(values)?values.filter(value=>typeof value==='string'&&value.trim()):[];
+}catch(e){ return []; } };
+const allRoles=()=>[...ROLES,...customPicklistValues(ROLE_KEY).filter(value=>!ROLES.includes(value))];
+const allSubjects=()=>[...SUBJECTS,...customPicklistValues(SUBJECT_KEY).filter(value=>!SUBJECTS.includes(value))];
+function addCustomPicklistValue({key,values,label}){
+  const value=(window.prompt(`New ${label} (max 64 characters):`)||'').trim();
+  if(!value) return null;
+  if(value.length>64){ fail(`${label[0].toUpperCase()+label.slice(1)} must be 64 characters or fewer.`); return null; }
+  if(!values().includes(value)) localStorage.setItem(key,JSON.stringify([...customPicklistValues(key),value]));
+  clearErr(); return value;
+}
+const addRole=()=>addCustomPicklistValue({key:ROLE_KEY,values:allRoles,label:'role'});
+const addSubject=()=>addCustomPicklistValue({key:SUBJECT_KEY,values:allSubjects,label:'log subject'});
 /* Custom prefixes. The backend stores prefix as a free string (ContactPatch caps
    it at 16), so a new option needs no API change — only somewhere to remember it.
    Kept in localStorage beside achi_bh; that means per-browser, NOT shared across
@@ -1456,10 +1479,11 @@ function openExpandedRow(explicitId){
      and are visual only until they have a column, so the design is reviewable
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
-    `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(o===TYPE_ADD?'＋ Add new…':(o||'—'))}</option>`).join('');
+    `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
+      o===TYPE_ADD?'＋ Add new…':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
-  const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
+  const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const TEL=(v)=>{
     const phone=contactPhoneParts(v);
     return `<span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="rx-mobile" aria-label="Choose country code" title="Country code">`
@@ -1474,7 +1498,7 @@ function openExpandedRow(explicitId){
     F('Pre',        SEL('prefix',allPrefixes(),val('prefix'),true)),
     F('First name', IN('first','Type or pick...',val('first')),true),
     F('Last name',  IN('last','Type or pick...',val('last'))),
-    F('Role',       SEL('role',ROLES,'',true,true)));
+    F('Role',       SEL('role',[...allRoles(),ROLE_ADD],'',true,true)));
   html+=g('rx-g4',
     F('Phone / WhatsApp', TEL(val('mobile'))),
     F('Email',            IN('email','name@company.com',val('email'))),
@@ -1485,7 +1509,7 @@ function openExpandedRow(explicitId){
     <input class="rx-in" data-nosave placeholder="@handle"></div></div></div>`;
   html+=g('rx-g2',
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),false)),
-    F('Log subject', SEL('subject',SUBJECTS,'',true,true)));
+    F('Log subject', SEL('subject',[...allSubjects(),SUBJECT_ADD],'',true,true)));
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
@@ -2075,6 +2099,21 @@ $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRo
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 $('rx-body').addEventListener('change',e=>{
   const el=e.target;
+  const customPicklist=el.dataset.rxSelect==='role'&&el.value===ROLE_ADD
+    ? {sentinel:ROLE_ADD,add:addRole}
+    : el.dataset.rxSelect==='subject'&&el.value===SUBJECT_ADD
+      ? {sentinel:SUBJECT_ADD,add:addSubject}
+      : null;
+  if(customPicklist){
+    const previous=el.dataset.rxPreviousValue;
+    const added=customPicklist.add();
+    if(added){
+      if(![...el.options].some(option=>option.value===added))
+        el.add(new Option(added,added),el.options.length-1);
+      el.value=added;
+    }else el.value=previous&&previous!==customPicklist.sentinel?previous:'';
+    enhanceRxSelect(el);
+  }
   if(el.matches('select[data-social-platform]')&&el.value===SOCIAL_ADD){
     const previous=el.dataset.rxPreviousValue;
     el.value=SOCIALS.includes(previous)?previous:'IG';
