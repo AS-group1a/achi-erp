@@ -797,7 +797,7 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      enhanced button label. The menu reads <option>s on open, so this suffices. */
   const rxFillSelect=(id,list,selected)=>{
     const sel=$('rx-'+id); if(!sel) return;
-    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
+    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':(o||'—'))}</option>`).join('');
     sel.value=selected||'';
     if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
   };
@@ -1495,7 +1495,7 @@ function openRxSelect(select,button){
   closeRxState(); closeRxSelect();
   rxSelectSource=select; rxSelectButton=button;
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
-    `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+      `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
   const r=button.getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
@@ -1591,7 +1591,7 @@ function openExpandedRow(explicitId){
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-      o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add New':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
@@ -2003,8 +2003,11 @@ function fillRxFromContact(c){
     if(img) img.src=flagSrc(phone.iso);
     if(dial) dial.textContent=phone.dial;
   }
+  /* Keep the user in the name workflow after choosing a saved contact. Focus
+     before closing so closeContactMatches also cancels the focus-triggered
+     autocomplete timer; otherwise the same surname list immediately reopens. */
+  body.querySelector('[data-k="last"]')?.focus();
   closeContactMatches();
-  body.querySelector('[data-k="company"]')?.focus();
 }
 function pickContactMatch(input,c){
   if(input.closest('#rx-body')) fillRxFromContact(c);
@@ -2232,6 +2235,7 @@ document.addEventListener('mousedown',e=>{
   const picker=$('rx-state');
   if(picker&&!picker.contains(e.target)) closeRxState();
   if(rxSelectMenu&&!rxSelectMenu.contains(e.target)&&!(rxSelectButton&&rxSelectButton.contains(e.target))) closeRxSelect();
+  if(contactMatchDrop&&!contactMatchDrop.contains(e.target)&&e.target!==contactMatchInput) closeContactMatches();
 });
 
 // Open the shared note workspace for this row and jump straight to a tool, so
