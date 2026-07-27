@@ -1636,6 +1636,20 @@ function openExpandedRow(explicitId){
   const currentState=String(r&&r.status||'OPEN').toUpperCase();
   prepareRxState(currentState);
   fill('rx-copy',COPY_TARGETS);
+  /* Save button follows the copy-to target: "Save Log" when the log stays put,
+     otherwise "Save & copy to <target>". CRM's option reads "CRM — new deal"; the
+     button says just "CRM". The copy-to select sits in the static footer, outside
+     rx-body, so its change is bound here rather than on the body handler. */
+  const updateSaveLabel=()=>{
+    const v=($('rx-copy')&&$('rx-copy').value)||'Call Log only';
+    const btn=$('rx-save'); if(!btn) return;
+    btn.textContent=v==='Call Log only'?'Save Log':'Save & copy to '+(v==='CRM — new deal'?'CRM':v);
+  };
+  if($('rx-copy')&&!$('rx-copy').dataset.saveLabelWired){
+    $('rx-copy').dataset.saveLabelWired='1';
+    $('rx-copy').addEventListener('change',updateSaveLabel);
+  }
+  updateSaveLabel();
   const rowIndex=r?ROWS.findIndex(row=>row.id===r.id):-1;
   $('rx-num').textContent=`Log #${r&&rowIndex>=0?ROWS.length-rowIndex:ROWS.length+1}`;
   const whenDate=new Date(r&&r.created_at?r.created_at:Date.now());
