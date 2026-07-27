@@ -89,8 +89,9 @@
   .tel-cc:hover{border-color:var(--navy)}
   .tel-cc img{width:20px;height:15px;object-fit:cover;border-radius:2px;display:block}
   .tel-cc svg{width:11px;height:11px;opacity:.55}
+  .rx-body .tel-cc{height:38px;padding:0 8px}
   .tel-num{flex:1 1 auto;min-width:0}
-  .cc-drop{position:fixed;z-index:2147482300;width:290px;background:#fff;border:1.5px solid #dfe4ec;border-radius:10px;box-shadow:0 12px 34px rgba(15,23,42,.22);overflow:hidden;display:none}
+  .cc-drop{position:fixed;z-index:2147482700;width:290px;background:#fff;border:1.5px solid #dfe4ec;border-radius:10px;box-shadow:0 12px 34px rgba(15,23,42,.22);overflow:hidden;display:none}
   .cc-drop.vis{display:block}
   .cc-search{width:100%;border:0;border-bottom:1px solid #eef1f6;padding:9px 11px;font:inherit;font-size:12.5px;outline:none}
   .cc-list{max-height:230px;overflow:auto}
@@ -1285,6 +1286,12 @@ function openExpandedRow(explicitId){
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
+  const TEL=(v)=>{
+    const phone=contactPhoneParts(v);
+    return `<span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="rx-mobile" aria-label="Choose country code" title="Country code">`
+      +`<img src="${flagSrc(phone.iso)}" alt=""><span class="cc">${esc(phone.dial)}</span>${SVG.chev}</button>`
+      +`<input class="rx-in tel-num" id="rx-mobile" data-k="mobile" inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${esc(phone.mobilenum)}"></span>`;
+  };
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
   const val=k=>{ const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
 
@@ -1295,7 +1302,7 @@ function openExpandedRow(explicitId){
     F('Last name',  IN('last','Type or pick...',val('last'))),
     F('Role',       SEL('role',ROLES,'',true,true)));
   html+=g('rx-g4',
-    F('Phone / WhatsApp', IN('mobile','+961 …',val('mobile'))),
+    F('Phone / WhatsApp', TEL(val('mobile'))),
     F('Email',            IN('email','name@company.com',val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
     F('Company type',     SEL('company_type',['All types','Contractor','Developer','Architect','Owner'],'',false,true)));
@@ -1402,7 +1409,7 @@ function openExpandedRow(explicitId){
    new entry made here is indistinguishable from one typed into the table. */
 function rxCollectNew(){
   const v={};
-  $('rx-body').querySelectorAll('[data-k]').forEach(el=>{ v[el.dataset.k]=el.value.trim(); });
+  $('rx-body').querySelectorAll('[data-k]').forEach(el=>{ v[el.dataset.k]=rxFieldValue(el); });
   const first=v.first||'', last=v.last||'', company=v.company||'';
   const isCo=!!company && !first && !last;           // company with no person name -> a company contact
   const mob=v.mobile||null;
@@ -1430,6 +1437,9 @@ async function rxCreateNew(keepOpen){
   if(payload.person.email && !validEmail(payload.person.email)){
     st.textContent='Invalid email'; st.className='rx-status bad'; return;
   }
+  if(payload.person.mobile && !validMobile(payload.person.mobile)){
+    st.textContent='Invalid mobile number'; st.className='rx-status bad'; showInvalidMobile($('rx-mobile')); return;
+  }
   rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
   try{
     const res=await api('/logs/',{method:'POST',body:JSON.stringify(payload)});
@@ -1453,7 +1463,7 @@ async function rxSaveAll(keepOpen){
   if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
   const changed=fields.filter(el=>{
     const c=COLS.find(x=>x.k===el.dataset.k);
-    return c&&c.edit&&String(c.edit.val(r)??'')!==el.value.trim();
+    return c&&c.edit&&String(c.edit.val(r)??'')!==rxFieldValue(el);
   });
   if(!changed.length){
     st.textContent='Nothing to save'; st.className='rx-status';
@@ -1482,9 +1492,10 @@ async function rxSave(el){
   const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
   const note=$(el.id+'-note'), field=c.edit.field, target=c.edit.target;
   const setNote=(t,cls)=>{ if(note){ note.textContent=t; note.className='rx-note '+(cls||''); } };
-  const nv=el.value.trim();
+  const nv=rxFieldValue(el);
   if(String(c.edit.val(r)??'')===nv) return;                // nothing changed
   if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); return; }
+  if(field==='mobile'&&nv&&!validMobile(nv)){ setNote('Invalid mobile','rx-err'); showInvalidMobile(el); return; }
   try{
     if(target==='file') await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
     else if(target==='contact') await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
@@ -1589,6 +1600,12 @@ function contactPhoneParts(phone){
   const raw=String(phone||'').trim();
   const found=[...COUNTRIES].sort((a,b)=>b[2].length-a[2].length).find(c=>raw.startsWith(c[2]));
   return found?{iso:found[0],dial:found[2],mobilenum:raw.slice(found[2].length).trim()}:{iso:DEFAULT_ISO,dial:DEFAULT_DIAL,mobilenum:raw};
+}
+function rxFieldValue(el){
+  const value=el.value.trim();
+  if(el.dataset.k!=='mobile'||!value) return value;
+  const dial=el.closest('.tel-wrap')?.querySelector('.tel-cc .cc')?.textContent?.trim()||DEFAULT_DIAL;
+  return `${dial} ${value}`.trim();
 }
 function contactAddress(c){return c.address&&typeof c.address==='object'?c.address:{};}
 function fillDraftFromContact(dp,c){
@@ -1808,6 +1825,8 @@ function rxOpenWorkspace(action){
 }
 // Name line <-> three inline boxes; Files / Drawing open the shared workspace.
 $('rx-body').addEventListener('click',e=>{
+  const countryCode=e.target.closest('.tel-cc[data-rx-phone]');
+  if(countryCode){ openCc(countryCode); return; }
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
   if(e.target.closest('#rx-files')){ rxOpenWorkspace('files'); return; }
   if(e.target.closest('#rx-draw')){ rxOpenWorkspace('draw'); return; }
@@ -1895,12 +1914,14 @@ function openCc(btn){ ensureCcDrop(); ccBtn=btn;
 }
 function closeCc(){ if(ccDrop) ccDrop.classList.remove('vis'); ccBtn=null; }
 function pickCc(iso,dial){ if(!ccBtn) return;
-  const dp=ccBtn.dataset.dp, st=stateFor(dp);
+  const dp=ccBtn.dataset.dp, st=dp?stateFor(dp):null;
   if(st){ st.iso=iso; st.dial=dial; }
+  const rxPhone=ccBtn.dataset.rxPhone;
   const img=ccBtn.querySelector('img'); if(img) img.src=flagSrc(iso);
   const cc=ccBtn.querySelector('.cc'); if(cc) cc.textContent=dial;
   closeCc();
-  const num=document.getElementById(dp+'-mobile'); if(num) num.focus();
+  const num=rxPhone?document.getElementById(rxPhone):document.getElementById(dp+'-mobile');
+  if(num) num.focus();
 }
 
 /* ── Maps hover preview (ported from the tabbed grid) ── */
