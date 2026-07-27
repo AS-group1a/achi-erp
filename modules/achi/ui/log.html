@@ -252,6 +252,8 @@
   .rx-mapprev[hidden]{display:none}
   .rx-mapprev .mapwrap{position:relative;height:200px;overflow:hidden}
   .rx-mapprev a{display:block;padding:7px 10px;font-size:11px;color:#2563eb;text-decoration:none;background:#fff;border-top:1px solid #eef1f6;word-break:break-all}
+  .rx-map-load{padding:14px;font-size:12px;color:#5b6472;text-align:center}
+  .rx-map-load a{display:inline;padding:0;border:0;background:none}
   .rx-none{font-size:12px;color:#94a3b8;padding:8px 0}
   /* Sticky footer: on a long sheet Save must be reachable without scrolling
      back down, which is the whole point of a one-column layout on a phone. */
@@ -1566,16 +1568,37 @@ function openExpandedRow(explicitId){
 
 /* Live preview under the Google-maps field. Reads the maps input, and if the
    link resolves to coordinates, draws OSM tiles below it; otherwise hides. */
+let rxMapReq=0, rxMapTimer=null;
+function rxDrawMap(box,url,c){
+  box.hidden=false;
+  box.innerHTML=`<div class="mapwrap">${tileMap(c.lat,c.lng,box.clientWidth||500,200,15)}</div>`
+    +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
+}
 function rxUpdateMapPreview(){
   const box=$('rx-mapprev'); if(!box) return;
   const inp=$('rx-body').querySelector('[data-k="maps"]');
   const raw=(inp&&inp.value||'').trim();
-  const url=raw?normalizeMapsUrl(raw):null;
-  const c=url?mapsCoords(url):null;
-  if(!c){ box.hidden=true; box.innerHTML=''; return; }
-  box.hidden=false;
-  box.innerHTML=`<div class="mapwrap">${tileMap(c.lat,c.lng,box.clientWidth||500,200,15)}</div>`
-    +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
+  const url=raw?normalizeMapsUrl(raw):'';
+  clearTimeout(rxMapTimer);
+  const req=++rxMapReq;                 // newest input wins any in-flight resolve
+  if(!url){ box.hidden=true; box.innerHTML=''; return; }
+  // Full links carry coordinates — draw immediately, no server round-trip.
+  const inline=mapsCoords(url);
+  if(inline){ rxDrawMap(box,url,inline); return; }
+  // Short share links (maps.app.goo.gl) have no coordinates until followed. Ask
+  // the backend to resolve, debounced so typing doesn't hammer Google.
+  box.hidden=false; box.innerHTML='<div class="rx-map-load">Loading preview…</div>';
+  rxMapTimer=setTimeout(async()=>{
+    try{
+      const c=await api('/resolve-maps?url='+encodeURIComponent(url));
+      if(req!==rxMapReq) return;        // superseded — drop this result
+      rxDrawMap(box,url,c);
+    }catch(_){
+      if(req!==rxMapReq) return;
+      box.hidden=false;
+      box.innerHTML=`<div class="rx-map-load">Preview not available — <a href="${esc(url)}" target="_blank" rel="noreferrer">open in Google Maps</a></div>`;
+    }
+  },450);
 }
 /* Collect the sheet's fields into the {person, site, log} shape POST /logs/
    expects — the same shape draftPayload builds for the grid's own rows, so a
