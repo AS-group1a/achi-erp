@@ -1495,7 +1495,7 @@ function openRxSelect(select,button){
   closeRxState(); closeRxSelect();
   rxSelectSource=select; rxSelectButton=button;
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
-    `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+      `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
   const r=button.getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
