@@ -759,6 +759,11 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       /* Site-info country dropdown: the names ACHI works in, in the map's order.
          Kept separate from the phone-picker COUNTRIES (which is dial-code triples). */
       const GEO_COUNTRIES=Object.keys(GEO);
+      /* Full world list for the Country dropdown. The 7 in GEO come first (the
+         common ones, and the only ones with District/City cascade data); every
+         other country follows. Choosing one of the others leaves District and
+         City free — there is no hardcoded region data for the rest of the world. */
+      const COUNTRY_NAMES=['Lebanon','United Arab Emirates','Saudi Arabia','Qatar','Kuwait','Bahrain','Oman','Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cambodia','Cameroon','Canada','Cape Verde','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo (Brazzaville)','Congo (Kinshasa)','Costa Rica','Croatia','Cuba','Cyprus','Czechia','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kyrgyzstan','Laos','Latvia','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
       const districtsFor=c=>GEO[c]?Object.keys(GEO[c]):null;              // null => free text
       const citiesFor=(c,d)=>GEO[c]&&GEO[c][d]?GEO[c][d]:null;
   /* Custom cities added by users are stored server-side (achi_geo_city) so they
@@ -1630,7 +1635,7 @@ function openExpandedRow(explicitId){
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3', F('Country',  SEL('country',GEO_COUNTRIES,val('country'),true)),
+    +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,val('country'),true)),
                 F('District', SEL('district',districtsFor(val('country'))||[],val('district'),true)),
                 F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
@@ -2586,7 +2591,7 @@ function selectPopupChoices(kind){
   if(kind==='subject')  return ['',...SUBJECTS].map(value=>({value,label:value||'—'}));
   if(kind==='district') return ['',...DISTRICTS].map(value=>({value,label:value||'—'}));
   if(kind==='city')     return ['',...CITIES].map(value=>({value,label:value||'—'}));
-  if(kind==='country')  return ['',...GEO_COUNTRIES].map(value=>({value,label:value||'—'}));
+  if(kind==='country')  return ['',...COUNTRY_NAMES].map(value=>({value,label:value||'—'}));
   if(kind==='type') return [...allTypes(),TYPE_ADD].map(value=>({value,label:value===TYPE_ADD?'＋ Add new…':value}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
   return ['',...allPrefixes(),PREFIX_ADD].map(value=>({value,label:value===PREFIX_ADD?'＋ Add new…':value||'—'}));
