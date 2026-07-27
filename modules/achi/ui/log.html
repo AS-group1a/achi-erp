@@ -769,6 +769,32 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      are shared, not per-browser. Loaded once into customCities and merged with
      the predefined GEO towns. cityOptions appends the "+ Add New" sentinel when
      a country and district are both chosen. */
+  /* Custom districts, same DB-backed pattern as cities: predefined GEO districts
+     ∪ user-added ones, with "+ Add District" so any country becomes usable. */
+  const DISTRICT_ADD='__add_district__';
+  let customDistricts={};
+  const districtsMerged=c=>[...new Set([...(districtsFor(c)||[]),...(customDistricts[c]||[])])];
+  const districtOptions=c=>c?[...districtsMerged(c),DISTRICT_ADD]:[];
+  async function loadCustomDistricts(){
+    try{ const rows=await api('/geo/districts'); customDistricts={};
+      for(const r of rows){ (customDistricts[r.country]=customDistricts[r.country]||[]).push(r.district); }
+    }catch(e){/* predefined GEO districts still work */}
+  }
+  async function addDistrictAndSelect(sel){
+    const country=$('rx-country')&&$('rx-country').value;
+    if(!country){ rxFillSelect('district',districtOptions(country),''); return; }
+    const name=(window.prompt('New district for '+country+' (max 128 characters):')||'').trim();
+    if(!name){ rxFillSelect('district',districtOptions(country),''); return; }
+    if(name.length>128){ fail('District must be 128 characters or fewer.'); rxFillSelect('district',districtOptions(country),''); return; }
+    try{
+      const saved=await api('/geo/districts',{method:'POST',body:JSON.stringify({country,district:name})});
+      const list=customDistricts[country]=customDistricts[country]||[];
+      if(!list.includes(saved.district)&&!(districtsFor(country)||[]).includes(saved.district)) list.push(saved.district);
+      rxFillSelect('district',districtOptions(country),saved.district);
+      rxFillSelect('city',cityOptions(country,saved.district),'');
+      clearErr();
+    }catch(e){ fail(e.message); rxFillSelect('district',districtOptions(country),''); }
+  }
   const CITY_ADD='__add_city__';
   let customCities={};
   const cityKey=(c,d)=>String(c||'')+'|'+String(d||'');
@@ -801,7 +827,7 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      enhanced button label. The menu reads <option>s on open, so this suffices. */
   const rxFillSelect=(id,list,selected)=>{
     const sel=$('rx-'+id); if(!sel) return;
-    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':(o||'—'))}</option>`).join('');
+    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':o===DISTRICT_ADD?'+ Add District':(o||'—'))}</option>`).join('');
     sel.value=selected||'';
     if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
   };
@@ -1511,7 +1537,7 @@ function openRxSelect(select,button){
   closeRxState(); closeRxSelect();
   rxSelectSource=select; rxSelectButton=button;
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
-      `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+      `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
   const r=button.getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
@@ -1519,8 +1545,8 @@ function openRxSelect(select,button){
   rxSelectMenu.style.top=(r.bottom+menuHeight+8<=window.innerHeight?r.bottom+4:Math.max(8,r.top-menuHeight-4))+'px';
   rxSelectMenu.hidden=false;
   button.setAttribute('aria-expanded','true');
-  const selected=rxSelectMenu.querySelector('[aria-selected="true"]');
-  selected?.scrollIntoView({block:'nearest'});
+  const selected=rxSelectMenu.querySelector('[aria-selected="true"]')||rxSelectMenu.querySelector('.rx-select-option');
+  selected?.scrollIntoView({block:'nearest'}); selected?.focus();
 }
 function enhanceRxSelect(select){
   if(select.dataset.rxEnhanced){
@@ -1647,7 +1673,7 @@ function openExpandedRow(explicitId){
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
     +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,val('country'),true)),
-                F('District', SEL('district',districtsFor(val('country'))||[],val('district'),true)),
+                F('District', SEL('district',districtOptions(val('country')),val('district'),true)),
                 F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12','',true)),
@@ -2368,10 +2394,11 @@ $('rx-body').addEventListener('change',e=>{
      repopulates its cities. A country not in GEO leaves both empty (no data to
      match), which is the honest state until that country's lists exist. */
   if(el.dataset.rxSelect==='country'){
-    rxFillSelect('district',districtsFor(el.value),'');
+    rxFillSelect('district',districtOptions(el.value),'');
     rxFillSelect('city',null,'');
   }
-  if(el.dataset.rxSelect==='district'){
+  if(el.dataset.rxSelect==='district'&&el.value===DISTRICT_ADD){ addDistrictAndSelect(el); }
+  else if(el.dataset.rxSelect==='district'){
     const country=$('rx-country')&&$('rx-country').value;
     rxFillSelect('city',cityOptions(country,el.value),'');
   }
@@ -2930,7 +2957,7 @@ $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
 loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
-else { load(); loadCustomCities(); }
+else { load(); loadCustomCities(); loadCustomDistricts(); }
 </script>
 <script src="/api/v1/achi/ui/chrome.js?v=16"></script>
 </body>

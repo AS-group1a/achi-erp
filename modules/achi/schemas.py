@@ -594,3 +594,14 @@ class GeoCityIn(BaseModel):
 class GeoCityOut(GeoCityIn):
     model_config = ConfigDict(from_attributes=True)
     id: str
+
+
+class GeoDistrictIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    country: str = Field(min_length=1, max_length=64)
+    district: str = Field(min_length=1, max_length=128)
+
+
+class GeoDistrictOut(GeoDistrictIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
