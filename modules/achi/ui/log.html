@@ -1486,43 +1486,12 @@ function openExpandedRow(explicitId){
                 F('Building', IN('bldg','Bldg','',true)),
                 F('Floor',    IN('floor','GF','',true)))
     +`</div>`;
+  // Quick notes is intentionally the LAST section in the form column. The
+  // Attachments/drawing and Cost-estimate blocks that used to follow it were
+  // removed; the right-hand Draft quotation sidebar (rx-quote) is separate and
+  // stays.
   html+=`<div class="rx-notes"><h4>Quick notes — no time? dump everything here</h4>
     <textarea data-k="desc" placeholder="Type fast while on the call — details can be sorted into the sections after hanging up…">${esc(val('desc'))}</textarea></div>`;
-  // Files + drawing reuse the grid's note workspace (openNoteWorkspace), which
-  // already does upload, list, download and the drawing canvas. Attachments hang
-  // off the log, so this needs a saved row — disabled in new mode.
-  const filesAttr=isNew?'disabled title="Save the entry first"':'';
-  const attN=src.attachment_count||0;
-  const attLabel=`${attN} file${attN===1?'':'s'}${src.has_drawing?' · drawing':''}`;
-  html+=`<div class="rx-sec"><h3>Attachments &amp; drawing</h3>
-    <div class="rx-att-row"><span class="rx-att-count">${attLabel}</span>
-      <span class="rx-att-btns">
-        <button type="button" class="rx-files-btn" id="rx-files" ${filesAttr}>Files</button>
-        <button type="button" class="rx-files-btn" id="rx-draw" ${filesAttr}>Drawing</button>
-      </span></div></div>`;
-
-  // A quotation is addressed to a saved file, so it can't be drafted before the
-  // entry exists. Disabled until the new entry is created.
-  const draftAttr=isNew?'disabled title="Save the entry first"':'';
-  html+=`<div class="rx-sec cost"><h3>Cost estimate</h3>
-    <div class="rx-f"><label for="rx-q-area">Area (m²)</label><input id="rx-q-area" type="number" min="0" step="0.01"></div>
-    <div class="rx-f"><label for="rx-q-weeks">Weeks</label><input id="rx-q-weeks" type="number" min="0" step="0.5"></div>
-    <div class="rx-f"><label for="rx-q-rate">Rate /m²/week</label><input id="rx-q-rate" type="number" min="0" step="0.01"></div>
-    <div class="rx-f"><label for="rx-q-erection">Erection</label><input id="rx-q-erection" type="number" min="0" step="0.01"></div>
-    <div class="rx-f"><label for="rx-q-transport">Transport</label><input id="rx-q-transport" type="number" min="0" step="0.01"></div>
-    <div class="rx-f"><label for="rx-q-extras">Extras</label><input id="rx-q-extras" type="number" min="0" step="0.01"></div>
-    <div class="rx-f"><label for="rx-q-discount">Discount</label><input id="rx-q-discount" type="number" min="0" step="0.01"></div>
-    <div class="rx-f"><label for="rx-q-vat">VAT %</label><input id="rx-q-vat" type="number" min="0" step="0.1"></div>
-    <div class="rx-f"><label for="rx-q-scope">Scope of work</label><textarea id="rx-q-scope" rows="2"></textarea></div>
-    <div class="qv-foot" style="border-top-color:#cfe0f7">
-      <div class="qv-totals">
-        <span>Subtotal <b id="rx-q-sub">0.00</b></span>
-        <span>VAT <b id="rx-q-vatv">0.00</b></span>
-        <span class="qv-total">Total <b id="rx-q-tot">0.00</b></span>
-      </div>
-      <div class="qv-actions"><span class="qv-msg" id="rx-q-msg"></span>
-        <button type="button" class="qv-draft alt" id="rx-q-draft" ${draftAttr}>Draft quotation</button></div>
-    </div></div>`;
   /* Header and footer picklists. The state and copy-to values have no column
      yet, so they are presentational — the log still saves through the normal
      path and nothing is silently dropped, because they are never sent. */
