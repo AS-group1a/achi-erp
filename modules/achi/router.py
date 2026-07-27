@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+import httpx
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
@@ -42,6 +43,17 @@ router.include_router(survey_router)
 router.include_router(quotation_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
+
+# Coordinate shapes a resolved Google Maps URL can carry. @lat,lng is the map
+# centre; !3d..!4d.. is the pinned place; q=/ll=/search/ are query forms.
+# The comma may be followed by a literal "+" (Google writes /search/lat,+lng).
+_MAPS_COORD_PATS = [
+    re.compile(r"@(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+    re.compile(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)"),
+    re.compile(r"[?&]q=(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+    re.compile(r"[?&]ll=(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+    re.compile(r"/search/(-?\d+\.\d+),\+?(-?\d+\.\d+)"),
+]
 
 
 def _is_google_maps_url(value: str) -> bool:
@@ -226,6 +238,42 @@ def ui_chrome_js() -> PlainTextResponse:
         media_type="application/javascript",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+@router.get(
+    "/resolve-maps",
+    include_in_schema=False,
+    summary="Coordinates for a Google Maps share link",
+)
+async def resolve_maps(url: str = Query(..., max_length=2048)):
+    """Follow a Google Maps link server-side and return its lat/lng.
+
+    Short share links (maps.app.goo.gl) — what the Share button gives you — carry
+    no coordinates until followed, and the browser can't follow them (CORS). This
+    does it server-side. Restricted to Google hosts and re-checked after redirects,
+    and only coordinates are ever returned — never page content — so it cannot be
+    used as an open fetch/SSRF probe.
+    """
+    if not _is_google_maps_url(url):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Not a Google Maps link")
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            max_redirects=6,
+            timeout=6.0,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; ACHI/1.0)"},
+        ) as client:
+            resp = await client.get(url)
+    except httpx.HTTPError:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Could not reach Google Maps")
+    if not _is_google_maps_url(str(resp.url)):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Link redirected off Google")
+    hay = f"{resp.url}\n{resp.text[:40000]}"
+    for pat in _MAPS_COORD_PATS:
+        m = pat.search(hay)
+        if m:
+            return {"lat": float(m.group(1)), "lng": float(m.group(2))}
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "No coordinates found for this link")
 
 
 @router.get(
