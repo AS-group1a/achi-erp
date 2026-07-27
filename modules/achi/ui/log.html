@@ -198,6 +198,44 @@
   .rx-notes{border:1px solid #f0d9a8;background:#fffdf5;border-radius:10px;padding:13px}
   .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a5a12;margin-bottom:7px}
   .rx-notes textarea{width:100%;min-height:78px;border:1px solid #e6d7ae;border-radius:7px;padding:9px 10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
+  /* Quill snow — clean natural order: editor on top, toolbar on bottom */
+  .rx-notes .ql-container{border:1px solid #e6d7ae;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;overflow:hidden}
+  .rx-notes .ql-editor{min-height:78px;height:100%;padding:9px 10px;overflow-y:auto;box-sizing:border-box}
+  .rx-notes .ql-editor.ql-blank::before{color:#b0956a;font-style:normal}
+  .rx-notes .ql-toolbar{border:1px solid #e6d7ae;border-radius:0 0 7px 7px;border-top:0;background:#fff;padding:8px}
+  /* Resize handle sits at the bottom-right of the editor container */
+  .rx-notes-resize-handle{position:absolute;bottom:0;right:0;width:18px;height:18px;cursor:ns-resize;z-index:5;display:flex;align-items:flex-end;justify-content:flex-end;padding:3px}
+  .rx-notes-resize-handle svg{opacity:.35;pointer-events:none}
+  .rx-notes-resize-handle:hover svg{opacity:.7}
+  /* Notes header row: title on left, file-attach icon on right */
+  .rx-notes-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+  .rx-notes-head h4{margin:0}
+  .rx-notes-attach-btn{display:inline-flex;align-items:center;gap:5px;border:1px solid #e6d7ae;border-radius:6px;background:#fff8ea;color:#8a5a12;font:inherit;font-size:11.5px;font-weight:700;padding:3px 9px;cursor:pointer;line-height:1}
+  .rx-notes-attach-btn:hover{background:#fef3d0}
+  .rx-notes-attach-btn svg{width:13px;height:13px;flex-shrink:0}
+  /* Drop-zone wrapper — highlighted when a file is dragged over */
+  .rx-notes-dropzone{position:relative}
+  .rx-notes-dropzone.drag-over .ql-container{border-color:#f0a500!important;box-shadow:0 0 0 3px rgba(240,165,0,.18)!important}
+  .rx-notes-dropzone.drag-over::after{content:'Drop files here';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#8a5a12;background:rgba(255,248,230,.82);border-radius:7px;pointer-events:none;z-index:10}
+  /* Attached-files list below the editor */
+  .rx-notes-files{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+  .rx-notes-file{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 9px;border:1px solid #e6d7ae;border-radius:6px;background:#fffdf5;font-size:12px}
+  .rx-notes-file a{color:var(--navy);text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+  .rx-notes-file a:hover{text-decoration:underline}
+  .rx-notes-file-meta{color:#b0956a;font-size:11px;white-space:nowrap;flex-shrink:0}
+  .rx-notes-file-del{border:0;background:none;color:#b0956a;font-size:15px;line-height:1;cursor:pointer;padding:0 2px;flex-shrink:0}
+  .rx-notes-file-del:hover{color:#ba0517}
+  .rx-notes-uploading{font-size:11.5px;color:#8a5a12;padding:4px 2px}
+  .rx-q-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
+  .rx-q-sub{font-size:11.5px;color:#5b5e66;margin:5px 0 14px}
+  .rx-q-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #e6edf8}
+  .rx-q-row b{font-size:13px;font-weight:800;color:#111827}
+  .rx-q-row span{font-size:11.5px;color:#6b7280;display:block;margin-top:2px}
+  .rx-q-amt{font-size:14px;font-weight:800;color:#111827;white-space:nowrap}
+  .rx-q-tot{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
+  .rx-q-tot .rx-q-h{align-self:center}
+  .rx-q-big{font-size:26px;font-weight:900;color:var(--navy)}
+  .rx-q-note{font-size:11px;color:#8a8f98;margin-top:8px}
   .rx-foot{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid #e3e9f3;background:#fff;flex-wrap:wrap}
   .rx-copy-l{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a8f98}
   .rx-copy{height:34px;border:1px solid #d7dde8;border-radius:7px;padding:0 9px;font:inherit;font-size:12.5px;background:#fff;cursor:pointer}
@@ -1681,9 +1719,37 @@ function openExpandedRow(explicitId){
                 F('Building', IN('bldg','Bldg','',true)),
                 F('Floor',    IN('floor','GF','',true)))
     +`</div>`;
-  // Quick notes is intentionally the LAST section in the form column.
-  html+=`<div class="rx-notes"><h4>Quick notes — no time? dump everything here</h4>
-    <textarea data-k="desc" placeholder="Type fast while on the call — details can be sorted into the sections after hanging up…">${esc(val('desc'))}</textarea></div>`;
+  html+=`<div class="rx-notes">
+    <div class="rx-notes-head">
+      <h4>Quick notes — no time? dump everything here</h4>
+      ${isNew ? '' : `<button type="button" class="rx-notes-attach-btn" id="rx-notes-attach-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13.5 9.5v2a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2"/>
+          <polyline points="10.5 5.5 8 3 5.5 5.5"/>
+          <line x1="8" y1="3" x2="8" y2="10.5"/>
+        </svg>
+        Attach file</button>`}
+    </div>
+    <input type="file" id="rx-notes-file-input" multiple style="display:none">
+    <div class="rx-notes-dropzone" id="rx-notes-dropzone">
+      <div id="quill-desc-editor"></div>
+      <div id="quill-desc-toolbar">
+        <button class="ql-bold"></button>
+        <button class="ql-italic"></button>
+        <button class="ql-underline"></button>
+        <button class="ql-strike"></button>
+        <button class="ql-list" value="ordered"></button>
+        <button class="ql-list" value="bullet"></button>
+        <button class="ql-blockquote"></button>
+        <button class="ql-clean"></button>
+      </div>
+    </div>
+    <div class="rx-notes-files" id="rx-notes-files"></div>
+    <input type="hidden" data-k="desc" id="quill-desc-hidden" value="${esc(val('desc'))}">
+  </div>`;
+  // Attachments & drawing and Cost estimate were deliberately removed earlier;
+  // Quick notes (above, with its own Attach file) is the last section. Alfred's
+  // quick-notes patch reintroduced those two blocks here — kept out on purpose.
   /* Header and footer picklists. The state and copy-to values have no column
      yet, so they are presentational — the log still saves through the normal
      path and nothing is silently dropped, because they are never sent. */
@@ -3011,6 +3077,282 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
     display: none;
 }
 </style>
+<script src="/api/v1/achi/ui/quill.js"></script>
+<script>
+/* ── Quill rich-text + file attachments for the "desc" quick-notes field ───
+   DOM flow: openExpandedRow() does $('rx-body').innerHTML = html inside the
+   function body, then returns. A MutationObserver on #rx-body fires the
+   instant that write lands, so #quill-desc-editor is guaranteed to exist
+   when mountQuillDesc() runs.                                               */
+(function(){
+  let quillDesc = null;
+
+  /* ── helpers ─────────────────────────────────────────────────────────── */
+  function fmtSize(n){
+    return n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
+  }
+  function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  function syncHidden(){
+    const h = document.getElementById('quill-desc-hidden');
+    if(!h || !quillDesc) return;
+    h.value = quillDesc.root.innerHTML === '<p><br></p>' ? '' : quillDesc.root.innerHTML;
+  }
+
+  /* ── current log id ───────────────────────────────────────────────────
+     rxRowId is the global set by openExpandedRow before the form is built. */
+  function currentLogId(){ return typeof rxRowId !== 'undefined' ? rxRowId : null; }
+
+  /* ── file list rendering ──────────────────────────────────────────────── */
+  function renderFiles(files){
+    const el = document.getElementById('rx-notes-files');
+    if(!el) return;
+    if(!files.length){ el.innerHTML = ''; return; }
+    el.innerHTML = files.map(f => `
+      <div class="rx-notes-file" data-att-id="${esc(f.id)}">
+        <a href="#" data-att-open="${esc(f.id)}" title="${esc(f.filename)}">${esc(f.filename)}</a>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span class="rx-notes-file-meta">${fmtSize(f.size_bytes)}</span>
+          <button type="button" class="rx-notes-file-del" data-att-del="${esc(f.id)}" title="Remove">&times;</button>
+        </span>
+      </div>`).join('');
+  }
+
+  async function loadFiles(){
+    const logId = currentLogId();
+    if(!logId) return;
+    try{
+      const list = await api('/logs/'+logId+'/attachments');
+      renderFiles(Array.isArray(list) ? list : []);
+    }catch(e){ /* non-fatal — attachment list is a convenience */ }
+  }
+
+  /* Open an attachment via blob URL (bearer-auth, same as openNoteWorkspace). */
+  async function openAttachment(id){
+    try{
+      const r = await fetch(API+'/attachments/'+id+'/download',
+                            {headers:{Authorization:'Bearer '+TOKEN}});
+      if(!r.ok) throw new Error('Could not open file');
+      const url = URL.createObjectURL(await r.blob());
+      window.open(url,'_blank','noreferrer');
+      setTimeout(()=>URL.revokeObjectURL(url), 60000);
+    }catch(e){ alert(e.message); }
+  }
+
+  async function deleteAttachment(id){
+    if(!confirm('Remove this file?')) return;
+    try{
+      await api('/attachments/'+id, {method:'DELETE'});
+      await loadFiles();
+    }catch(e){ alert('Could not remove: '+e.message); }
+  }
+
+  /* ── upload one or more File objects ─────────────────────────────────── */
+  async function uploadFiles(files){
+    let logId = currentLogId();
+
+    // New unsaved log — silently save it first so we have a log_id to attach to.
+    if(!logId){
+      const payload = rxCollectNew();
+      if(!(payload.person.first_name || payload.person.last_name || payload.person.company_name)){
+        alert('Enter at least a name or company before attaching files.');
+        return;
+      }
+      const st = $('rx-status');
+      rxBusy(true);
+      st.textContent = 'Saving…'; st.className = 'rx-status';
+      try{
+        const res = await api('/logs/', {method:'POST', body:JSON.stringify(payload)});
+        logId = res && res.log && res.log.id;
+        rxRowId = logId;                          // promote to "saved" state
+        st.textContent = 'Saved'; st.className = 'rx-status ok';
+        await load();
+        revealSavedRow(logId);
+        rxBusy(false);
+        // Show the attach button now that we have a real log id.
+        const head = document.getElementById('rx-notes-head');
+        if(head && !document.getElementById('rx-notes-attach-btn')){
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'rx-notes-attach-btn';
+          btn.id = 'rx-notes-attach-btn';
+          btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13.5 9.5v2a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2"/>
+            <polyline points="10.5 5.5 8 3 5.5 5.5"/>
+            <line x1="8" y1="3" x2="8" y2="10.5"/>
+          </svg> Attach file`;
+          head.appendChild(btn);
+          const fi = document.getElementById('rx-notes-file-input');
+          if(fi) btn.addEventListener('click', () => fi.click());
+        }
+      }catch(e){
+        st.textContent = e.message || 'Could not save'; st.className = 'rx-status bad';
+        rxBusy(false);
+        return;
+      }
+    }
+
+    const filesEl = document.getElementById('rx-notes-files');
+    const notice  = document.createElement('div');
+    notice.className = 'rx-notes-uploading';
+    if(filesEl) filesEl.before(notice);
+
+    for(const f of files){
+      notice.textContent = `Uploading ${f.name}…`;
+      try{
+        const fd = new FormData();
+        fd.append('file', f, f.name);
+        await fetch(API+'/logs/'+logId+'/attachments',
+                    {method:'POST', headers:{Authorization:'Bearer '+TOKEN}, body:fd});
+      }catch(e){ alert('Upload failed for '+f.name+': '+e.message); }
+    }
+    notice.remove();
+    await loadFiles();
+  }
+
+  /* ── wire drag-drop and file-picker after each form mount ─────────────── */
+  function wireAttachments(){
+    const dropzone  = document.getElementById('rx-notes-dropzone');
+    const fileInput = document.getElementById('rx-notes-file-input');
+    const attachBtn = document.getElementById('rx-notes-attach-btn');
+    const filesEl   = document.getElementById('rx-notes-files');
+    if(!dropzone || !fileInput) return;
+
+    /* File-picker button → open the hidden <input type="file"> */
+    if(attachBtn) attachBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      if(fileInput.files.length) uploadFiles([...fileInput.files]);
+      fileInput.value = '';   // reset so the same file can be re-picked
+    });
+
+    /* Drag-and-drop on the dropzone wrapper */
+    let dragCount = 0;   // counter handles entering child elements gracefully
+    dropzone.addEventListener('dragenter', e => {
+      e.preventDefault();
+      if(++dragCount === 1) dropzone.classList.add('drag-over');
+    });
+    dropzone.addEventListener('dragleave', () => {
+      if(--dragCount <= 0){ dragCount = 0; dropzone.classList.remove('drag-over'); }
+    });
+    dropzone.addEventListener('dragover', e => e.preventDefault());
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dragCount = 0;
+      dropzone.classList.remove('drag-over');
+      const files = [...(e.dataTransfer.files || [])];
+      if(files.length) uploadFiles(files);
+    });
+
+    /* Clicks on the file list: open or delete */
+    if(filesEl){
+      filesEl.addEventListener('click', e => {
+        const openLink = e.target.closest('[data-att-open]');
+        if(openLink){ e.preventDefault(); openAttachment(openLink.dataset.attOpen); return; }
+        const delBtn = e.target.closest('[data-att-del]');
+        if(delBtn){ deleteAttachment(delBtn.dataset.attDel); }
+      });
+    }
+
+    /* ── Resize handle ────────────────────────────────────────────────────
+       We resize .ql-container (the editor wrapper). The toolbar and file
+       list sit below it in normal flow, so they move down automatically.   */
+    const qlContainer = dropzone.querySelector('.ql-container');
+    if(qlContainer){
+      // Inject handle element into the container so it sits inside the border.
+      const handle = document.createElement('div');
+      handle.className = 'rx-notes-resize-handle';
+      handle.title = 'Drag to resize';
+      handle.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+        <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="#8a5a12" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>`;
+      qlContainer.style.position = 'relative';
+      qlContainer.appendChild(handle);
+
+      const MIN_H = 78;    // px — matches the original min-height
+      let startY, startH;
+
+      handle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        startY = e.clientY;
+        startH = qlContainer.offsetHeight;
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
+
+        function onMove(e){
+          const newH = Math.max(MIN_H, startH + (e.clientY - startY));
+          qlContainer.style.height = newH + 'px';
+        }
+        function onUp(){
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+
+    /* Load existing attachments for this log. */
+    loadFiles();
+  }
+
+  /* ── Quill mount ──────────────────────────────────────────────────────── */
+  function mountQuillDesc(){
+    const container = document.getElementById('quill-desc-editor');
+    const hidden    = document.getElementById('quill-desc-hidden');
+    if(!container || !hidden) return;
+
+    quillDesc = new Quill(container, {
+      theme: 'snow',
+      placeholder: 'Type fast while on the call \u2014 details can be sorted into the sections after hanging up\u2026',
+      modules:{
+        toolbar: '#quill-desc-toolbar'
+      }
+    });
+
+    const initial = hidden.value;
+    if(initial){
+      if(/<[a-z][\s\S]*>/i.test(initial)){
+        quillDesc.root.innerHTML = initial;
+      } else {
+        quillDesc.setText(initial);
+      }
+      quillDesc.setSelection(quillDesc.getLength(), 0);
+    }
+
+    quillDesc.on('text-change', syncHidden);
+
+    /* Wire file attachments now that the full notes section is in the DOM. */
+    wireAttachments();
+  }
+
+  /* ── MutationObserver — fires on every innerHTML swap of #rx-body ─────── */
+  function startObserver(){
+    const body = document.getElementById('rx-body');
+    if(!body){ setTimeout(startObserver, 200); return; }
+    new MutationObserver(function(mutations){
+      for(const m of mutations){
+        if(m.type === 'childList' && m.addedNodes.length){
+          if(document.getElementById('quill-desc-editor')){
+            quillDesc = null;
+            mountQuillDesc();
+          }
+          break;
+        }
+      }
+    }).observe(body, { childList: true });
+  }
+  startObserver();
+
+  /* Flush editor HTML into hidden input just before save. */
+  const _origSaveAll = window.rxSaveAll;
+  window.rxSaveAll = async function(...args){
+    syncHidden();
+    return _origSaveAll && _origSaveAll.apply(this, args);
+  };
+})();
+</script>
 </body>
 </html>
 
