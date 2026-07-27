@@ -133,7 +133,20 @@
   .rx-head h2{font-size:15px;font-weight:800;letter-spacing:.01em}
   .rx-chip{background:rgba(255,255,255,.18);border-radius:6px;padding:4px 9px;font-size:11.5px;font-weight:700}
   .rx-when{height:30px;border:0;border-radius:6px;padding:0 8px;font:inherit;font-size:12px;color:#1d1d1f}
-  .rx-state{height:30px;border:0;border-radius:99px;padding:0 12px;font:inherit;font-size:11.5px;font-weight:800;background:#0f2a5c;color:#fff;cursor:pointer}
+  .rx-state{position:relative;flex:0 0 auto}
+  .rx-state-btn{display:flex;align-items:center;gap:8px;min-width:122px;height:34px;border:1px solid rgba(255,255,255,.22);border-radius:99px;padding:0 13px;background:#173d7c;color:#fff;font:inherit;font-size:11.5px;font-weight:800;cursor:pointer}
+  .rx-state-btn:hover,.rx-state-btn[aria-expanded="true"]{background:#12346d;border-color:rgba(255,255,255,.45)}
+  .rx-state-btn .rx-state-arrow{width:11px;height:11px;margin-left:auto;opacity:.7;transition:transform .15s}
+  .rx-state-btn[aria-expanded="true"] .rx-state-arrow{transform:rotate(180deg)}
+  .rx-state-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:#22c55e;color:#fff;font-size:11px;font-weight:900;line-height:1}
+  .rx-state-mark.transfered{background:#3b82f6}
+  .rx-state-mark.ongoing{background:#facc15}
+  .rx-state-mark.done{width:auto;height:auto;border-radius:0;background:transparent;color:#ef4444;font-size:15px}
+  .rx-state-mark.cancelled{background:#a7b1c1}
+  .rx-state-menu{position:absolute;z-index:20;top:calc(100% + 5px);left:0;min-width:158px;padding:5px;background:#fff;border:1.5px solid #1e3f85;border-radius:9px;box-shadow:0 10px 28px rgba(15,35,75,.24)}
+  .rx-state-menu[hidden]{display:none}
+  .rx-state-option{display:flex;align-items:center;gap:9px;width:100%;height:34px;padding:0 10px;border:0;border-radius:6px;background:#fff;color:#1e3f85;font:inherit;font-size:12px;font-weight:750;text-align:left;cursor:pointer}
+  .rx-state-option:hover,.rx-state-option:focus,.rx-state-option[aria-selected="true"]{outline:0;background:#1e3f85;color:#fff}
   .rx-tag{font-size:11.5px;opacity:.82;flex:1 1 auto}
   .rx-cols{display:flex;flex:1 1 auto;min-height:0;background:#fff}
   .rx-body{flex:1 1 auto;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;background:#fff;box-shadow:none}
@@ -500,7 +513,14 @@
         <h2 id="rx-title">Add Log</h2>
         <span class="rx-chip" id="rx-num">Log</span>
         <input type="datetime-local" class="rx-when" id="rx-when">
-        <select class="rx-state" id="rx-state"></select>
+        <div class="rx-state" id="rx-state">
+          <button type="button" class="rx-state-btn" id="rx-state-btn" aria-haspopup="listbox" aria-expanded="false">
+            <span class="rx-state-mark" id="rx-state-mark"></span>
+            <span id="rx-state-label">OPEN</span>
+            <svg class="rx-state-arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m2.5 4.5 3.5 3 3.5-3"/></svg>
+          </button>
+          <div class="rx-state-menu" id="rx-state-menu" role="listbox" aria-label="Log status" hidden></div>
+        </div>
         <p class="rx-tag" id="rx-sub">fill while you're on the call — everything prices itself live</p>
         <button type="button" class="rx-x" id="rx-close" aria-label="Close">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
@@ -1227,6 +1247,29 @@ function rxBadgesHTML(r){
   return `<div class="rx-badges">${b.map(x=>`<span class="rx-badge">${esc(x)}</span>`).join('')}</div>`;
 }
 let rxRowId=null;
+let rxStateValue='OPEN';
+function rxStateMark(state){
+  const cls=String(state||'OPEN').toLowerCase();
+  return `<span class="rx-state-mark ${esc(cls)}">${state==='DONE'?'✓':''}</span>`;
+}
+function setRxState(state){
+  rxStateValue=LOG_STATES.includes(state)?state:'OPEN';
+  const labelEl=$('rx-state-label'), mark=$('rx-state-mark'), menu=$('rx-state-menu');
+  if(labelEl) labelEl.textContent=rxStateValue;
+  if(mark){ mark.className='rx-state-mark '+rxStateValue.toLowerCase(); mark.textContent=rxStateValue==='DONE'?'✓':''; }
+  if(menu) menu.querySelectorAll('.rx-state-option').forEach(el=>el.setAttribute('aria-selected',String(el.dataset.state===rxStateValue)));
+}
+function prepareRxState(state){
+  const menu=$('rx-state-menu');
+  if(menu) menu.innerHTML=LOG_STATES.map(s=>
+    `<button type="button" class="rx-state-option" role="option" data-state="${s}">${rxStateMark(s)}<span>${s}</span></button>`).join('');
+  setRxState(state);
+}
+function closeRxState(){
+  const menu=$('rx-state-menu'), btn=$('rx-state-btn');
+  if(menu) menu.hidden=true;
+  if(btn) btn.setAttribute('aria-expanded','false');
+}
 
 function rxFieldHTML(c,r){
   const v=c.edit&&c.edit.val?String(c.edit.val(r)??''):'';
@@ -1365,7 +1408,9 @@ function openExpandedRow(explicitId){
      yet, so they are presentational — the log still saves through the normal
      path and nothing is silently dropped, because they are never sent. */
   const fill=(id,list)=>{ const el=$(id); if(el) el.innerHTML=list.map(o=>`<option>${esc(o)}</option>`).join(''); };
-  fill('rx-state',LOG_STATES); fill('rx-copy',COPY_TARGETS);
+  const currentState=String(r&&r.status||'OPEN').toUpperCase();
+  prepareRxState(currentState);
+  fill('rx-copy',COPY_TARGETS);
   $('rx-num').textContent=r&&r.file_number?r.file_number:'New log';
   const w=$('rx-when'); if(w) w.value=new Date(r&&r.created_at?r.created_at:Date.now()).toISOString().slice(0,16);
   /* Draft quotation. Figures come from the rate card below; there is no pricing
@@ -1482,7 +1527,7 @@ async function rxSaveAll(keepOpen){
     if(!keepOpen) setTimeout(closeExpandedRow,450);
   }
 }
-function closeExpandedRow(){ $('rx').hidden=true; rxRowId=null; }
+function closeExpandedRow(){ closeRxState(); $('rx').hidden=true; rxRowId=null; }
 
 /* Field saves go through the SAME endpoints as the grid's inline editors, keyed
    off each column's own edit.target — so nothing here can save to a different
@@ -1811,6 +1856,24 @@ $('expand-row').addEventListener('click',()=>openExpandedRow());
 $('rx-close').addEventListener('click',closeExpandedRow);
 $('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
 $('rx-save-cont').addEventListener('click',()=>rxSaveAll(true));    // save + stay
+$('rx-state-btn').addEventListener('click',()=>{
+  const menu=$('rx-state-menu'), btn=$('rx-state-btn');
+  const opening=menu.hidden;
+  menu.hidden=!opening;
+  btn.setAttribute('aria-expanded',String(opening));
+  if(opening) menu.querySelector(`[data-state="${rxStateValue}"]`)?.focus();
+});
+$('rx-state-menu').addEventListener('click',e=>{
+  const option=e.target.closest('.rx-state-option[data-state]');
+  if(!option) return;
+  setRxState(option.dataset.state);
+  closeRxState();
+  $('rx-state-btn').focus();
+});
+document.addEventListener('mousedown',e=>{
+  const picker=$('rx-state');
+  if(picker&&!picker.contains(e.target)) closeRxState();
+});
 
 // Open the shared note workspace for this row and jump straight to a tool, so
 // Files lands on the file picker and Drawing on the canvas — not the notes text.
