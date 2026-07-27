@@ -175,9 +175,12 @@
   .rx-fs{border:1px solid #e3e9f3;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
   .rx-fs>h4{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
   .rx-social{display:flex;gap:8px;align-items:center}
+  .rx-social-list{display:flex;flex-direction:column;gap:8px}
   .rx-social select{flex:0 0 86px}
   .rx-social .rx-select-btn{flex:0 0 86px}
-  .rx-addh{align-self:flex-start;border:0;background:none;color:var(--navy);font:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:0}
+  .rx-social-remove{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;border:1px solid #d7dde8;border-radius:7px;background:#fff;color:#94a3b8;cursor:pointer;transition:color .15s,border-color .15s,background .15s,box-shadow .15s}
+  .rx-social-remove svg{width:14px;height:14px;pointer-events:none}
+  .rx-social-remove:hover,.rx-social-remove:focus{outline:0;background:#fff5f5;border-color:#efb5b5;color:#ba0517;box-shadow:0 0 0 3px rgba(186,5,23,.07)}
   .rx-map{height:38px;border:1px solid #cfe0f8;border-radius:7px;background:#eef4fd;color:var(--navy);font:inherit;font-size:11.5px;font-weight:800;letter-spacing:.06em;cursor:pointer}
   .rx-notes{border:1px solid #f0d9a8;background:#fffdf5;border-radius:10px;padding:13px}
   .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a5a12;margin-bottom:7px}
@@ -702,6 +705,9 @@ const STATUSES=['open','scheduled','viewed','cancelled','done'],
          (architect columns default to "Arch"), so on a general call log the
          blank stays the default here. */
       PREFIXES=['Mr','Ms','Mrs','Dr','Eng','Arch'];
+const SOCIAL_ADD='__add_handle__';
+const socialOptionsHTML=(selected='IG')=>[...SOCIALS,SOCIAL_ADD].map(value=>
+  `<option value="${value}"${value===selected?' selected':''}>${value===SOCIAL_ADD?'＋ Add handle':value}</option>`).join('');
 /* Custom prefixes. The backend stores prefix as a free string (ContactPatch caps
    it at 16), so a new option needs no API change — only somewhere to remember it.
    Kept in localStorage beside achi_bh; that means per-browser, NOT shared across
@@ -1312,6 +1318,7 @@ function ensureRxSelectMenu(){
     if(!option||!rxSelectSource) return;
     e.preventDefault();
     const select=rxSelectSource, button=rxSelectButton;
+    select.dataset.rxPreviousValue=select.value;
     select.selectedIndex=Number(option.dataset.index);
     select.dispatchEvent(new Event('change',{bubbles:true}));
     button.querySelector('span').textContent=rxSelectLabel(select);
@@ -1369,6 +1376,19 @@ function enhanceRxSelect(select){
 function enhanceRxSelects(){
   $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
   $('rx').querySelectorAll('select.rx-native-select').forEach(enhanceRxSelect);
+}
+function addRxSocialRow(){
+  const list=$('rx-social-list');
+  if(!list) return;
+  list.insertAdjacentHTML('beforeend',`<div class="rx-social">
+    <select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML()}</select>
+    <input class="rx-in" data-nosave placeholder="@handle">
+    <button type="button" class="rx-social-remove" aria-label="Remove social handle" title="Remove handle">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7m0-7-7 7"/></svg>
+    </button></div>`);
+  const row=list.lastElementChild;
+  enhanceRxSelect(row.querySelector('select'));
+  requestAnimationFrame(()=>row.querySelector('input').focus());
 }
 
 function rxFieldHTML(c,r){
@@ -1449,10 +1469,9 @@ function openExpandedRow(explicitId){
     F('Email',            IN('email','name@company.com',val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
     F('Company type',     SEL('company_type',['All types','Contractor','Developer','Architect','Owner'],'',false,true)));
-  html+=`<div><label class="rx-l">Social handles</label><div class="rx-social">
-    <select class="rx-in" data-nosave>${opt(SOCIALS,'',false)}</select>
-    <input class="rx-in" data-nosave placeholder="@handle"></div>
-    <button type="button" class="rx-addh" data-nosave>+ Add handle</button></div>`;
+  html+=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
+    <div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML()}</select>
+    <input class="rx-in" data-nosave placeholder="@handle"></div></div></div>`;
   html+=g('rx-g2',
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),false)),
     F('Log subject', SEL('subject',SUBJECTS,'',true,true)));
@@ -2002,6 +2021,8 @@ function rxOpenWorkspace(action){
 }
 // Name line <-> three inline boxes; Files / Drawing open the shared workspace.
 $('rx-body').addEventListener('click',e=>{
+  const removeHandle=e.target.closest('.rx-social-remove');
+  if(removeHandle){ closeRxSelect(); removeHandle.closest('.rx-social')?.remove(); return; }
   const countryCode=e.target.closest('.tel-cc[data-rx-phone]');
   if(countryCode){ openCc(countryCode); return; }
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
@@ -2033,6 +2054,11 @@ $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRo
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 $('rx-body').addEventListener('change',e=>{
   const el=e.target;
+  if(el.matches('select[data-social-platform]')&&el.value===SOCIAL_ADD){
+    const previous=el.dataset.rxPreviousValue;
+    el.value=SOCIALS.includes(previous)?previous:'IG';
+    addRxSocialRow();
+  }
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
