@@ -407,3 +407,22 @@ class GeoCity(Base):
     city: Mapped[str] = mapped_column(String(128), nullable=False)
     created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GeoDistrict(Base):
+    """A district added by a user for a country not covered by the predefined GEO
+    map. Same rationale as GeoCity: hardcoding every country's administrative
+    regions is infeasible, so the ones people need are added on the fly and
+    stored server-side to be shared. The District dropdown shows predefined ∪
+    these; cities then cascade (and add) under whichever district is chosen."""
+
+    __tablename__ = "achi_geo_district"
+    __table_args__ = (
+        Index("uq_achi_geo_district", "country", "district", unique=True),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    country: Mapped[str] = mapped_column(String(64), nullable=False)
+    district: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())

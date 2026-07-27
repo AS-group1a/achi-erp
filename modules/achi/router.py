@@ -179,34 +179,87 @@ async def map_tile(z: int, x: int, y: int):
     summary="Coordinates for a Google Maps share link",
 )
 async def resolve_maps(url: str = Query(..., max_length=2048)):
-    """Follow a Google Maps link server-side and return its lat/lng.
+    """Follow a Google Maps link and return coordinates plus its address.
 
     Short share links (maps.app.goo.gl) — what the Share button gives you — carry
     no coordinates until followed, and the browser can't follow them (CORS). This
-    does it server-side. Restricted to Google hosts and re-checked after redirects,
-    and only coordinates are ever returned — never page content — so it cannot be
-    used as an open fetch/SSRF probe.
+    does it server-side. Coordinates are reverse-geocoded best-effort; preview
+    still works if the address service is temporarily unavailable.
     """
     if not _is_google_maps_url(url):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Not a Google Maps link")
+    hay = url
+    match = next((m for pat in _MAPS_COORD_PATS if (m := pat.search(hay))), None)
+    if match is None:
+        try:
+            async with httpx.AsyncClient(
+                follow_redirects=True,
+                max_redirects=6,
+                timeout=6.0,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; ACHI/1.0)"},
+            ) as client:
+                resp = await client.get(url)
+        except httpx.HTTPError:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Could not reach Google Maps")
+        if not _is_google_maps_url(str(resp.url)):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Link redirected off Google")
+        hay = f"{resp.url}\n{resp.text[:40000]}"
+        match = next((m for pat in _MAPS_COORD_PATS if (m := pat.search(hay))), None)
+    if match is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No coordinates found for this link")
+
+    lat, lng = float(match.group(1)), float(match.group(2))
+    result = {"lat": lat, "lng": lng}
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True,
-            max_redirects=6,
             timeout=6.0,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; ACHI/1.0)"},
+            headers={"User-Agent": "ACHI-Scaffolding-ERP/1.0 (+https://ararahx.net; address lookup)"},
         ) as client:
-            resp = await client.get(url)
-    except httpx.HTTPError:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Could not reach Google Maps")
-    if not _is_google_maps_url(str(resp.url)):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Link redirected off Google")
-    hay = f"{resp.url}\n{resp.text[:40000]}"
-    for pat in _MAPS_COORD_PATS:
-        m = pat.search(hay)
-        if m:
-            return {"lat": float(m.group(1)), "lng": float(m.group(2))}
-    raise HTTPException(status.HTTP_404_NOT_FOUND, "No coordinates found for this link")
+            reverse = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={
+                    "format": "jsonv2",
+                    "lat": lat,
+                    "lon": lng,
+                    "zoom": 18,
+                    "addressdetails": 1,
+                    "layer": "address",
+                    "accept-language": "en",
+                },
+            )
+            reverse.raise_for_status()
+            place = reverse.json()
+        address = place.get("address") or {}
+        result.update(
+            country=address.get("country"),
+            district=next(
+                (
+                    address.get(key)
+                    for key in ("state_district", "county", "state", "region")
+                    if address.get(key)
+                ),
+                None,
+            ),
+            city=next(
+                (
+                    address.get(key)
+                    for key in ("city", "town", "village", "municipality", "suburb")
+                    if address.get(key)
+                ),
+                None,
+            ),
+            street=next(
+                (
+                    address.get(key)
+                    for key in ("road", "pedestrian", "residential", "path")
+                    if address.get(key)
+                ),
+                None,
+            ),
+        )
+    except (httpx.HTTPError, ValueError):
+        pass
+    return result
 
 
 @router.get(
@@ -225,6 +278,36 @@ def ui_grid_css() -> PlainTextResponse:
         (_UI_DIR / "grid.css").read_text(encoding="utf-8"),
         media_type="text/css",
         headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/ui/quill.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Quill rich-text editor (vendored)",
+)
+def ui_quill_js() -> PlainTextResponse:
+    """Quill 2.0.3 JS served locally so it clears the app's script-src CSP."""
+    return PlainTextResponse(
+        (_UI_DIR / "quill.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
+@router.get(
+    "/ui/quill.snow.css",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Quill Snow theme (vendored)",
+)
+def ui_quill_snow_css() -> PlainTextResponse:
+    """Quill 2.0.3 Snow CSS served locally so it clears the app's style-src CSP."""
+    return PlainTextResponse(
+        (_UI_DIR / "quill.snow.css").read_text(encoding="utf-8"),
+        media_type="text/css",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )
 
 

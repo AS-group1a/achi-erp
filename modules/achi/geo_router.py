@@ -16,8 +16,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import CurrentUserId, SessionDep
 
-from .models import GeoCity
-from .schemas import GeoCityIn, GeoCityOut
+from .models import GeoCity, GeoDistrict
+from .schemas import GeoCityIn, GeoCityOut, GeoDistrictIn, GeoDistrictOut
 
 geo_router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -69,3 +69,44 @@ async def add_city(data: GeoCityIn, session: SessionDep, user_id: CurrentUserId)
     await session.refresh(row)
     logger.info("achi: city added %s / %s / %s", data.country, data.district, data.city)
     return GeoCityOut.model_validate(row)
+
+
+@geo_router.get("/geo/districts", response_model=list[GeoDistrictOut],
+                summary="User-added districts (predefined ones live in the page)")
+async def list_districts(
+    session: SessionDep, _user_id: CurrentUserId,
+    country: str | None = Query(default=None),
+) -> list[GeoDistrictOut]:
+    q = select(GeoDistrict).order_by(GeoDistrict.district)
+    if country:
+        q = q.where(func.lower(GeoDistrict.country) == country.strip().lower())
+    return [GeoDistrictOut.model_validate(d) for d in (await session.execute(q)).scalars().all()]
+
+
+@geo_router.post("/geo/districts", response_model=GeoDistrictOut,
+                 status_code=status.HTTP_201_CREATED, summary="Add a district for a country")
+async def add_district(data: GeoDistrictIn, session: SessionDep, user_id: CurrentUserId) -> GeoDistrictOut:
+    existing = (await session.execute(
+        select(GeoDistrict).where(
+            func.lower(GeoDistrict.country) == data.country.lower(),
+            func.lower(GeoDistrict.district) == data.district.lower(),
+        )
+    )).scalar_one_or_none()
+    if existing:
+        return GeoDistrictOut.model_validate(existing)
+    row = GeoDistrict(country=data.country, district=data.district, created_by=user_id)
+    session.add(row)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        row = (await session.execute(
+            select(GeoDistrict).where(
+                func.lower(GeoDistrict.country) == data.country.lower(),
+                func.lower(GeoDistrict.district) == data.district.lower(),
+            )
+        )).scalar_one()
+        return GeoDistrictOut.model_validate(row)
+    await session.refresh(row)
+    logger.info("achi: district added %s / %s", data.country, data.district)
+    return GeoDistrictOut.model_validate(row)

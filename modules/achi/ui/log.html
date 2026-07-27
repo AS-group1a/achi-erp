@@ -501,6 +501,7 @@
     .pg-note-workspace-text{min-height:180px}
   }
 </style>
+<link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <body data-achi-title="Call Log">
 <main>
@@ -759,12 +760,42 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       /* Site-info country dropdown: the names ACHI works in, in the map's order.
          Kept separate from the phone-picker COUNTRIES (which is dial-code triples). */
       const GEO_COUNTRIES=Object.keys(GEO);
+      /* Full world list for the Country dropdown, alphabetical. GEO_COUNTRIES
+         (the 7 with District/City cascade data) is separate and unchanged; the
+         cascade keys off it by name. A country not in GEO leaves District/City free. */
+      const COUNTRY_NAMES=['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cambodia','Cameroon','Canada','Cape Verde','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo (Brazzaville)','Congo (Kinshasa)','Costa Rica','Croatia','Cuba','Cyprus','Czechia','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
       const districtsFor=c=>GEO[c]?Object.keys(GEO[c]):null;              // null => free text
       const citiesFor=(c,d)=>GEO[c]&&GEO[c][d]?GEO[c][d]:null;
   /* Custom cities added by users are stored server-side (achi_geo_city) so they
      are shared, not per-browser. Loaded once into customCities and merged with
      the predefined GEO towns. cityOptions appends the "+ Add New" sentinel when
      a country and district are both chosen. */
+  /* Custom districts, same DB-backed pattern as cities: predefined GEO districts
+     ∪ user-added ones, with "+ Add District" so any country becomes usable. */
+  const DISTRICT_ADD='__add_district__';
+  let customDistricts={};
+  const districtsMerged=c=>[...new Set([...(districtsFor(c)||[]),...(customDistricts[c]||[])])];
+  const districtOptions=c=>c?[...districtsMerged(c),DISTRICT_ADD]:[];
+  async function loadCustomDistricts(){
+    try{ const rows=await api('/geo/districts'); customDistricts={};
+      for(const r of rows){ (customDistricts[r.country]=customDistricts[r.country]||[]).push(r.district); }
+    }catch(e){/* predefined GEO districts still work */}
+  }
+  async function addDistrictAndSelect(sel){
+    const country=$('rx-country')&&$('rx-country').value;
+    if(!country){ rxFillSelect('district',districtOptions(country),''); return; }
+    const name=(window.prompt('New district for '+country+' (max 128 characters):')||'').trim();
+    if(!name){ rxFillSelect('district',districtOptions(country),''); return; }
+    if(name.length>128){ fail('District must be 128 characters or fewer.'); rxFillSelect('district',districtOptions(country),''); return; }
+    try{
+      const saved=await api('/geo/districts',{method:'POST',body:JSON.stringify({country,district:name})});
+      const list=customDistricts[country]=customDistricts[country]||[];
+      if(!list.includes(saved.district)&&!(districtsFor(country)||[]).includes(saved.district)) list.push(saved.district);
+      rxFillSelect('district',districtOptions(country),saved.district);
+      rxFillSelect('city',cityOptions(country,saved.district),'');
+      clearErr();
+    }catch(e){ fail(e.message); rxFillSelect('district',districtOptions(country),''); }
+  }
   const CITY_ADD='__add_city__';
   let customCities={};
   const cityKey=(c,d)=>String(c||'')+'|'+String(d||'');
@@ -797,7 +828,7 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      enhanced button label. The menu reads <option>s on open, so this suffices. */
   const rxFillSelect=(id,list,selected)=>{
     const sel=$('rx-'+id); if(!sel) return;
-    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':(o||'—'))}</option>`).join('');
+    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':o===DISTRICT_ADD?'+ Add District':(o||'—'))}</option>`).join('');
     sel.value=selected||'';
     if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
   };
@@ -1486,6 +1517,18 @@ function ensureRxSelectMenu(){
     }else if(e.key==='Escape'){
       e.preventDefault(); e.stopPropagation();
       const button=rxSelectButton; closeRxSelect(); button?.focus();
+    }else if(e.key.length===1&&/[a-z0-9]/i.test(e.key)){
+      /* Type-ahead: jump to the first option starting with the pressed key;
+         pressing it again cycles through the rest. Lets the ~200-country list
+         be navigated by letter, the way a native <select> does. */
+      e.preventDefault();
+      const k=e.key.toLowerCase();
+      const matches=options.filter(o=>(o.textContent||'').trim().toLowerCase().startsWith(k));
+      if(matches.length){
+        const at=matches.indexOf(document.activeElement);
+        const next=matches[(at+1)%matches.length];
+        next.focus(); next.scrollIntoView({block:'nearest'});
+      }
     }
   });
 }
@@ -1495,7 +1538,7 @@ function openRxSelect(select,button){
   closeRxState(); closeRxSelect();
   rxSelectSource=select; rxSelectButton=button;
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
-      `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+      `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
   const r=button.getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
@@ -1503,8 +1546,8 @@ function openRxSelect(select,button){
   rxSelectMenu.style.top=(r.bottom+menuHeight+8<=window.innerHeight?r.bottom+4:Math.max(8,r.top-menuHeight-4))+'px';
   rxSelectMenu.hidden=false;
   button.setAttribute('aria-expanded','true');
-  const selected=rxSelectMenu.querySelector('[aria-selected="true"]');
-  selected?.scrollIntoView({block:'nearest'});
+  const selected=rxSelectMenu.querySelector('[aria-selected="true"]')||rxSelectMenu.querySelector('.rx-select-option');
+  selected?.scrollIntoView({block:'nearest'}); selected?.focus();
 }
 function enhanceRxSelect(select){
   if(select.dataset.rxEnhanced){
@@ -1630,8 +1673,8 @@ function openExpandedRow(explicitId){
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link', IN('maps','https://maps.app.goo.gl/…',val('maps')))}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3', F('Country',  SEL('country',GEO_COUNTRIES,val('country'),true)),
-                F('District', SEL('district',districtsFor(val('country'))||[],val('district'),true)),
+    +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,val('country'),true)),
+                F('District', SEL('district',districtOptions(val('country')),val('district'),true)),
                 F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12','',true)),
@@ -1702,6 +1745,39 @@ function rxDrawMap(box,url,c){
   box.innerHTML=`<div class="mapwrap">${tileMap(c.lat,c.lng,box.clientWidth||500,200,15)}</div>`
     +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a>`;
 }
+function rxGeoNorm(value){
+  return String(value||'').toLowerCase()
+    .replace(/\b(governorate|province|district|region|county|state)\b/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+function rxGeoChoice(value,options){
+  if(!value) return '';
+  const wanted=rxGeoNorm(value);
+  return (options||[]).find(option=>rxGeoNorm(option)===wanted)||value;
+}
+function rxFillGeocoded(id,options,value){
+  if(!value) return;
+  const selected=rxGeoChoice(value,options);
+  const commands=(options||[]).filter(option=>String(option).startsWith('__add_'));
+  const list=(options||[]).filter(option=>!commands.includes(option));
+  if(!list.includes(selected)) list.push(selected);
+  rxFillSelect(id,[...list,...commands],selected);
+}
+function rxApplyGeocodedAddress(data){
+  if(data.country){
+    rxFillGeocoded('country',GEO_COUNTRIES,data.country);
+    const country=$('rx-country')?.value||data.country;
+    if(data.district){
+      rxFillGeocoded('district',districtsFor(country)||[],data.district);
+      const district=$('rx-district')?.value||data.district;
+      if(data.city) rxFillGeocoded('city',cityOptions(country,district),data.city);
+    }else if(data.city){
+      rxFillGeocoded('city',[],data.city);
+    }
+  }
+  const street=$('rx-body').querySelector('[data-k="street"]');
+  if(street&&data.street) street.value=data.street;
+}
 function rxUpdateMapPreview(){
   const box=$('rx-mapprev'); if(!box) return;
   const inp=$('rx-body').querySelector('[data-k="maps"]');
@@ -1712,15 +1788,16 @@ function rxUpdateMapPreview(){
   if(!url){ box.hidden=true; box.innerHTML=''; return; }
   // Full links carry coordinates — draw immediately, no server round-trip.
   const inline=mapsCoords(url);
-  if(inline){ rxDrawMap(box,url,inline); return; }
-  // Short share links (maps.app.goo.gl) have no coordinates until followed. Ask
-  // the backend to resolve, debounced so typing doesn't hammer Google.
-  box.hidden=false; box.innerHTML='<div class="rx-map-load">Loading preview…</div>';
+  if(inline) rxDrawMap(box,url,inline);
+  // The backend resolves short links and reverse-geocodes both short and full
+  // links. Debounced so pasting/typing does not hammer either provider.
+  else { box.hidden=false; box.innerHTML='<div class="rx-map-load">Loading preview…</div>'; }
   rxMapTimer=setTimeout(async()=>{
     try{
       const c=await api('/resolve-maps?url='+encodeURIComponent(url));
       if(req!==rxMapReq) return;        // superseded — drop this result
       rxDrawMap(box,url,c);
+      rxApplyGeocodedAddress(c);
     }catch(_){
       if(req!==rxMapReq) return;
       box.hidden=false;
@@ -2352,10 +2429,11 @@ $('rx-body').addEventListener('change',e=>{
      repopulates its cities. A country not in GEO leaves both empty (no data to
      match), which is the honest state until that country's lists exist. */
   if(el.dataset.rxSelect==='country'){
-    rxFillSelect('district',districtsFor(el.value),'');
+    rxFillSelect('district',districtOptions(el.value),'');
     rxFillSelect('city',null,'');
   }
-  if(el.dataset.rxSelect==='district'){
+  if(el.dataset.rxSelect==='district'&&el.value===DISTRICT_ADD){ addDistrictAndSelect(el); }
+  else if(el.dataset.rxSelect==='district'){
     const country=$('rx-country')&&$('rx-country').value;
     rxFillSelect('city',cityOptions(country,el.value),'');
   }
@@ -2586,7 +2664,7 @@ function selectPopupChoices(kind){
   if(kind==='subject')  return ['',...SUBJECTS].map(value=>({value,label:value||'—'}));
   if(kind==='district') return ['',...DISTRICTS].map(value=>({value,label:value||'—'}));
   if(kind==='city')     return ['',...CITIES].map(value=>({value,label:value||'—'}));
-  if(kind==='country')  return ['',...GEO_COUNTRIES].map(value=>({value,label:value||'—'}));
+  if(kind==='country')  return ['',...COUNTRY_NAMES].map(value=>({value,label:value||'—'}));
   if(kind==='type') return [...allTypes(),TYPE_ADD].map(value=>({value,label:value===TYPE_ADD?'＋ Add new…':value}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
   return ['',...allPrefixes(),PREFIX_ADD].map(value=>({value,label:value===PREFIX_ADD?'＋ Add new…':value||'—'}));
@@ -2733,7 +2811,7 @@ function openNoteWorkspace(td,col){
   const close=()=>ov.remove();
 
   function renderFiles(){
-    const a=attached.map(f=>`<div class="pg-note-file"><a href="#" data-open="${esc(f.id)}">${esc(f.filename)}</a><span class="pg-note-file-right"><span class="pg-note-file-pending">${fmtSize(f.size_bytes)}</span><button type="button" class="pg-note-file-del" data-del="${esc(f.id)}" title="Remove">&times;</button></span></div>`);
+    const a=attached.map(f=>`<div class="pg-note-file"><a href="#" data-open="${esc(f.id)}" data-name="${esc(f.filename)}">${esc(f.filename)}</a><span class="pg-note-file-right"><span class="pg-note-file-pending">${fmtSize(f.size_bytes)}</span><button type="button" class="pg-note-file-del" data-del="${esc(f.id)}" title="Remove">&times;</button></span></div>`);
     const p=pendingFiles.map((f,i)=>`<div class="pg-note-file"><span>${esc(f.name)}</span><span class="pg-note-file-right"><span class="pg-note-file-pending">Ready to upload</span><button type="button" class="pg-note-file-del" data-pending="${i}" title="Remove">&times;</button></span></div>`);
     filesEl.innerHTML=a.concat(p).join('')||'<div class="pg-note-file"><span>No files attached yet</span></div>';
   }
@@ -2741,12 +2819,20 @@ function openNoteWorkspace(td,col){
 
   /* The API is bearer-only — there is no cookie session, so a plain href would
      401. Fetch the bytes with the token and hand the browser a blob instead. */
-  async function openAttachment(id){
+  async function openAttachment(id,name){
     const r=await fetch(`${API}/attachments/${id}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
     if(!r.ok) throw new Error('Could not open the file');
-    const url=URL.createObjectURL(await r.blob());
-    window.open(url,'_blank','noreferrer');
-    setTimeout(()=>URL.revokeObjectURL(url),60000);   // the new tab needs it to still be alive
+    const blob=await r.blob(), url=URL.createObjectURL(blob);
+    // Preview what the browser can actually render (PDFs, images). Everything
+    // else — DWG/RVT/DXF/IFC, Office docs — downloads with its real name so it
+    // opens in the right desktop app. In-browser CAD rendering needs a converter
+    // we do not have; this is the honest fallback, not a broken viewer.
+    const ext=(name||'').split('.').pop().toLowerCase();
+    const canPreview=(blob.type==='application/pdf')||blob.type.startsWith('image/')
+      ||['pdf','png','jpg','jpeg','gif','webp','svg','bmp'].includes(ext);
+    if(canPreview){ window.open(url,'_blank','noreferrer'); }
+    else { const a=document.createElement('a'); a.href=url; a.download=name||'file'; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(()=>URL.revokeObjectURL(url),60000);   // the tab/download needs it alive briefly
   }
 
   async function loadFiles(){
@@ -2790,7 +2876,7 @@ function openNoteWorkspace(td,col){
 
   q('.pg-note-upload').addEventListener('click',()=>{
     const inp=document.createElement('input');
-    inp.type='file'; inp.multiple=true; inp.accept='.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*';
+    inp.type='file'; inp.multiple=true; inp.accept='.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.dwg,.dxf,.rvt,.ifc,image/*';
     inp.addEventListener('change',()=>{ pendingFiles.push(...Array.from(inp.files||[])); renderFiles(); },{once:true});
     inp.click();
   });
@@ -2798,7 +2884,7 @@ function openNoteWorkspace(td,col){
   filesEl.addEventListener('click',async e=>{
     const link=e.target.closest('[data-open]');
     if(link){ e.preventDefault();
-      try{ await openAttachment(link.dataset.open); }catch(err){ statusEl.textContent=err.message; }
+      try{ await openAttachment(link.dataset.open, link.dataset.name||link.textContent); }catch(err){ statusEl.textContent=err.message; }
       return; }
     const btn=e.target.closest('[data-del],[data-pending]'); if(!btn) return;
     if(btn.dataset.pending!==undefined){ pendingFiles.splice(+btn.dataset.pending,1); renderFiles(); return; }
@@ -2868,7 +2954,7 @@ function openDraftNoteWorkspace(input){
   const renderFiles=()=>{ files.innerHTML=st.__pendingFiles.map((f,i)=>`<div class="pg-note-file"><span>${esc(f.name)}</span><span class="pg-note-file-right"><span class="pg-note-file-pending">Ready to upload</span><button type="button" class="pg-note-file-del" data-pending="${i}" title="Remove">&times;</button></span></div>`).join('')||'<div class="pg-note-file"><span>No files attached yet</span></div>'; };
   const close=()=>ov.remove();
   const save=()=>{ st[key]=ta.value; input.value=ta.value; close(); const ins=draftInputs(dp), i=ins.indexOf(input); if(i>=0&&ins[i+1]) ins[i+1].focus(); };
-  q('.pg-note-upload').onclick=()=>{ const pick=document.createElement('input'); pick.type='file'; pick.multiple=true; pick.accept='.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*'; pick.onchange=()=>{ st.__pendingFiles.push(...Array.from(pick.files||[])); renderFiles(); }; pick.click(); };
+  q('.pg-note-upload').onclick=()=>{ const pick=document.createElement('input'); pick.type='file'; pick.multiple=true; pick.accept='.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.dwg,.dxf,.rvt,.ifc,image/*'; pick.onchange=()=>{ st.__pendingFiles.push(...Array.from(pick.files||[])); renderFiles(); }; pick.click(); };
   files.onclick=e=>{ const b=e.target.closest('[data-pending]'); if(b){ st.__pendingFiles.splice(+b.dataset.pending,1); renderFiles(); } };
   draw.onclick=()=>{ if(typeof achi_drawing==='undefined') return; ov.style.display='none'; achi_drawing.open({title:`Drawing — ${col.h}`,initial:st.__drawing||'',onSave(json){st.__drawing=json;draw.classList.add('has-content');},onClose(){if(ov.isConnected){ov.style.display='flex';requestAnimationFrame(()=>ta.focus());}}}); };
   q('.pg-note-workspace-close').onclick=close; q('.pg-note-cancel').onclick=close; q('.pg-note-save').onclick=save;
@@ -2914,8 +3000,17 @@ $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
 loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
-else { load(); loadCustomCities(); }
+else { load(); loadCustomCities(); loadCustomDistricts(); }
 </script>
 <script src="/api/v1/achi/ui/chrome.js?v=16"></script>
+<style>
+.achi-nav::-webkit-scrollbar{
+    display: none;
+}
+</style>
 </body>
 </html>
+
+
+
+
