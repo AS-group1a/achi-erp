@@ -406,6 +406,14 @@
   .pg-ac-item.pg-ac-active{background:#fff;color:#1e3f85}
   .pg-ac-item:hover{background:#1e3f85;color:#fff}
   .contact-match-drop{min-width:300px;max-width:min(460px,calc(100vw - 16px))}
+  .contact-match-drop.rx-contact-match-drop{z-index:2147482750;min-width:0;max-width:calc(100vw - 16px);max-height:220px;padding:0;border:1.5px solid #1e3f85;border-radius:10px;box-shadow:0 8px 24px rgba(30,63,133,.16)}
+  .rx-contact-match-drop .contact-match{display:flex;align-items:center;gap:8px;padding:7px 13px;background:#fff;color:#1e3f85;font-size:12.5px;font-weight:400;white-space:nowrap}
+  .rx-contact-match-drop .contact-match-main{font-weight:400}
+  .rx-contact-match-drop .contact-match-meta{color:#64748b;font-size:11px}
+  .rx-contact-match-drop .contact-match.pg-ac-active{background:#fff;color:#1e3f85}
+  .rx-contact-match-drop .contact-match.pg-ac-active .contact-match-meta{color:#64748b}
+  .rx-contact-match-drop .contact-match:hover{background:#1e3f85;color:#fff}
+  .rx-contact-match-drop .contact-match:hover .contact-match-meta{color:rgba(255,255,255,.78)}
   .contact-match{display:flex;align-items:center;justify-content:space-between;gap:16px}
   .contact-match-main{min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis}
   .contact-match-meta{min-width:0;color:#64748b;font-size:11px;overflow:hidden;text-overflow:ellipsis}
@@ -793,7 +801,10 @@ async function api(path,opts={},retried){
   return body;
 }
 async function searchContacts(q,retried){
-  const url='/api/v1/contacts/search/?q='+encodeURIComponent(q)+'&limit=12';
+  const term=String(q||'').trim();
+  const url=term
+    ? '/api/v1/contacts/search/?q='+encodeURIComponent(term)+'&limit=12'
+    : '/api/v1/contacts/?limit=12';
   const r=await fetch(url,{headers:{Authorization:'Bearer '+TOKEN}});
   if(r.status===401){
     if(!retried && await refreshToken()) return searchContacts(q,true);
@@ -1659,7 +1670,7 @@ async function rxSaveAll(keepOpen){
     if(!keepOpen) setTimeout(closeExpandedRow,450);
   }
 }
-function closeExpandedRow(){ closeRxState(); closeRxSelect(); $('rx').hidden=true; rxRowId=null; }
+function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); $('rx').hidden=true; rxRowId=null; }
 
 /* Field saves go through the SAME endpoints as the grid's inline editors, keyed
    off each column's own edit.target — so nothing here can save to a different
@@ -1799,9 +1810,45 @@ function fillDraftFromContact(dp,c){
   const next=$(dp+'-desc')||$(dp+'-last');if(next){next.focus();next.scrollIntoView({inline:'center',block:'nearest'});}
   setTimeout(()=>{delete st.__choosingContact;},0);
 }
+function fillRxFromContact(c){
+  const body=$('rx-body'), phone=contactPhoneParts(c.primary_phone), address=contactAddress(c);
+  const set=(key,value)=>{
+    const el=body.querySelector(`[data-k="${key}"]`);
+    if(!el) return;
+    const next=String(value||'');
+    if(el.tagName==='SELECT'){
+      if([...el.options].some(option=>option.value===next)) el.value=next;
+      enhanceRxSelect(el);
+    }else el.value=next;
+  };
+  set('prefix',contactPrefix(c));
+  set('first',c.first_name);
+  set('last',c.last_name);
+  set('company',c.company_name);
+  set('email',c.primary_email);
+  set('country',address.country||address.country_name||c.country_code);
+  set('district',address.district||address.state);
+  set('city',address.city);
+  set('street',address.street||address.address_line_1);
+  const mobile=body.querySelector('[data-k="mobile"]');
+  if(mobile){
+    mobile.value=phone.mobilenum;
+    const button=mobile.closest('.tel-wrap')?.querySelector('.tel-cc');
+    const img=button?.querySelector('img'), dial=button?.querySelector('.cc');
+    if(img) img.src=flagSrc(phone.iso);
+    if(dial) dial.textContent=phone.dial;
+  }
+  closeContactMatches();
+  body.querySelector('[data-k="company"]')?.focus();
+}
+function pickContactMatch(input,c){
+  if(input.closest('#rx-body')) fillRxFromContact(c);
+  else fillDraftFromContact(input.dataset.dp,c);
+}
 function placeContactMatches(){
   if(!contactMatchDrop||!contactMatchInput)return;
-  const r=contactMatchInput.getBoundingClientRect(),w=Math.max(300,r.width);
+  const r=contactMatchInput.getBoundingClientRect();
+  const w=contactMatchInput.closest('#rx-body')?r.width:Math.max(300,r.width);
   contactMatchDrop.style.left=Math.max(8,Math.min(r.left,innerWidth-w-8))+'px';
   contactMatchDrop.style.top=Math.min(innerHeight-8,r.bottom+2)+'px';
   contactMatchDrop.style.width=w+'px';
@@ -1813,7 +1860,7 @@ function renderContactMatches(){
     const item=document.createElement('div');item.className='pg-ac-item contact-match'+(i===contactMatchActive?' pg-ac-active':'');
     const main=document.createElement('span');main.className='contact-match-main';main.textContent=contactName(c);
     const meta=document.createElement('span');meta.className='contact-match-meta';meta.textContent=[c.company_name,c.primary_phone,c.primary_email].filter(Boolean).join(' · ');
-    item.append(main,meta);item.onmousedown=e=>{e.preventDefault();fillDraftFromContact(contactMatchInput.dataset.dp,c);};
+    item.append(main,meta);item.onmousedown=e=>{e.preventDefault();pickContactMatch(contactMatchInput,c);};
     contactMatchDrop.appendChild(item);
   });
   contactMatchDrop.style.display='block';
@@ -1821,16 +1868,17 @@ function renderContactMatches(){
 }
 async function showContactMatches(input){
   const q=input.value.trim(),seq=++contactMatchSeq;
-  if(q.length<2){closeContactMatches();return;}
+  const inExpanded=!!input.closest('#rx-body');
+  if(!inExpanded&&q.length<2){closeContactMatches();return;}
   try{
     const items=await searchContacts(q);if(seq!==contactMatchSeq||!input.isConnected||document.activeElement!==input)return;
     const prefix=q.toLowerCase();
-    contactMatchItems=items.filter(c=>[c.first_name,c.last_name,c.company_name,contactName(c)]
-      .some(v=>String(v||'').toLowerCase().startsWith(prefix)));
+    contactMatchItems=prefix?items.filter(c=>[c.first_name,c.last_name,c.company_name,contactName(c)]
+      .some(v=>String(v||'').toLowerCase().startsWith(prefix))):items;
     contactMatchActive=0;contactMatchInput=input;
     if(!contactMatchItems.length){closeContactMatches();return;}
     if(contactMatchDrop)contactMatchDrop.remove();
-    contactMatchDrop=document.createElement('div');contactMatchDrop.className='pg-ac-drop contact-match-drop';
+    contactMatchDrop=document.createElement('div');contactMatchDrop.className='pg-ac-drop contact-match-drop'+(inExpanded?' rx-contact-match-drop':'');
     document.body.appendChild(contactMatchDrop);renderContactMatches();
   }catch(e){if(seq===contactMatchSeq)closeContactMatches();}
 }
@@ -1839,7 +1887,7 @@ function contactMatchKey(e){
   if(!contactMatchDrop||e.target!==contactMatchInput)return false;
   if(e.key==='ArrowDown'||e.key==='ArrowUp'){
     e.preventDefault();e.stopPropagation();contactMatchActive=(contactMatchActive+(e.key==='ArrowDown'?1:-1)+contactMatchItems.length)%contactMatchItems.length;renderContactMatches();return true;}
-  if(e.key==='Enter'&&contactMatchItems[contactMatchActive]){e.preventDefault();e.stopPropagation();fillDraftFromContact(e.target.dataset.dp,contactMatchItems[contactMatchActive]);return true;}
+  if(e.key==='Enter'&&contactMatchItems[contactMatchActive]){e.preventDefault();e.stopPropagation();pickContactMatch(e.target,contactMatchItems[contactMatchActive]);return true;}
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeContactMatches();return true;}
   return false;
 }
@@ -2032,6 +2080,7 @@ $('rx-body').addEventListener('click',e=>{
 // Enter advances to the next field, like Tab (Tab still works natively). Skips
 // textareas so notes can hold line breaks, and lets selects open normally.
 $('rx-body').addEventListener('keydown',e=>{
+  if((e.target.dataset.k==='first'||e.target.dataset.k==='last')&&contactMatchKey(e)) return;
   if(e.key!=='Enter'||e.shiftKey) return;
   const t=e.target;
   if(t.tagName==='TEXTAREA') return;
@@ -2050,6 +2099,9 @@ $('rx-body').addEventListener('focusout',e=>{
     w.classList.remove('on');
   },0);
 });
+$('rx-body').addEventListener('focusin',e=>{
+  if(e.target.dataset.k==='first'||e.target.dataset.k==='last') queueContactMatches(e.target);
+});
 $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 $('rx-body').addEventListener('change',e=>{
@@ -2062,6 +2114,7 @@ $('rx-body').addEventListener('change',e=>{
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
+  if(e.target.dataset&&(e.target.dataset.k==='first'||e.target.dataset.k==='last')) queueContactMatches(e.target);
   if(e.target.dataset&&e.target.dataset.k==='maps') rxUpdateMapPreview(); });
 $('rx-body').addEventListener('click',e=>{ if(e.target.closest('#rx-q-draft')) rxDraftQuotation(); });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
