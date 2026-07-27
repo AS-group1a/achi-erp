@@ -575,3 +575,17 @@ class QuotationOut(BaseModel):
     valid_until: date | None = None
     status: str
     created_at: datetime | None = None
+
+
+# ── custom cities (added on the fly, stored server-side) ────────────────────
+
+class GeoCityIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    country: str = Field(min_length=1, max_length=64)
+    district: str = Field(min_length=1, max_length=128)
+    city: str = Field(min_length=1, max_length=128)
+
+
+class GeoCityOut(GeoCityIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
