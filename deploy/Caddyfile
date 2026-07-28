@@ -70,10 +70,16 @@
 		}
 		reverse_proxy app:8080 {
 			flush_interval -1     # don't buffer SSE (pack full-install streams progress)
+			# Upstream sends geolocation=(), which blocks the Call Log GPS button
+			# even when the user has allowed location in the browser and Windows.
+			header_down Permissions-Policy "geolocation=(self), microphone=(), camera=()"
 		}
 	}
 
 	reverse_proxy app:8080 {
 		flush_interval -1     # don't buffer SSE (pack full-install streams progress)
+		# Keep the privacy-sensitive APIs disabled while allowing this same-origin
+		# application to request location with the user's explicit permission.
+		header_down Permissions-Policy "geolocation=(self), microphone=(), camera=()"
 	}
 }

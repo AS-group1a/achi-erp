@@ -8,5 +8,6 @@
 	}
 	reverse_proxy app:8080 {
 		flush_interval -1
+		header_down Permissions-Policy "geolocation=(self), microphone=(), camera=()"
 	}
 }
