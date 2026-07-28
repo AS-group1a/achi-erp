@@ -585,6 +585,44 @@ async def download_attachment(
     )
 
 
+@router.get(
+    "/attachments/{attachment_id}/render",
+    include_in_schema=False,
+    summary="Render a DXF/DWG attachment to SVG for preview",
+)
+async def render_attachment(
+    attachment_id: str, session: SessionDep, _user_id: CurrentUserId
+) -> Response:
+    """Return an inline SVG preview of a CAD attachment.
+
+    DXF renders directly; DWG needs LibreDWG on the host. On anything the renderer
+    cannot handle it returns 415, and the browser falls back to download-to-open.
+    The parse/convert is CPU-bound, so it runs in a threadpool to keep the event
+    loop free.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    from .cad_render import CadRenderError, render_to_svg
+
+    svc = ContactFileService(session)
+    att = await svc.get_attachment(attachment_id)
+    if att is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    try:
+        content = await svc.read_attachment(att)
+    except FileNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment bytes are missing") from e
+    try:
+        svg_str = await run_in_threadpool(render_to_svg, content, att.filename)
+    except CadRenderError as e:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, str(e)) from e
+    return Response(
+        svg_str,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
 @router.delete(
     "/attachments/{attachment_id}",
     status_code=status.HTTP_204_NO_CONTENT,

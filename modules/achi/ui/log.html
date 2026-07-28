@@ -491,6 +491,18 @@
      FROM the sheet, so it has to sit on top of it, not behind. */
   .pg-note-workspace{position:fixed;inset:0;z-index:2147482600;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
   /* expand affordance on long-text cells: click to type, arrow to open the popup */
+  /* CAD (DWG/DXF) preview modal */
+  .cadov{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(15,35,75,.6);backdrop-filter:blur(3px)}
+  .cadbox{width:min(920px,96vw);max-height:92vh;display:flex;flex-direction:column;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 28px 80px rgba(15,35,75,.4)}
+  .cadhead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
+  .cadname{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cadhead-r{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .cad-dl{border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.14);color:#fff;border-radius:7px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .cad-dl:hover{background:rgba(255,255,255,.24)}
+  .cad-x{border:0;background:rgba(255,255,255,.16);color:#fff;width:28px;height:28px;border-radius:7px;font-size:18px;line-height:1;cursor:pointer}
+  .cad-x:hover{background:rgba(255,255,255,.3)}
+  .cadbody{flex:1;min-height:0;overflow:auto;padding:16px;background:#f7faff;display:flex;align-items:center;justify-content:center}
+  .cadbody svg{max-width:100%;max-height:78vh;height:auto;background:#fff;border:1px solid #e3e9f3;border-radius:4px}
   td.notecell{position:relative}
   /* Rich-text description in the cell: keep it compact so formatting shows
      without block-margins blowing up the row height. */
@@ -738,6 +750,35 @@ function richText(html){
   return doc.body.innerHTML;
 }
 const looksHTML=s=>/<\/?[a-z][\s\S]*>/i.test(String(s||''));   // old plain-text descs have no tags
+
+/* CAD preview. For a .dwg/.dxf attachment, ask the server to render it to SVG
+   (/attachments/{id}/render) and show it in a modal. Any failure — a DWG on a
+   server without LibreDWG, an unreadable file, too big — falls back to the
+   caller's download(). Shared by both file lists (note workspace + quick notes),
+   so there is one preview and one modal. */
+async function cadPreview(id,name,download){
+  const ext=(name||'').split('.').pop().toLowerCase();
+  if(ext!=='dwg'&&ext!=='dxf'){ return download(); }
+  try{
+    const r=await fetch(`${API}/attachments/${id}/render`,{headers:{Authorization:'Bearer '+TOKEN}});
+    if(!r.ok) throw new Error('render failed');
+    showCadModal(await r.text(),name,id,download);
+  }catch(_){ download(); }
+}
+function showCadModal(svgStr,name,id,download){
+  document.querySelector('.cadov')?.remove();
+  const ov=document.createElement('div'); ov.className='cadov';
+  ov.innerHTML=`<div class="cadbox"><div class="cadhead"><span class="cadname">${esc(name)}</span>
+    <span class="cadhead-r"><button type="button" class="cad-dl">Download</button>
+      <button type="button" class="cad-x" aria-label="Close">&times;</button></span></div>
+    <div class="cadbody">${svgStr}</div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('.cad-x').onclick=close;
+  ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(); });
+  document.addEventListener('keydown',function esc(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown',esc); } });
+  ov.querySelector('.cad-dl').onclick=()=>download&&download();
+}
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
@@ -2918,19 +2959,22 @@ function openNoteWorkspace(td,col){
   /* The API is bearer-only — there is no cookie session, so a plain href would
      401. Fetch the bytes with the token and hand the browser a blob instead. */
   async function openAttachment(id,name){
-    const r=await fetch(`${API}/attachments/${id}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
-    if(!r.ok) throw new Error('Could not open the file');
-    const blob=await r.blob(), url=URL.createObjectURL(blob);
-    // Preview what the browser can actually render (PDFs, images). Everything
-    // else — DWG/RVT/DXF/IFC, Office docs — downloads with its real name so it
-    // opens in the right desktop app. In-browser CAD rendering needs a converter
-    // we do not have; this is the honest fallback, not a broken viewer.
     const ext=(name||'').split('.').pop().toLowerCase();
-    const canPreview=(blob.type==='application/pdf')||blob.type.startsWith('image/')
-      ||['pdf','png','jpg','jpeg','gif','webp','svg','bmp'].includes(ext);
-    if(canPreview){ window.open(url,'_blank','noreferrer'); }
-    else { const a=document.createElement('a'); a.href=url; a.download=name||'file'; document.body.appendChild(a); a.click(); a.remove(); }
-    setTimeout(()=>URL.revokeObjectURL(url),60000);   // the tab/download needs it alive briefly
+    // Download-or-open: PDFs/images preview in a tab; everything else downloads
+    // with its real name to open in the right desktop app.
+    const download=async()=>{
+      const r=await fetch(`${API}/attachments/${id}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+      if(!r.ok) throw new Error('Could not open the file');
+      const blob=await r.blob(), url=URL.createObjectURL(blob);
+      const canPreview=(blob.type==='application/pdf')||blob.type.startsWith('image/')
+        ||['pdf','png','jpg','jpeg','gif','webp','svg','bmp'].includes(ext);
+      if(canPreview){ window.open(url,'_blank','noreferrer'); }
+      else { const a=document.createElement('a'); a.href=url; a.download=name||'file'; document.body.appendChild(a); a.click(); a.remove(); }
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    };
+    // DWG/DXF: try the server-rendered SVG preview, download if it can't render.
+    if(ext==='dwg'||ext==='dxf') return cadPreview(id,name,download);
+    return download();
   }
 
   async function loadFiles(){
@@ -3276,7 +3320,13 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
     if(filesEl){
       filesEl.addEventListener('click', e => {
         const openLink = e.target.closest('[data-att-open]');
-        if(openLink){ e.preventDefault(); openAttachment(openLink.dataset.attOpen); return; }
+        if(openLink){ e.preventDefault();
+          const id=openLink.dataset.attOpen, nm=openLink.getAttribute('title')||openLink.textContent||'';
+          const ext=nm.split('.').pop().toLowerCase();
+          // DWG/DXF get the shared server-rendered preview; others open as before.
+          if((ext==='dwg'||ext==='dxf') && typeof cadPreview==='function') cadPreview(id,nm,()=>openAttachment(id));
+          else openAttachment(id);
+          return; }
         const delBtn = e.target.closest('[data-att-del]');
         if(delBtn){ deleteAttachment(delBtn.dataset.attDel); }
       });
