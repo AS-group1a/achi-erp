@@ -234,26 +234,64 @@
    * the admin cluster, and any link that leaves for an OCE page (Contacts, CRM,
    * Projects, Project Files). The three ACHI links (/api/v1/achi/*) stay. Fails
    * safe — any error leaves the full sidebar, matching the fail-open gate. */
+  function achiToken() {
+    try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; }
+    catch (e) { return ''; }
+  }
+  // The same per-token verdict cache achi-nav.js writes. Lets us render the
+  // sidebar already-stripped for a known limited user — no flash of OCE links —
+  // and skip the loading gate entirely once the verdict is known.
+  function cachedLimited() {
+    var tok = achiToken();
+    if (!tok) return null;
+    try { var o = JSON.parse(localStorage.getItem('achi_access_verdict') || 'null'); return (o && o.tok === tok) ? !!o.limited : null; }
+    catch (e) { return null; }
+  }
+  function hideOceLinks() {
+    var back = document.querySelector('.achi-chrome .achi-back');
+    if (back) back.style.display = 'none';
+    var cluster = document.querySelector('.achi-chrome .achi-cluster');
+    if (cluster) cluster.style.display = 'none';
+    var links = document.querySelectorAll('.achi-chrome .achi-link');
+    for (var i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href') || '';
+      if (href.indexOf('/api/v1/achi/') !== 0) links[i].style.display = 'none';
+    }
+  }
+  function showAllLinks() {   // undo hideOceLinks — a stale "limited" cache that turns out full-access
+    var back = document.querySelector('.achi-chrome .achi-back'); if (back) back.style.display = '';
+    var cluster = document.querySelector('.achi-chrome .achi-cluster'); if (cluster) cluster.style.display = '';
+    var links = document.querySelectorAll('.achi-chrome .achi-link');
+    for (var i = 0; i < links.length; i++) links[i].style.display = '';
+  }
+  // Blue gate over the sidebar (the sidebar is already navy, so it reads as an
+  // empty bar) shown only while the verdict is unknown, so the OCE links never
+  // flash before they are stripped.
+  function showSideGate() {
+    var side = document.querySelector('.achi-chrome');
+    if (!side || document.getElementById('achi-side-gate')) return;
+    var g = document.createElement('div');
+    g.id = 'achi-side-gate';
+    g.style.cssText = 'position:absolute;inset:0;z-index:20;background:#284F9E';
+    side.appendChild(g);
+  }
+  function hideSideGate() { var g = document.getElementById('achi-side-gate'); if (g) g.remove(); }
+
+  /* A limited user (not grandfathered, enforcement on) may only use the ACHI
+   * pages, so strip this sidebar down: hide "All modules", the admin cluster, and
+   * any link that leaves for an OCE page. The three ACHI links stay. Fails safe —
+   * any error reveals the full sidebar, matching the fail-open gate. */
   function applyAccessLimit() {
-    var tok;
-    // localStorage with "remember me", else sessionStorage — match the SPA.
-    try { tok = localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return; }
-    if (!tok) return;
+    var tok = achiToken();
+    if (!tok) { hideSideGate(); return; }
     fetch('/api/v1/achi/access/me', { headers: { Authorization: 'Bearer ' + tok } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (!d || !d.enforced || d.full_access) return;
-        var back = document.querySelector('.achi-chrome .achi-back');
-        if (back) back.style.display = 'none';
-        var cluster = document.querySelector('.achi-chrome .achi-cluster');
-        if (cluster) cluster.style.display = 'none';
-        var links = document.querySelectorAll('.achi-chrome .achi-link');
-        for (var i = 0; i < links.length; i++) {
-          var href = links[i].getAttribute('href') || '';
-          if (href.indexOf('/api/v1/achi/') !== 0) links[i].style.display = 'none';
-        }
+        if (d && d.enforced && !d.full_access) hideOceLinks();
+        else showAllLinks();                 // full access / unknown → full sidebar (fail open)
       })
-      .catch(function () {});
+      .catch(function () { showAllLinks(); })
+      .then(function () { hideSideGate(); }); // reveal the sidebar whatever the outcome
   }
 
   function boot() {
@@ -261,6 +299,12 @@
     var t = document.body.getAttribute('data-achi-title') || document.title.split('·')[0].trim();
     build(t);
     applyBranding();
+    // Decide synchronously from cache so a limited user's sidebar renders already
+    // stripped (no flash); cover with the blue gate only when the verdict is
+    // unknown. applyAccessLimit() then confirms/refreshes from the server.
+    var lim = cachedLimited();
+    if (lim === true) hideOceLinks();       // known limited: render stripped, no gate
+    else if (lim === null) showSideGate();  // unknown: cover until confirmed
     applyAccessLimit();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
