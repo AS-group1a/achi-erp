@@ -5,8 +5,12 @@ FROM python:3.12-slim
 ARG OCE_VERSION=11.9.0
 
 # libgl/libglib: opencv-python-headless still dlopen()s them at import.
+# libredwg-tools: dwg2dxf, so the DWG attachment preview can convert DWG->DXF
+#   (ezdxf then renders the DXF to SVG — DXF needs no extra tool).
+# fonts-dejavu-core: so text labels in a drawing render (geometry renders without
+#   a font, but labels do not).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libgl1 libglib2.0-0 curl \
+        libgl1 libglib2.0-0 curl libredwg-tools fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir "openconstructionerp==${OCE_VERSION}"
