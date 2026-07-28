@@ -12,7 +12,7 @@ import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 
-from app.dependencies import CurrentUserId, OptionalUserPayload, RequireRole, SessionDep
+from app.dependencies import CurrentUserId, OptionalUserPayload, RequireRole, SessionDep, SettingsDep
 from app.modules.users.models import User
 
 from . import access
@@ -729,10 +729,28 @@ async def model_status(attachment_id: str, _user_id: CurrentUserId):
 
 
 @router.get("/attachments/{attachment_id}/model.glb", include_in_schema=False)
-async def model_glb(attachment_id: str, session: SessionDep, _user_id: CurrentUserId) -> Response:
-    """Serve the converted glTF. The viewer fetches this with the bearer token
-    and hands the bytes to three.js, so no query-param token is needed."""
+async def model_glb(attachment_id: str, request: Request, settings: SettingsDep) -> Response:
+    """Serve the converted glTF for <model-viewer>.
+
+    Auth is via the bearer header OR a ``?token=`` query param: the viewer sets
+    the element's ``src`` to this URL and loads it internally, and neither
+    <model-viewer> nor three.js can attach an Authorization header (and a blob:
+    URL is blocked by the page's connect-src CSP). Same approach OCE's own BIM
+    viewer uses. The token is the caller's own JWT.
+    """
+    from app.dependencies import decode_access_token
+
     from .bim_render import cached_glb
+
+    token = request.query_params.get("token") or ""
+    if not token:
+        auth = request.headers.get("authorization", "")
+        if auth[:7].lower() == "bearer ":
+            token = auth[7:]
+    try:
+        decode_access_token(token, settings)
+    except Exception as e:  # noqa: BLE001 - any decode failure = unauthenticated
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated") from e
 
     p = cached_glb(attachment_id)
     if p is None:

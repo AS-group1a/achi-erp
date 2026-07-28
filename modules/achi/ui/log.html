@@ -843,24 +843,22 @@ async function cadPreview3D(ov,id,name){
     }
     if(st!=='ready') throw new Error('Model is not ready');
     msg('<div class="cad-loading">Loading 3D view…</div>');
-    const g=await fetch(`${API}/attachments/${id}/model.glb`,{headers:H});
-    if(!g.ok) throw new Error('Could not load the 3D model');
-    const blobUrl=URL.createObjectURL(await g.blob());
-    const cleanup=()=>{ try{URL.revokeObjectURL(blobUrl);}catch(_){} };
-    const obs=new MutationObserver(()=>{ if(!ov.isConnected){ cleanup(); obs.disconnect(); } });
-    obs.observe(document.body,{childList:true});                // free the blob when the modal closes
+    // Load the .glb from its real same-origin URL (connect-src 'self' allows it;
+    // a blob: URL is CSP-blocked). model-viewer can't set an Authorization
+    // header, so the token rides as ?token= — the endpoint accepts either.
     try{ await ensureModelViewer(); }
-    catch(_){ cleanup(); obs.disconnect(); throw new Error('Could not load the 3D viewer'); }
-    if(!ov.isConnected){ cleanup(); obs.disconnect(); return; }
+    catch(_){ throw new Error('Could not load the 3D viewer'); }
+    if(!ov.isConnected) return;
     body.innerHTML='';
     const mv=document.createElement('model-viewer');
-    mv.setAttribute('src',blobUrl);
+    mv.setAttribute('src',`${API}/attachments/${id}/model.glb?token=${encodeURIComponent(TOKEN)}`);
     mv.setAttribute('camera-controls','');
     mv.setAttribute('auto-rotate','');
     mv.setAttribute('shadow-intensity','1');
     mv.setAttribute('exposure','1.1');
     mv.setAttribute('interaction-prompt','none');
     mv.style.cssText='width:100%;height:72vh;background:#eef2f7;display:block';
+    mv.addEventListener('error',()=>{ if(ov.isConnected) msg('<div class="cad-msg"><b>3D preview not available</b><br>The model could not be displayed.<br><br>Use <b>Download</b> above to open it in your CAD app.</div>'); });
     body.appendChild(mv);
   }catch(e){
     msg(`<div class="cad-msg"><b>3D preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`);
