@@ -278,69 +278,54 @@ aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child::afte
   display: none !important;
 }
 
-/* --- Login screen: replace the "by OpenConstructionERP" brand credit ---------
+/* --- Login screen: remove the two text lines under the logo -----------------
  *
- * The pre-auth sign-in page renders its brand credit as HARDCODED JSX, exactly
- * like the sidebar credit above — literal "Open"/"Construction"/"ERP" spans, no
- * pack setting or API field reaches it (branding.powered_by_text and the DB
- * /api/v1/branding company name only affect the post-login chrome). So we do the
- * same font-size:0 + ::after swap here. Confirmed in the built bundle
- * (assets/index-*.js), the login header is:
+ * The user wants the sign-in header to carry only the (now circular) logo — no
+ * brand credit and no tagline. This SUPERSEDES the earlier "rewrite
+ * by OpenConstructionERP -> Achi Scaffolding" rule, which is why that block is
+ * gone: the DDC mark is now REMOVED from the sign-in UI rather than replaced,
+ * which still satisfies TRADEMARK.md §4. The login FOOTER author attribution
+ * ("… · OpenConstructionERP · info@datadrivenconstruction…") and /about are
+ * untouched, so the AGPL §5(d) / TRADEMARK.md §6 legal notices stay displayed.
  *
- *   <div class="flex …">                         <- scoped by :has the pen button
- *     <… brand block …>
- *       "by " <span class="font-semibold tracking-tight">Open<Construction><ERP></span>   (custom-logo branch)
- *       — or —
- *       <span class="text-2xl font-medium text-content-primary …">Open<Construction><ERP></span>  (default branch)
- *     <button aria-label="Customise logo" title="Customise logo">✎</button>
+ * Confirmed DOM (built bundle assets/index-*.js) — inside the centered brand
+ * wrapper sit, in order, the header row (logo + white-label pen), then the
+ * tagline <p>:
+ *   <div class="relative mb-5 flex flex-col items-center …">
+ *     <div class="flex items-center gap-2">
+ *       <… logo …>
+ *       "by " <span class="font-semibold tracking-tight">Open…ERP</span>   (custom-logo branch credit)
+ *       — or — <span class="text-2xl font-medium …">Open…ERP</span>        (default branch name)
+ *       <button … aria-label="Customize logo">✎</button>
+ *     </div>
+ *     <p class="mt-2 text-sm text-content-tertiary">Professional construction…</p>
  *   </div>
  *
- * The pen button (i18n key login.brand_edit, English default "Customize logo")
- * is a stable, login-only anchor, so :has(> button[…]) scopes this to the login
- * header and cannot leak into the rest of the app. Both brand branches are
- * covered so it reads "Achi Scaffolding" whichever one renders.
- *
- * TRADEMARK.md §4 requires replacing DDC marks in a modified product's UI, so
- * this is the required direction. The login FOOTER attribution ("… · Open­-
- * ConstructionERP · info@datadrivenconstruction…") and /about are author/legal
- * notices under AGPL §5(d) / TRADEMARK.md §6 and are deliberately left intact.
- *
- * aria-label uses the British "Customise" in this build (login.brand_edit); the
- * American "Customize" is listed too in case a future build flips the spelling.
+ * The white-label pen is the stable, login-only anchor. `:has(> button…)` picks
+ * the header row (pen is its direct child); the credit "by …" span is hidden as
+ * a whole via span:has(> span.font-semibold.tracking-tight) so "by" goes too,
+ * and the default-branch big name via .text-2xl.font-medium. The tagline sits
+ * OUTSIDE that row, so it is reached from the wrapper with a descendant
+ * :has(button…) plus a direct-child `> p` — which no other pen-containing
+ * ancestor has, so nothing else is hit. British "Customise" is listed beside
+ * the American "Customize" in case a future build flips the spelling.
  */
-:has(> button[aria-label="Customise logo"]) span.font-semibold.tracking-tight,
-:has(> button[title="Customise logo"]) span.font-semibold.tracking-tight,
-:has(> button[aria-label="Customize logo"]) span.font-semibold.tracking-tight,
-:has(> button[title="Customize logo"]) span.font-semibold.tracking-tight {
-  font-size: 0 !important;
-}
-:has(> button[aria-label="Customise logo"]) span.font-semibold.tracking-tight::after,
-:has(> button[title="Customise logo"]) span.font-semibold.tracking-tight::after,
-:has(> button[aria-label="Customize logo"]) span.font-semibold.tracking-tight::after,
-:has(> button[title="Customize logo"]) span.font-semibold.tracking-tight::after {
-  content: "Achi Scaffolding";
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: inherit;
-}
-
-/* Default branch (no custom logo set): the big brand name span carries no "by". */
+/* line 1 — the "by …" credit (custom-logo branch), the whole span incl. "by" */
+:has(> button[aria-label="Customise logo"]) span:has(> span.font-semibold.tracking-tight),
+:has(> button[title="Customise logo"]) span:has(> span.font-semibold.tracking-tight),
+:has(> button[aria-label="Customize logo"]) span:has(> span.font-semibold.tracking-tight),
+:has(> button[title="Customize logo"]) span:has(> span.font-semibold.tracking-tight),
+/* line 1 — the big brand name (default branch) */
 :has(> button[aria-label="Customise logo"]) span.text-2xl.font-medium,
 :has(> button[title="Customise logo"]) span.text-2xl.font-medium,
 :has(> button[aria-label="Customize logo"]) span.text-2xl.font-medium,
-:has(> button[title="Customize logo"]) span.text-2xl.font-medium {
-  font-size: 0 !important;
-}
-:has(> button[aria-label="Customise logo"]) span.text-2xl.font-medium::after,
-:has(> button[title="Customise logo"]) span.text-2xl.font-medium::after,
-:has(> button[aria-label="Customize logo"]) span.text-2xl.font-medium::after,
-:has(> button[title="Customize logo"]) span.text-2xl.font-medium::after {
-  content: "Achi Scaffolding";
-  font-size: 1.5rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  color: inherit;
+:has(> button[title="Customize logo"]) span.text-2xl.font-medium,
+/* line 2 — the workspace tagline <p>, a sibling below the header row */
+div:has(button[aria-label="Customise logo"]) > p.text-sm.text-content-tertiary,
+div:has(button[title="Customise logo"]) > p.text-sm.text-content-tertiary,
+div:has(button[aria-label="Customize logo"]) > p.text-sm.text-content-tertiary,
+div:has(button[title="Customize logo"]) > p.text-sm.text-content-tertiary {
+  display: none !important;
 }
 
 /* --- Login screen: make the logo mark round, not a square -------------------
