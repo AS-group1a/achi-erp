@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from urllib.parse import quote, urlparse
@@ -36,6 +37,8 @@ from .service import ContactFileService
 from .quotation_router import quotation_router
 from .survey_router import survey_router
 from .geo_router import geo_router
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -757,15 +760,27 @@ async def authz(
         or request.headers.get("x-original-uri")
         or request.query_params.get("uri", "")
     )
-    if not payload:
+    try:
+        # Off until an admin seeds the grandfather list — so shipping the gate is
+        # inert until deliberately switched on, and no current user is caught out.
+        if not await access.enforcement_active(session):
+            return PlainTextResponse("", status_code=200)
+        if not payload:
+            return PlainTextResponse("", status_code=200)
+        user_id = payload.get("sub")
+        user = await session.get(User, user_id) if user_id else None
+        role = user.role if user else ""
+        if await access.has_full_access(session, user_id, role):
+            return PlainTextResponse("", status_code=200)
+        ok = access.limited_path_allowed(target)
+        return PlainTextResponse("", status_code=200 if ok else 403)
+    except Exception:  # noqa: BLE001
+        # FAIL OPEN. The proxy denies on any non-2xx, so a bug here would lock
+        # every user out of the whole API. This is a soft page-limit, not a
+        # secrets boundary (data stays behind normal auth), so an authz fault
+        # must never become a site-wide outage.
+        logger.warning("achi authz check failed; allowing through", exc_info=True)
         return PlainTextResponse("", status_code=200)
-    user_id = payload.get("sub")
-    user = await session.get(User, user_id) if user_id else None
-    role = user.role if user else ""
-    if await access.has_full_access(session, user_id, role):
-        return PlainTextResponse("", status_code=200)
-    ok = access.limited_path_allowed(target)
-    return PlainTextResponse("", status_code=200 if ok else 403)
 
 
 @router.post("/access/seed-current", dependencies=[Depends(RequireRole("admin"))])
