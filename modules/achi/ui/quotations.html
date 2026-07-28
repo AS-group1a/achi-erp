@@ -57,7 +57,7 @@ const dash=v=>v==null||v===''?'—':esc(v);
 // Same token the app already holds: these pages are same-origin, so there is no
 // second sign-in. See log.html for the refresh path; this page is read-only and
 // simply reports an expired session rather than silently showing nothing.
-const TOKEN=localStorage.getItem('oe_access_token');
+const TOKEN=localStorage.getItem('oe_access_token')||sessionStorage.getItem('oe_access_token');
 let ROWS=[];
 function fail(m){ const e=$('err'); e.textContent=m; e.style.display='block'; }
 function fmtDT(s){ const d=new Date(s); if(isNaN(d))return String(s||'').slice(0,16).replace('T',' ');
@@ -91,6 +91,6 @@ $('q').oninput=render;
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
 else load();
 </script>
-<script src="/api/v1/achi/ui/chrome.js?v=17"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=18"></script>
 </body>
 </html>
