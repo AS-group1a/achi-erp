@@ -754,6 +754,27 @@ function richText(html){
   return doc.body.innerHTML;
 }
 const looksHTML=s=>/<\/?[a-z][\s\S]*>/i.test(String(s||''));   // old plain-text descs have no tags
+/* The table's notes/files workspace is intentionally a plain textarea. Turn
+   Quill HTML into readable text there instead of exposing tags to the user. */
+function richTextToPlain(value){
+  const source=String(value??'');
+  if(!looksHTML(source)) return source;
+  const doc=new DOMParser().parseFromString(richText(source),'text/html');
+  const blocks=new Set(['P','DIV','H1','H2','H3','H4','H5','H6','BLOCKQUOTE']);
+  const walk=node=>{
+    if(node.nodeType===Node.TEXT_NODE) return node.nodeValue||'';
+    if(node.nodeType!==Node.ELEMENT_NODE) return '';
+    if(node.tagName==='BR') return '\n';
+    const body=[...node.childNodes].map(walk).join('');
+    if(node.tagName==='LI'){
+      const parent=node.parentElement, ordered=parent&&parent.tagName==='OL';
+      const index=ordered?[...parent.children].indexOf(node)+1:null;
+      return `${ordered?index+'. ':'• '}${body.trim()}\n`;
+    }
+    return blocks.has(node.tagName)?body+'\n':body;
+  };
+  return walk(doc.body).replace(/\u200b/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
 
 /* CAD preview. For a .dwg/.dxf attachment, ask the server to render it to SVG
    (/attachments/{id}/render) and show it in a modal. Any failure — a DWG on a
@@ -2960,6 +2981,7 @@ function openNoteWorkspace(td,col){
   const tr=td.closest('tr'), logId=tr.dataset.log, field=td.dataset.field;
   const row=ROWS.find(r=>r.id===logId)||{};
   const oldVal=td.dataset.val||'';
+  let editorBaseline=richTextToPlain(oldVal);
   const pendingFiles=[];
   let attached=[], saving=false;
 
@@ -2979,7 +3001,7 @@ function openNoteWorkspace(td,col){
       </div>
       <div class="pg-note-workspace-body">
         <label class="pg-note-workspace-label">Notes</label>
-        <textarea class="pg-note-workspace-text" placeholder="Add your notes here…">${esc(oldVal)}</textarea>
+        <textarea class="pg-note-workspace-text" placeholder="Add your notes here…">${esc(editorBaseline)}</textarea>
         <div class="pg-note-files"></div>
         <div class="pg-note-workspace-status"></div>
       </div>
@@ -3030,10 +3052,13 @@ function openNoteWorkspace(td,col){
 
   async function persistNote(){
     const nv=ta.value;
-    if(nv===td.dataset.val) return nv;
+    // Viewing notes or managing files must not flatten stored rich text. Replace
+    // it with plain text only when the user actually changes the textarea.
+    if(nv===editorBaseline) return td.dataset.val||oldVal;
     await api('/logs/'+logId,{method:'PATCH',body:JSON.stringify({[field]:nv})});
     td.dataset.val=nv;
     ROWS.forEach(r=>{ if(r.id===logId) r[field]=nv; });
+    editorBaseline=nv;
     return nv;
   }
 
