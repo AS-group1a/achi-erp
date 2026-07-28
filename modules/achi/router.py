@@ -601,14 +601,12 @@ async def render_attachment(
 ) -> Response:
     """Return an inline SVG preview of a CAD attachment.
 
-    DXF renders directly; DWG needs LibreDWG on the host. On anything the renderer
-    cannot handle it returns 415, and the browser falls back to download-to-open.
-    The parse/convert is CPU-bound, so it runs in a threadpool to keep the event
-    loop free.
+    DXF renders directly with ezdxf; DWG is converted with OpenConstructionERP's
+    own DDC converter (installed via the Takeoff UI) and its geometry drawn to
+    SVG. On anything the renderer cannot handle it returns 415, and the browser
+    falls back to download-to-open.
     """
-    from starlette.concurrency import run_in_threadpool
-
-    from .cad_render import CadRenderError, render_to_svg
+    from .cad_render import CadRenderError, render_cad_to_svg
 
     svc = ContactFileService(session)
     att = await svc.get_attachment(attachment_id)
@@ -619,7 +617,7 @@ async def render_attachment(
     except FileNotFoundError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment bytes are missing") from e
     try:
-        svg_str = await run_in_threadpool(render_to_svg, content, att.filename)
+        svg_str = await render_cad_to_svg(content, att.filename)
     except CadRenderError as e:
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, str(e)) from e
     return Response(
