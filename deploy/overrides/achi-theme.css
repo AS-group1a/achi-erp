@@ -406,3 +406,34 @@ div.grid.grid-cols-2:has(> a[href*="github.com/datadrivenconstruction"]):has(> a
 .grid.lg\:grid-cols-2.bg-surface-secondary > .lg\:order-2 {
   display: none !important;
 }
+
+/* --- Login screen: remove the sign-in card frame ----------------------------
+ *
+ * The sign-in form sits in a glass panel (confirmed in the built bundle
+ * assets/index-*.js): <div class="login-glass-pro relative rounded-2xl px-6
+ * py-5 animate-form-scale-in">. `login-glass-pro` is defined in an inline
+ * <style> the login component injects — it paints the frame: a translucent
+ * gradient background, a 28px backdrop-blur, a 1px border, a big drop shadow,
+ * and a ::after highlight overlay. We strip all of that so the fields sit
+ * directly on the page background; padding stays so the form keeps its spacing.
+ *
+ * Scoped to .animate-form-scale-in (the sign-in card) so the other glass panel
+ * on the page is untouched. Because login-glass-pro is injected inline (later
+ * in the DOM than this file), the two-class selector + !important is what wins
+ * the cascade. The aria-hidden/pointer-events-none hairline highlights are
+ * decorative children of the card; hidden too so no stray line floats once the
+ * panel behind them is gone.
+ */
+.login-glass-pro.animate-form-scale-in {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.login-glass-pro.animate-form-scale-in::after {
+  display: none !important;
+}
+.login-glass-pro.animate-form-scale-in > .pointer-events-none.absolute {
+  display: none !important;
+}
