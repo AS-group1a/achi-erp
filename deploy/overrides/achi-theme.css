@@ -373,3 +373,67 @@ div:has(button[title="Customize logo"]) > p.text-sm.text-content-tertiary {
 div.grid.grid-cols-2:has(> a[href*="github.com/datadrivenconstruction"]):has(> a[href*="t.me/datadrivenconstruction"]) {
   display: none !important;
 }
+
+/* --- Login screen: show only the centered sign-in form ----------------------
+ *
+ * Remove the left marketing hero (headline, the stat row, the hexagon module
+ * grid, the feature bullets, the "Open Source" badge and the AGPL-3.0 · OCE
+ * line), keep the top-right theme + language controls exactly where they are,
+ * and centre the sign-in card on the page.
+ *
+ * Confirmed DOM (built bundle assets/index-*.js):
+ *   <div class="relative grid h-screen grid-cols-1 lg:grid-cols-2 bg-surface-secondary …">
+ *     … decorative blobs (absolute, z-0) …
+ *     <div class="absolute top-4 right-4 z-30 …"> theme toggle + language </div>   (KEEP — absolute, unaffected)
+ *     <div class="hidden lg:flex … lg:order-2 …"> marketing hero </div>            (REMOVE)
+ *     <div class="relative flex items-center justify-center … lg:order-1 …"> sign-in card </div>  (CENTRE)
+ *   </div>
+ *
+ * The controls are positioned absolutely against the grid, so removing the hero
+ * column does not move them. On lg the grid keeps two column tracks even with
+ * the hero display:none, which would pin the form to the left half — so we
+ * collapse the grid to a single 1fr track; the form column already centres its
+ * card via flex items-center/justify-center, now across the full width.
+ *
+ * LEGAL: the hero's "AGPL-3.0 · OpenConstructionERP.com" line is removed with
+ * it, but /about still displays the full copyright + licence (AGPL §5(d) is
+ * satisfied by /about, per the sidebar/login rules above), and the login footer
+ * author attribution stays. Only the marketing hero goes.
+ */
+.grid.lg\:grid-cols-2.bg-surface-secondary {
+  grid-template-columns: 1fr !important;
+}
+.grid.lg\:grid-cols-2.bg-surface-secondary > .lg\:order-2 {
+  display: none !important;
+}
+
+/* --- Login screen: remove the sign-in card frame ----------------------------
+ *
+ * The sign-in form sits in a glass panel (confirmed in the built bundle
+ * assets/index-*.js): <div class="login-glass-pro relative rounded-2xl px-6
+ * py-5 animate-form-scale-in">. `login-glass-pro` is defined in an inline
+ * <style> the login component injects — it paints the frame: a translucent
+ * gradient background, a 28px backdrop-blur, a 1px border, a big drop shadow,
+ * and a ::after highlight overlay. We strip all of that so the fields sit
+ * directly on the page background; padding stays so the form keeps its spacing.
+ *
+ * Scoped to .animate-form-scale-in (the sign-in card) so the other glass panel
+ * on the page is untouched. Because login-glass-pro is injected inline (later
+ * in the DOM than this file), the two-class selector + !important is what wins
+ * the cascade. The aria-hidden/pointer-events-none hairline highlights are
+ * decorative children of the card; hidden too so no stray line floats once the
+ * panel behind them is gone.
+ */
+.login-glass-pro.animate-form-scale-in {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.login-glass-pro.animate-form-scale-in::after {
+  display: none !important;
+}
+.login-glass-pro.animate-form-scale-in > .pointer-events-none.absolute {
+  display: none !important;
+}

@@ -526,10 +526,18 @@
   // the server once and then just reapply on navigation.
   var accessCheckedFor = null;
   var isLimited = false;
-  function authToken() { try { return localStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } }
+  // The SPA stores the token in localStorage with "remember me", else in
+  // sessionStorage — it reads both, so we must too, or a no-remember login looks
+  // logged-out to us and the limit never applies.
+  function authToken() { try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } }
   function applyAccessLimit() {
     if (!isLimited) return;
-    if (byRoute(location.pathname)) return;   // an ACHI route: redirectIfOurRoute owns it
+    var p = location.pathname;
+    if (byRoute(p)) return;                    // a pretty ACHI route: redirectIfOurRoute owns it
+    // Already ON an ACHI page (this script is injected into every page, ours
+    // included). Redirecting to Call Log from Call Log is an infinite loop —
+    // the limited user is already where they belong, so stop.
+    if (p.indexOf('/api/v1/achi/') === 0) return;
     showCover();
     location.replace(HREF);                    // the Call Log page
   }
