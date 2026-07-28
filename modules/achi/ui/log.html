@@ -492,6 +492,11 @@
   .pg-note-workspace{position:fixed;inset:0;z-index:2147482600;display:flex;align-items:flex-start;justify-content:center;padding:20px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
   /* expand affordance on long-text cells: click to type, arrow to open the popup */
   td.notecell{position:relative}
+  /* Rich-text description in the cell: keep it compact so formatting shows
+     without block-margins blowing up the row height. */
+  td.notecell p{margin:0}
+  td.notecell ul,td.notecell ol{margin:2px 0;padding-left:18px}
+  td.notecell blockquote{margin:2px 0;padding-left:8px;border-left:2px solid #d8dee9;color:#5b6472}
   .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
   td.notecell:hover .note-exp,.note-wrap:hover .note-exp{opacity:1}
   .note-exp:hover{background:#dbeafe}
@@ -709,6 +714,25 @@ let TOKEN=getToken();   // reassigned by refreshToken() when the access token ex
 const API='/api/v1/achi';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* Quick notes is a Quill editor now, so `description` can hold formatting HTML.
+   Render it SAFELY: allow only Quill's formatting tags, strip every attribute,
+   drop script/style, unwrap anything else to its text. Rendering stored HTML is
+   an XSS vector — this is the whitelist that closes it. */
+const RICH_TAGS=new Set(['P','BR','STRONG','B','EM','I','U','S','OL','UL','LI','BLOCKQUOTE','SPAN']);
+function richText(html){
+  const doc=new DOMParser().parseFromString(String(html??''),'text/html');
+  (function walk(node){
+    [...node.childNodes].forEach(ch=>{
+      if(ch.nodeType!==1) return;
+      if(ch.tagName==='SCRIPT'||ch.tagName==='STYLE'){ ch.remove(); return; }
+      walk(ch);
+      [...ch.attributes].forEach(a=>ch.removeAttribute(a.name));
+      if(!RICH_TAGS.has(ch.tagName)) ch.replaceWith(...ch.childNodes);
+    });
+  })(doc.body);
+  return doc.body.innerHTML;
+}
+const looksHTML=s=>/<\/?[a-z][\s\S]*>/i.test(String(s||''));   // old plain-text descs have no tags
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
@@ -1128,7 +1152,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
   case 'company': return dash(r.company_name);
-  case 'desc': return (r.description?esc(r.description):'<span class="mt">—</span>')+marks(r);
+  case 'desc': return (r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>')+marks(r);
   case 'location': return dash(r.site_location);
   case 'owner': return avatar(r.owner_name,r.owner);
   case 'type': return tagv(r.log_type);
