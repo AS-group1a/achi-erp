@@ -530,28 +530,66 @@
   // sessionStorage — it reads both, so we must too, or a no-remember login looks
   // logged-out to us and the limit never applies.
   function authToken() { try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } }
+
+  // Cache the verdict per token so we can decide synchronously on the next load
+  // and cover the page BEFORE the OCE app paints — a limited user never glimpses
+  // a module they cannot open, and there is no visible redirect.
+  var VERDICT_KEY = 'achi_access_verdict';
+  function cachedLimited(tok) {
+    try { var o = JSON.parse(localStorage.getItem(VERDICT_KEY) || 'null'); return (o && o.tok === tok) ? !!o.limited : null; }
+    catch (e) { return null; }
+  }
+  function cacheLimited(tok, limited) {
+    try { localStorage.setItem(VERDICT_KEY, JSON.stringify({ tok: tok, limited: limited })); } catch (e) {}
+  }
+
+  // Full-screen grey gate. Shown while the verdict is unknown or the user is
+  // limited; lifted the instant a full-access verdict comes back. z-index maxed
+  // so it sits over the whole OCE app.
+  function showGate() {
+    if (document.getElementById('achi-gate')) return;
+    var g = document.createElement('div');
+    g.id = 'achi-gate';
+    g.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#f5f5f7;display:flex;align-items:center;justify-content:center;color:#8a8a8e;font:500 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;letter-spacing:.02em';
+    g.textContent = 'Loading…';
+    (document.body || document.documentElement).appendChild(g);
+  }
+  function hideGate() { var g = document.getElementById('achi-gate'); if (g) g.remove(); }
+
+  // An OCE route: not one of our pretty ACHI routes and not one of our own served
+  // pages (/api/v1/achi/*). Gating/redirecting on an ACHI page would loop.
+  function onOcePage() { var p = location.pathname; return !byRoute(p) && p.indexOf('/api/v1/achi/') !== 0; }
+
   function applyAccessLimit() {
-    if (!isLimited) return;
-    var p = location.pathname;
-    if (byRoute(p)) return;                    // a pretty ACHI route: redirectIfOurRoute owns it
-    // Already ON an ACHI page (this script is injected into every page, ours
-    // included). Redirecting to Call Log from Call Log is an infinite loop —
-    // the limited user is already where they belong, so stop.
-    if (p.indexOf('/api/v1/achi/') === 0) return;
-    showCover();
+    if (!isLimited || !onOcePage()) return;
+    showGate();
     location.replace(HREF);                    // the Call Log page
   }
+
   function enforceAccessLimit() {
     var tok = authToken();
-    if (!tok) { accessCheckedFor = null; isLimited = false; return; }  // logged out
-    if (accessCheckedFor === tok) { applyAccessLimit(); return; }
+    if (!tok) { accessCheckedFor = null; isLimited = false; hideGate(); return; }  // logged out
+    if (accessCheckedFor === tok) { applyAccessLimit(); return; }  // verdict already known this load
+
+    // Cover pre-emptively from the cached verdict so there is no flash, but let
+    // the server confirm before actually redirecting (the cache can be stale if
+    // access was just granted/revoked). Unknown → cover too, to be safe.
+    var cached = cachedLimited(tok);
+    if (onOcePage() && cached !== false) {
+      showGate();
+      setTimeout(function () { if (!isLimited) hideGate(); }, 5000);   // failsafe: never brick on a hung check
+    } else if (cached === false) {
+      hideGate();
+    }
+
     accessCheckedFor = tok;                     // set before the fetch so we don't stack requests
     fetch('/api/v1/achi/access/me', { headers: { Authorization: 'Bearer ' + tok } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d) { accessCheckedFor = null; return; }   // transient failure: let a later tick retry
         isLimited = !!(d.enforced && !d.full_access);
-        applyAccessLimit();
+        cacheLimited(tok, isLimited);
+        if (isLimited) applyAccessLimit(); else hideGate();   // redirect, or reveal the app
       })
       .catch(function () { accessCheckedFor = null; });
   }
