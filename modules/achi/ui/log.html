@@ -503,6 +503,10 @@
   .cad-x:hover{background:rgba(255,255,255,.3)}
   .cadbody{flex:1;min-height:0;overflow:auto;padding:16px;background:#f7faff;display:flex;align-items:center;justify-content:center}
   .cadbody svg{max-width:100%;max-height:78vh;height:auto;background:#fff;border:1px solid #e3e9f3;border-radius:4px}
+  .cad-loading{color:#5b6472;font-size:13px;font-weight:600}
+  .cad-loading::before{content:'';display:inline-block;width:14px;height:14px;margin-right:8px;border:2px solid #cfd9e8;border-top-color:#284f9e;border-radius:50%;vertical-align:-2px;animation:cadspin .7s linear infinite}
+  @keyframes cadspin{to{transform:rotate(360deg)}}
+  .cad-msg{max-width:360px;text-align:center;color:#475569;font-size:12.5px;line-height:1.6}
   td.notecell{position:relative}
   /* Rich-text description in the cell: keep it compact so formatting shows
      without block-margins blowing up the row height. */
@@ -756,28 +760,42 @@ const looksHTML=s=>/<\/?[a-z][\s\S]*>/i.test(String(s||''));   // old plain-text
    server without LibreDWG, an unreadable file, too big — falls back to the
    caller's download(). Shared by both file lists (note workspace + quick notes),
    so there is one preview and one modal. */
-async function cadPreview(id,name,download){
+async function cadPreview(id,name){
+  const ov=openCadModal(name,id);                 // opens immediately with a spinner
   const ext=(name||'').split('.').pop().toLowerCase();
-  if(ext!=='dwg'&&ext!=='dxf'){ return download(); }
+  if(ext!=='dwg'&&ext!=='dxf'){ ov.querySelector('.cadbody').innerHTML='<div class="cad-msg">No preview for this file type. Use <b>Download</b> above.</div>'; return; }
   try{
     const r=await fetch(`${API}/attachments/${id}/render`,{headers:{Authorization:'Bearer '+TOKEN}});
-    if(!r.ok) throw new Error('render failed');
-    showCadModal(await r.text(),name,id,download);
-  }catch(_){ download(); }
+    if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||'Could not render this file'); }
+    ov.querySelector('.cadbody').innerHTML=await r.text();
+  }catch(e){
+    // Show WHY (e.g. DWG needs LibreDWG) with a working Download — don't silently
+    // dump a no-name file, which is what the old fallback did.
+    ov.querySelector('.cadbody').innerHTML=`<div class="cad-msg"><b>Preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`;
+  }
 }
-function showCadModal(svgStr,name,id,download){
+function openCadModal(name,id){
   document.querySelector('.cadov')?.remove();
   const ov=document.createElement('div'); ov.className='cadov';
   ov.innerHTML=`<div class="cadbox"><div class="cadhead"><span class="cadname">${esc(name)}</span>
     <span class="cadhead-r"><button type="button" class="cad-dl">Download</button>
       <button type="button" class="cad-x" aria-label="Close">&times;</button></span></div>
-    <div class="cadbody">${svgStr}</div></div>`;
+    <div class="cadbody"><div class="cad-loading">Rendering preview…</div></div></div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
   ov.querySelector('.cad-x').onclick=close;
   ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(); });
-  document.addEventListener('keydown',function esc(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown',esc); } });
-  ov.querySelector('.cad-dl').onclick=()=>download&&download();
+  document.addEventListener('keydown',function k(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown',k); } });
+  // Download always saves with the real filename (fixes the no-extension bug).
+  ov.querySelector('.cad-dl').onclick=async()=>{
+    try{
+      const r=await fetch(`${API}/attachments/${id}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+      const url=URL.createObjectURL(await r.blob());
+      const a=document.createElement('a'); a.href=url; a.download=name||'drawing'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }catch(_){}
+  };
+  return ov;
 }
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
@@ -2973,7 +2991,7 @@ function openNoteWorkspace(td,col){
       setTimeout(()=>URL.revokeObjectURL(url),60000);
     };
     // DWG/DXF: try the server-rendered SVG preview, download if it can't render.
-    if(ext==='dwg'||ext==='dxf') return cadPreview(id,name,download);
+    if(ext==='dwg'||ext==='dxf') return cadPreview(id,name);
     return download();
   }
 
@@ -3324,7 +3342,7 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
           const id=openLink.dataset.attOpen, nm=openLink.getAttribute('title')||openLink.textContent||'';
           const ext=nm.split('.').pop().toLowerCase();
           // DWG/DXF get the shared server-rendered preview; others open as before.
-          if((ext==='dwg'||ext==='dxf') && typeof cadPreview==='function') cadPreview(id,nm,()=>openAttachment(id));
+          if((ext==='dwg'||ext==='dxf') && typeof cadPreview==='function') cadPreview(id,nm);
           else openAttachment(id);
           return; }
         const delBtn = e.target.closest('[data-att-del]');
