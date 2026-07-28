@@ -351,3 +351,25 @@ div:has(button[title="Customize logo"]) > p.text-sm.text-content-tertiary {
   object-fit: cover !important;
   overflow: hidden !important;
 }
+
+/* --- Login screen: remove the GitHub / Community link cards ------------------
+ *
+ * The sign-in page shows two promo cards below the form (confirmed in the built
+ * bundle assets/index-*.js):
+ *   <div class="mt-4 grid grid-cols-2 gap-3 animate-stagger-in">
+ *     <a href="https://github.com/datadrivenconstruction/OpenConstructionERP">GitHub · Source code</a>
+ *     <a href="https://t.me/datadrivenconstruction">Community · Get help & discuss</a>
+ *   </div>
+ * These are community/marketing links, not legal notices — the same class as
+ * the sidebar footer links already hidden above, and distinct from /about and
+ * the login footer attribution, which stay (AGPL §5(d) / TRADEMARK.md §6).
+ *
+ * Collapse the whole grid so no empty row or gap is left. The selector needs
+ * BOTH DDC links as direct children AND grid-cols-2, so it matches only this
+ * two-card row: the sidebar cluster is a flex-col (won't match), and /about —
+ * whose GitHub link is the AGPL source offer we must keep — is not a two-column
+ * grid of these two links, so it is untouched.
+ */
+div.grid.grid-cols-2:has(> a[href*="github.com/datadrivenconstruction"]):has(> a[href*="t.me/datadrivenconstruction"]) {
+  display: none !important;
+}
