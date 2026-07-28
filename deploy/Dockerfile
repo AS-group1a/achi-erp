@@ -1,7 +1,8 @@
 # Pinned. Upstream ships ~2.9 releases/day and its version numbers carry no
 # compatibility signal (10.9.0 -> 11.9.0 in six days), so never track :latest.
-# -bookworm is pinned deliberately: bare python:3.12-slim moved to Debian trixie,
-# which dropped libredwg-tools and broke the build (E: Unable to locate package).
+# -bookworm is pinned deliberately for a stable, glibc-known toolchain (bare
+# python:3.12-slim now tracks trixie). It is also the base the DDC converter
+# .debs below install cleanly on — verified by a live runtime install.
 FROM python:3.12-slim-bookworm
 
 ARG OCE_VERSION=11.9.0
@@ -9,19 +10,26 @@ ARG OCE_VERSION=11.9.0
 # libgl/libglib: opencv-python-headless still dlopen()s them at import.
 # fonts-dejavu-core: so text labels in a drawing render (geometry renders without
 #   a font, but labels do not).
+# ca-certificates: HTTPS apt for the DDC converter repo below.
 # These are essential — the build fails if any is missing.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libgl1 libglib2.0-0 curl fonts-dejavu-core \
+        libgl1 libglib2.0-0 curl fonts-dejavu-core ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# libredwg-tools: dwg2dxf, so the DWG attachment preview can convert DWG->DXF
-#   (ezdxf then renders the DXF to SVG — DXF needs no extra tool). BEST-EFFORT:
-#   if the package is ever unavailable (as on trixie), the build must NOT fail —
-#   cad_render.py already falls back to download-to-open when dwg2dxf is absent.
-RUN apt-get update \
-    && (apt-get install -y --no-install-recommends libredwg-tools \
-        || echo "WARN: libredwg-tools unavailable; DWG preview falls back to download") \
-    && rm -rf /var/lib/apt/lists/*
+# DDC DWG converter (DataDrivenConstruction) — the engine OCE's Takeoff module
+# uses to read DWG. cad_render.py converts DWG through it (convert_cad_to_excel).
+# Baked in here so it survives image rebuilds: OCE's runtime installer runs as
+# root and lands the binary in /usr/bin, which every `docker compose up --build`
+# wipes — so a runtime install would have to be redone after every deploy. apt
+# also resolves the binary's system libraries (a bare extraction does not).
+# BEST-EFFORT: a repo outage or version drift must NEVER freeze the deploy (the
+# libredwg-on-trixie lesson) — DWG preview then falls back to download, and an
+# admin can still install at runtime via the Takeoff UI. amd64 only (x86 binary).
+RUN echo "deb [trusted=yes] https://pkg.datadrivenconstruction.io stable main" > /etc/apt/sources.list.d/ddc.list \
+    && ( apt-get update && apt-get install -y --no-install-recommends \
+            ddc-dwgconverter ddc-deps-kernel ddc-deps-drawings ddc-deps-architecture ddc-thirdparty \
+         || echo "WARN: DDC DWG converter not baked in (repo unreachable / version drift); runtime install still available" ) \
+    && rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/ddc.list
 
 RUN pip install --no-cache-dir "openconstructionerp==${OCE_VERSION}"
 
