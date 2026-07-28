@@ -1398,6 +1398,19 @@ function refreshSelectionButton(){
   th.classList.toggle('on',all);
   th.setAttribute('aria-pressed',String(all));
   th.setAttribute('title',all?'Unselect all rows':'Select all rows');
+  // Swap the expand-row button label based on selection state.
+  const btn=$('expand-row');
+  if(!btn) return;
+  const logCount=logKeys().length;
+  if(logCount>1){
+    btn.style.display='none';
+  } else if(selectedLogId()){
+    btn.style.display='';
+    btn.innerHTML='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M3 8h10M8 3l5 5-5 5"/></svg> Expand Row';
+  } else {
+    btn.style.display='';
+    btn.innerHTML='<span class="tb-add-plus">+</span> Add Log';
+  }
 }
 function toggleSelectAll(){
   const rows=selectAllTargets(), all=allRowsSelected();
@@ -2615,7 +2628,7 @@ $('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); i
   const cp=e.target.closest('[data-copy]'); if(cp){ try{navigator.clipboard.writeText(cp.dataset.copy);}catch(_){} cp.classList.add('copied'); cp.innerHTML=SVG.check; setTimeout(()=>{cp.classList.remove('copied');cp.innerHTML=SVG.copy;},1000); return; }
   const draftMap=e.target.closest('[data-draft-map]'); if(draftMap){ const inp=$(draftMap.dataset.draftMap); if(inp) openMapsLocationPopup(inp); return; }
   const editMap=e.target.closest('[data-edit-map]'); if(editMap){ const mtd=editMap.closest('td[data-edit]'); if(mtd) openMapsLocationPopup(mtd); return; }
-  const numTd=e.target.closest('td.num'); if(numTd && numTd.closest('tr.data')){ toggleSelect(numTd.closest('tr.data').dataset.log); return; }
+  const numTd=e.target.closest('td.num'); if(numTd && numTd.closest('tr.data')){ const tr=numTd.closest('tr.data'); toggleRowSelection(tr); refreshDeleteButton(); return; }
   const td=e.target.closest('td[data-edit]'); if(td && td.closest('tr.data')){ if(!e.target.closest('a,button')){ if(td.dataset.field==='maps_url') openMapsLocationPopup(td); else openEditor(td); } } });
 
 /* ── country-code picker (real flag images; emoji flags don't render on Windows) ── */
