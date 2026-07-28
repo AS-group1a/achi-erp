@@ -528,10 +528,20 @@ async def get_drawing(log_id: str, session: SessionDep, _user_id: CurrentUserId)
 
 # ── Attachments: the Files button in the description popup ────────────────
 
-# Large enough for the scans and site photos this is actually for, small enough
-# that a mis-drop cannot fill the disk. Enforced after the read, so the limit is
-# on real bytes rather than a Content-Length the client controls.
+# Per-type caps. Ordinary attachments (scans, site photos, docs) stay small so a
+# mis-drop cannot fill the disk. CAD/BIM models are legitimately large — a real
+# Revit model is tens to a couple hundred MB — so they get a much higher cap, but
+# still bounded (and below bim_render's 300 MB 3D-conversion limit). Enforced on
+# real bytes read, streamed in chunks so an oversized upload is rejected without
+# ever being buffered whole.
 _MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+_MAX_CAD_ATTACHMENT_BYTES = 250 * 1024 * 1024
+_CAD_ATTACHMENT_EXTS = ("dwg", "dxf", "rvt", "ifc", "dgn")
+
+
+def _attachment_cap(filename: str) -> int:
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in (filename or "") else ""
+    return _MAX_CAD_ATTACHMENT_BYTES if ext in _CAD_ATTACHMENT_EXTS else _MAX_ATTACHMENT_BYTES
 
 
 @router.get(
@@ -565,14 +575,26 @@ async def add_attachment(
     if log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
 
-    content = await file.read()
+    cap = _attachment_cap(file.filename or "")
+    # Read in chunks and abort the moment the cap is exceeded, so an oversized
+    # upload never gets buffered whole in memory (it was already spooled to a
+    # temp file by the multipart parser; this bounds only the in-RAM bytes).
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > cap:
+            raise HTTPException(
+                status.HTTP_413_CONTENT_TOO_LARGE,
+                f"File is larger than {cap // (1024 * 1024)} MB",
+            )
+        chunks.append(chunk)
+    content = b"".join(chunks)
     if not content:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Empty file")
-    if len(content) > _MAX_ATTACHMENT_BYTES:
-        raise HTTPException(
-            status.HTTP_413_CONTENT_TOO_LARGE,
-            f"File is larger than {_MAX_ATTACHMENT_BYTES // (1024 * 1024)} MB",
-        )
 
     att = await svc.add_attachment(
         log,
