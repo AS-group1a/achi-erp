@@ -148,6 +148,24 @@ def ui_chrome_js() -> PlainTextResponse:
     )
 
 
+@router.get(
+    "/ui/model-viewer.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Vendored <model-viewer> for RVT/IFC 3D preview",
+)
+def ui_model_viewer_js() -> PlainTextResponse:
+    """Google's <model-viewer> (BSD-3), vendored so it is same-origin (OCE's CSP
+    blocks third-party scripts) and self-contained (no CDN/WASM fetch for the
+    plain glTF our pipeline produces). Loaded lazily by log.html only when a user
+    opens an RVT/IFC attachment, and cached hard — it is a large, stable asset."""
+    return PlainTextResponse(
+        (_UI_DIR / "model-viewer.min.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
 @router.get("/tile/{z}/{x}/{y}", include_in_schema=False, summary="OSM map tile proxy")
 async def map_tile(z: int, x: int, y: int):
     """Proxy an OpenStreetMap tile.

@@ -793,6 +793,7 @@ function richTextToPlain(value){
 async function cadPreview(id,name){
   const ov=openCadModal(name,id);                 // opens immediately with a spinner
   const ext=(name||'').split('.').pop().toLowerCase();
+  if(ext==='rvt'||ext==='ifc') return cadPreview3D(ov,id,name);   // 3D model
   if(ext!=='dwg'&&ext!=='dxf'){ ov.querySelector('.cadbody').innerHTML='<div class="cad-msg">No preview for this file type. Use <b>Download</b> above.</div>'; return; }
   try{
     const r=await fetch(`${API}/attachments/${id}/render`,{headers:{Authorization:'Bearer '+TOKEN}});
@@ -802,6 +803,67 @@ async function cadPreview(id,name){
     // Show WHY (e.g. DWG needs LibreDWG) with a working Download — don't silently
     // dump a no-name file, which is what the old fallback did.
     ov.querySelector('.cadbody').innerHTML=`<div class="cad-msg"><b>Preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`;
+  }
+}
+
+/* RVT/IFC 3D preview. The server converts the model to glTF in the background
+   (RVT via OpenConstructionERP's own BIM pipeline), so the flow is: prepare ->
+   poll status -> fetch the .glb WITH the bearer (so no token in the URL) ->
+   render with <model-viewer>, which is loaded lazily on first use. Any failure
+   falls back to the modal's Download button. */
+let _mvLoad=null;
+function ensureModelViewer(){
+  if(window.customElements&&customElements.get('model-viewer')) return Promise.resolve();
+  if(_mvLoad) return _mvLoad;
+  _mvLoad=new Promise((resolve,reject)=>{
+    const s=document.createElement('script'); s.type='module'; s.src=`${API}/ui/model-viewer.js`;
+    s.onload=()=>customElements.whenDefined('model-viewer').then(resolve,resolve);
+    s.onerror=()=>reject(new Error('Could not load the 3D viewer'));
+    document.head.appendChild(s);
+  });
+  return _mvLoad;
+}
+async function cadPreview3D(ov,id,name){
+  const body=ov.querySelector('.cadbody');
+  const H={Authorization:'Bearer '+TOKEN};
+  const msg=h=>{ if(ov.isConnected) body.innerHTML=h; };
+  try{
+    msg('<div class="cad-loading">Preparing 3D model… a large model can take a minute.</div>');
+    const pr=await fetch(`${API}/attachments/${id}/model/prepare`,{method:'POST',headers:H});
+    if(!pr.ok){ const b=await pr.json().catch(()=>({})); throw new Error(b.detail||'Could not prepare the model'); }
+    let st=(await pr.json()).status; const t0=Date.now();
+    while(st==='processing'){
+      if(!ov.isConnected) return;                             // user closed the modal
+      if(Date.now()-t0>6*60*1000) throw new Error('Timed out preparing the model');
+      await new Promise(r=>setTimeout(r,2500));
+      const sj=await (await fetch(`${API}/attachments/${id}/model/status`,{headers:H})).json()
+                     .catch(()=>({status:'error',error:'Status check failed'}));
+      st=sj.status;
+      if(st==='error') throw new Error(sj.error||'Could not build the 3D model');
+    }
+    if(st!=='ready') throw new Error('Model is not ready');
+    msg('<div class="cad-loading">Loading 3D view…</div>');
+    const g=await fetch(`${API}/attachments/${id}/model.glb`,{headers:H});
+    if(!g.ok) throw new Error('Could not load the 3D model');
+    const blobUrl=URL.createObjectURL(await g.blob());
+    const cleanup=()=>{ try{URL.revokeObjectURL(blobUrl);}catch(_){} };
+    const obs=new MutationObserver(()=>{ if(!ov.isConnected){ cleanup(); obs.disconnect(); } });
+    obs.observe(document.body,{childList:true});                // free the blob when the modal closes
+    try{ await ensureModelViewer(); }
+    catch(_){ cleanup(); obs.disconnect(); throw new Error('Could not load the 3D viewer'); }
+    if(!ov.isConnected){ cleanup(); obs.disconnect(); return; }
+    body.innerHTML='';
+    const mv=document.createElement('model-viewer');
+    mv.setAttribute('src',blobUrl);
+    mv.setAttribute('camera-controls','');
+    mv.setAttribute('auto-rotate','');
+    mv.setAttribute('shadow-intensity','1');
+    mv.setAttribute('exposure','1.1');
+    mv.setAttribute('interaction-prompt','none');
+    mv.style.cssText='width:100%;height:72vh;background:#eef2f7;display:block';
+    body.appendChild(mv);
+  }catch(e){
+    msg(`<div class="cad-msg"><b>3D preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`);
   }
 }
 function openCadModal(name,id){
@@ -3161,8 +3223,9 @@ function openNoteWorkspace(td,col){
       else { const a=document.createElement('a'); a.href=url; a.download=name||'file'; document.body.appendChild(a); a.click(); a.remove(); }
       setTimeout(()=>URL.revokeObjectURL(url),60000);
     };
-    // DWG/DXF: try the server-rendered SVG preview, download if it can't render.
-    if(ext==='dwg'||ext==='dxf') return cadPreview(id,name);
+    // DWG/DXF -> server-rendered SVG; RVT/IFC -> 3D viewer. Both fall back to
+    // download inside cadPreview if the server can't render them.
+    if(['dwg','dxf','rvt','ifc'].includes(ext)) return cadPreview(id,name);
     return download();
   }
 
@@ -3515,8 +3578,8 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
         if(openLink){ e.preventDefault();
           const id=openLink.dataset.attOpen, nm=openLink.getAttribute('title')||openLink.textContent||'';
           const ext=nm.split('.').pop().toLowerCase();
-          // DWG/DXF get the shared server-rendered preview; others open as before.
-          if((ext==='dwg'||ext==='dxf') && typeof cadPreview==='function') cadPreview(id,nm);
+          // DWG/DXF (SVG) and RVT/IFC (3D) get the shared preview; others open as before.
+          if(['dwg','dxf','rvt','ifc'].includes(ext) && typeof cadPreview==='function') cadPreview(id,nm);
           else openAttachment(id);
           return; }
         const delBtn = e.target.closest('[data-att-del]');
