@@ -1,16 +1,26 @@
 # Pinned. Upstream ships ~2.9 releases/day and its version numbers carry no
 # compatibility signal (10.9.0 -> 11.9.0 in six days), so never track :latest.
-FROM python:3.12-slim
+# -bookworm is pinned deliberately: bare python:3.12-slim moved to Debian trixie,
+# which dropped libredwg-tools and broke the build (E: Unable to locate package).
+FROM python:3.12-slim-bookworm
 
 ARG OCE_VERSION=11.9.0
 
 # libgl/libglib: opencv-python-headless still dlopen()s them at import.
-# libredwg-tools: dwg2dxf, so the DWG attachment preview can convert DWG->DXF
-#   (ezdxf then renders the DXF to SVG — DXF needs no extra tool).
 # fonts-dejavu-core: so text labels in a drawing render (geometry renders without
 #   a font, but labels do not).
+# These are essential — the build fails if any is missing.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libgl1 libglib2.0-0 curl libredwg-tools fonts-dejavu-core \
+        libgl1 libglib2.0-0 curl fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+# libredwg-tools: dwg2dxf, so the DWG attachment preview can convert DWG->DXF
+#   (ezdxf then renders the DXF to SVG — DXF needs no extra tool). BEST-EFFORT:
+#   if the package is ever unavailable (as on trixie), the build must NOT fail —
+#   cad_render.py already falls back to download-to-open when dwg2dxf is absent.
+RUN apt-get update \
+    && (apt-get install -y --no-install-recommends libredwg-tools \
+        || echo "WARN: libredwg-tools unavailable; DWG preview falls back to download") \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir "openconstructionerp==${OCE_VERSION}"
