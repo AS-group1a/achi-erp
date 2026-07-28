@@ -229,11 +229,38 @@
     } catch (e) {}
   }
 
+  /* A limited user (not grandfathered into full access, enforcement on) may only
+   * use the ACHI pages, so strip this sidebar down to them: hide "All modules",
+   * the admin cluster, and any link that leaves for an OCE page (Contacts, CRM,
+   * Projects, Project Files). The three ACHI links (/api/v1/achi/*) stay. Fails
+   * safe — any error leaves the full sidebar, matching the fail-open gate. */
+  function applyAccessLimit() {
+    var tok;
+    try { tok = localStorage.getItem('oe_access_token') || ''; } catch (e) { return; }
+    if (!tok) return;
+    fetch('/api/v1/achi/access/me', { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.enforced || d.full_access) return;
+        var back = document.querySelector('.achi-chrome .achi-back');
+        if (back) back.style.display = 'none';
+        var cluster = document.querySelector('.achi-chrome .achi-cluster');
+        if (cluster) cluster.style.display = 'none';
+        var links = document.querySelectorAll('.achi-chrome .achi-link');
+        for (var i = 0; i < links.length; i++) {
+          var href = links[i].getAttribute('href') || '';
+          if (href.indexOf('/api/v1/achi/') !== 0) links[i].style.display = 'none';
+        }
+      })
+      .catch(function () {});
+  }
+
   function boot() {
     // Each page names itself; fall back to the document title.
     var t = document.body.getAttribute('data-achi-title') || document.title.split('·')[0].trim();
     build(t);
     applyBranding();
+    applyAccessLimit();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
