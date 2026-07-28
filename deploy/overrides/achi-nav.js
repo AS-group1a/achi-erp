@@ -526,7 +526,10 @@
   // the server once and then just reapply on navigation.
   var accessCheckedFor = null;
   var isLimited = false;
-  function authToken() { try { return localStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } }
+  // The SPA stores the token in localStorage with "remember me", else in
+  // sessionStorage — it reads both, so we must too, or a no-remember login looks
+  // logged-out to us and the limit never applies.
+  function authToken() { try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } }
   function applyAccessLimit() {
     if (!isLimited) return;
     if (byRoute(location.pathname)) return;   // an ACHI route: redirectIfOurRoute owns it

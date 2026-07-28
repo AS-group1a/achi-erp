@@ -236,7 +236,8 @@
    * safe — any error leaves the full sidebar, matching the fail-open gate. */
   function applyAccessLimit() {
     var tok;
-    try { tok = localStorage.getItem('oe_access_token') || ''; } catch (e) { return; }
+    // localStorage with "remember me", else sessionStorage — match the SPA.
+    try { tok = localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return; }
     if (!tok) return;
     fetch('/api/v1/achi/access/me', { headers: { Authorization: 'Bearer ' + tok } })
       .then(function (r) { return r.ok ? r.json() : null; })
