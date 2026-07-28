@@ -783,6 +783,24 @@ async def authz(
         return PlainTextResponse("", status_code=200)
 
 
+@router.get("/access/me")
+async def access_me(session: SessionDep, payload: OptionalUserPayload = None):
+    """What the current user is allowed — read by the front-end (chrome.js /
+    achi-nav.js) to hide OCE links and land limited users on Call Log.
+
+    Not admin-gated: a user may always ask about themselves. Unidentifiable
+    callers are treated as full-access so nothing is hidden pre-login.
+    """
+    enforced = await access.enforcement_active(session)
+    if not payload:
+        return {"full_access": True, "enforced": enforced}
+    user_id = payload.get("sub")
+    user = await session.get(User, user_id) if user_id else None
+    role = user.role if user else ""
+    full = await access.has_full_access(session, user_id, role)
+    return {"full_access": full, "enforced": enforced}
+
+
 @router.post("/access/seed-current", dependencies=[Depends(RequireRole("admin"))])
 async def access_seed_current(session: SessionDep):
     """Grandfather every currently-active user into full access. Idempotent."""

@@ -518,6 +518,37 @@
   }
   redirectIfOurRoute();
   window.addEventListener('popstate', redirectIfOurRoute);
+
+  // --- ACHI access limit (Stage 3) -----------------------------------------
+  // A limited user (not grandfathered, enforcement on) may only use the ACHI
+  // pages, so on any OCE route send them to Call Log. Full-access users and the
+  // pre-login screen are untouched. The verdict is cached per token, so we ask
+  // the server once and then just reapply on navigation.
+  var accessCheckedFor = null;
+  var isLimited = false;
+  function authToken() { try { return localStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } }
+  function applyAccessLimit() {
+    if (!isLimited) return;
+    if (byRoute(location.pathname)) return;   // an ACHI route: redirectIfOurRoute owns it
+    showCover();
+    location.replace(HREF);                    // the Call Log page
+  }
+  function enforceAccessLimit() {
+    var tok = authToken();
+    if (!tok) { accessCheckedFor = null; isLimited = false; return; }  // logged out
+    if (accessCheckedFor === tok) { applyAccessLimit(); return; }
+    accessCheckedFor = tok;                     // set before the fetch so we don't stack requests
+    fetch('/api/v1/achi/access/me', { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d) { accessCheckedFor = null; return; }   // transient failure: let a later tick retry
+        isLimited = !!(d.enforced && !d.full_access);
+        applyAccessLimit();
+      })
+      .catch(function () { accessCheckedFor = null; });
+  }
+  enforceAccessLimit();
+  window.addEventListener('popstate', enforceAccessLimit);
   function reposition() { var f = document.getElementById(EMBED); if (f && f.style.display !== 'none') positionEmbed(f); }
   window.addEventListener('resize', reposition);
   window.addEventListener('scroll', reposition, true);
@@ -526,6 +557,7 @@
   // unrelated DOM mutations and a global observer can continuously rescan it.
   // This check is effectively free once the requested sequence is in place.
   window.setInterval(function () {
+    enforceAccessLimit();   // catches login (token appears) and SPA navigations
     wireSidebarHover();
     var log = document.getElementById(ID), survey = document.getElementById(ENTRIES[1].id);
     var contacts = document.getElementById(CONTACTS_ID);
