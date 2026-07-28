@@ -51,6 +51,28 @@
 		max_size 2GB
 	}
 
+	# --- ACHI access gate (tier 3) ---------------------------------------
+	# Limit non-grandfathered users to the ACHI pages. Only API calls carry the
+	# bearer token, so gating /api/* is what actually protects the data; the SPA
+	# shell itself is served to everyone (a limited user just sees empty OCE
+	# pages because their data calls 403). forward_auth asks our own /authz
+	# endpoint per request; that endpoint fails OPEN and is a no-op until an
+	# admin seeds the grandfather list, so this block is inert until switched on.
+	# The /authz subrequest is dispatched straight to the app, so it does not
+	# recurse through this matcher.
+	handle /api/* {
+		# forward_auth GETs /authz with the original request's headers — so the
+		# caller's Authorization bearer rides along for identification — and sets
+		# X-Forwarded-Uri to the original path for the per-endpoint decision. 2xx
+		# lets the request proceed; anything else is copied back to the client.
+		forward_auth app:8080 {
+			uri /api/v1/achi/authz
+		}
+		reverse_proxy app:8080 {
+			flush_interval -1     # don't buffer SSE (pack full-install streams progress)
+		}
+	}
+
 	reverse_proxy app:8080 {
 		flush_interval -1     # don't buffer SSE (pack full-install streams progress)
 	}
