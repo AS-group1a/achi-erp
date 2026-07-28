@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from pathlib import Path
@@ -9,7 +10,7 @@ from urllib.parse import quote, urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import HTMLResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 
 from app.dependencies import CurrentUserId, OptionalUserPayload, RequireRole, SessionDep
 from app.modules.users.models import User
@@ -624,6 +625,82 @@ async def render_attachment(
         svg_str,
         media_type="image/svg+xml",
         headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
+# --- RVT/IFC 3D preview (glTF via OCE's BIM pipeline) -------------------------
+# Converting a Revit model is slow, so it runs as a background job and the .glb
+# is cached by attachment id. The front-end: POST prepare -> poll status -> when
+# ready, fetch model.glb (with the bearer) and render it with three.js.
+_glb_jobs: dict[str, str] = {}   # attachment_id -> "processing" | "error:<msg>"
+_glb_tasks: set[asyncio.Task] = set()   # keep task refs so they aren't GC'd mid-run
+
+
+@router.post("/attachments/{attachment_id}/model/prepare", include_in_schema=False)
+async def prepare_model(attachment_id: str, session: SessionDep, _user_id: CurrentUserId):
+    """Kick off (or report) conversion of an RVT/IFC attachment to glTF."""
+    from .bim_render import BimRenderError, build_glb_sync, cached_glb, is_3d_model
+
+    svc = ContactFileService(session)
+    att = await svc.get_attachment(attachment_id)
+    if att is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    if not is_3d_model(att.filename):
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Not a 3D model")
+    if cached_glb(attachment_id) is not None:
+        return {"status": "ready"}
+    if _glb_jobs.get(attachment_id) == "processing":
+        return {"status": "processing"}
+    try:
+        content = await svc.read_attachment(att)
+    except FileNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment bytes are missing") from e
+
+    _glb_jobs[attachment_id] = "processing"
+
+    async def _job(aid: str, data: bytes, name: str) -> None:
+        try:
+            await asyncio.to_thread(build_glb_sync, aid, data, name)
+            _glb_jobs.pop(aid, None)                      # cache file is now the ready signal
+        except BimRenderError as e:
+            _glb_jobs[aid] = f"error:{e}"
+        except Exception:  # noqa: BLE001
+            logger.warning("3D model build failed for %s", aid, exc_info=True)
+            _glb_jobs[aid] = "error:Could not build the 3D model"
+
+    task = asyncio.create_task(_job(attachment_id, content, att.filename))
+    _glb_tasks.add(task)
+    task.add_done_callback(_glb_tasks.discard)
+    return {"status": "processing"}
+
+
+@router.get("/attachments/{attachment_id}/model/status", include_in_schema=False)
+async def model_status(attachment_id: str, _user_id: CurrentUserId):
+    from .bim_render import cached_glb
+
+    if cached_glb(attachment_id) is not None:
+        return {"status": "ready"}
+    st = _glb_jobs.get(attachment_id)
+    if st == "processing":
+        return {"status": "processing"}
+    if st and st.startswith("error:"):
+        return {"status": "error", "error": st[len("error:"):]}
+    return {"status": "idle"}
+
+
+@router.get("/attachments/{attachment_id}/model.glb", include_in_schema=False)
+async def model_glb(attachment_id: str, session: SessionDep, _user_id: CurrentUserId) -> Response:
+    """Serve the converted glTF. The viewer fetches this with the bearer token
+    and hands the bytes to three.js, so no query-param token is needed."""
+    from .bim_render import cached_glb
+
+    p = cached_glb(attachment_id)
+    if p is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "3D model not ready")
+    return FileResponse(
+        str(p),
+        media_type="model/gltf-binary",
+        headers={"Cache-Control": "private, max-age=86400"},
     )
 
 

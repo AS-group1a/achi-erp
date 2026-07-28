@@ -16,22 +16,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 libglib2.0-0 curl fonts-dejavu-core ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# DDC DWG converter (DataDrivenConstruction) — the engine OCE's Takeoff module
-# uses to read DWG. cad_render.py converts DWG through it (convert_cad_to_excel).
-# Baked in here so it survives image rebuilds: OCE's runtime installer runs as
-# root and lands the binary in /usr/bin, which every `docker compose up --build`
-# wipes — so a runtime install would have to be redone after every deploy. apt
-# also resolves the binary's system libraries (a bare extraction does not).
+# DDC converters (DataDrivenConstruction) — the engines OCE's Takeoff / BIM Hub
+# use to read CAD. cad_render.py converts DWG through it (2D linework -> SVG) and
+# bim_render.py converts RVT through it (Revit model -> COLLADA -> glTF for the
+# 3D preview). Baked in here so they survive image rebuilds: OCE's runtime
+# installer runs as root and lands the binaries in /usr/bin, which every
+# `docker compose up --build` wipes. apt also resolves their system libraries (a
+# bare extraction does not). Package sets mirror OCE's own dependency chains:
+#   DWG -> ddc-dwgconverter + deps-drawings/architecture
+#   RVT -> ddc-rvtconverter + deps-revit   (shares kernel/thirdparty)
 # BEST-EFFORT: a repo outage or version drift must NEVER freeze the deploy (the
-# libredwg-on-trixie lesson) — DWG preview then falls back to download, and an
-# admin can still install at runtime via the Takeoff UI. amd64 only (x86 binary).
+# libredwg-on-trixie lesson) — preview then falls back to download, and an admin
+# can still install at runtime via the Takeoff UI. amd64 only (x86 binaries).
+# NOTE: RVT (ddc-rvtconverter) is large (~600 MB extracted); it dominates image
+# size but the layer is cached across rebuilds.
 RUN echo "deb [trusted=yes] https://pkg.datadrivenconstruction.io stable main" > /etc/apt/sources.list.d/ddc.list \
     && ( apt-get update && apt-get install -y --no-install-recommends \
-            ddc-dwgconverter ddc-deps-kernel ddc-deps-drawings ddc-deps-architecture ddc-thirdparty \
-         || echo "WARN: DDC DWG converter not baked in (repo unreachable / version drift); runtime install still available" ) \
+            ddc-dwgconverter ddc-rvtconverter \
+            ddc-deps-kernel ddc-deps-drawings ddc-deps-architecture ddc-deps-revit ddc-thirdparty \
+         || echo "WARN: DDC converters not baked in (repo unreachable / version drift); runtime install still available" ) \
     && rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/ddc.list
 
-RUN pip install --no-cache-dir "openconstructionerp==${OCE_VERSION}"
+# pycollada: trimesh's COLLADA loader (imports as ``collada``). OCE's RVT/IFC ->
+# glTF step (bim_hub.ifc_processor) needs it to read the converter's .dae, but it
+# is an UNDECLARED dependency and absent from a stock install, so add it here.
+RUN pip install --no-cache-dir "openconstructionerp==${OCE_VERSION}" pycollada
 
 # --- ACHI's own module -------------------------------------------------------
 # The loader scans app/modules/ on the filesystem (MODULES_DIR is hardcoded to the
