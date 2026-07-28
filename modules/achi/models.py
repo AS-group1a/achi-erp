@@ -426,3 +426,24 @@ class GeoDistrict(Base):
     district: Mapped[str] = mapped_column(String(128), nullable=False)
     created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AchiFullAccess(Base):
+    """Users allowed to reach the full OpenConstructionERP app.
+
+    Everyone NOT listed here — and who is not an admin — is limited to the ACHI
+    pages (Call Log, Site Survey, Quotations). Seeded once with the users that
+    existed when the limit was switched on, so current staff are grandfathered in
+    and only NEW accounts are restricted. Admins can add/remove entries later.
+    """
+
+    __tablename__ = "achi_full_access"
+    __table_args__ = (
+        Index("uq_achi_full_access_user", "user_id", unique=True),
+    )
+
+    # id / created_at / updated_at come from Base. user_id is the natural key
+    # (one row per user) and is kept unique rather than made the primary key so
+    # it stays consistent with every other model here (Base owns the PK).
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")

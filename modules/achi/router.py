@@ -7,10 +7,13 @@ from pathlib import Path
 from urllib.parse import quote, urlparse
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
-from app.dependencies import CurrentUserId, SessionDep
+from app.dependencies import CurrentUserId, OptionalUserPayload, RequireRole, SessionDep
+from app.modules.users.models import User
+
+from . import access
 
 from .manifest import manifest as MANIFEST
 from .schemas import (
@@ -729,3 +732,62 @@ async def list_logs(
             )
         )
     return out
+
+
+# --- Access control: limit new users to the ACHI pages -----------------------
+# See modules/achi/access.py for the rule. These endpoints are the enforcement
+# gate (authz, called by the reverse proxy) plus admin management.
+
+@router.get("/authz", include_in_schema=False)
+async def authz(
+    request: Request,
+    session: SessionDep,
+    payload: OptionalUserPayload = None,
+):
+    """Reverse-proxy forward-auth check. 200 = allow, 403 = deny.
+
+    The proxy (Caddy forward_auth) copies the original request's path into a
+    header; we read it and decide based on who is asking. An unidentifiable
+    request (no/expired token — e.g. a bare page navigation) is allowed through:
+    the page's own data calls carry the token and are judged individually, and
+    OCE's auth already 401s unauthenticated API calls.
+    """
+    target = (
+        request.headers.get("x-forwarded-uri")
+        or request.headers.get("x-original-uri")
+        or request.query_params.get("uri", "")
+    )
+    if not payload:
+        return PlainTextResponse("", status_code=200)
+    user_id = payload.get("sub")
+    user = await session.get(User, user_id) if user_id else None
+    role = user.role if user else ""
+    if await access.has_full_access(session, user_id, role):
+        return PlainTextResponse("", status_code=200)
+    ok = access.limited_path_allowed(target)
+    return PlainTextResponse("", status_code=200 if ok else 403)
+
+
+@router.post("/access/seed-current", dependencies=[Depends(RequireRole("admin"))])
+async def access_seed_current(session: SessionDep):
+    """Grandfather every currently-active user into full access. Idempotent."""
+    added = await access.seed_current_users(session)
+    return {"added": added}
+
+
+@router.get("/access/", dependencies=[Depends(RequireRole("admin"))])
+async def access_list(session: SessionDep):
+    rows = await access.list_full_access(session)
+    return [{"user_id": r.user_id, "note": r.note} for r in rows]
+
+
+@router.post("/access/{user_id}", dependencies=[Depends(RequireRole("admin"))])
+async def access_grant(user_id: str, session: SessionDep):
+    await access.grant(session, user_id, note="granted by admin")
+    return {"ok": True}
+
+
+@router.delete("/access/{user_id}", dependencies=[Depends(RequireRole("admin"))])
+async def access_revoke(user_id: str, session: SessionDep):
+    removed = await access.revoke(session, user_id)
+    return {"removed": removed}
