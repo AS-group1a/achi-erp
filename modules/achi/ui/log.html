@@ -383,17 +383,6 @@
   tbody tr.selectable-row.row-selected td{background:#dbeafe!important}
   tbody tr.selectable-row.row-selected:hover td{background:#bfdbfe!important}
   tbody tr.selectable-row.row-selected .rn{background:var(--navy);color:#fff}
-  tbody tr.row-details td.row-details-cell{height:auto;padding:0;border-bottom:2px solid #9db7df;background:#f4f8ff;white-space:normal;overflow:visible}
-  .row-details-panel{position:sticky;left:0;width:min(1100px,calc(100vw - 72px));box-sizing:border-box;padding:18px 22px}
-  .row-details-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;color:var(--navy);font-size:14px;font-weight:800}
-  .row-details-hint{color:#64748b;font-size:11px;font-weight:500}
-  .row-details-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px 18px}
-  .row-detail{min-width:0}
-  .row-detail.wide{grid-column:span 2}
-  .row-detail-label{display:block;margin-bottom:3px;color:#64748b;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
-  .row-detail-value{display:block;color:#172033;font-size:12.5px;line-height:1.45;overflow-wrap:anywhere}
-  .row-detail-value a{color:#2563eb}
-  @media(max-width:800px){.row-details-grid{grid-template-columns:repeat(2,minmax(130px,1fr))}.row-detail.wide{grid-column:span 2}}
   .dt{font-variant-numeric:tabular-nums;color:#334155}
   .pg-f-date .pg-dt-compact{display:none}
   .pg-f-date.pg-dt-narrow .pg-dt-full{display:none}
@@ -1247,7 +1236,7 @@ function cellHTML(c,r,i){switch(c.k){
 }}
 
 const ROW_CACHE_KEY='achi_log_rows_v1';
-let ROWS=[], openOnly=false, activeTab=0, expandedRowId=null;
+let ROWS=[], openOnly=false, activeTab=0;
 /* A full refresh destroys the page before /logs/ can answer. Keep the last
    successful result for this browser tab so the existing table remains visible
    while the fresh request runs. Do not restore it without a login token. */
@@ -1398,20 +1387,6 @@ function draftRowHTML(dp,st,isTop,rowNumber){
   }).join('')}</tr>`;
 }
 
-function expandedDetailRowHTML(r){
-  const text=value=>value===null||value===undefined||value===''?'—':String(value);
-  const fields=[
-    ['Date & Time',fmtHeaderDT(r.occurred_at||r.created_at)],['Status',label(r.status)],['Owner',r.owner_name||r.owner],
-    ['Prefix',r.prefix],['First name',r.first_name],['Last name',r.last_name],['Company',r.company_name],
-    ['Call type',label(r.log_type)],['Category',label(r.category)],['Mobile',r.mobile],['Email',r.email],
-    ['Location',r.site_location],['Country',r.country],['District',r.district],['City',r.city],['Street',r.street],
-    ['Follow-up date',r.follow_up_date],['Description',r.description,true],['Updates',r.updates,true],
-    ['Follow-up notes',r.follow_up_notes,true],
-  ];
-  const details=fields.map(([name,value,wide])=>`<div class="row-detail${wide?' wide':''}"><span class="row-detail-label">${esc(name)}</span><span class="row-detail-value">${esc(text(value))}</span></div>`).join('');
-  const maps=r.maps_url?`<div class="row-detail wide"><span class="row-detail-label">Google Maps</span><span class="row-detail-value"><a href="${esc(r.maps_url)}" target="_blank" rel="noreferrer">${esc(r.maps_url)}</a></span></div>`:'';
-  return `<tr class="row-details" data-details-for="${esc(r.id)}"><td class="row-details-cell" colspan="${COLS.length}"><div class="row-details-panel"><div class="row-details-head"><span>Log details</span><span class="row-details-hint">Double-click the row again to collapse</span></div><div class="row-details-grid">${details}${maps}</div></div></td></tr>`;
-}
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
@@ -1420,7 +1395,7 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
     return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
-}</tr>${expandedRowId===String(r.id)?expandedDetailRowHTML(r):''}`; }
+}</tr>`; }
 
 function visibleSelectableRows(){ return [...$('rows').querySelectorAll('tr.selectable-row')]; }
 /* Select-all skips the top draft row. It is the permanent blank "new entry" row,
@@ -1776,8 +1751,8 @@ function openExpandedRow(explicitId){
   rxRowId=r?id:null;
   const isNew=!r;
   const src=r||{};   // empty object -> every field renders blank
-  $('rx-title').textContent='Add Log';
-  $('rx-sub').textContent="fill while you're on the call — everything prices itself live";
+  $('rx-title').textContent=r?'Log Details':'Add Log';
+  $('rx-sub').textContent=r?'view or update this call log':'fill while you’re on the call — everything prices itself live';
 
   /* Laid out to the Add Log mockups. Fields whose model column exists carry
      data-k and save through the normal path; the rest are marked data-nosave
@@ -2472,7 +2447,7 @@ $('expand-row').addEventListener('click',()=>openExpandedRow());
 /* Detect the double-click from pointer-downs instead of the browser's `dblclick`
    event. Editable cells replace their contents after the first click, and some
    browsers then consider the second click to have a different target and never
-   emit `dblclick`. The details expand inside the table, directly below the row. */
+   emit `dblclick`. Open the existing full form for the row that was clicked. */
 let lastRowPointer={id:null,at:0};
 $('rows').addEventListener('pointerdown',e=>{
   const tr=e.target.closest('tr.data[data-log]');
@@ -2482,8 +2457,7 @@ $('rows').addEventListener('pointerdown',e=>{
   lastRowPointer=isDouble?{id:null,at:0}:{id,at:now};
   if(!isDouble) return;
   e.preventDefault();
-  expandedRowId=expandedRowId===id?null:id;
-  render();
+  openExpandedRow(id);
 });
 $('rx-close').addEventListener('click',closeExpandedRow);
 $('rx-cancel').addEventListener('click',closeExpandedRow);
@@ -3493,4 +3467,3 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
 </script>
 </body>
 </html>
-
