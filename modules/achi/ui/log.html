@@ -533,7 +533,12 @@
   .pg-note-save{border:0;background:#1e3f85;color:#fff;box-shadow:0 4px 12px rgba(30,63,133,.22)}
   .pg-note-save:disabled{opacity:.55;cursor:wait}
   /* cell markers so a row shows it carries files or a sketch without opening it */
-  .cellmark{margin-left:6px;font-size:10px;color:#1e3f85;opacity:.75}
+  /* Attachment/drawing markers: SVG icons pinned to the far right of the cell,
+     larger than the old inline emoji so they read at a glance. Top-right so they
+     clear the ⤢ expand button (bottom-right). */
+  .cellmarks{position:absolute;top:5px;right:7px;display:flex;align-items:center;gap:9px;z-index:1;pointer-events:none}
+  .cellmark{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:#1e3f85}
+  .cellmark svg{width:16px;height:16px}
   @media(max-width:640px){
     .pg-note-workspace{padding:10px}
     .pg-note-workspace-head{align-items:flex-start;flex-wrap:wrap}
@@ -1086,9 +1091,9 @@ function openEmailCompose(email,fromRx=false){
 }
 /* files/sketch live behind the description popup — mark the cell so a row shows it has them */
 function marks(r){ let s='';
-  if(r.attachment_count>0) s+=`<span class="cellmark" title="${r.attachment_count} file(s) attached">&#128206;${r.attachment_count}</span>`;
-  if(r.has_drawing) s+='<span class="cellmark" title="Has a drawing">&#9998;</span>';
-  return s; }
+  if(r.attachment_count>0) s+=`<span class="cellmark" title="${r.attachment_count} file(s) attached"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${r.attachment_count}</span>`;
+  if(r.has_drawing) s+=`<span class="cellmark" title="Has a drawing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></span>`;
+  return s?`<span class="cellmarks">${s}</span>`:''; }
 
 /* columns: full CRM Log List set. tab=null → always. edit.target: file|log|contact */
 /* Country dial codes. Flags are real images (flagcdn) rather than emoji, because
