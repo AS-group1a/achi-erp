@@ -573,9 +573,6 @@
   .att-pdf-hint{font-size:11px;color:#8a94a6;font-weight:600}
   /* Hover a description cell that has files -> a small floating strip of the
      row's attachment tiles (each still expands to the big centred preview). */
-  .desc-preview{position:fixed;z-index:2147483100;background:#fff;border:1px solid #e2e8f2;border-radius:12px;box-shadow:0 16px 44px rgba(15,35,75,.22);padding:10px;max-width:78vw}
-  .desc-preview .att-strip{margin:0}
-  .desc-preview-load{font-size:11px;color:#5b6472;padding:6px 8px}
   td.notecell{position:relative}
   /* Rich-text description in the cell: keep it compact so formatting shows
      without block-margins blowing up the row height. */
@@ -2841,53 +2838,8 @@ window.addEventListener('message',e=>{ if(e&&e.data&&e.data.type==='achi-flush')
    field saves immediately, even when the next field is in the same draft row;
    other fields still wait until the user leaves the row. Pickers and the notes
    workspace never count as leaving. */
-/* Hover a description cell that has attachments -> a floating strip of that row's
-   attachment tiles (thumbnails), reusing the gallery tiles. Click a tile to open
-   it in its editor. Loaded (and cached) per row on first hover. */
-var _descPop=null,_descShow=null,_descHide=null,_descFor=null,_descCache={};
-function descHideSoon(){ clearTimeout(_descHide); _descHide=setTimeout(function(){ if(_descPop)_descPop.style.display='none'; _descFor=null; },220); }
-function descPopEl(){
-  if(_descPop) return _descPop;
-  var p=document.createElement('div'); p.className='desc-preview'; p.style.display='none';
-  p.addEventListener('mouseenter',function(){ clearTimeout(_descHide); });
-  p.addEventListener('mouseleave',descHideSoon);
-  document.body.appendChild(p); _descPop=p; return p;
-}
-async function descShow(cell,logId){
-  clearTimeout(_descHide);
-  var p=descPopEl();
-  if(_descFor===logId && p.style.display!=='none') return;
-  _descFor=logId;
-  var r=cell.getBoundingClientRect(), w=Math.min(340,Math.round(window.innerWidth*0.7));
-  p.style.width=w+'px';
-  p.style.left=Math.max(8,Math.min(r.left,window.innerWidth-w-8))+'px';
-  p.style.top=(r.bottom+6)+'px';
-  p.innerHTML='<div class="desc-preview-load">Loading…</div>'; p.style.display='block';
-  try{
-    var row=(typeof ROWS!=='undefined')&&ROWS.find(function(x){return x.id===logId;});
-    var files=_descCache[logId];
-    if(!files || (row && typeof row.attachment_count==='number' && files.length!==row.attachment_count)){
-      files=await api('/logs/'+logId+'/attachments'); _descCache[logId]=files;   // (re)fetch, self-healing
-    }
-    if(_descFor!==logId) return;
-    if(!files.length){ p.style.display='none'; _descFor=null; return; }
-    p.innerHTML=''; var strip=document.createElement('div'); strip.className='att-strip';
-    files.forEach(function(f){ strip.appendChild(attachmentTile(f,null,true)); });   // noPop tiles
-    p.appendChild(strip);
-  }catch(e){ p.style.display='none'; _descFor=null; }
-}
-$('rows').addEventListener('mouseover',function(e){
-  var cell=e.target.closest&&e.target.closest('td.notecell'); if(!cell) return;
-  var tr=cell.closest('tr[data-log]'); if(!tr) return;
-  var logId=tr.dataset.log, row=(typeof ROWS!=='undefined')&&ROWS.find(function(x){return x.id===logId;});
-  if(!row||!(row.attachment_count>0)) return;
-  clearTimeout(_descHide); clearTimeout(_descShow);
-  _descShow=setTimeout(function(){ descShow(cell,logId); },200);
-});
-$('rows').addEventListener('mouseout',function(e){
-  if(!(e.target.closest&&e.target.closest('td.notecell'))) return;
-  clearTimeout(_descShow); descHideSoon();
-});
+/* (Description-cell hover preview lives in showDescHover() below — grece's card
+   with the note text; its file tray reuses our attachment tiles.) */
 $('rows').addEventListener('focusout',e=>{
   const el=e.target;
   if(!(el.classList&&el.classList.contains('din'))) return;
@@ -3431,28 +3383,11 @@ async function showDescHover(td){
     const files=await api(`/logs/${logId}/attachments`);
     if(descHoverCard!==card||!card.isConnected) return;
     const tray=card.querySelector('.desc-hover-files');
-    tray.innerHTML=files.map(f=>{
-      const ext=(f.filename||'file').split('.').pop().toUpperCase().slice(0,5);
-      return `<div class="desc-hover-file" title="${esc(f.filename)}" data-hover-file="${esc(f.id)}" data-hover-name="${esc(f.filename)}"><span class="desc-hover-file-icon">${esc(ext)}</span><span class="desc-hover-file-name">${esc(f.filename)}</span></div>`;
-    }).join('');
-    for(const tile of tray.querySelectorAll('[data-hover-file]')){
-      const name=tile.dataset.hoverName||'', ext=name.split('.').pop().toLowerCase();
-      if(!['png','jpg','jpeg','gif','webp','bmp','pdf'].includes(ext)) continue;
-      try{
-        const response=await fetch(`${API}/attachments/${tile.dataset.hoverFile}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
-        if(!response.ok||descHoverCard!==card) continue;
-        const url=URL.createObjectURL(await response.blob()); descHoverUrls.push(url);
-        if(ext==='pdf'){
-          const frame=document.createElement('iframe');
-          frame.src=url+'#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH';
-          frame.title='PDF preview';
-          tile.prepend(frame);
-        }else{
-          const image=document.createElement('img');
-          image.src=url; image.alt=''; tile.prepend(image);
-        }
-      }catch(_){}
-    }
+    // Our own gallery tiles (thumbnail: image / PDF page 1 / DWG linework / 3D
+    // placeholder; click opens it in the right editor). noPop = no nested hover
+    // popover, since this card is itself a hover popover.
+    tray.innerHTML='';
+    files.forEach(f=>tray.appendChild(attachmentTile(f,null,true)));
     const next=card.getBoundingClientRect();
     if(top+next.height>innerHeight-gap) card.style.top=Math.max(gap,r.top-next.height-gap)+'px';
   }catch(_){}
