@@ -204,15 +204,11 @@
   .rx-notes textarea{width:100%;min-height:78px;border:1px solid #e6d7ae;border-radius:7px;padding:9px 10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
   /* Quick-notes subject: a title line with a grey bar down its left edge, and a
      quick-pick dropdown beside it. */
-  /* One shared frame: the border + grey bar live on the row; the input and the
-     dropdown are borderless inside it, split by a thin divider. */
-  .rx-notes-subject-row{display:flex;align-items:stretch;margin-bottom:8px;border:1px solid #e6d7ae;border-left:4px solid #cbd5e1;border-radius:7px;background:#fff;overflow:hidden}
+  /* Quick-notes subject line: a single full-width dropdown in a framed row with
+     a grey bar down its left edge. */
+  .rx-notes-subject-row{display:flex;margin-bottom:8px;border:1px solid #e6d7ae;border-left:4px solid #cbd5e1;border-radius:7px;background:#fff;overflow:hidden}
   .rx-notes-subject-row:focus-within{border-left-color:#94a3b8;box-shadow:0 0 0 3px rgba(40,79,158,.10)}
-  .rx-notes-subject{flex:1 1 auto;min-width:0;box-sizing:border-box;height:36px;border:0;border-radius:0;padding:0 11px;font:inherit;font-size:13px;font-weight:600;background:transparent;color:#1d1d1f}
-  .rx-notes-subject:focus{outline:none}
-  .rx-notes-subject::placeholder{color:#b0956a;font-weight:400}
-  .rx-notes-subject-row .rx-select-btn{flex:0 0 auto;width:auto;min-width:150px;height:36px;border:0;border-left:1px solid #e6d7ae;border-radius:0;background:transparent}
-  .rx-notes-subject-row .rx-select-btn:hover,.rx-notes-subject-row .rx-select-btn[aria-expanded="true"]{border-left-color:#94a3b8}
+  .rx-notes-subject-row .rx-select-btn{flex:1 1 auto;width:100%;height:36px;border:0;border-radius:0;background:transparent;font-weight:600}
   /* Quill snow — clean natural order: editor on top, toolbar on bottom */
   .rx-notes .ql-container{border:1px solid #e6d7ae;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;overflow:hidden}
   .rx-notes .ql-editor{min-height:78px;height:100%;padding:9px 10px;overflow-y:auto;box-sizing:border-box}
@@ -1862,15 +1858,6 @@ function enhanceRxSelects(){
   $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
   $('rx').querySelectorAll('select.rx-native-select').forEach(enhanceRxSelect);
 }
-/* Push a quick-pick into the free-text Quick-notes Subject. The 'input' event is
-   what the Quill mount wired to syncHidden(), so this also updates the saved
-   description. Defined here so the rx-body change handler can call it. */
-function applyNoteSubject(text){
-  const s=document.getElementById('rx-notes-subject');
-  if(!s) return;
-  s.value=text;
-  s.dispatchEvent(new Event('input',{bubbles:true}));
-}
 function addRxSocialRow(){
   const list=$('rx-social-list');
   if(!list) return;
@@ -1994,7 +1981,6 @@ function openExpandedRow(explicitId){
         Attach file</button>`}
     </div>
     <div class="rx-notes-subject-row">
-      <input type="text" class="rx-notes-subject" id="rx-notes-subject" placeholder="Subject…" maxlength="200" autocomplete="off">
       ${SEL('notesubject',[...allNoteSubjects(),NOTE_SUBJECT_ADD],'',true,true)}
     </div>
     <input type="file" id="rx-notes-file-input" multiple style="display:none">
@@ -2798,17 +2784,19 @@ $('rx-body').addEventListener('change',e=>{
     enhanceRxSelect(el);
   }
   if(el.dataset.rxSelect==='notesubject'){
-    // Quick-pick: fill the Subject (or add a new preset), then reset the picker
-    // to blank so it behaves like a menu rather than a stored value.
+    // The dropdown IS the subject. On "+ Add New" store a new preset and select
+    // it; a cancelled prompt falls back to the previous value; blank clears the
+    // subject. Then fire input so the Quill mount rebuilds the saved description.
     if(el.value===NOTE_SUBJECT_ADD){
+      const previous=el.dataset.rxPreviousValue;
       const added=addNoteSubject();
       if(added){
         if(![...el.options].some(o=>o.value===added)) el.add(new Option(added,added),el.options.length-1);
-        applyNoteSubject(added);
-      }
-    }else if(el.value){ applyNoteSubject(el.value); }
-    el.value='';
+        el.value=added;
+      }else el.value=previous&&previous!==NOTE_SUBJECT_ADD?previous:'';
+    }
     enhanceRxSelect(el);
+    el.dispatchEvent(new Event('input',{bubbles:true}));
   }
   if(el.matches('select[data-social-platform]')&&el.value===SOCIAL_ADD_PLATFORM){
     const previous=el.dataset.rxPreviousValue;
@@ -3503,17 +3491,18 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
   }
   function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-  /* Combine the Subject line and the Quill body into the single `description`
+  /* Combine the Subject dropdown and the Quill body into the single `description`
      HTML that gets saved. The subject is stored as a marked heading at the very
-     top so it persists (there is no separate column) and splitAndLoad() below
-     pulls it back out into the input when the log is reopened. */
+     top so it persists (there is no separate column); mountQuillDesc() pulls it
+     back out into the dropdown when the log is reopened. */
   function syncHidden(){
     const h = document.getElementById('quill-desc-hidden');
     if(!h || !quillDesc) return;
     const raw = quillDesc.root.innerHTML;
     const body = raw === '<p><br></p>' ? '' : raw;
-    const subjEl = document.getElementById('rx-notes-subject');
-    const subj = subjEl ? subjEl.value.trim() : '';
+    const subjEl = document.getElementById('rx-notesubject');
+    let subj = subjEl ? subjEl.value.trim() : '';
+    if(subj.indexOf('__add') === 0) subj = '';   // never persist the "+ Add New" sentinel
     const subjHTML = subj ? '<p class="achi-note-subject"><strong>'+esc(subj)+'</strong></p>' : '';
     h.value = subjHTML + body;
   }
@@ -3737,14 +3726,22 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
     });
 
     /* The stored description may begin with a marked subject heading; pull it
-       into the Subject input and load only the body into Quill. */
+       into the Subject dropdown and load only the body into Quill. */
     let initial = hidden.value;
-    const subjEl = document.getElementById('rx-notes-subject');
+    const subjEl = document.getElementById('rx-notesubject');
     if(initial && initial.indexOf('achi-note-subject') !== -1){
       const doc = new DOMParser().parseFromString(initial, 'text/html');
       const head = doc.body.firstElementChild;
       if(head && head.classList.contains('achi-note-subject')){
-        if(subjEl) subjEl.value = head.textContent.trim();
+        const subject = head.textContent.trim();
+        if(subjEl && subject){
+          // Show the saved subject even if it is a one-off not in the presets
+          // (older free-text notes, or one added on another machine).
+          if(![...subjEl.options].some(o => o.value === subject))
+            subjEl.add(new Option(subject, subject), subjEl.options.length - 1);
+          subjEl.value = subject;
+          if(typeof enhanceRxSelect === 'function') enhanceRxSelect(subjEl);
+        }
         head.remove();
         initial = doc.body.innerHTML;
       }
@@ -3757,7 +3754,7 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
       }
       quillDesc.setSelection(quillDesc.getLength(), 0);
     }
-    /* Typing in the subject must update the saved value too, not just the body. */
+    /* Picking a subject must update the saved value too, not just the body. */
     if(subjEl) subjEl.addEventListener('input', syncHidden);
 
     quillDesc.on('text-change', syncHidden);
