@@ -2638,19 +2638,8 @@ $('rows').addEventListener('pointerdown',e=>{
   e.preventDefault();
   openExpandedRow(id);
 });
-/* Keep close-button gestures inside the sheet. Saved rows can contain inline
-   CAD/3D previews with their own pointer controls, so unrelated document-level
-   gesture handlers must not observe a close-button press. `click` still handles
-   both mouse and keyboard activation. */
-function closeExpandedFromControl(e){
-  e.preventDefault();
-  e.stopPropagation();
-  closeExpandedRow();
-}
-for(const control of [$('rx-close'),$('rx-cancel')]){
-  control.addEventListener('pointerdown',e=>e.stopPropagation());
-  control.addEventListener('click',closeExpandedFromControl);
-}
+$('rx-close').addEventListener('click',closeExpandedRow);
+$('rx-cancel').addEventListener('click',closeExpandedRow);
 $('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
 $('rx-when').addEventListener('change',e=>{ $('rx-when-label').textContent=fmtHeaderDT(e.target.value); });
 $('rx-state-btn').addEventListener('click',()=>{
