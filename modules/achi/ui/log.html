@@ -204,15 +204,18 @@
   .rx-notes textarea{width:100%;min-height:78px;border:1px solid #e6d7ae;border-radius:7px;padding:9px 10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
   /* Quick-notes subject: a title line with a grey bar down its left edge, and a
      quick-pick dropdown beside it. */
-  /* One shared frame: the border + grey bar live on the row; the input and the
-     dropdown are borderless inside it, split by a thin divider. */
-  .rx-notes-subject-row{display:flex;align-items:stretch;margin-bottom:8px;border:1px solid #e6d7ae;border-left:4px solid #cbd5e1;border-radius:7px;background:#fff;overflow:hidden}
+  /* Editable combobox: a full-width, typeable Subject with a grey bar on the
+     left and a dropdown chevron at the right that opens the presets across the
+     whole field. The frame + grey bar live on the row; the input fills it and
+     the enhanced select's button is collapsed to a chevron pinned right. */
+  .rx-notes-subject-row{position:relative;display:flex;align-items:stretch;margin-bottom:8px;border:1px solid #e6d7ae;border-left:4px solid #cbd5e1;border-radius:7px;background:#fff}
   .rx-notes-subject-row:focus-within{border-left-color:#94a3b8;box-shadow:0 0 0 3px rgba(40,79,158,.10)}
-  .rx-notes-subject{flex:1 1 auto;min-width:0;box-sizing:border-box;height:36px;border:0;border-radius:0;padding:0 11px;font:inherit;font-size:13px;font-weight:600;background:transparent;color:#1d1d1f}
+  .rx-notes-subject{flex:1 1 auto;min-width:0;box-sizing:border-box;height:38px;border:0;border-radius:7px;padding:0 38px 0 11px;font:inherit;font-size:13px;font-weight:600;background:transparent;color:#1d1d1f}
   .rx-notes-subject:focus{outline:none}
   .rx-notes-subject::placeholder{color:#b0956a;font-weight:400}
-  .rx-notes-subject-row .rx-select-btn{flex:0 0 auto;width:auto;min-width:150px;height:36px;border:0;border-left:1px solid #e6d7ae;border-radius:0;background:transparent}
-  .rx-notes-subject-row .rx-select-btn:hover,.rx-notes-subject-row .rx-select-btn[aria-expanded="true"]{border-left-color:#94a3b8}
+  .rx-notes-subject-row .rx-select-btn{position:absolute;right:0;top:0;height:100%;width:36px;min-width:0;border:0;border-radius:0;background:transparent;padding:0;gap:0;justify-content:center}
+  .rx-notes-subject-row .rx-select-btn span{display:none}
+  .rx-notes-subject-row .rx-select-btn:hover{background:rgba(40,79,158,.06)}
   /* Quill snow — clean natural order: editor on top, toolbar on bottom */
   .rx-notes .ql-container{border:1px solid #e6d7ae;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;overflow:hidden}
   .rx-notes .ql-editor{min-height:78px;height:100%;padding:9px 10px;overflow-y:auto;box-sizing:border-box}
@@ -1830,7 +1833,10 @@ function openRxSelect(select,button){
       ? `<div class="rx-select-row">${choice}<button type="button" class="rx-select-delete" data-value="${esc(option.value)}" aria-label="Delete ${esc(option.value)}" title="Delete">×</button></div>`
       : choice;
   }).join('');
-  const r=button.getBoundingClientRect();
+  // For the Quick-notes subject combobox the trigger is a slim chevron, but the
+  // menu should drop down across the whole field — so anchor it to the framed
+  // row when the button lives inside one; every other select anchors to itself.
+  const r=(button.closest('.rx-notes-subject-row')||button).getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
   rxSelectMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-width-8))+'px';
