@@ -149,6 +149,21 @@ def ui_chrome_js() -> PlainTextResponse:
 
 
 @router.get(
+    "/ui/comment.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Tester Comment panel for our own pages",
+)
+def ui_comment_js() -> PlainTextResponse:
+    """Serve the tester Comment panel script."""
+    return PlainTextResponse(
+        (_UI_DIR / "comment.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/ui/model-viewer.js",
     response_class=PlainTextResponse,
     include_in_schema=False,
