@@ -3385,15 +3385,17 @@ $('rows').addEventListener('mouseout',e=>{ const b=e.target.closest('.maps-btn')
 
 /* The Description column previews its complete note on hover without changing
    table row height. Keep the card outside .tscroll so it is not clipped. */
-let descHoverCard=null, descHoverTimer=0, descHoverUrls=[];
+const DESC_HOVER_DELAY=5000;
+const DESC_HOVER_CLOSE_DELAY=5000;
+let descHoverCard=null, descHoverTimer=0, descShowTimer=0, descHoverUrls=[];
 function hideDescHover(){
-  clearTimeout(descHoverTimer);
+  clearTimeout(descHoverTimer); clearTimeout(descShowTimer);
   descHoverUrls.forEach(URL.revokeObjectURL); descHoverUrls=[];
   if(descHoverCard){ descHoverCard.remove(); descHoverCard=null; }
 }
 function scheduleDescHoverHide(){
   clearTimeout(descHoverTimer);
-  descHoverTimer=setTimeout(hideDescHover,180);
+  descHoverTimer=setTimeout(hideDescHover,DESC_HOVER_CLOSE_DELAY);
 }
 async function showDescHover(td){
   const value=td.dataset.val||'';
@@ -3448,11 +3450,14 @@ async function showDescHover(td){
 }
 $('rows').addEventListener('mouseover',e=>{
   const td=e.target.closest('tr.data td.notecell[data-k="desc"]');
-  if(td&&!td.contains(e.relatedTarget)){ clearTimeout(descHoverTimer); showDescHover(td); }
+  if(td&&!td.contains(e.relatedTarget)){
+    clearTimeout(descHoverTimer); clearTimeout(descShowTimer);
+    descShowTimer=setTimeout(()=>showDescHover(td),DESC_HOVER_DELAY);
+  }
 });
 $('rows').addEventListener('mouseout',e=>{
   const td=e.target.closest('tr.data td.notecell[data-k="desc"]');
-  if(td&&!td.contains(e.relatedTarget)) scheduleDescHoverHide();
+  if(td&&!td.contains(e.relatedTarget)){ clearTimeout(descShowTimer); scheduleDescHoverHide(); }
 });
 $('touter').addEventListener('scroll',hideDescHover);
 window.addEventListener('resize',hideDescHover);
