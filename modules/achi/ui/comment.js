@@ -5,29 +5,48 @@
   if (window.__achiCommentLoaded) return;
   window.__achiCommentLoaded = true;
 
-  var STORE_KEY = 'achi_comments_v2';
-  var CHAT_KEY = 'achi_chat_v1';
+  function achiToken() {
+    try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; }
+  }
+  function api(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    var t = achiToken(); if (t) headers.Authorization = 'Bearer ' + t;
+    opts.headers = headers;
+    return fetch('/api/v1/achi' + path, opts);
+  }
+  function mapMsg(r) {
+    return { id: r.id, author: r.author_name || 'Someone', text: r.text || '', issue: !!r.is_issue, resolved: !!r.resolved, ts: Date.parse(r.created_at) || Date.now() };
+  }
+  function mapReply(r) {
+    return { id: r.id, author: r.author_name || 'Someone', where: r.where || '', text: r.text || '', ts: Date.parse(r.created_at) || Date.now() };
+  }
+  function mapComment(c) {
+    var m = mapReply(c); m.replies = (c.replies || []).map(mapReply); return m;
+  }
+  function fetchComments() {
+    return api('/comments').then(function (r) { return r.ok ? r.json() : null; }).then(function (list) {
+      if (!list) return;
+      comments = list.map(mapComment);
+      // Don't clobber an editor the user is typing in; the array still updates.
+      if (activeTab === 'comments' && !drafting && replyingId === null) renderComments();
+      renderBadge();
+    }).catch(function () {});
+  }
+  function fetchChat() {
+    return api('/chat').then(function (r) { return r.ok ? r.json() : null; }).then(function (list) {
+      if (!list) return;
+      messages = list.map(mapMsg);
+      if (activeTab === 'chat') renderChat();
+      renderBadge();
+    }).catch(function () {});
+  }
 
-  function load() {
-    try { var raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-    return [];
-  }
-  function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(comments)); } catch (e) {}
-  }
-  function loadChat() {
-    try { var raw = localStorage.getItem(CHAT_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-    return [];
-  }
-  function saveChat() {
-    try { localStorage.setItem(CHAT_KEY, JSON.stringify(messages)); } catch (e) {}
-  }
-
-  var comments = load();
-  var messages = loadChat();
+  var comments = [];
+  var messages = [];
+  var collapsed = {};
   var drafting = false;
   var replyingId = null;
-  var seq = 0;
   var activeTab = 'comments';
   var chatFilter = 'all';
   var selIndex = -1;
@@ -48,8 +67,6 @@
       })
       .catch(function () {});
   })();
-
-  function uid() { seq++; return 'c' + seq + '-' + (comments.length + messages.length); }
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -225,12 +242,12 @@
     var replies = c.replies || [];
     var html = '<div class="acmt-item' + (idx === selIndex ? ' sel' : '') + '" data-id="' + esc(c.id) + '">'
       + '<div class="acmt-row">'
-      +   '<button class="acmt-tri" data-act="toggle" aria-label="Collapse">' + (c.collapsed ? '▶' : '▼') + '</button>'
+      +   '<button class="acmt-tri" data-act="toggle" aria-label="Collapse">' + (collapsed[c.id] ? '▶' : '▼') + '</button>'
       +   avatarHTML(c.author, false)
       +   '<div class="acmt-body">'
       +     '<div><span class="acmt-name">' + esc(c.author) + '</span>' + whereHTML(c.where) + '<span class="acmt-time">' + esc(ago(c.ts)) + '</span></div>'
       +     '<p class="acmt-text">' + esc(c.text) + '</p>';
-    if (!c.collapsed) {
+    if (!collapsed[c.id]) {
       html += '<div class="acmt-actions">'
         +   '<button class="acmt-link" data-act="reply">Reply</button>'
         +   '<button class="acmt-link del" data-act="delete">Delete</button>'
@@ -302,11 +319,14 @@
     focusOpenEditor();
   }
 
-  function renderChat() {
+  function renderChat(goBottom) {
+    var prev = els.list.scrollTop;
+    var atBottom = (els.list.scrollHeight - els.list.clientHeight - prev) < 30;
     var v = visibleMsgs();
     els.list.innerHTML = v.length ? v.map(msgCardHTML).join('') : chatEmpty();
     wireChat();
-    if (chatFilter === 'all') els.list.scrollTop = els.list.scrollHeight;
+    if (goBottom || (atBottom && chatFilter === 'all')) els.list.scrollTop = els.list.scrollHeight;
+    else els.list.scrollTop = prev;
   }
 
   function openIssues() { return messages.filter(function (m) { return m.issue && !m.resolved; }).length; }
@@ -340,8 +360,10 @@
   function wireList() {
     var draft = els.list.querySelector('[data-draft]');
     if (draft) wireEditor(draft, function (text) {
-      comments.unshift({ id: uid(), author: me.name, where: pageLabel(), ts: Date.now(), text: text, collapsed: false, replies: [] });
-      drafting = false; save(); render();
+      api('/comments', { method: 'POST', body: JSON.stringify({ text: text, where: pageLabel().slice(0, 120) }) })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (row) { if (row) { drafting = false; fetchComments(); } })
+        .catch(function () {});
     });
 
     els.list.querySelectorAll('.acmt-item[data-id]').forEach(function (item) {
@@ -351,9 +373,10 @@
       });
       if (replyingId === id) {
         wireEditor(item, function (text) {
-          var c = byId(id);
-          if (c) { (c.replies = c.replies || []).push({ id: uid(), author: me.name, where: pageLabel(), ts: Date.now(), text: text }); }
-          replyingId = null; save(); render();
+          api('/comments', { method: 'POST', body: JSON.stringify({ text: text, where: pageLabel().slice(0, 120), parent_id: id }) })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (row) { if (row) { replyingId = null; fetchComments(); } })
+            .catch(function () {});
         });
       }
     });
@@ -368,41 +391,52 @@
     });
   }
 
-  function byId(id) { for (var i = 0; i < comments.length; i++) if (comments[i].id === id) return comments[i]; return null; }
   function byMid(id) { for (var i = 0; i < messages.length; i++) if (messages[i].id === id) return messages[i]; return null; }
 
   function onAct(act, id) {
-    var c = byId(id);
-    if (act === 'toggle') { if (c) c.collapsed = !c.collapsed; save(); render(); }
-    else if (act === 'reply') { replyingId = replyingId === id ? null : id; drafting = false; render(); }
+    if (act === 'toggle') { if (collapsed[id]) delete collapsed[id]; else collapsed[id] = true; renderComments(); }
+    else if (act === 'reply') { replyingId = replyingId === id ? null : id; drafting = false; renderComments(); }
     else if (act === 'delete') {
-      comments = comments.filter(function (x) { return x.id !== id; });
-      save(); render();
+      api('/comments/' + encodeURIComponent(id), { method: 'DELETE' })
+        .then(function (r) { if (r.ok || r.status === 204) fetchComments(); })
+        .catch(function () {});
     }
   }
 
   function onMsgAct(act, id) {
     var m = byMid(id);
     if (!m) return;
-    if (act === 'resolve') { m.resolved = !m.resolved; saveChat(); render(); }
-    else if (act === 'delmsg') {
-      messages = messages.filter(function (x) { return x.id !== id; });
-      saveChat(); render();
+    if (act === 'resolve') {
+      var want = !m.resolved;
+      api('/chat/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ resolved: want }) })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (row) { if (row) { m.resolved = !!row.resolved; render(); } })
+        .catch(function () {});
+    } else if (act === 'delmsg') {
+      api('/chat/' + encodeURIComponent(id), { method: 'DELETE' })
+        .then(function (r) { if (r.ok || r.status === 204) { messages = messages.filter(function (x) { return x.id !== id; }); render(); } })
+        .catch(function () {});
     }
   }
 
   function sendMsg() {
     var text = els.ctext.value.trim();
     if (!text) return;
-    messages.push({ id: uid(), author: me.name, text: text, ts: Date.now(), issue: !!els.isissue.checked, resolved: false });
-    saveChat();
-    els.ctext.value = ''; els.isissue.checked = false;
-    updateChatSend();
-    renderChat(); renderBadge();
+    var issue = !!els.isissue.checked;
+    els.tsend.disabled = true;
+    api('/chat', { method: 'POST', body: JSON.stringify({ text: text, is_issue: issue }) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (row) {
+        if (row) {
+          els.ctext.value = ''; els.isissue.checked = false; updateChatSend();
+          messages.push(mapMsg(row)); renderChat(true); renderBadge();
+        } else { updateChatSend(); }
+      })
+      .catch(function () { updateChatSend(); });
   }
   function updateChatSend() { els.tsend.disabled = !els.ctext.value.trim(); }
 
-  function openPanel() { els.panel.classList.add('open'); els.tab.classList.add('hidden'); render(); }
+  function openPanel() { els.panel.classList.add('open'); els.tab.classList.add('hidden'); render(); fetchComments(); fetchChat(); }
   function closePanel() { els.panel.classList.remove('open'); els.tab.classList.remove('hidden'); drafting = false; replyingId = null; }
 
   function startNew() { drafting = true; replyingId = null; render(); }
@@ -417,9 +451,9 @@
 
   function collapseAll() {
     if (activeTab !== 'comments') return;
-    var anyOpen = comments.some(function (c) { return !c.collapsed; });
-    comments.forEach(function (c) { c.collapsed = anyOpen; });
-    save(); render();
+    var anyOpen = comments.some(function (c) { return !collapsed[c.id]; });
+    comments.forEach(function (c) { if (anyOpen) collapsed[c.id] = true; else delete collapsed[c.id]; });
+    renderComments();
   }
 
   function setTab(tab) {
@@ -431,6 +465,7 @@
     els.segT.classList.toggle('on', tab === 'chat');
     els.title.textContent = tab === 'chat' ? 'Team Chat' : 'Comments';
     render();
+    if (tab === 'chat') fetchChat(); else fetchComments();
   }
 
   function build() {
@@ -526,6 +561,12 @@
     });
 
     renderBadge();
+    fetchComments();
+    fetchChat();
+    setInterval(function () {
+      if (!els.panel.classList.contains('open')) return;
+      if (activeTab === 'chat') fetchChat(); else fetchComments();
+    }, 5000);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build);

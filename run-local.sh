@@ -46,7 +46,7 @@ NAV_V = "70"
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css?v=11">',
     '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,
-    '<script src="/api/v1/achi/ui/comment.js?v=7" defer></script>',
+    '<script src="/api/v1/achi/ui/comment.js?v=9" defer></script>',
 ]
 # Strip any copy we injected before, INCLUDING an older ?v= cache-buster, then
 # re-add the current tags. Matching on the exact tag string instead meant a
