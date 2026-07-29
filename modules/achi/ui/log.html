@@ -554,6 +554,9 @@
   .att-preview.open{display:flex}
   .att-prev-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;color:#1d1d1f;font-size:12.5px;font-weight:700;border-bottom:1px solid #f0f2f6;flex:0 0 auto}
   .att-prev-head span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .att-prev-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .att-prev-edit{border:0;background:#284f9e;color:#fff;border-radius:8px;padding:7px 13px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .att-prev-edit:hover{background:#1e3f85}
   .att-prev-dl{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;background:#f1f4fa;color:#284f9e;border-radius:9px;cursor:pointer;flex:0 0 auto}
   .att-prev-dl:hover{background:#e4ebf7}
   .att-prev-dl svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -1068,6 +1071,7 @@ function attachmentTile(f, delAttr){
   const ext=(f.filename||'').split('.').pop().toLowerCase();
   const is3d=(ext==='rvt'||ext==='ifc');
   const canPreview=hasPreview(f.filename);
+  const hasEditor=(isPdf(f.filename)||ext==='dwg'||ext==='dxf');   // has an OCE takeoff editor
   const tile=document.createElement('div'); tile.className='att-tile'; tile.dataset.for=f.id;
   var thumbHtml = is3d ? '<div class="att-3d-ph">'+CUBE_SVG+'<span>'+esc(ext.toUpperCase())+'</span></div>'
                        : (canPreview ? '<div class="cad-loading"></div>'
@@ -1080,7 +1084,11 @@ function attachmentTile(f, delAttr){
       ${delAttr?`<button type="button" class="att-tile-x" ${delAttr}="${esc(f.id)}" title="Remove">&times;</button>`:''}
     </div>
     <div class="att-preview">
-      <div class="att-prev-head"><span>${esc(f.filename)}</span><button type="button" class="att-prev-dl" title="Download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
+      <div class="att-prev-head"><span>${esc(f.filename)}</span>
+        <span class="att-prev-actions">
+          ${hasEditor?'<button type="button" class="att-prev-edit">Open in editor</button>':''}
+          <button type="button" class="att-prev-dl" title="Download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        </span></div>
       <div class="att-prev-body">${canPreview?'<div class="cad-loading">Preview…</div>':'<div class="cad-msg">No preview for this type. Use the download button.</div>'}</div>
     </div>`;
   const face=tile.querySelector('.att-tile-face');
@@ -1090,6 +1098,8 @@ function attachmentTile(f, delAttr){
   const alive=()=>tile.isConnected;
   const openNew=()=>window.open(rawUrl(f.id),'_blank','noreferrer');
   tile.querySelector('.att-prev-dl').addEventListener('click',e=>{ e.stopPropagation(); attDownload(f.id,f.filename); });
+  const editBtn=tile.querySelector('.att-prev-edit');
+  if(editBtn) editBtn.addEventListener('click',e=>{ e.stopPropagation(); openInTakeoff(f.id,f.filename); });
   face.addEventListener('click',e=>{
     if(e.target.closest('.att-tile-x')) return;                 // delete handled by delegation
     if(isImage(f.filename)){ openNew(); return; }               // image -> view in a new tab
