@@ -464,3 +464,67 @@ class AchiTakeoffLink(Base):
     kind: Mapped[str] = mapped_column(String(8), nullable=False)          # 'dwg' | 'pdf'
     external_id: Mapped[str] = mapped_column(String(64), nullable=False)  # drawing_id / takeoff-doc id
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+
+
+class AchiChatMessage(Base):
+    """A message in the shared Team Chat — the server-backed version of the
+    comment panel's chat tab, so every teammate sees the same thread (the panel's
+    Comments tab stays per-browser; this is the part that had to be shared).
+
+    A message may be flagged as an issue and later resolved, which is what the
+    filter/solve workflow in ui/comment.js reads. The author's NAME is stored on
+    the row, not just their id, so the thread still reads correctly if a user is
+    later renamed or removed — same reasoning as lead_*/customer_* elsewhere.
+
+    Booleans are Integer 0/1 to match the rest of this module (has_drawing, etc.).
+    """
+
+    __tablename__ = "achi_chat_message"
+    __table_args__ = (Index("ix_achi_chat_message_created", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    author_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    author_name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    text: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    is_issue: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    resolved: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AchiPageComment(Base):
+    """A comment left on a page in the panel's Comments tab — now shared across
+    the team like the chat, so everyone sees the same threads (it used to be
+    per-browser localStorage).
+
+    Named ``achi_page_comment``, NOT ``achi_comment``: the shorter name is already
+    taken in the wild by an older/other comment table (columns page/body/tag),
+    and this module heals schemas additively and never drops columns, so sharing
+    a table with it would fuse two incompatible shapes and break inserts. A
+    distinct name is the whole defence — see models.py's header note on collisions.
+
+    ``where`` is the page it was written on (Dashboard, Call Log…), captured on
+    the client at post time and stored so the team can see where a bug was. A
+    REPLY is just a comment whose ``parent_id`` points at another; the FK's
+    ON DELETE CASCADE means deleting a comment takes its replies with it. Only one
+    level deep — the router refuses a reply to a reply — matching the UI. The
+    author's NAME is stored on the row (not only their id) so the thread still
+    reads right if a user is later renamed, same as elsewhere here.
+
+    No index=True on parent_id: the composite index below already leads with it,
+    which serves both the reply lookup and the FK.
+    """
+
+    __tablename__ = "achi_page_comment"
+    __table_args__ = (Index("ix_achi_page_comment_parent_created", "parent_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    parent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("achi_page_comment.id", ondelete="CASCADE"), nullable=True
+    )
+    author_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    author_name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    where: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
+    text: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())

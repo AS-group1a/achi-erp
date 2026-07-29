@@ -605,3 +605,50 @@ class GeoDistrictIn(BaseModel):
 class GeoDistrictOut(GeoDistrictIn):
     model_config = ConfigDict(from_attributes=True)
     id: str
+
+
+# ── Team chat ─────────────────────────────────────────────────────────────
+
+
+class ChatMessageIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    text: str = Field(min_length=1, max_length=4000)
+    is_issue: bool = False
+
+
+class ChatMessagePatch(BaseModel):
+    resolved: bool
+
+
+class ChatMessageOut(BaseModel):
+    # is_issue/resolved are Integer 0/1 on the row; Pydantic coerces them to bool.
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    author_name: str
+    text: str
+    is_issue: bool
+    resolved: bool
+    created_at: datetime
+
+
+# ── Page comments ─────────────────────────────────────────────────────────
+
+
+class CommentIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    text: str = Field(min_length=1, max_length=4000)
+    where: str = ""                      # page label; truncated to 128 server-side
+    parent_id: str | None = None         # set to reply to a comment
+
+
+class CommentReplyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    author_name: str
+    where: str
+    text: str
+    created_at: datetime
+
+
+class CommentOut(CommentReplyOut):
+    replies: list[CommentReplyOut] = Field(default_factory=list)
