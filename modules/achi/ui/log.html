@@ -3152,6 +3152,15 @@ $('rx-body').addEventListener('click',e=>{
   if(e.target.closest('#rx-use-location')){rxUseCurrentLocation();return;}
   if(e.target.closest('#rx-q-draft')) rxDraftQuotation();
 });
+/* Double-clicking the Quick-notes subject opens its preset dropdown — the same
+   menu the chevron opens on a single click. openRxSelect anchors to the framed
+   row, so it drops down across the whole field. */
+$('rx-body').addEventListener('dblclick',e=>{
+  if(e.target&&e.target.id==='rx-notes-subject'){
+    const sel=$('rx-notesubject');
+    if(sel&&sel._rxButton) openRxSelect(sel,sel._rxButton);
+  }
+});
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
    or dragging a column edge would also flip the whole selection. */
 $('thead').addEventListener('click',e=>{
