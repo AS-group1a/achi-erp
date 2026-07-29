@@ -3347,17 +3347,18 @@ $('rows').addEventListener('mouseout',e=>{ const b=e.target.closest('.maps-btn')
 
 /* The Description column previews its complete note on hover without changing
    table row height. Keep the card outside .tscroll so it is not clipped. */
-const DESC_HOVER_DELAY=2000;
-const DESC_HOVER_CLOSE_DELAY=2000;
+const DESC_HOVER_DELAY=1000;
+const DESC_HOVER_BRIDGE_DELAY=150;
 let descHoverCard=null, descHoverTimer=0, descShowTimer=0, descHoverUrls=[];
 function hideDescHover(){
   clearTimeout(descHoverTimer); clearTimeout(descShowTimer);
   descHoverUrls.forEach(URL.revokeObjectURL); descHoverUrls=[];
   if(descHoverCard){ descHoverCard.remove(); descHoverCard=null; }
 }
-function scheduleDescHoverHide(){
+function scheduleDescHoverHide(delay=0){
   clearTimeout(descHoverTimer);
-  descHoverTimer=setTimeout(hideDescHover,DESC_HOVER_CLOSE_DELAY);
+  if(delay>0) descHoverTimer=setTimeout(hideDescHover,delay);
+  else hideDescHover();
 }
 async function showDescHover(td){
   const value=td.dataset.val||'';
@@ -3369,7 +3370,7 @@ async function showDescHover(td){
   card.innerHTML=`<div class="desc-hover-body">${looksHTML(value)?richText(value):esc(value)}</div><div class="desc-hover-files"></div>`;
   document.body.appendChild(card);
   card.addEventListener('mouseenter',()=>clearTimeout(descHoverTimer));
-  card.addEventListener('mouseleave',scheduleDescHoverHide);
+  card.addEventListener('mouseleave',()=>scheduleDescHoverHide());
   const r=td.getBoundingClientRect(), cr=card.getBoundingClientRect(), gap=8;
   let left=Math.min(Math.max(gap,r.left),window.innerWidth-cr.width-gap);
   let top=r.bottom+gap;
@@ -3402,7 +3403,10 @@ $('rows').addEventListener('mouseover',e=>{
 });
 $('rows').addEventListener('mouseout',e=>{
   const td=e.target.closest('tr.data td.notecell[data-k="desc"]');
-  if(td&&!td.contains(e.relatedTarget)){ clearTimeout(descShowTimer); scheduleDescHoverHide(); }
+  if(td&&!td.contains(e.relatedTarget)){
+    clearTimeout(descShowTimer);
+    if(descHoverCard) scheduleDescHoverHide(DESC_HOVER_BRIDGE_DELAY);
+  }
 });
 $('touter').addEventListener('scroll',hideDescHover);
 window.addEventListener('resize',hideDescHover);
