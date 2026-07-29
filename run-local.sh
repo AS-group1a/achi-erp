@@ -46,6 +46,7 @@ NAV_V = "70"
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css?v=11">',
     '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,
+    '<script src="/api/v1/achi/ui/comment.js?v=4" defer></script>',
 ]
 # Strip any copy we injected before, INCLUDING an older ?v= cache-buster, then
 # re-add the current tags. Matching on the exact tag string instead meant a
@@ -54,6 +55,7 @@ tags = [
 # MutationObservers) for anyone who had run this script at an earlier version.
 html = re.sub(r'<link rel="stylesheet" href="/achi-theme\.css(?:\?v=[^"]*)?"\s*/?>', '', html)
 html = re.sub(r'<script src="/achi-nav\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
+html = re.sub(r'<script src="/api/v1/achi/ui/comment\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
 if "</head>" in html:
     html = html.replace("</head>", "".join(tags) + "</head>", 1)
 if html != orig:
