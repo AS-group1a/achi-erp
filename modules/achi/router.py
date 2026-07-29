@@ -166,6 +166,26 @@ def ui_model_viewer_js() -> PlainTextResponse:
     )
 
 
+@router.get("/ui/pdf.min.mjs", response_class=PlainTextResponse, include_in_schema=False, summary="Vendored pdf.js")
+def ui_pdfjs() -> PlainTextResponse:
+    """pdf.js (Apache-2.0), vendored same-origin, for the PDF first-page preview.
+    Loaded lazily only when a PDF card comes into view."""
+    return PlainTextResponse(
+        (_UI_DIR / "pdf.min.mjs").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
+@router.get("/ui/pdf.worker.min.mjs", response_class=PlainTextResponse, include_in_schema=False, summary="pdf.js worker")
+def ui_pdfjs_worker() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "pdf.worker.min.mjs").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
 @router.get("/tile/{z}/{x}/{y}", include_in_schema=False, summary="OSM map tile proxy")
 async def map_tile(z: int, x: int, y: int):
     """Proxy an OpenStreetMap tile.
@@ -606,14 +626,36 @@ async def add_attachment(
     return AttachmentOut.model_validate(att)
 
 
+def _require_valid_token(request: Request, settings) -> None:
+    """Accept the caller's JWT from the bearer header OR a ``?token=`` query
+    param, and 401 if neither is valid. The query form is for browser contexts
+    that can't set an Authorization header — an <img>/<embed> src, a new-tab
+    open, or a viewer that fetches the URL itself. Same approach OCE's BIM
+    viewer uses; the token is the caller's own."""
+    from app.dependencies import decode_access_token
+
+    token = request.query_params.get("token") or ""
+    if not token:
+        auth = request.headers.get("authorization", "")
+        if auth[:7].lower() == "bearer ":
+            token = auth[7:]
+    try:
+        decode_access_token(token, settings)
+    except Exception as e:  # noqa: BLE001 - any decode failure = unauthenticated
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated") from e
+
+
 @router.get(
     "/attachments/{attachment_id}/download",
     include_in_schema=False,
     summary="Download an attached file",
 )
 async def download_attachment(
-    attachment_id: str, session: SessionDep, _user_id: CurrentUserId
+    attachment_id: str, request: Request, session: SessionDep, settings: SettingsDep
 ) -> Response:
+    # Token via header OR ?token= so the same URL works as an <img>/PDF src and
+    # in a new tab, not just an authenticated fetch.
+    _require_valid_token(request, settings)
     svc = ContactFileService(session)
     att = await svc.get_attachment(attachment_id)
     if att is None:
@@ -738,20 +780,9 @@ async def model_glb(attachment_id: str, request: Request, settings: SettingsDep)
     URL is blocked by the page's connect-src CSP). Same approach OCE's own BIM
     viewer uses. The token is the caller's own JWT.
     """
-    from app.dependencies import decode_access_token
-
     from .bim_render import cached_glb
 
-    token = request.query_params.get("token") or ""
-    if not token:
-        auth = request.headers.get("authorization", "")
-        if auth[:7].lower() == "bearer ":
-            token = auth[7:]
-    try:
-        decode_access_token(token, settings)
-    except Exception as e:  # noqa: BLE001 - any decode failure = unauthenticated
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated") from e
-
+    _require_valid_token(request, settings)
     p = cached_glb(attachment_id)
     if p is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "3D model not ready")
@@ -760,6 +791,91 @@ async def model_glb(attachment_id: str, request: Request, settings: SettingsDep)
         media_type="model/gltf-binary",
         headers={"Cache-Control": "private, max-age=86400"},
     )
+
+
+# --- Open an attachment in OCE's takeoff editor (DWG rulers / PDF measure) ----
+def _takeoff_url(kind: str, external_id: str, project_id: str) -> str:
+    if kind == "dwg":
+        # The DWG-Takeoff page reads the drawing from ?drawingId (camelCase) and
+        # its project from the active-project context; project_id is passed too so
+        # the shell can select the right project.
+        return f"/dwg-takeoff?project_id={project_id}&drawingId={external_id}"
+    return f"/takeoff?doc={external_id}&tab=measurements"
+
+
+@router.post("/attachments/{attachment_id}/takeoff", include_in_schema=False)
+async def open_in_takeoff(attachment_id: str, session: SessionDep, settings: SettingsDep, user_id: CurrentUserId):
+    """Hand a DWG/DXF or PDF attachment to OCE's own takeoff editor and return the
+    editor URL. The uploaded drawing/document is cached per attachment so repeat
+    opens reuse it (no re-upload, no re-convert)."""
+    import io
+    import uuid as _uuid
+
+    from sqlalchemy import select as _select
+
+    from .models import AchiTakeoffLink
+
+    svc = ContactFileService(session)
+    att = await svc.get_attachment(attachment_id)
+    if att is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    ext = att.filename.rsplit(".", 1)[-1].lower() if "." in att.filename else ""
+    kind = "dwg" if ext in ("dwg", "dxf") else ("pdf" if ext == "pdf" else "")
+    if not kind:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "No takeoff editor for this file type")
+
+    cached = (
+        await session.execute(
+            _select(AchiTakeoffLink).where(
+                AchiTakeoffLink.attachment_id == attachment_id, AchiTakeoffLink.kind == kind
+            )
+        )
+    ).scalar_one_or_none()
+    if cached is not None:
+        return {"url": _takeoff_url(kind, cached.external_id, cached.project_id), "project_id": cached.project_id, "kind": kind}
+
+    try:
+        content = await svc.read_attachment(att)
+    except FileNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment bytes are missing") from e
+
+    try:
+        if kind == "dwg":
+            from starlette.datastructures import UploadFile as _UploadFile
+
+            from app.modules.dwg_takeoff.service import DwgTakeoffService
+            from app.modules.projects.schemas import ProjectCreate
+            from app.modules.projects.service import ProjectService
+
+            owner = _uuid.UUID(str(user_id))
+            psvc = ProjectService(session, settings)
+            projects, _ = await psvc.list_projects(owner, limit=500)
+            proj = next((p for p in projects if p.name == "Call Log Drawings"), None)
+            if proj is None:
+                proj = await psvc.create_project(ProjectCreate(name="Call Log Drawings"), owner)
+            # Capture ids as plain strings BEFORE the upload commits — a commit
+            # expires the ORM objects and a later attribute read would try a sync
+            # reload inside the async session and blow up.
+            pid, proj_uuid = str(proj.id), proj.id
+            uf = _UploadFile(io.BytesIO(content), size=len(content), filename=att.filename)
+            drawing = await DwgTakeoffService(session).upload_drawing(proj_uuid, uf, str(user_id), name=att.filename)
+            ext_id = str(drawing.id)
+        else:  # pdf
+            from app.modules.takeoff.service import TakeoffService
+
+            doc = await TakeoffService(session).upload_document(
+                filename=att.filename, content=content, size_bytes=len(content), owner_id=str(user_id)
+            )
+            ext_id, pid = str(doc.id), ""
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.warning("open_in_takeoff failed for %s", attachment_id, exc_info=True)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Could not open this file in the editor") from e
+
+    session.add(AchiTakeoffLink(attachment_id=attachment_id, kind=kind, external_id=ext_id, project_id=pid))
+    await session.commit()
+    return {"url": _takeoff_url(kind, ext_id, pid), "project_id": pid, "kind": kind}
 
 
 @router.delete(
