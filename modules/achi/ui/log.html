@@ -571,12 +571,39 @@
   .att-prev-body .att-pdf-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
   .att-prev-body .att-pdf{max-width:100%;max-height:72vh;border:1px solid #eef1f6;border-radius:8px;cursor:pointer;box-shadow:0 2px 10px rgba(15,35,75,.08)}
   .att-pdf-hint{font-size:11px;color:#8a94a6;font-weight:600}
+  /* Hover a description cell that has files -> a small floating strip of the
+     row's attachment tiles (each still expands to the big centred preview). */
+  .desc-preview{position:fixed;z-index:2147483100;background:#fff;border:1px solid #e2e8f2;border-radius:12px;box-shadow:0 16px 44px rgba(15,35,75,.22);padding:10px;max-width:78vw}
+  .desc-preview .att-strip{margin:0}
+  .desc-preview-load{font-size:11px;color:#5b6472;padding:6px 8px}
   td.notecell{position:relative}
   /* Rich-text description in the cell: keep it compact so formatting shows
      without block-margins blowing up the row height. */
   td.notecell p{margin:0}
   td.notecell ul,td.notecell ol{margin:2px 0;padding-left:18px}
   td.notecell blockquote{margin:2px 0;padding-left:8px;border-left:2px solid #d8dee9;color:#5b6472}
+  td.notecell[data-k="desc"] .desc-cell-text{display:block;height:46px;line-height:46px;padding-right:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  td.notecell[data-k="desc"] .desc-cell-text p,
+  td.notecell[data-k="desc"] .desc-cell-text ul,
+  td.notecell[data-k="desc"] .desc-cell-text ol,
+  td.notecell[data-k="desc"] .desc-cell-text li,
+  td.notecell[data-k="desc"] .desc-cell-text blockquote{display:inline;margin:0;padding:0;border:0}
+  /* Saved descriptions remain one normal-height table row. Hovering Description
+     opens a separate Quick Notes-style card instead of stretching every cell in
+     the row and leaving a large blank band across the table. */
+  .desc-hover-card{position:fixed;z-index:2147482400;width:min(880px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 24px));display:flex;flex-direction:column;overflow:hidden;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 20px 54px rgba(15,35,75,.3)}
+  .desc-hover-body{flex:1 1 auto;min-height:72px;overflow-y:auto;padding:15px 16px;background:#fff;color:#172033;font-size:13.5px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;scrollbar-color:#8ca6d2 #eef4ff;scrollbar-width:thin}
+  .desc-hover-body p{margin:0 0 6px}
+  .desc-hover-body p:last-child{margin-bottom:0}
+  .desc-hover-body ul,.desc-hover-body ol{margin:3px 0;padding-left:20px}
+  .desc-hover-body blockquote{margin:3px 0;padding-left:9px;border-left:2px solid #cbd9f1;color:#5b6472}
+  .desc-hover-files{flex:0 0 auto;display:flex;gap:8px;min-height:0;padding:10px 12px;border-top:1px solid #e5e7eb;background:#fff;overflow-x:auto}
+  .desc-hover-files:empty{display:none}
+  .desc-hover-file{position:relative;flex:0 0 204px;width:204px;height:168px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #cbd9f1;border-radius:10px;background:#fff;color:#1e3f85}
+  .desc-hover-file img{width:100%;height:100%;display:block;object-fit:contain;background:#fff}
+  .desc-hover-file iframe{width:100%;height:100%;display:block;border:0;background:#fff;pointer-events:none}
+  .desc-hover-file-icon{font-size:15px;font-weight:800;text-transform:uppercase}
+  .desc-hover-file-name{position:absolute;right:4px;bottom:4px;left:4px;overflow:hidden;padding:4px 5px;border:1px solid #e5e7eb;border-radius:5px;background:rgba(255,255,255,.94);color:#172033;font-size:10px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}
   .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
   td.notecell:hover .note-exp,.note-wrap:hover .note-exp{opacity:1}
   .note-exp:hover{background:#dbeafe}
@@ -592,9 +619,9 @@
   .pg-note-head-tool:hover,.pg-note-head-tool.has-content{background:#fff;color:#1e3f85}
   .pg-note-head-tool:disabled{opacity:.55;cursor:wait}
   .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
-  .pg-note-workspace-body{padding:20px 22px;overflow:auto;background:#f7faff}
+  .pg-note-workspace-body{padding:14px 18px;overflow:auto;background:#f7faff}
   .pg-note-workspace-label{display:block;margin-bottom:7px;color:#1e3f85;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-  .pg-note-workspace-text{width:100%;min-height:210px;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
+  .pg-note-workspace-text{width:100%;min-height:112px;max-height:42vh;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
   .pg-note-workspace-text:focus{border-color:#284f9e;box-shadow:0 0 0 3px rgba(40,79,158,.12)}
   .pg-note-files{margin-top:14px;display:flex;flex-direction:column;gap:7px}
   .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:8px;background:#fff;color:#334155;font-size:12px}
@@ -604,7 +631,8 @@
   .pg-note-file-pending{color:#64748b;font-size:10.5px;white-space:nowrap}
   .pg-note-file-del{width:20px;height:20px;border:0;border-radius:6px;background:#fde8e8;color:#c0392b;font-weight:900;font-size:12px;line-height:1;cursor:pointer;padding:0}
   .pg-note-file-del:hover{background:#f7c9c9}
-  .pg-note-workspace-status{min-height:18px;margin-top:10px;color:#64748b;font-size:11.5px}
+  .pg-note-workspace-status{min-height:0;margin-top:6px;color:#64748b;font-size:11.5px}
+  .pg-note-workspace-status:empty{display:none}
   .pg-note-workspace-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid #dce6f5;background:#fff}
   .pg-note-workspace-hint{color:#718096;font-size:11px}
   .pg-note-workspace-actions{display:flex;gap:9px}
@@ -626,7 +654,7 @@
     .pg-note-head-tool{flex:1;justify-content:center}
     .pg-note-workspace-foot{align-items:flex-end}
     .pg-note-workspace-hint{max-width:150px}
-    .pg-note-workspace-text{min-height:180px}
+    .pg-note-workspace-text{min-height:112px}
   }
 </style>
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
@@ -1067,7 +1095,7 @@ var CUBE_SVG='<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="r
    the full preview (the interactive 3D model for RVT). Clicking opens the file in
    a new page (image/PDF); CAD/RVT click is a no-op for now — behaviour TBD.
    delAttr keeps existing delete delegation working. */
-function attachmentTile(f, delAttr){
+function attachmentTile(f, delAttr, noPop){
   const ext=(f.filename||'').split('.').pop().toLowerCase();
   const is3d=(ext==='rvt'||ext==='ifc');
   const canPreview=hasPreview(f.filename);
@@ -1118,15 +1146,19 @@ function attachmentTile(f, delAttr){
   }
   // Hover: open the centred popover (a grace timer lets the pointer travel to it
   // to interact — orbit 3D, scroll a PDF) and load the larger preview on first
-  // hover. Moving off both the tile and the popover closes it.
-  let ps=false;
-  face.addEventListener('mouseenter',()=>{
-    openPop(pop);
-    if(canPreview && !ps){ ps=true; renderPreviewByType(popBody,f,alive); }
-  });
-  face.addEventListener('mouseleave',()=>laterHidePop(pop));
-  pop.addEventListener('mouseenter',keepPop);
-  pop.addEventListener('mouseleave',()=>laterHidePop(pop));
+  // hover. Moving off both the tile and the popover closes it. noPop skips this
+  // (used inside the description-cell hover strip, which is itself a popover — a
+  // nested one would be janky); those tiles are just thumbnails you click.
+  if(!noPop){
+    let ps=false;
+    face.addEventListener('mouseenter',()=>{
+      openPop(pop);
+      if(canPreview && !ps){ ps=true; renderPreviewByType(popBody,f,alive); }
+    });
+    face.addEventListener('mouseleave',()=>laterHidePop(pop));
+    pop.addEventListener('mouseenter',keepPop);
+    pop.addEventListener('mouseleave',()=>laterHidePop(pop));
+  }
   return tile;
 }
 // One centred preview popover open at a time, with a grace period so the pointer
@@ -1568,7 +1600,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
   case 'company': return dash(r.company_name);
-  case 'desc': return (r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>')+marks(r);
+  case 'desc': return `<span class="desc-cell-text">${r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>'}</span>`+marks(r);
   case 'location': return dash(r.site_location);
   case 'owner': return avatar(r.owner_name,r.owner);
   case 'type': return tagv(r.log_type);
@@ -2809,6 +2841,53 @@ window.addEventListener('message',e=>{ if(e&&e.data&&e.data.type==='achi-flush')
    field saves immediately, even when the next field is in the same draft row;
    other fields still wait until the user leaves the row. Pickers and the notes
    workspace never count as leaving. */
+/* Hover a description cell that has attachments -> a floating strip of that row's
+   attachment tiles (thumbnails), reusing the gallery tiles. Click a tile to open
+   it in its editor. Loaded (and cached) per row on first hover. */
+var _descPop=null,_descShow=null,_descHide=null,_descFor=null,_descCache={};
+function descHideSoon(){ clearTimeout(_descHide); _descHide=setTimeout(function(){ if(_descPop)_descPop.style.display='none'; _descFor=null; },220); }
+function descPopEl(){
+  if(_descPop) return _descPop;
+  var p=document.createElement('div'); p.className='desc-preview'; p.style.display='none';
+  p.addEventListener('mouseenter',function(){ clearTimeout(_descHide); });
+  p.addEventListener('mouseleave',descHideSoon);
+  document.body.appendChild(p); _descPop=p; return p;
+}
+async function descShow(cell,logId){
+  clearTimeout(_descHide);
+  var p=descPopEl();
+  if(_descFor===logId && p.style.display!=='none') return;
+  _descFor=logId;
+  var r=cell.getBoundingClientRect(), w=Math.min(340,Math.round(window.innerWidth*0.7));
+  p.style.width=w+'px';
+  p.style.left=Math.max(8,Math.min(r.left,window.innerWidth-w-8))+'px';
+  p.style.top=(r.bottom+6)+'px';
+  p.innerHTML='<div class="desc-preview-load">Loading…</div>'; p.style.display='block';
+  try{
+    var row=(typeof ROWS!=='undefined')&&ROWS.find(function(x){return x.id===logId;});
+    var files=_descCache[logId];
+    if(!files || (row && typeof row.attachment_count==='number' && files.length!==row.attachment_count)){
+      files=await api('/logs/'+logId+'/attachments'); _descCache[logId]=files;   // (re)fetch, self-healing
+    }
+    if(_descFor!==logId) return;
+    if(!files.length){ p.style.display='none'; _descFor=null; return; }
+    p.innerHTML=''; var strip=document.createElement('div'); strip.className='att-strip';
+    files.forEach(function(f){ strip.appendChild(attachmentTile(f,null,true)); });   // noPop tiles
+    p.appendChild(strip);
+  }catch(e){ p.style.display='none'; _descFor=null; }
+}
+$('rows').addEventListener('mouseover',function(e){
+  var cell=e.target.closest&&e.target.closest('td.notecell'); if(!cell) return;
+  var tr=cell.closest('tr[data-log]'); if(!tr) return;
+  var logId=tr.dataset.log, row=(typeof ROWS!=='undefined')&&ROWS.find(function(x){return x.id===logId;});
+  if(!row||!(row.attachment_count>0)) return;
+  clearTimeout(_descHide); clearTimeout(_descShow);
+  _descShow=setTimeout(function(){ descShow(cell,logId); },200);
+});
+$('rows').addEventListener('mouseout',function(e){
+  if(!(e.target.closest&&e.target.closest('td.notecell'))) return;
+  clearTimeout(_descShow); descHideSoon();
+});
 $('rows').addEventListener('focusout',e=>{
   const el=e.target;
   if(!(el.classList&&el.classList.contains('din'))) return;
@@ -3073,6 +3152,15 @@ $('rx-body').addEventListener('click',e=>{
   if(e.target.closest('#rx-use-location')){rxUseCurrentLocation();return;}
   if(e.target.closest('#rx-q-draft')) rxDraftQuotation();
 });
+/* Double-clicking the Quick-notes subject opens its preset dropdown — the same
+   menu the chevron opens on a single click. openRxSelect anchors to the framed
+   row, so it drops down across the whole field. */
+$('rx-body').addEventListener('dblclick',e=>{
+  if(e.target&&e.target.id==='rx-notes-subject'){
+    const sel=$('rx-notesubject');
+    if(sel&&sel._rxButton) openRxSelect(sel,sel._rxButton);
+  }
+});
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
    or dragging a column edge would also flip the whole selection. */
 $('thead').addEventListener('click',e=>{
@@ -3303,6 +3391,85 @@ function openMapModal(lat,lng){
 }
 $('rows').addEventListener('mouseover',e=>{ const b=e.target.closest('.maps-btn'); if(b){ clearTimeout(mapsTimer); showMapsPopup(b,b.dataset.mapurl); } });
 $('rows').addEventListener('mouseout',e=>{ const b=e.target.closest('.maps-btn'); if(b){ mapsTimer=setTimeout(hideMapsPopup,150); } });
+
+/* The Description column previews its complete note on hover without changing
+   table row height. Keep the card outside .tscroll so it is not clipped. */
+const DESC_HOVER_DELAY=5000;
+const DESC_HOVER_CLOSE_DELAY=5000;
+let descHoverCard=null, descHoverTimer=0, descShowTimer=0, descHoverUrls=[];
+function hideDescHover(){
+  clearTimeout(descHoverTimer); clearTimeout(descShowTimer);
+  descHoverUrls.forEach(URL.revokeObjectURL); descHoverUrls=[];
+  if(descHoverCard){ descHoverCard.remove(); descHoverCard=null; }
+}
+function scheduleDescHoverHide(){
+  clearTimeout(descHoverTimer);
+  descHoverTimer=setTimeout(hideDescHover,DESC_HOVER_CLOSE_DELAY);
+}
+async function showDescHover(td){
+  const value=td.dataset.val||'';
+  if(!value.trim()||td.querySelector('input,textarea')) return;
+  hideDescHover();
+  const card=document.createElement('div');
+  card.className='desc-hover-card';
+  card.setAttribute('role','tooltip');
+  card.innerHTML=`<div class="desc-hover-body">${looksHTML(value)?richText(value):esc(value)}</div><div class="desc-hover-files"></div>`;
+  document.body.appendChild(card);
+  card.addEventListener('mouseenter',()=>clearTimeout(descHoverTimer));
+  card.addEventListener('mouseleave',scheduleDescHoverHide);
+  const r=td.getBoundingClientRect(), cr=card.getBoundingClientRect(), gap=8;
+  let left=Math.min(Math.max(gap,r.left),window.innerWidth-cr.width-gap);
+  let top=r.bottom+gap;
+  if(top+cr.height>window.innerHeight-gap) top=Math.max(gap,r.top-cr.height-gap);
+  card.style.left=Math.round(left)+'px';
+  card.style.top=Math.round(top)+'px';
+  descHoverCard=card;
+
+  const logId=td.closest('tr')?.dataset.log;
+  if(!logId) return;
+  try{
+    const files=await api(`/logs/${logId}/attachments`);
+    if(descHoverCard!==card||!card.isConnected) return;
+    const tray=card.querySelector('.desc-hover-files');
+    tray.innerHTML=files.map(f=>{
+      const ext=(f.filename||'file').split('.').pop().toUpperCase().slice(0,5);
+      return `<div class="desc-hover-file" title="${esc(f.filename)}" data-hover-file="${esc(f.id)}" data-hover-name="${esc(f.filename)}"><span class="desc-hover-file-icon">${esc(ext)}</span><span class="desc-hover-file-name">${esc(f.filename)}</span></div>`;
+    }).join('');
+    for(const tile of tray.querySelectorAll('[data-hover-file]')){
+      const name=tile.dataset.hoverName||'', ext=name.split('.').pop().toLowerCase();
+      if(!['png','jpg','jpeg','gif','webp','bmp','pdf'].includes(ext)) continue;
+      try{
+        const response=await fetch(`${API}/attachments/${tile.dataset.hoverFile}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+        if(!response.ok||descHoverCard!==card) continue;
+        const url=URL.createObjectURL(await response.blob()); descHoverUrls.push(url);
+        if(ext==='pdf'){
+          const frame=document.createElement('iframe');
+          frame.src=url+'#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH';
+          frame.title='PDF preview';
+          tile.prepend(frame);
+        }else{
+          const image=document.createElement('img');
+          image.src=url; image.alt=''; tile.prepend(image);
+        }
+      }catch(_){}
+    }
+    const next=card.getBoundingClientRect();
+    if(top+next.height>innerHeight-gap) card.style.top=Math.max(gap,r.top-next.height-gap)+'px';
+  }catch(_){}
+}
+$('rows').addEventListener('mouseover',e=>{
+  const td=e.target.closest('tr.data td.notecell[data-k="desc"]');
+  if(td&&!td.contains(e.relatedTarget)){
+    clearTimeout(descHoverTimer); clearTimeout(descShowTimer);
+    descShowTimer=setTimeout(()=>showDescHover(td),DESC_HOVER_DELAY);
+  }
+});
+$('rows').addEventListener('mouseout',e=>{
+  const td=e.target.closest('tr.data td.notecell[data-k="desc"]');
+  if(td&&!td.contains(e.relatedTarget)){ clearTimeout(descShowTimer); scheduleDescHoverHide(); }
+});
+$('touter').addEventListener('scroll',hideDescHover);
+window.addEventListener('resize',hideDescHover);
 // the popup is appended to document.body, so the grid's delegation never sees it
 document.addEventListener('click',e=>{ const x=e.target.closest&&e.target.closest('[data-mapexp]');
   if(x){ e.preventDefault(); openMapModal(parseFloat(x.dataset.lat),parseFloat(x.dataset.lng)); } });
@@ -3646,7 +3813,10 @@ function openNoteWorkspace(td,col){
 
   drawBtn.classList.toggle('has-content',!!row.has_drawing);
   renderFiles(); loadFiles();
-  requestAnimationFrame(()=>{ ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); });
+  requestAnimationFrame(()=>{
+    ta.style.height=Math.min(Math.max(112,ta.scrollHeight+2),Math.round(innerHeight*.42))+'px';
+    ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+  });
 }
 
 /* The highlighted entry row is not in the database yet. Frappe still opens its
@@ -3673,7 +3843,11 @@ function openDraftNoteWorkspace(input){
   draw.onclick=()=>{ if(typeof achi_drawing==='undefined') return; ov.style.display='none'; achi_drawing.open({title:`Drawing — ${col.h}`,initial:st.__drawing||'',onSave(json){st.__drawing=json;draw.classList.add('has-content');},onClose(){if(ov.isConnected){ov.style.display='flex';requestAnimationFrame(()=>ta.focus());}}}); };
   q('.pg-note-workspace-close').onclick=close; q('.pg-note-cancel').onclick=close; q('.pg-note-save').onclick=save;
   ov.onmousedown=e=>{if(e.target===ov)close();}; ta.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();save();}};
-  draw.classList.toggle('has-content',!!st.__drawing); renderFiles(); requestAnimationFrame(()=>ta.focus());
+  draw.classList.toggle('has-content',!!st.__drawing); renderFiles();
+  requestAnimationFrame(()=>{
+    ta.style.height=Math.min(Math.max(112,ta.scrollHeight+2),Math.round(innerHeight*.42))+'px';
+    ta.focus();
+  });
 }
 
 async function load(){ try{
