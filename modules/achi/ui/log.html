@@ -202,10 +202,13 @@
   .rx-notes{border:1px solid #f0d9a8;background:#fffdf5;border-radius:10px;padding:13px}
   .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a5a12;margin-bottom:7px}
   .rx-notes textarea{width:100%;min-height:78px;border:1px solid #e6d7ae;border-radius:7px;padding:9px 10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
-  /* Quick-notes subject: a title line with a grey bar down its left edge. */
-  .rx-notes-subject{width:100%;box-sizing:border-box;border:1px solid #e6d7ae;border-left:4px solid #cbd5e1;border-radius:7px;padding:8px 11px;margin-bottom:8px;font:inherit;font-size:13px;font-weight:600;background:#fff;color:#1d1d1f}
+  /* Quick-notes subject: a title line with a grey bar down its left edge, and a
+     quick-pick dropdown beside it. */
+  .rx-notes-subject-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .rx-notes-subject{flex:1 1 auto;min-width:0;box-sizing:border-box;height:38px;border:1px solid #e6d7ae;border-left:4px solid #cbd5e1;border-radius:7px;padding:0 11px;font:inherit;font-size:13px;font-weight:600;background:#fff;color:#1d1d1f}
   .rx-notes-subject::placeholder{color:#b0956a;font-weight:400}
   .rx-notes-subject:focus{outline:none;border-left-color:#94a3b8;box-shadow:0 0 0 3px rgba(40,79,158,.10)}
+  .rx-notes-subject-row .rx-select-btn{flex:0 0 auto;width:auto;min-width:160px;border-color:#e6d7ae}
   /* Quill snow — clean natural order: editor on top, toolbar on bottom */
   .rx-notes .ql-container{border:1px solid #e6d7ae;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;overflow:hidden}
   .rx-notes .ql-editor{min-height:78px;height:100%;padding:9px 10px;overflow-y:auto;box-sizing:border-box}
@@ -1112,6 +1115,14 @@ function addCustomPicklistValue({key,values,label}){
 }
 const addRole=()=>addCustomPicklistValue({key:ROLE_KEY,values:allRoles,label:'role'});
 const addSubject=()=>addCustomPicklistValue({key:SUBJECT_KEY,values:allSubjects,label:'log subject'});
+/* Quick-notes subject quick-pick: preset actions the crew reach for most, plus
+   a "+ Add New" that stores custom ones in localStorage (like the other lists).
+   Picking one fills the free-text Subject input; nothing is saved from the
+   dropdown itself (data-nosave) — the subject persists through the note. */
+const NOTE_SUBJECT_KEY='achi_note_subjects', NOTE_SUBJECT_ADD='__add_note_subject__';
+const NOTE_SUBJECTS=['To be quoted','Request installation','Request dismantling','Wants to review price'];
+const allNoteSubjects=()=>[...NOTE_SUBJECTS,...customPicklistValues(NOTE_SUBJECT_KEY).filter(v=>!NOTE_SUBJECTS.includes(v))];
+const addNoteSubject=()=>addCustomPicklistValue({key:NOTE_SUBJECT_KEY,values:allNoteSubjects,label:'note subject'});
 const addReference=()=>addCustomPicklistValue({key:REFERENCE_KEY,values:allReferences,label:'reference'});
 const addSocialPlatform=()=>addCustomPicklistValue({key:SOCIAL_KEY,values:allSocials,label:'social platform'});
 const COMPANY_KEY='achi_company_types', COMPANY_ADD='__add_company__';
@@ -1810,7 +1821,7 @@ function openRxSelect(select,button){
   rxSelectSource=select; rxSelectButton=button;
   const removablePrefixes=new Set(customPrefixes().filter(value=>!PREFIXES.includes(value)));
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>{
-    const choice=`<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`;
+    const choice=`<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,NOTE_SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`;
     return select.dataset.rxSelect==='prefix'&&removablePrefixes.has(option.value)
       ? `<div class="rx-select-row">${choice}<button type="button" class="rx-select-delete" data-value="${esc(option.value)}" aria-label="Delete ${esc(option.value)}" title="Delete">×</button></div>`
       : choice;
@@ -1846,6 +1857,15 @@ function enhanceRxSelect(select){
 function enhanceRxSelects(){
   $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
   $('rx').querySelectorAll('select.rx-native-select').forEach(enhanceRxSelect);
+}
+/* Push a quick-pick into the free-text Quick-notes Subject. The 'input' event is
+   what the Quill mount wired to syncHidden(), so this also updates the saved
+   description. Defined here so the rx-body change handler can call it. */
+function applyNoteSubject(text){
+  const s=document.getElementById('rx-notes-subject');
+  if(!s) return;
+  s.value=text;
+  s.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function addRxSocialRow(){
   const list=$('rx-social-list');
@@ -1910,7 +1930,7 @@ function openExpandedRow(explicitId){
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===NOTE_SUBJECT_ADD?'+ Add New':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
@@ -1969,7 +1989,10 @@ function openExpandedRow(explicitId){
         </svg>
         Attach file</button>`}
     </div>
-    <input type="text" class="rx-notes-subject" id="rx-notes-subject" placeholder="Subject…" maxlength="200" autocomplete="off">
+    <div class="rx-notes-subject-row">
+      <input type="text" class="rx-notes-subject" id="rx-notes-subject" placeholder="Subject…" maxlength="200" autocomplete="off">
+      ${SEL('notesubject',[...allNoteSubjects(),NOTE_SUBJECT_ADD],'',true,true)}
+    </div>
     <input type="file" id="rx-notes-file-input" multiple style="display:none">
     <div class="rx-notes-dropzone" id="rx-notes-dropzone">
       <div id="quill-desc-editor"></div>
@@ -2768,6 +2791,19 @@ $('rx-body').addEventListener('change',e=>{
         el.add(new Option(added,added),el.options.length-1);
       el.value=added;
     }else el.value=previous&&previous!==customPicklist.sentinel?previous:'';
+    enhanceRxSelect(el);
+  }
+  if(el.dataset.rxSelect==='notesubject'){
+    // Quick-pick: fill the Subject (or add a new preset), then reset the picker
+    // to blank so it behaves like a menu rather than a stored value.
+    if(el.value===NOTE_SUBJECT_ADD){
+      const added=addNoteSubject();
+      if(added){
+        if(![...el.options].some(o=>o.value===added)) el.add(new Option(added,added),el.options.length-1);
+        applyNoteSubject(added);
+      }
+    }else if(el.value){ applyNoteSubject(el.value); }
+    el.value='';
     enhanceRxSelect(el);
   }
   if(el.matches('select[data-social-platform]')&&el.value===SOCIAL_ADD_PLATFORM){
