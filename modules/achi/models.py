@@ -447,3 +447,20 @@ class AchiFullAccess(Base):
     # it stays consistent with every other model here (Base owns the PK).
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+
+
+class AchiTakeoffLink(Base):
+    """Caches the OCE takeoff artifact made from a Call Log attachment, so
+    opening it in the editor reuses the same drawing/document rather than
+    re-uploading (and re-converting) on every click. One row per (attachment,
+    kind)."""
+
+    __tablename__ = "achi_takeoff_link"
+    __table_args__ = (
+        Index("uq_achi_takeoff_link", "attachment_id", "kind", unique=True),
+    )
+
+    attachment_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)          # 'dwg' | 'pdf'
+    external_id: Mapped[str] = mapped_column(String(64), nullable=False)  # drawing_id / takeoff-doc id
+    project_id: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")

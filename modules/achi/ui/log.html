@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Call Log · Achi Scaffolding ERP</title>
+<title>Log · Achi Scaffolding ERP</title>
 <style>
   :root{
     --navy:#284F9E; --navy-d:#1F3F80; --navy-2:#305FB8; --accent:#3D6BC4; --light:#E3EDFB;
@@ -199,28 +199,25 @@
   .rx-add-handle{display:inline-flex;align-items:center;margin-top:7px;padding:3px 0;border:0;background:transparent;color:#2453a6;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
   .rx-add-handle:hover,.rx-add-handle:focus{outline:0;color:#163b7a;text-decoration:underline}
   .rx-map{height:38px;border:1px solid #cfe0f8;border-radius:7px;background:#eef4fd;color:var(--navy);font:inherit;font-size:11.5px;font-weight:800;letter-spacing:.06em;cursor:pointer}
-  .rx-notes{border:1px solid #f0d9a8;background:#fffdf5;border-radius:10px;padding:13px}
-  .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a5a12;margin-bottom:7px}
-  .rx-notes textarea{width:100%;min-height:78px;border:1px solid #e6d7ae;border-radius:7px;padding:9px 10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
-  /* Quick-notes subject: a title line with a grey bar down its left edge, and a
-     quick-pick dropdown beside it. */
-  /* Editable combobox: a full-width, typeable Subject with a grey bar on the
-     left and a dropdown chevron at the right that opens the presets across the
-     whole field. The frame + grey bar live on the row; the input fills it and
-     the enhanced select's button is collapsed to a chevron pinned right. */
-  .rx-notes-subject-row{position:relative;display:flex;align-items:stretch;margin-bottom:8px;border:1px solid #e6d7ae;border-left:4px solid #cbd5e1;border-radius:7px;background:#fff}
+  .rx-notes{border:1px solid #e2e8f2;background:#fff;border-radius:10px;padding:13px}
+  .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#284f9e;margin-bottom:7px}
+  .rx-notes textarea{width:100%;min-height:78px;border:1px solid #dbe4f0;border-radius:7px;padding:9px 10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
+  /* Quick-notes subject: a full-width, typeable Subject (editable combobox) with
+     a grey bar on the left and a dropdown chevron at the right. De-yellowed to
+     match the rest of the form. */
+  .rx-notes-subject-row{position:relative;display:flex;align-items:stretch;margin-bottom:8px;border:1px solid #dbe4f0;border-left:4px solid #cbd5e1;border-radius:7px;background:#fff}
   .rx-notes-subject-row:focus-within{border-left-color:#94a3b8;box-shadow:0 0 0 3px rgba(40,79,158,.10)}
   .rx-notes-subject{flex:1 1 auto;min-width:0;box-sizing:border-box;height:38px;border:0;border-radius:7px;padding:0 38px 0 11px;font:inherit;font-size:13px;font-weight:600;background:transparent;color:#1d1d1f}
   .rx-notes-subject:focus{outline:none}
-  .rx-notes-subject::placeholder{color:#b0956a;font-weight:400}
+  .rx-notes-subject::placeholder{color:#9aa7bd;font-weight:400}
   .rx-notes-subject-row .rx-select-btn{position:absolute;right:0;top:0;height:100%;width:36px;min-width:0;border:0;border-radius:0;background:transparent;padding:0;gap:0;justify-content:center}
   .rx-notes-subject-row .rx-select-btn span{display:none}
   .rx-notes-subject-row .rx-select-btn:hover{background:rgba(40,79,158,.06)}
   /* Quill snow — clean natural order: editor on top, toolbar on bottom */
-  .rx-notes .ql-container{border:1px solid #e6d7ae;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;overflow:hidden}
+  .rx-notes .ql-container{border:1px solid #dbe4f0;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;overflow:hidden}
   .rx-notes .ql-editor{min-height:78px;height:100%;padding:9px 10px;overflow-y:auto;box-sizing:border-box}
-  .rx-notes .ql-editor.ql-blank::before{color:#b0956a;font-style:normal}
-  .rx-notes .ql-toolbar{border:1px solid #e6d7ae;border-radius:0 0 7px 7px;border-top:0;background:#fff;padding:8px}
+  .rx-notes .ql-editor.ql-blank::before{color:#9aa7bd;font-style:normal}
+  .rx-notes .ql-toolbar{border:1px solid #dbe4f0;border-radius:0 0 7px 7px;border-top:0;background:#fff;padding:8px}
   /* Resize handle sits at the bottom-right of the editor container */
   .rx-notes-resize-handle{position:absolute;bottom:0;right:0;width:18px;height:18px;cursor:ns-resize;z-index:5;display:flex;align-items:flex-end;justify-content:flex-end;padding:3px}
   .rx-notes-resize-handle svg{opacity:.35;pointer-events:none}
@@ -228,22 +225,18 @@
   /* Notes header row: title on left, file-attach icon on right */
   .rx-notes-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
   .rx-notes-head h4{margin:0}
-  .rx-notes-attach-btn{display:inline-flex;align-items:center;gap:5px;border:1px solid #e6d7ae;border-radius:6px;background:#fff8ea;color:#8a5a12;font:inherit;font-size:11.5px;font-weight:700;padding:3px 9px;cursor:pointer;line-height:1}
-  .rx-notes-attach-btn:hover{background:#fef3d0}
+  .rx-notes-attach-btn{display:inline-flex;align-items:center;gap:5px;border:1px solid #cdd8e8;border-radius:6px;background:#f3f6fb;color:#284f9e;font:inherit;font-size:11.5px;font-weight:700;padding:3px 9px;cursor:pointer;line-height:1}
+  .rx-notes-attach-btn:hover{background:#e7eef8}
   .rx-notes-attach-btn svg{width:13px;height:13px;flex-shrink:0}
   /* Drop-zone wrapper — highlighted when a file is dragged over */
   .rx-notes-dropzone{position:relative}
-  .rx-notes-dropzone.drag-over .ql-container{border-color:#f0a500!important;box-shadow:0 0 0 3px rgba(240,165,0,.18)!important}
-  .rx-notes-dropzone.drag-over::after{content:'Drop files here';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#8a5a12;background:rgba(255,248,230,.82);border-radius:7px;pointer-events:none;z-index:10}
-  /* Attached-files list below the editor */
-  .rx-notes-files{margin-top:8px;display:flex;flex-direction:column;gap:4px}
-  .rx-notes-file{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 9px;border:1px solid #e6d7ae;border-radius:6px;background:#fffdf5;font-size:12px}
-  .rx-notes-file a{color:var(--navy);text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
-  .rx-notes-file a:hover{text-decoration:underline}
-  .rx-notes-file-meta{color:#b0956a;font-size:11px;white-space:nowrap;flex-shrink:0}
-  .rx-notes-file-del{border:0;background:none;color:#b0956a;font-size:15px;line-height:1;cursor:pointer;padding:0 2px;flex-shrink:0}
-  .rx-notes-file-del:hover{color:#ba0517}
-  .rx-notes-uploading{font-size:11.5px;color:#8a5a12;padding:4px 2px}
+  .rx-notes-dropzone.drag-over .ql-container{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.18)!important}
+  .rx-notes-dropzone.drag-over::after{content:'Drop files here';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#284f9e;background:rgba(240,245,252,.86);border-radius:7px;pointer-events:none;z-index:10}
+  /* Attachments — its own section below Quick Notes */
+  .rx-attach{margin-top:12px}
+  .rx-attach h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#284f9e;margin:0 0 8px}
+  .rx-notes-files{display:block}
+  .rx-notes-uploading{font-size:11.5px;color:#284f9e;padding:4px 2px}
   .rx-q-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
   .rx-q-sub{font-size:11.5px;color:#5b5e66;margin:5px 0 14px}
   .rx-q-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #e6edf8}
@@ -537,18 +530,44 @@
   .cad-loading::before{content:'';display:inline-block;width:14px;height:14px;margin-right:8px;border:2px solid #cfd9e8;border-top-color:#284f9e;border-radius:50%;vertical-align:-2px;animation:cadspin .7s linear infinite}
   @keyframes cadspin{to{transform:rotate(360deg)}}
   .cad-msg{max-width:360px;text-align:center;color:#475569;font-size:12.5px;line-height:1.6}
-  /* Inline preview card (replaces the popup): expands below the attachment row. */
-  .att-card{margin:2px 0;border:1px solid #d7e2f1;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 6px 18px rgba(15,35,75,.09)}
-  .att-card-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 11px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
-  .att-card-name{font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .att-card-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
-  .att-card-dl{border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.14);color:#fff;border-radius:6px;padding:4px 10px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
-  .att-card-dl:hover{background:rgba(255,255,255,.24)}
-  .att-card-x{border:0;background:rgba(255,255,255,.16);color:#fff;width:24px;height:24px;border-radius:6px;font-size:16px;line-height:1;cursor:pointer}
-  .att-card-x:hover{background:rgba(255,255,255,.3)}
-  .att-card-body{padding:12px;background:#f7faff;display:flex;align-items:center;justify-content:center;min-height:90px}
-  .att-card-body .att-svg{width:100%;max-height:70vh;overflow:auto;background:#fff;border:1px solid #e3e9f3;border-radius:6px}
-  .att-card-body .att-svg svg{display:block;width:100%;height:auto;max-height:68vh}
+  /* Attachment strip: square preview tiles side by side. The tile itself shows
+     the preview; hovering lifts a larger pure-white popover above it. */
+  .att-strip{display:flex;flex-wrap:wrap;gap:12px;padding:4px 0}
+  .att-tile{position:relative;width:152px}
+  .att-tile-face{position:relative;width:152px;height:152px;border-radius:16px;overflow:hidden;background:#fff;border:1px solid #e6ecf5;box-shadow:0 1px 3px rgba(15,35,75,.09);cursor:pointer;transition:transform .16s ease,box-shadow .16s ease}
+  .att-tile-face:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,35,75,.18)}
+  .att-tile-thumb{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#f5f7fb;color:#98a4b8}
+  .att-tile-thumb .att-img{width:100%;height:100%;object-fit:cover;border-radius:0}
+  .att-tile-thumb .att-pdf{width:100%;height:100%;object-fit:cover;border:0;border-radius:0;box-shadow:none}
+  .att-tile-thumb .att-svg{width:100%;height:100%;max-height:none;border:0;border-radius:0;overflow:hidden;background:#fff}
+  .att-tile-thumb .att-svg svg{width:100%;height:100%}
+  .att-tile-thumb .att-pdf-hint,.att-tile-thumb .cad-msg{display:none}
+  .att-3d-ph{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.06em;color:#5877b5}
+  .att-3d-ph svg{width:40px;height:40px;stroke:#8aa0cf;fill:none;stroke-width:1.5}
+  .att-tile-badge{position:absolute;top:8px;left:8px;font-size:8.5px;font-weight:800;letter-spacing:.05em;color:#284f9e;background:rgba(255,255,255,.92);border-radius:5px;padding:2px 6px;pointer-events:none}
+  .att-tile-cap{position:absolute;left:0;right:0;bottom:0;padding:16px 9px 7px;font-size:10.5px;font-weight:600;color:#fff;background:linear-gradient(to top,rgba(9,22,50,.78),rgba(9,22,50,0));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+  .att-tile-x{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(9,22,50,.5);color:#fff;font-size:13px;line-height:1;cursor:pointer;display:none;z-index:2;padding:0}
+  .att-tile-face:hover .att-tile-x{display:block}
+  /* Pure-white preview panel, centred on screen and large. Shown/hidden via JS
+     (not :hover) so the pointer can travel to it and interact. */
+  .att-preview{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483200;width:680px;max-width:92vw;max-height:88vh;background:#fff;border-radius:18px;box-shadow:0 30px 90px rgba(15,35,75,.32),0 4px 14px rgba(15,35,75,.12);overflow:hidden;flex-direction:column}
+  .att-preview.open{display:flex}
+  .att-prev-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;color:#1d1d1f;font-size:12.5px;font-weight:700;border-bottom:1px solid #f0f2f6;flex:0 0 auto}
+  .att-prev-head span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .att-prev-dl{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;background:#f1f4fa;color:#284f9e;border-radius:9px;cursor:pointer;flex:0 0 auto}
+  .att-prev-dl:hover{background:#e4ebf7}
+  .att-prev-dl svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .att-prev-body{padding:16px;flex:1 1 auto;min-height:220px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:auto}
+  .att-prev-body .att-img{max-width:100%;max-height:74vh;object-fit:contain;border-radius:8px;cursor:zoom-in}
+  .att-prev-body .att-svg{width:100%;height:70vh;max-height:70vh;overflow:hidden;border:0}
+  .att-prev-body .att-svg svg{display:block;width:100%;height:100%}
+  .att-svg-pz{cursor:grab}
+  .att-svg-pz.grabbing{cursor:grabbing}
+  .att-svg-pz svg{will-change:transform}
+  .att-prev-body model-viewer{width:100%;height:70vh;background:#fff;border-radius:8px}
+  .att-prev-body .att-pdf-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+  .att-prev-body .att-pdf{max-width:100%;max-height:72vh;border:1px solid #eef1f6;border-radius:8px;cursor:pointer;box-shadow:0 2px 10px rgba(15,35,75,.08)}
+  .att-pdf-hint{font-size:11px;color:#8a94a6;font-weight:600}
   td.notecell{position:relative}
   /* Rich-text description in the cell: keep it compact so formatting shows
      without block-margins blowing up the row height. */
@@ -609,7 +628,7 @@
 </style>
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
-<body data-achi-title="Call Log">
+<body data-achi-title="Log">
 <main>
   <div class="err" id="err"></div>
 
@@ -837,6 +856,27 @@ async function attDownload(id,name){
     setTimeout(()=>URL.revokeObjectURL(url),60000);
   }catch(_){}
 }
+/* Open a DWG/DXF in OCE's DWG-Takeoff editor (rulers/measure/annotate) or a PDF
+   in the PDF-Takeoff editor (scale/measure). The server uploads it into the
+   editor (cached per attachment) and hands back the URL; we open it in a new
+   tab. window.open() runs synchronously first so the pop-up isn't blocked. */
+async function openInTakeoff(id,name){
+  const w=window.open('','_blank');
+  if(w){ try{ w.document.write('<p style="font:14px -apple-system,Segoe UI,sans-serif;color:#555;padding:26px">Opening in the editor…</p>'); }catch(_){} }
+  try{
+    const r=await fetch(`${API}/attachments/${id}/takeoff`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN}});
+    if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||'Could not open the editor'); }
+    const d=await r.json();
+    // The DWG editor loads drawings for the ACTIVE project; point it at the
+    // project this drawing was uploaded into so it opens straight into the edit
+    // view instead of the "upload a file" empty state. (Same-origin localStorage
+    // is read by the editor tab on load.)
+    if(d.kind==='dwg' && d.project_id){
+      try{ localStorage.setItem('oe_active_project', JSON.stringify({id:d.project_id,name:'Call Log Drawings'})); }catch(_){}
+    }
+    if(w) w.location.href=d.url; else window.open(d.url,'_blank');
+  }catch(e){ if(w){ try{w.close();}catch(_){} } alert(e.message||'Could not open the editor'); }
+}
 function cadPreview(id,name,rowEl){
   if(!rowEl) return;
   const nxt=rowEl.nextElementSibling;
@@ -861,8 +901,34 @@ async function renderCadSvg(body,id,name,alive){
   try{
     const r=await fetch(`${API}/attachments/${id}/render`,{headers:{Authorization:'Bearer '+TOKEN}});
     if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||'Could not render this file'); }
-    const svg=await r.text(); if(alive()) body.innerHTML=`<div class="att-svg">${svg}</div>`;
+    const svg=await r.text(); if(!alive()) return;
+    body.innerHTML=`<div class="att-svg">${svg}</div>`;
+    // In the big popover, make the drawing pan/zoom-able (scroll to zoom, drag
+    // to pan). The small tile thumbnail stays static.
+    if(body.closest('.att-preview')) attachPanZoom(body.querySelector('.att-svg'));
   }catch(e){ if(alive()) body.innerHTML=`<div class="cad-msg"><b>Preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`; }
+}
+/* Scroll-to-zoom (toward the cursor) + drag-to-pan on the SVG inside a container.
+   Uses a CSS transform and pointer capture, so a drag keeps working outside the
+   box and nothing leaks onto window. */
+function attachPanZoom(box){
+  if(!box) return;
+  const svg=box.querySelector('svg'); if(!svg) return;
+  box.classList.add('att-svg-pz');
+  let scale=1,tx=0,ty=0,drag=false,ox=0,oy=0;
+  svg.style.transformOrigin='0 0';
+  const apply=()=>{ svg.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; };
+  box.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const r=box.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+    const ns=Math.min(40,Math.max(0.25,scale*Math.exp(-e.deltaY*0.0016)));
+    tx=mx-(mx-tx)*(ns/scale); ty=my-(my-ty)*(ns/scale); scale=ns; apply();
+  },{passive:false});
+  svg.addEventListener('pointerdown',e=>{ drag=true; ox=e.clientX-tx; oy=e.clientY-ty; try{svg.setPointerCapture(e.pointerId);}catch(_){}; box.classList.add('grabbing'); });
+  svg.addEventListener('pointermove',e=>{ if(!drag)return; tx=e.clientX-ox; ty=e.clientY-oy; apply(); });
+  const end=e=>{ drag=false; try{svg.releasePointerCapture(e.pointerId);}catch(_){}; box.classList.remove('grabbing'); };
+  svg.addEventListener('pointerup',end); svg.addEventListener('pointercancel',end);
+  svg.addEventListener('dblclick',()=>{ scale=1;tx=0;ty=0;apply(); });   // double-click resets
 }
 /* <model-viewer> is loaded lazily on first 3D use so the 1 MB never touches
    normal Call Log browsing. */
@@ -921,6 +987,146 @@ async function renderModel3D(body,id,name,alive){
     msg(`<div class="cad-msg"><b>3D preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`);
   }
 }
+
+/* ── Gallery cards: every attachment shows its own preview inline ──────────── */
+const IMG_EXTS=['png','jpg','jpeg','gif','webp','bmp','svg','avif'];
+function isImage(n){ return IMG_EXTS.includes((n||'').split('.').pop().toLowerCase()); }
+function isPdf(n){ return (n||'').split('.').pop().toLowerCase()==='pdf'; }
+function hasPreview(name){ return isPreviewable(name)||isImage(name)||isPdf(name); }
+function attFmtSize(n){ n=+n||0; return n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B'; }
+// Same-origin URL with the JWT as ?token so <img>/new-tab loads work (no header).
+function rawUrl(id){ return `${API}/attachments/${id}/download?token=${encodeURIComponent(TOKEN)}`; }
+
+function renderImage(body,id,name){
+  const url=rawUrl(id);
+  body.innerHTML=`<img class="att-img" src="${esc(url)}" alt="${esc(name)}" loading="lazy" title="Click to open full size">`;
+  const img=body.querySelector('img');
+  img.onerror=()=>{ body.innerHTML='<div class="cad-msg">Could not load image. Use <b>Download</b> above.</div>'; };
+  img.onclick=()=>window.open(url,'_blank','noreferrer');
+}
+
+// pdf.js loaded lazily on first PDF; falls back to main-thread render if the
+// worker can't spawn (CSP), so it renders regardless.
+let _pdfLib=null;
+function ensurePdfJs(){
+  if(_pdfLib) return _pdfLib;
+  _pdfLib=import(`${API}/ui/pdf.min.mjs`).then(m=>{ try{ m.GlobalWorkerOptions.workerSrc=`${API}/ui/pdf.worker.min.mjs`; }catch(_){}; return m; });
+  return _pdfLib;
+}
+async function renderPdf(body,id,name,alive){
+  const url=rawUrl(id);
+  try{
+    const lib=await ensurePdfJs();
+    const buf=await (await fetch(`${API}/attachments/${id}/download`,{headers:{Authorization:'Bearer '+TOKEN}})).arrayBuffer();
+    if(!alive()) return;
+    const pdf=await lib.getDocument({data:buf}).promise;
+    const page=await pdf.getPage(1);
+    const base=page.getViewport({scale:1});
+    const vp=page.getViewport({scale:Math.min(2,780/base.width)});
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.ceil(vp.width); canvas.height=Math.ceil(vp.height);
+    await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+    if(!alive()) return;
+    // As an <img> (not a raw canvas) so it can object-fit a square tile.
+    const img=document.createElement('img'); img.className='att-pdf'; img.src=canvas.toDataURL('image/png'); img.title='Click to open the PDF';
+    body.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='att-pdf-wrap'; wrap.appendChild(img);
+    const hint=document.createElement('div'); hint.className='att-pdf-hint'; hint.textContent=`Page 1 of ${pdf.numPages} · click to open`;
+    wrap.appendChild(hint); body.appendChild(wrap);
+    img.onclick=()=>window.open(url,'_blank','noreferrer');
+  }catch(e){ if(alive()) body.innerHTML='<div class="cad-msg">Could not preview this PDF. Use <b>Download</b> above to open it.</div>'; }
+}
+
+function renderPreviewByType(body,f,alive){
+  const name=f.filename, ext=(name||'').split('.').pop().toLowerCase();
+  if(IMG_EXTS.includes(ext)) return renderImage(body,f.id,name);
+  if(ext==='pdf') return renderPdf(body,f.id,name,alive);
+  if(ext==='dwg'||ext==='dxf') return renderCadSvg(body,f.id,name,alive);
+  if(ext==='rvt'||ext==='ifc') return renderModel3D(body,f.id,name,alive);
+  body.innerHTML='<div class="cad-msg">No preview for this file type. Use <b>Download</b> above.</div>';
+}
+
+/* One card per attachment; the preview loads lazily when the card scrolls into
+   view, so a log with many files (or several RVTs) doesn't fetch/convert them
+   all at once. delAttr is the list's delete-button data attribute so the
+   existing delete delegation keeps working. */
+function tileBadge(ext){
+  if(ext==='rvt'||ext==='ifc') return '3D · '+ext.toUpperCase();
+  if(ext==='dwg'||ext==='dxf') return 'CAD · '+ext.toUpperCase();
+  if(IMG_EXTS.includes(ext)) return 'IMG · '+ext.toUpperCase();
+  if(ext==='pdf') return 'PDF';
+  return (ext||'FILE').toUpperCase();
+}
+var CUBE_SVG='<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>';
+/* Square preview tile in a horizontal strip. The tile itself shows the preview
+   (image/PDF/DWG rendered as a thumbnail; RVT/IFC show a 3D placeholder — a live
+   model per tile is too heavy). Hovering lifts a larger pure-white popover with
+   the full preview (the interactive 3D model for RVT). Clicking opens the file in
+   a new page (image/PDF); CAD/RVT click is a no-op for now — behaviour TBD.
+   delAttr keeps existing delete delegation working. */
+function attachmentTile(f, delAttr){
+  const ext=(f.filename||'').split('.').pop().toLowerCase();
+  const is3d=(ext==='rvt'||ext==='ifc');
+  const canPreview=hasPreview(f.filename);
+  const tile=document.createElement('div'); tile.className='att-tile'; tile.dataset.for=f.id;
+  var thumbHtml = is3d ? '<div class="att-3d-ph">'+CUBE_SVG+'<span>'+esc(ext.toUpperCase())+'</span></div>'
+                       : (canPreview ? '<div class="cad-loading"></div>'
+                                     : '<div class="att-3d-ph"><span>'+esc(ext.toUpperCase()||'FILE')+'</span></div>');
+  tile.innerHTML=`
+    <div class="att-tile-face" title="${esc(f.filename)}">
+      <div class="att-tile-thumb">${thumbHtml}</div>
+      <span class="att-tile-badge">${esc(tileBadge(ext))}</span>
+      <div class="att-tile-cap">${esc(f.filename)}</div>
+      ${delAttr?`<button type="button" class="att-tile-x" ${delAttr}="${esc(f.id)}" title="Remove">&times;</button>`:''}
+    </div>
+    <div class="att-preview">
+      <div class="att-prev-head"><span>${esc(f.filename)}</span><button type="button" class="att-prev-dl" title="Download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
+      <div class="att-prev-body">${canPreview?'<div class="cad-loading">Preview…</div>':'<div class="cad-msg">No preview for this type. Use the download button.</div>'}</div>
+    </div>`;
+  const face=tile.querySelector('.att-tile-face');
+  const pop=tile.querySelector('.att-preview');
+  const thumb=tile.querySelector('.att-tile-thumb');
+  const popBody=tile.querySelector('.att-prev-body');
+  const alive=()=>tile.isConnected;
+  const openNew=()=>window.open(rawUrl(f.id),'_blank','noreferrer');
+  tile.querySelector('.att-prev-dl').addEventListener('click',e=>{ e.stopPropagation(); attDownload(f.id,f.filename); });
+  face.addEventListener('click',e=>{
+    if(e.target.closest('.att-tile-x')) return;                 // delete handled by delegation
+    if(isImage(f.filename)){ openNew(); return; }               // image -> view in a new tab
+    if(isPdf(f.filename)||ext==='dwg'||ext==='dxf'){ openInTakeoff(f.id,f.filename); return; }  // -> OCE takeoff editor
+    // RVT/IFC click: TBD.
+  });
+  // Tile thumbnail: render the real preview for image/PDF/DWG lazily when the
+  // tile scrolls into view. RVT/IFC keep the placeholder (converting a model per
+  // tile is too heavy); the live model loads in the hover popover.
+  if(canPreview && !is3d){
+    let ts=false;
+    const start=()=>{ if(ts)return; ts=true; renderPreviewByType(thumb,f,alive); };
+    if('IntersectionObserver' in window){
+      const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting){ start(); io.disconnect(); } }); },{rootMargin:'200px'});
+      io.observe(tile);
+    } else start();
+  }
+  // Hover: open the centred popover (a grace timer lets the pointer travel to it
+  // to interact — orbit 3D, scroll a PDF) and load the larger preview on first
+  // hover. Moving off both the tile and the popover closes it.
+  let ps=false;
+  face.addEventListener('mouseenter',()=>{
+    openPop(pop);
+    if(canPreview && !ps){ ps=true; renderPreviewByType(popBody,f,alive); }
+  });
+  face.addEventListener('mouseleave',()=>laterHidePop(pop));
+  pop.addEventListener('mouseenter',keepPop);
+  pop.addEventListener('mouseleave',()=>laterHidePop(pop));
+  return tile;
+}
+// One centred preview popover open at a time, with a grace period so the pointer
+// can cross from the tile to the (screen-centred) popover without it vanishing.
+var _openPop=null, _popHideTimer=null;
+function keepPop(){ clearTimeout(_popHideTimer); }
+function openPop(pop){ clearTimeout(_popHideTimer); if(_openPop&&_openPop!==pop) _openPop.classList.remove('open'); pop.classList.add('open'); _openPop=pop; }
+function laterHidePop(pop){ clearTimeout(_popHideTimer); _popHideTimer=setTimeout(function(){ pop.classList.remove('open'); if(_openPop===pop) _openPop=null; },260); }
+
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
@@ -956,7 +1162,7 @@ const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter
    because that is where the sites are. */
 const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       LOG_STATES=['OPEN','TRANSFERED','ONGOING','DONE','CANCELLED'],
-      COPY_TARGETS=['Call Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
+      COPY_TARGETS=['Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
                 'Off-hire','Adaptation','Inspection','Complaint','Invoice'],
@@ -2017,8 +2223,11 @@ function openExpandedRow(explicitId){
         <button class="ql-clean"></button>
       </div>
     </div>
-    <div class="rx-notes-files" id="rx-notes-files"></div>
     <input type="hidden" data-k="desc" id="quill-desc-hidden" value="${esc(val('desc'))}">
+  </div>
+  <div class="rx-attach" id="rx-attach-section" style="display:none">
+    <h4>Attachments</h4>
+    <div class="rx-notes-files" id="rx-notes-files"></div>
   </div>`;
   // Attachments & drawing and Cost estimate were deliberately removed earlier;
   // Quick notes (above, with its own Attach file) is the last section. Alfred's
@@ -2035,9 +2244,9 @@ function openExpandedRow(explicitId){
      button says just "CRM". The copy-to select sits in the static footer, outside
      rx-body, so its change is bound here rather than on the body handler. */
   const updateSaveLabel=()=>{
-    const v=($('rx-copy')&&$('rx-copy').value)||'Call Log only';
+    const v=($('rx-copy')&&$('rx-copy').value)||'Log only';
     const btn=$('rx-save'); if(!btn) return;
-    btn.textContent=v==='Call Log only'?'Save Log':'Save & copy to '+(v==='CRM — new deal'?'CRM':v);
+    btn.textContent=v==='Log only'?'Save Log':'Save & copy to '+(v==='CRM — new deal'?'CRM':v);
   };
   if($('rx-copy')&&!$('rx-copy').dataset.saveLabelWired){
     $('rx-copy').dataset.saveLabelWired='1';
@@ -3288,9 +3497,20 @@ function openNoteWorkspace(td,col){
   const close=()=>ov.remove();
 
   function renderFiles(){
-    const a=attached.map(f=>`<div class="pg-note-file"><a href="#" data-open="${esc(f.id)}" data-name="${esc(f.filename)}">${esc(f.filename)}</a><span class="pg-note-file-right"><span class="pg-note-file-pending">${fmtSize(f.size_bytes)}</span><button type="button" class="pg-note-file-del" data-del="${esc(f.id)}" title="Remove">&times;</button></span></div>`);
-    const p=pendingFiles.map((f,i)=>`<div class="pg-note-file"><span>${esc(f.name)}</span><span class="pg-note-file-right"><span class="pg-note-file-pending">Ready to upload</span><button type="button" class="pg-note-file-del" data-pending="${i}" title="Remove">&times;</button></span></div>`);
-    filesEl.innerHTML=a.concat(p).join('')||'<div class="pg-note-file"><span>No files attached yet</span></div>';
+    // Uploaded attachments are compact tiles in a horizontal strip (hover to
+    // preview); pending (unsaved) files stay simple rows — no id to preview yet.
+    filesEl.innerHTML='';
+    if(attached.length){
+      const strip=document.createElement('div'); strip.className='att-strip';
+      attached.forEach(f=>strip.appendChild(attachmentTile(f,'data-del')));
+      filesEl.appendChild(strip);
+    }
+    pendingFiles.forEach((f,i)=>{
+      const d=document.createElement('div'); d.className='pg-note-file';
+      d.innerHTML=`<span>${esc(f.name)}</span><span class="pg-note-file-right"><span class="pg-note-file-pending">Ready to upload</span><button type="button" class="pg-note-file-del" data-pending="${i}" title="Remove">&times;</button></span>`;
+      filesEl.appendChild(d);
+    });
+    if(!attached.length&&!pendingFiles.length) filesEl.innerHTML='<div class="pg-note-file"><span>No files attached yet</span></div>';
   }
   const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
 
@@ -3533,15 +3753,15 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
   function renderFiles(files){
     const el = document.getElementById('rx-notes-files');
     if(!el) return;
-    if(!files.length){ el.innerHTML = ''; return; }
-    el.innerHTML = files.map(f => `
-      <div class="rx-notes-file" data-att-id="${esc(f.id)}">
-        <a href="#" data-att-open="${esc(f.id)}" title="${esc(f.filename)}">${esc(f.filename)}</a>
-        <span style="display:flex;align-items:center;gap:6px">
-          <span class="rx-notes-file-meta">${fmtSize(f.size_bytes)}</span>
-          <button type="button" class="rx-notes-file-del" data-att-del="${esc(f.id)}" title="Remove">&times;</button>
-        </span>
-      </div>`).join('');
+    const sec = document.getElementById('rx-attach-section');
+    // Compact preview tiles in a horizontal strip; the whole Attachments section
+    // hides when there's nothing attached.
+    el.innerHTML = '';
+    if(!files.length){ if(sec) sec.style.display='none'; return; }
+    if(sec) sec.style.display='';
+    const strip=document.createElement('div'); strip.className='att-strip';
+    files.forEach(f => strip.appendChild(attachmentTile(f, 'data-att-del')));
+    el.appendChild(strip);
   }
 
   async function loadFiles(){
