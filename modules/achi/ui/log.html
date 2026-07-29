@@ -180,6 +180,10 @@
   .rx-select-menu{position:fixed;z-index:2147482750;min-width:150px;max-height:220px;overflow-y:auto;padding:0;background:#fff;border:1.5px solid #1e3f85;border-radius:10px;box-shadow:0 8px 24px rgba(30,63,133,.16)}
   .rx-select-menu[hidden]{display:none}
   .rx-select-option{display:block;width:100%;padding:7px 13px;border:0;border-radius:0;background:#fff;color:#1e3f85;font:inherit;font-size:12.5px;font-weight:400;text-align:left;white-space:nowrap;cursor:pointer}
+  .rx-select-row{display:flex;align-items:stretch;background:#fff}
+  .rx-select-row .rx-select-option{flex:1;width:auto;min-width:0}
+  .rx-select-delete{flex:0 0 32px;border:0;background:#fff;color:#9ca3af;font:700 17px/1 Arial,sans-serif;cursor:pointer}
+  .rx-select-delete:hover,.rx-select-delete:focus{outline:0;background:#fee2e2;color:#b91c1c}
   .rx-select-option[aria-selected="true"]{background:#fff;color:#1e3f85}
   .rx-select-option:hover,.rx-select-option:focus{outline:0;background:#1e3f85;color:#fff}
   .rx-select-option.add-command{border-top:1px solid #dbe6f6;font-weight:700}
@@ -453,7 +457,10 @@
   .pg-select-input{cursor:pointer;padding:0 8px;animation:pg-select-in .14s cubic-bezier(.2,0,.2,1) both}
   @keyframes pg-select-in{from{opacity:0;transform:scaleY(.6) scaleX(.97);box-shadow:none}to{opacity:1;transform:none;box-shadow:0 4px 20px rgba(37,99,235,.18)}}
   .pg-ac-drop{position:fixed;z-index:2147482100;display:none;max-height:220px;overflow-y:auto;background:#fff;border:1.5px solid #1e3f85;border-radius:10px;box-shadow:0 8px 24px rgba(30,63,133,.16)}
-  .pg-ac-item{padding:7px 13px;cursor:pointer;font-size:12.5px;color:#1e3f85;background:#fff;white-space:nowrap}
+  .pg-ac-item{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 13px;cursor:pointer;font-size:12.5px;color:#1e3f85;background:#fff;white-space:nowrap}
+  .pg-ac-item-label{flex:1;min-width:0}
+  .pg-ac-delete{flex:0 0 24px;border:0;background:transparent;color:#9ca3af;font:700 17px/1 Arial,sans-serif;cursor:pointer}
+  .pg-ac-delete:hover,.pg-ac-delete:focus{outline:0;color:#b91c1c}
   .pg-ac-item.pg-ac-active{background:#fff;color:#1e3f85}
   .pg-ac-item:hover{background:#1e3f85;color:#fff}
   .contact-match-drop{min-width:300px;max-width:min(460px,calc(100vw - 16px))}
@@ -1115,7 +1122,7 @@ const PREFIX_ADD_LABEL='+ Add New';
    it at 16), so a new option needs no API change — only somewhere to remember it.
    Kept in localStorage beside achi_bh; that means per-browser, NOT shared across
    the team. A shared list would need a real endpoint. */
-const PREFIX_KEY='achi_prefixes', PREFIX_ADD='__add__', PREFIX_REMOVE='__remove_prefix__';
+const PREFIX_KEY='achi_prefixes', PREFIX_ADD='__add__';
 /* Custom log types. The API validates this field by length rather than
    membership, so a new option needs no deploy — only somewhere to remember it.
    localStorage means per-browser, like the prefixes; a shared list needs an
@@ -1142,8 +1149,7 @@ const allPrefixes=()=>[...PREFIXES,...customPrefixes().filter(x=>!PREFIXES.inclu
    instead of run through label()'s capitalisation. */
 const prefixOpts=v=>'<option value=""></option>'
   +allPrefixes().map(x=>`<option value="${esc(x)}"${x===v?' selected':''}>${esc(x)}</option>`).join('')
-  +`<option value="${PREFIX_ADD}">＋ Add new…</option>`
-  +`<option value="${PREFIX_REMOVE}">− Remove custom…</option>`;
+  +`<option value="${PREFIX_ADD}">＋ Add new…</option>`;
 function addPrefix(){
   const v=(window.prompt('New prefix (max 16 characters):')||'').trim();
   if(!v) return null;
@@ -1151,15 +1157,10 @@ function addPrefix(){
   if(!allPrefixes().includes(v)) localStorage.setItem(PREFIX_KEY,JSON.stringify([...customPrefixes(),v]));
   clearErr(); return v;
 }
-function removePrefix(){
-  const custom=customPrefixes().filter(v=>!PREFIXES.includes(v));
-  if(!custom.length){ fail('There are no custom prefixes to remove.'); return null; }
-  const requested=(window.prompt(`Custom prefixes:\n${custom.join(', ')}\n\nPrefix to remove:`)||'').trim();
-  if(!requested) return null;
-  const value=custom.find(v=>v.toLowerCase()===requested.toLowerCase());
-  if(!value){ fail(`Custom prefix "${requested}" was not found.`); return null; }
+function removePrefix(value){
+  if(!customPrefixes().includes(value)||PREFIXES.includes(value)) return false;
   localStorage.setItem(PREFIX_KEY,JSON.stringify(customPrefixes().filter(v=>v!==value)));
-  clearErr(); return value;
+  clearErr(); return true;
 }
 const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 const SVG={
@@ -1749,6 +1750,19 @@ function ensureRxSelectMenu(){
   rxSelectMenu.hidden=true;
   document.body.appendChild(rxSelectMenu);
   const choose=e=>{
+    const remove=e.target.closest('.rx-select-delete[data-value]');
+    if(remove&&rxSelectSource?.dataset.rxSelect==='prefix'){
+      e.preventDefault(); e.stopPropagation();
+      const select=rxSelectSource, button=rxSelectButton, value=remove.dataset.value;
+      if(removePrefix(value)){
+        const option=[...select.options].find(item=>item.value===value);
+        if(option) option.remove();
+        if(select.value===value) select.value='';
+        closeRxSelect();
+        openRxSelect(select,button);
+      }
+      return;
+    }
     const option=e.target.closest('.rx-select-option[data-index]');
     if(!option||!rxSelectSource) return;
     e.preventDefault();
@@ -1790,8 +1804,13 @@ function openRxSelect(select,button){
   if(rxSelectSource===select&&!rxSelectMenu.hidden){ closeRxSelect(); return; }
   closeRxState(); closeRxSelect();
   rxSelectSource=select; rxSelectButton=button;
-  rxSelectMenu.innerHTML=[...select.options].map((option,index)=>
-      `<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,PREFIX_REMOVE,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`).join('');
+  const removablePrefixes=new Set(customPrefixes().filter(value=>!PREFIXES.includes(value)));
+  rxSelectMenu.innerHTML=[...select.options].map((option,index)=>{
+    const choice=`<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`;
+    return select.dataset.rxSelect==='prefix'&&removablePrefixes.has(option.value)
+      ? `<div class="rx-select-row">${choice}<button type="button" class="rx-select-delete" data-value="${esc(option.value)}" aria-label="Delete ${esc(option.value)}" title="Delete">×</button></div>`
+      : choice;
+  }).join('');
   const r=button.getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
@@ -1887,7 +1906,7 @@ function openExpandedRow(explicitId){
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===PREFIX_REMOVE?'− Remove custom…':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
@@ -1905,7 +1924,7 @@ function openExpandedRow(explicitId){
 
   let html='';
   html+=g('rx-g4',
-    F('Pre',        SEL('prefix',[...allPrefixes(),PREFIX_ADD,PREFIX_REMOVE],val('prefix'),true)),
+    F('Pre',        SEL('prefix',[...allPrefixes(),PREFIX_ADD],val('prefix'),true)),
     F('First name', IN('first','Type or pick...',val('first')),true),
     F('Last name',  IN('last','Type or pick...',val('last'))),
     F('Role',       SEL('role',[...allRoles(),ROLE_ADD],'',true,true)));
@@ -2619,8 +2638,19 @@ $('rows').addEventListener('pointerdown',e=>{
   e.preventDefault();
   openExpandedRow(id);
 });
-$('rx-close').addEventListener('click',closeExpandedRow);
-$('rx-cancel').addEventListener('click',closeExpandedRow);
+/* Keep close-button gestures inside the sheet. Saved rows can contain inline
+   CAD/3D previews with their own pointer controls, so unrelated document-level
+   gesture handlers must not observe a close-button press. `click` still handles
+   both mouse and keyboard activation. */
+function closeExpandedFromControl(e){
+  e.preventDefault();
+  e.stopPropagation();
+  closeExpandedRow();
+}
+for(const control of [$('rx-close'),$('rx-cancel')]){
+  control.addEventListener('pointerdown',e=>e.stopPropagation());
+  control.addEventListener('click',closeExpandedFromControl);
+}
 $('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
 $('rx-when').addEventListener('change',e=>{ $('rx-when-label').textContent=fmtHeaderDT(e.target.value); });
 $('rx-state-btn').addEventListener('click',()=>{
@@ -2725,14 +2755,6 @@ $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRo
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 $('rx-body').addEventListener('change',e=>{
   const el=e.target;
-  if(el.dataset.rxSelect==='prefix'&&el.value===PREFIX_REMOVE){
-    const previous=el.dataset.rxPreviousValue;
-    const removed=removePrefix();
-    if(removed) [...el.options].find(option=>option.value===removed)?.remove();
-    el.value=previous&&previous!==PREFIX_ADD&&previous!==PREFIX_REMOVE&&previous!==removed?previous:'';
-    enhanceRxSelect(el);
-    return;
-  }
   const customPicklist=el.dataset.rxSelect==='role'&&el.value===ROLE_ADD
     ? {sentinel:ROLE_ADD,add:addRole}
     : el.dataset.rxSelect==='subject'&&el.value===SUBJECT_ADD
@@ -3067,14 +3089,28 @@ function selectPopupChoices(kind){
   if(kind==='country')  return ['',...COUNTRY_NAMES].map(value=>({value,label:value||'—'}));
   if(kind==='type') return [...allTypes(),TYPE_ADD].map(value=>({value,label:value===TYPE_ADD?'＋ Add new…':value}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
-  return ['',...allPrefixes(),PREFIX_ADD].map(value=>({value,label:value===PREFIX_ADD?'＋ Add new…':value||'—'}));
+  const removable=new Set(customPrefixes().filter(value=>!PREFIXES.includes(value)));
+  return ['',...allPrefixes(),PREFIX_ADD].map(value=>({
+    value,
+    label:value===PREFIX_ADD?'＋ Add new…':value||'—',
+    removable:removable.has(value)
+  }));
 }
 function openSelectPopup(td,el,choices,onPick){
   document.querySelector('.pg-ac-drop')?.remove();
   const drop=document.createElement('div'); drop.className='pg-ac-drop'; document.body.appendChild(drop);
   let active=Math.max(0,choices.findIndex(o=>o.value===(el.dataset.selectValue??el.value)));
   const place=()=>{const r=td.getBoundingClientRect(),maxH=Math.min(220,choices.length*32),below=innerHeight-r.bottom-8,top=below>=Math.min(maxH,120)?r.bottom+2:Math.max(8,r.top-maxH-2);drop.style.left=Math.max(8,Math.min(r.left,innerWidth-r.width-8))+'px';drop.style.top=top+'px';drop.style.minWidth=r.width+'px';drop.style.maxWidth=Math.max(r.width,innerWidth-16)+'px';};
-  const render=(scroll=false)=>{drop.innerHTML='';choices.forEach((o,i)=>{const item=document.createElement('div');item.className='pg-ac-item'+(i===active?' pg-ac-active':'');item.textContent=o.label;item.onmousedown=e=>{e.preventDefault();drop.remove();onPick(o.value);};drop.appendChild(item);});drop.style.display='block';place();if(scroll)drop.querySelector('.pg-ac-active')?.scrollIntoView({block:'nearest'});};
+  const render=(scroll=false)=>{drop.innerHTML='';choices.forEach((o,i)=>{
+    const item=document.createElement('div');item.className='pg-ac-item'+(i===active?' pg-ac-active':'');
+    const text=document.createElement('span');text.className='pg-ac-item-label';text.textContent=o.label;item.appendChild(text);
+    if(o.removable){
+      const remove=document.createElement('button');remove.type='button';remove.className='pg-ac-delete';remove.textContent='×';remove.title='Delete';remove.setAttribute('aria-label',`Delete ${o.label}`);
+      remove.onmousedown=e=>{e.preventDefault();e.stopPropagation();if(!removePrefix(o.value))return;choices.splice(i,1);if(active>=choices.length)active=Math.max(0,choices.length-1);render();};
+      item.appendChild(remove);
+    }
+    item.onmousedown=e=>{if(e.target.closest('.pg-ac-delete'))return;e.preventDefault();drop.remove();onPick(o.value);};drop.appendChild(item);
+  });drop.style.display='block';place();if(scroll)drop.querySelector('.pg-ac-active')?.scrollIntoView({block:'nearest'});};
   const move=d=>{active=(active+d+choices.length)%choices.length;render(true);};
   el.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();e.stopPropagation();move(e.key==='ArrowDown'?1:-1);}else if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();e.stopPropagation();const o=choices[active];if(o){drop.remove();onPick(o.value);}}else if(e.key==='Escape'){e.stopPropagation();drop.remove();}};
   el.onclick=()=>render(true); drop.onwheel=e=>e.stopPropagation();
