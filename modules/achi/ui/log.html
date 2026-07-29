@@ -571,6 +571,11 @@
   .att-prev-body .att-pdf-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
   .att-prev-body .att-pdf{max-width:100%;max-height:72vh;border:1px solid #eef1f6;border-radius:8px;cursor:pointer;box-shadow:0 2px 10px rgba(15,35,75,.08)}
   .att-pdf-hint{font-size:11px;color:#8a94a6;font-weight:600}
+  /* Hover a description cell that has files -> a small floating strip of the
+     row's attachment tiles (each still expands to the big centred preview). */
+  .desc-preview{position:fixed;z-index:2147483100;background:#fff;border:1px solid #e2e8f2;border-radius:12px;box-shadow:0 16px 44px rgba(15,35,75,.22);padding:10px;max-width:78vw}
+  .desc-preview .att-strip{margin:0}
+  .desc-preview-load{font-size:11px;color:#5b6472;padding:6px 8px}
   td.notecell{position:relative}
   /* Rich-text description in the cell: keep it compact so formatting shows
      without block-margins blowing up the row height. */
@@ -1067,7 +1072,7 @@ var CUBE_SVG='<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="r
    the full preview (the interactive 3D model for RVT). Clicking opens the file in
    a new page (image/PDF); CAD/RVT click is a no-op for now — behaviour TBD.
    delAttr keeps existing delete delegation working. */
-function attachmentTile(f, delAttr){
+function attachmentTile(f, delAttr, noPop){
   const ext=(f.filename||'').split('.').pop().toLowerCase();
   const is3d=(ext==='rvt'||ext==='ifc');
   const canPreview=hasPreview(f.filename);
@@ -1118,15 +1123,19 @@ function attachmentTile(f, delAttr){
   }
   // Hover: open the centred popover (a grace timer lets the pointer travel to it
   // to interact — orbit 3D, scroll a PDF) and load the larger preview on first
-  // hover. Moving off both the tile and the popover closes it.
-  let ps=false;
-  face.addEventListener('mouseenter',()=>{
-    openPop(pop);
-    if(canPreview && !ps){ ps=true; renderPreviewByType(popBody,f,alive); }
-  });
-  face.addEventListener('mouseleave',()=>laterHidePop(pop));
-  pop.addEventListener('mouseenter',keepPop);
-  pop.addEventListener('mouseleave',()=>laterHidePop(pop));
+  // hover. Moving off both the tile and the popover closes it. noPop skips this
+  // (used inside the description-cell hover strip, which is itself a popover — a
+  // nested one would be janky); those tiles are just thumbnails you click.
+  if(!noPop){
+    let ps=false;
+    face.addEventListener('mouseenter',()=>{
+      openPop(pop);
+      if(canPreview && !ps){ ps=true; renderPreviewByType(popBody,f,alive); }
+    });
+    face.addEventListener('mouseleave',()=>laterHidePop(pop));
+    pop.addEventListener('mouseenter',keepPop);
+    pop.addEventListener('mouseleave',()=>laterHidePop(pop));
+  }
   return tile;
 }
 // One centred preview popover open at a time, with a grace period so the pointer
@@ -2809,6 +2818,53 @@ window.addEventListener('message',e=>{ if(e&&e.data&&e.data.type==='achi-flush')
    field saves immediately, even when the next field is in the same draft row;
    other fields still wait until the user leaves the row. Pickers and the notes
    workspace never count as leaving. */
+/* Hover a description cell that has attachments -> a floating strip of that row's
+   attachment tiles (thumbnails), reusing the gallery tiles. Click a tile to open
+   it in its editor. Loaded (and cached) per row on first hover. */
+var _descPop=null,_descShow=null,_descHide=null,_descFor=null,_descCache={};
+function descHideSoon(){ clearTimeout(_descHide); _descHide=setTimeout(function(){ if(_descPop)_descPop.style.display='none'; _descFor=null; },220); }
+function descPopEl(){
+  if(_descPop) return _descPop;
+  var p=document.createElement('div'); p.className='desc-preview'; p.style.display='none';
+  p.addEventListener('mouseenter',function(){ clearTimeout(_descHide); });
+  p.addEventListener('mouseleave',descHideSoon);
+  document.body.appendChild(p); _descPop=p; return p;
+}
+async function descShow(cell,logId){
+  clearTimeout(_descHide);
+  var p=descPopEl();
+  if(_descFor===logId && p.style.display!=='none') return;
+  _descFor=logId;
+  var r=cell.getBoundingClientRect(), w=Math.min(340,Math.round(window.innerWidth*0.7));
+  p.style.width=w+'px';
+  p.style.left=Math.max(8,Math.min(r.left,window.innerWidth-w-8))+'px';
+  p.style.top=(r.bottom+6)+'px';
+  p.innerHTML='<div class="desc-preview-load">Loading…</div>'; p.style.display='block';
+  try{
+    var row=(typeof ROWS!=='undefined')&&ROWS.find(function(x){return x.id===logId;});
+    var files=_descCache[logId];
+    if(!files || (row && typeof row.attachment_count==='number' && files.length!==row.attachment_count)){
+      files=await api('/logs/'+logId+'/attachments'); _descCache[logId]=files;   // (re)fetch, self-healing
+    }
+    if(_descFor!==logId) return;
+    if(!files.length){ p.style.display='none'; _descFor=null; return; }
+    p.innerHTML=''; var strip=document.createElement('div'); strip.className='att-strip';
+    files.forEach(function(f){ strip.appendChild(attachmentTile(f,null,true)); });   // noPop tiles
+    p.appendChild(strip);
+  }catch(e){ p.style.display='none'; _descFor=null; }
+}
+$('rows').addEventListener('mouseover',function(e){
+  var cell=e.target.closest&&e.target.closest('td.notecell'); if(!cell) return;
+  var tr=cell.closest('tr[data-log]'); if(!tr) return;
+  var logId=tr.dataset.log, row=(typeof ROWS!=='undefined')&&ROWS.find(function(x){return x.id===logId;});
+  if(!row||!(row.attachment_count>0)) return;
+  clearTimeout(_descHide); clearTimeout(_descShow);
+  _descShow=setTimeout(function(){ descShow(cell,logId); },200);
+});
+$('rows').addEventListener('mouseout',function(e){
+  if(!(e.target.closest&&e.target.closest('td.notecell'))) return;
+  clearTimeout(_descShow); descHideSoon();
+});
 $('rows').addEventListener('focusout',e=>{
   const el=e.target;
   if(!(el.classList&&el.classList.contains('din'))) return;
