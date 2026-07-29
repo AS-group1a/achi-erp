@@ -874,7 +874,7 @@ async function openInTakeoff(id,name){
     // project this drawing was uploaded into so it opens straight into the edit
     // view instead of the "upload a file" empty state. (Same-origin localStorage
     // is read by the editor tab on load.)
-    if(d.kind==='dwg' && d.project_id){
+    if(d.project_id){   // DWG & BIM editors are scoped to a project — make ours active
       try{ localStorage.setItem('oe_active_project', JSON.stringify({id:d.project_id,name:'Call Log Drawings'})); }catch(_){}
     }
     if(w) w.location.href=d.url; else window.open(d.url,'_blank');
@@ -1071,7 +1071,7 @@ function attachmentTile(f, delAttr){
   const ext=(f.filename||'').split('.').pop().toLowerCase();
   const is3d=(ext==='rvt'||ext==='ifc');
   const canPreview=hasPreview(f.filename);
-  const hasEditor=(isPdf(f.filename)||ext==='dwg'||ext==='dxf');   // has an OCE takeoff editor
+  const hasEditor=(isPdf(f.filename)||ext==='dwg'||ext==='dxf'||is3d);   // has an OCE editor (takeoff / 3D)
   const tile=document.createElement('div'); tile.className='att-tile'; tile.dataset.for=f.id;
   var thumbHtml = is3d ? '<div class="att-3d-ph">'+CUBE_SVG+'<span>'+esc(ext.toUpperCase())+'</span></div>'
                        : (canPreview ? '<div class="cad-loading"></div>'
@@ -1086,7 +1086,7 @@ function attachmentTile(f, delAttr){
     <div class="att-preview">
       <div class="att-prev-head"><span>${esc(f.filename)}</span>
         <span class="att-prev-actions">
-          ${hasEditor?'<button type="button" class="att-prev-edit">Open in editor</button>':''}
+          ${hasEditor?`<button type="button" class="att-prev-edit">${is3d?'Open in 3D':'Open in editor'}</button>`:''}
           <button type="button" class="att-prev-dl" title="Download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
         </span></div>
       <div class="att-prev-body">${canPreview?'<div class="cad-loading">Preview…</div>':'<div class="cad-msg">No preview for this type. Use the download button.</div>'}</div>
@@ -1103,8 +1103,7 @@ function attachmentTile(f, delAttr){
   face.addEventListener('click',e=>{
     if(e.target.closest('.att-tile-x')) return;                 // delete handled by delegation
     if(isImage(f.filename)){ openNew(); return; }               // image -> view in a new tab
-    if(isPdf(f.filename)||ext==='dwg'||ext==='dxf'){ openInTakeoff(f.id,f.filename); return; }  // -> OCE takeoff editor
-    // RVT/IFC click: TBD.
+    if(hasEditor){ openInTakeoff(f.id,f.filename); return; }     // dwg/dxf -> takeoff, pdf -> measure, rvt/ifc -> 3D
   });
   // Tile thumbnail: render the real preview for image/PDF/DWG lazily when the
   // tile scrolls into view. RVT/IFC keep the placeholder (converting a model per

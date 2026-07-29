@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import quote, urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 
 from app.dependencies import CurrentUserId, OptionalUserPayload, RequireRole, SessionDep, SettingsDep
@@ -808,23 +808,47 @@ async def model_glb(attachment_id: str, request: Request, settings: SettingsDep)
     )
 
 
-# --- Open an attachment in OCE's takeoff editor (DWG rulers / PDF measure) ----
+# --- Open an attachment in OCE's editors (DWG rulers / PDF measure / BIM 3D) ---
 def _takeoff_url(kind: str, external_id: str, project_id: str) -> str:
     if kind == "dwg":
         # The DWG-Takeoff page reads the drawing from ?drawingId (camelCase) and
         # its project from the active-project context; project_id is passed too so
         # the shell can select the right project.
         return f"/dwg-takeoff?project_id={project_id}&drawingId={external_id}"
+    if kind == "bim":
+        return f"/bim/{external_id}"                      # 3D BIM viewer, by model id
     return f"/takeoff?doc={external_id}&tab=measurements"
 
 
-@router.post("/attachments/{attachment_id}/takeoff", include_in_schema=False)
-async def open_in_takeoff(attachment_id: str, session: SessionDep, settings: SettingsDep, user_id: CurrentUserId):
-    """Hand a DWG/DXF or PDF attachment to OCE's own takeoff editor and return the
-    editor URL. The uploaded drawing/document is cached per attachment so repeat
-    opens reuse it (no re-upload, no re-convert)."""
-    import io
+async def _ensure_call_log_project(session, settings, user_id: str):
+    """Find-or-create the caller's 'Call Log Drawings' project (DWG and BIM both
+    need a project). Returns (project_id_str, project_uuid)."""
     import uuid as _uuid
+
+    from app.modules.projects.schemas import ProjectCreate
+    from app.modules.projects.service import ProjectService
+
+    owner = _uuid.UUID(str(user_id))
+    psvc = ProjectService(session, settings)
+    projects, _ = await psvc.list_projects(owner, limit=500)
+    proj = next((p for p in projects if p.name == "Call Log Drawings"), None)
+    if proj is None:
+        proj = await psvc.create_project(ProjectCreate(name="Call Log Drawings"), owner)
+    return str(proj.id), proj.id
+
+
+@router.post("/attachments/{attachment_id}/takeoff", include_in_schema=False)
+async def open_in_takeoff(
+    attachment_id: str,
+    session: SessionDep,
+    settings: SettingsDep,
+    user_id: CurrentUserId,
+    background_tasks: BackgroundTasks,
+):
+    """Hand an attachment to OCE's own editor and return the URL: DWG/DXF -> DWG
+    Takeoff, PDF -> PDF Takeoff, RVT/IFC -> 3D BIM viewer. The uploaded artifact is
+    cached per attachment so repeat opens reuse it (no re-upload / re-convert)."""
+    import io
 
     from sqlalchemy import select as _select
 
@@ -835,9 +859,16 @@ async def open_in_takeoff(attachment_id: str, session: SessionDep, settings: Set
     if att is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
     ext = att.filename.rsplit(".", 1)[-1].lower() if "." in att.filename else ""
-    kind = "dwg" if ext in ("dwg", "dxf") else ("pdf" if ext == "pdf" else "")
+    if ext in ("dwg", "dxf"):
+        kind = "dwg"
+    elif ext == "pdf":
+        kind = "pdf"
+    elif ext in ("rvt", "ifc"):
+        kind = "bim"
+    else:
+        kind = ""
     if not kind:
-        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "No takeoff editor for this file type")
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "No editor for this file type")
 
     cached = (
         await session.execute(
@@ -855,26 +886,38 @@ async def open_in_takeoff(attachment_id: str, session: SessionDep, settings: Set
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment bytes are missing") from e
 
     try:
+        from starlette.datastructures import UploadFile as _UploadFile
+
         if kind == "dwg":
-            from starlette.datastructures import UploadFile as _UploadFile
-
             from app.modules.dwg_takeoff.service import DwgTakeoffService
-            from app.modules.projects.schemas import ProjectCreate
-            from app.modules.projects.service import ProjectService
 
-            owner = _uuid.UUID(str(user_id))
-            psvc = ProjectService(session, settings)
-            projects, _ = await psvc.list_projects(owner, limit=500)
-            proj = next((p for p in projects if p.name == "Call Log Drawings"), None)
-            if proj is None:
-                proj = await psvc.create_project(ProjectCreate(name="Call Log Drawings"), owner)
-            # Capture ids as plain strings BEFORE the upload commits — a commit
-            # expires the ORM objects and a later attribute read would try a sync
-            # reload inside the async session and blow up.
-            pid, proj_uuid = str(proj.id), proj.id
+            # Capture the id BEFORE the upload commits (a commit expires the ORM
+            # object and a later read would sync-reload inside the async session).
+            pid, proj_uuid = await _ensure_call_log_project(session, settings, user_id)
             uf = _UploadFile(io.BytesIO(content), size=len(content), filename=att.filename)
             drawing = await DwgTakeoffService(session).upload_drawing(proj_uuid, uf, str(user_id), name=att.filename)
             ext_id = str(drawing.id)
+        elif kind == "bim":
+            from app.modules.bim_hub.router import upload_cad_file
+            from app.modules.bim_hub.service import BIMHubService
+
+            pid, _proj_uuid = await _ensure_call_log_project(session, settings, user_id)
+            uf = _UploadFile(io.BytesIO(content), size=len(content), filename=att.filename)
+            # Reuse bim_hub's own upload handler (streams, validates, creates the
+            # BIMModel, schedules conversion) — passing OUR background_tasks so the
+            # heavy convert runs after this response, not blocking it.
+            result = await upload_cad_file(
+                background_tasks=background_tasks,
+                project_id=pid,
+                name=att.filename,
+                discipline="architecture",
+                conversion_depth="standard",
+                file=uf,
+                user_id=str(user_id),
+                _perm=None,
+                service=BIMHubService(session),
+            )
+            ext_id = str(result["model_id"])
         else:  # pdf
             from app.modules.takeoff.service import TakeoffService
 
