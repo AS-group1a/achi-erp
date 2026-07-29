@@ -2173,7 +2173,7 @@ function openExpandedRow(explicitId){
   rxRowId=r?id:null;
   const isNew=!r;
   const src=r||{};   // empty object -> every field renders blank
-  $('rx-title').textContent=r?'Log Details':'Add Log';
+  // Title is set to the log number further down (was "Add Log"/"Log Details").
   $('rx-sub').textContent=r?'view or update this call log':'fill while you’re on the call — everything prices itself live';
 
   /* Laid out to the Add Log mockups. Fields whose model column exists carry
@@ -2290,7 +2290,10 @@ function openExpandedRow(explicitId){
   }
   updateSaveLabel();
   const rowIndex=r?ROWS.findIndex(row=>row.id===r.id):-1;
-  $('rx-num').textContent=`Log #${r&&rowIndex>=0?ROWS.length-rowIndex:ROWS.length+1}`;
+  // Show the log number AS the title (replacing "Add Log"), and hide the now
+  // redundant "Log #…" chip that used to sit beside it.
+  $('rx-title').textContent=`Log #${r&&rowIndex>=0?ROWS.length-rowIndex:ROWS.length+1}`;
+  const rxNum=$('rx-num'); if(rxNum) rxNum.style.display='none';
   const whenDate=new Date(r&&r.created_at?r.created_at:Date.now());
   const w=$('rx-when');
   if(w){
