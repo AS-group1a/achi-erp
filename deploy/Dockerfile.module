@@ -1,0 +1,12 @@
+ARG BASE_IMAGE=achi-erp-app
+FROM ${BASE_IMAGE}
+
+# Fast deployment path for ACHI-only UI/module changes. The full Dockerfile
+# already installs and pins upstream; this layer replaces only our external
+# module without downloading upstream and its binary dependencies again.
+COPY modules/achi /tmp/achi
+RUN APP_DIR="$(python -c 'import app, pathlib; print(pathlib.Path(app.__file__).parent)')" \
+    && rm -r "$APP_DIR/modules/achi" \
+    && cp -r /tmp/achi "$APP_DIR/modules/achi" \
+    && rm -r /tmp/achi \
+    && python -c "from app.core.module_loader import module_loader; assert any(m.name=='oe_achi' for m in module_loader.discover()), 'oe_achi not discovered'"

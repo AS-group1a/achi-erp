@@ -541,6 +541,28 @@
   td.notecell p{margin:0}
   td.notecell ul,td.notecell ol{margin:2px 0;padding-left:18px}
   td.notecell blockquote{margin:2px 0;padding-left:8px;border-left:2px solid #d8dee9;color:#5b6472}
+  td.notecell[data-k="desc"] .desc-cell-text{display:block;height:46px;line-height:46px;padding-right:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  td.notecell[data-k="desc"] .desc-cell-text p,
+  td.notecell[data-k="desc"] .desc-cell-text ul,
+  td.notecell[data-k="desc"] .desc-cell-text ol,
+  td.notecell[data-k="desc"] .desc-cell-text li,
+  td.notecell[data-k="desc"] .desc-cell-text blockquote{display:inline;margin:0;padding:0;border:0}
+  /* Saved descriptions remain one normal-height table row. Hovering Description
+     opens a separate Quick Notes-style card instead of stretching every cell in
+     the row and leaving a large blank band across the table. */
+  .desc-hover-card{position:fixed;z-index:2147482400;width:min(880px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 24px));display:flex;flex-direction:column;overflow:hidden;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;box-shadow:0 20px 54px rgba(15,35,75,.3)}
+  .desc-hover-body{flex:1 1 auto;min-height:72px;overflow-y:auto;padding:15px 16px;background:#fff;color:#172033;font-size:13.5px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;scrollbar-color:#8ca6d2 #eef4ff;scrollbar-width:thin}
+  .desc-hover-body p{margin:0 0 6px}
+  .desc-hover-body p:last-child{margin-bottom:0}
+  .desc-hover-body ul,.desc-hover-body ol{margin:3px 0;padding-left:20px}
+  .desc-hover-body blockquote{margin:3px 0;padding-left:9px;border-left:2px solid #cbd9f1;color:#5b6472}
+  .desc-hover-files{flex:0 0 auto;display:flex;gap:8px;min-height:0;padding:10px 12px;border-top:1px solid #e5e7eb;background:#fff;overflow-x:auto}
+  .desc-hover-files:empty{display:none}
+  .desc-hover-file{position:relative;flex:0 0 204px;width:204px;height:168px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #cbd9f1;border-radius:10px;background:#fff;color:#1e3f85}
+  .desc-hover-file img{width:100%;height:100%;display:block;object-fit:contain;background:#fff}
+  .desc-hover-file iframe{width:100%;height:100%;display:block;border:0;background:#fff;pointer-events:none}
+  .desc-hover-file-icon{font-size:15px;font-weight:800;text-transform:uppercase}
+  .desc-hover-file-name{position:absolute;right:4px;bottom:4px;left:4px;overflow:hidden;padding:4px 5px;border:1px solid #e5e7eb;border-radius:5px;background:rgba(255,255,255,.94);color:#172033;font-size:10px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}
   .note-exp{position:absolute;right:3px;bottom:2px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:#eef4ff;color:var(--navy);cursor:pointer;padding:0;opacity:0;transition:opacity .12s}
   td.notecell:hover .note-exp,.note-wrap:hover .note-exp{opacity:1}
   .note-exp:hover{background:#dbeafe}
@@ -556,9 +578,9 @@
   .pg-note-head-tool:hover,.pg-note-head-tool.has-content{background:#fff;color:#1e3f85}
   .pg-note-head-tool:disabled{opacity:.55;cursor:wait}
   .pg-note-workspace-close{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.32);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:20px;cursor:pointer}
-  .pg-note-workspace-body{padding:20px 22px;overflow:auto;background:#f7faff}
+  .pg-note-workspace-body{padding:14px 18px;overflow:auto;background:#f7faff}
   .pg-note-workspace-label{display:block;margin-bottom:7px;color:#1e3f85;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-  .pg-note-workspace-text{width:100%;min-height:210px;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
+  .pg-note-workspace-text{width:100%;min-height:112px;max-height:42vh;box-sizing:border-box;resize:vertical;padding:13px 14px;border:1.5px solid #cbd9f1;border-radius:12px;background:#fff;color:#172033;font-family:inherit;font-size:13.5px;line-height:1.55;outline:none;white-space:pre-wrap}
   .pg-note-workspace-text:focus{border-color:#284f9e;box-shadow:0 0 0 3px rgba(40,79,158,.12)}
   .pg-note-files{margin-top:14px;display:flex;flex-direction:column;gap:7px}
   .pg-note-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #dce6f5;border-radius:8px;background:#fff;color:#334155;font-size:12px}
@@ -568,7 +590,8 @@
   .pg-note-file-pending{color:#64748b;font-size:10.5px;white-space:nowrap}
   .pg-note-file-del{width:20px;height:20px;border:0;border-radius:6px;background:#fde8e8;color:#c0392b;font-weight:900;font-size:12px;line-height:1;cursor:pointer;padding:0}
   .pg-note-file-del:hover{background:#f7c9c9}
-  .pg-note-workspace-status{min-height:18px;margin-top:10px;color:#64748b;font-size:11.5px}
+  .pg-note-workspace-status{min-height:0;margin-top:6px;color:#64748b;font-size:11.5px}
+  .pg-note-workspace-status:empty{display:none}
   .pg-note-workspace-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid #dce6f5;background:#fff}
   .pg-note-workspace-hint{color:#718096;font-size:11px}
   .pg-note-workspace-actions{display:flex;gap:9px}
@@ -590,7 +613,7 @@
     .pg-note-head-tool{flex:1;justify-content:center}
     .pg-note-workspace-foot{align-items:flex-end}
     .pg-note-workspace-hint{max-width:150px}
-    .pg-note-workspace-text{min-height:180px}
+    .pg-note-workspace-text{min-height:112px}
   }
 </style>
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
@@ -1331,7 +1354,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
   case 'company': return dash(r.company_name);
-  case 'desc': return (r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>')+marks(r);
+  case 'desc': return `<span class="desc-cell-text">${r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>'}</span>`+marks(r);
   case 'location': return dash(r.site_location);
   case 'owner': return avatar(r.owner_name,r.owner);
   case 'type': return tagv(r.log_type);
@@ -3034,6 +3057,80 @@ function openMapModal(lat,lng){
 }
 $('rows').addEventListener('mouseover',e=>{ const b=e.target.closest('.maps-btn'); if(b){ clearTimeout(mapsTimer); showMapsPopup(b,b.dataset.mapurl); } });
 $('rows').addEventListener('mouseout',e=>{ const b=e.target.closest('.maps-btn'); if(b){ mapsTimer=setTimeout(hideMapsPopup,150); } });
+
+/* The Description column previews its complete note on hover without changing
+   table row height. Keep the card outside .tscroll so it is not clipped. */
+let descHoverCard=null, descHoverTimer=0, descHoverUrls=[];
+function hideDescHover(){
+  clearTimeout(descHoverTimer);
+  descHoverUrls.forEach(URL.revokeObjectURL); descHoverUrls=[];
+  if(descHoverCard){ descHoverCard.remove(); descHoverCard=null; }
+}
+function scheduleDescHoverHide(){
+  clearTimeout(descHoverTimer);
+  descHoverTimer=setTimeout(hideDescHover,180);
+}
+async function showDescHover(td){
+  const value=td.dataset.val||'';
+  if(!value.trim()||td.querySelector('input,textarea')) return;
+  hideDescHover();
+  const card=document.createElement('div');
+  card.className='desc-hover-card';
+  card.setAttribute('role','tooltip');
+  card.innerHTML=`<div class="desc-hover-body">${looksHTML(value)?richText(value):esc(value)}</div><div class="desc-hover-files"></div>`;
+  document.body.appendChild(card);
+  card.addEventListener('mouseenter',()=>clearTimeout(descHoverTimer));
+  card.addEventListener('mouseleave',scheduleDescHoverHide);
+  const r=td.getBoundingClientRect(), cr=card.getBoundingClientRect(), gap=8;
+  let left=Math.min(Math.max(gap,r.left),window.innerWidth-cr.width-gap);
+  let top=r.bottom+gap;
+  if(top+cr.height>window.innerHeight-gap) top=Math.max(gap,r.top-cr.height-gap);
+  card.style.left=Math.round(left)+'px';
+  card.style.top=Math.round(top)+'px';
+  descHoverCard=card;
+
+  const logId=td.closest('tr')?.dataset.log;
+  if(!logId) return;
+  try{
+    const files=await api(`/logs/${logId}/attachments`);
+    if(descHoverCard!==card||!card.isConnected) return;
+    const tray=card.querySelector('.desc-hover-files');
+    tray.innerHTML=files.map(f=>{
+      const ext=(f.filename||'file').split('.').pop().toUpperCase().slice(0,5);
+      return `<div class="desc-hover-file" title="${esc(f.filename)}" data-hover-file="${esc(f.id)}" data-hover-name="${esc(f.filename)}"><span class="desc-hover-file-icon">${esc(ext)}</span><span class="desc-hover-file-name">${esc(f.filename)}</span></div>`;
+    }).join('');
+    for(const tile of tray.querySelectorAll('[data-hover-file]')){
+      const name=tile.dataset.hoverName||'', ext=name.split('.').pop().toLowerCase();
+      if(!['png','jpg','jpeg','gif','webp','bmp','pdf'].includes(ext)) continue;
+      try{
+        const response=await fetch(`${API}/attachments/${tile.dataset.hoverFile}/download`,{headers:{Authorization:'Bearer '+TOKEN}});
+        if(!response.ok||descHoverCard!==card) continue;
+        const url=URL.createObjectURL(await response.blob()); descHoverUrls.push(url);
+        if(ext==='pdf'){
+          const frame=document.createElement('iframe');
+          frame.src=url+'#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH';
+          frame.title='PDF preview';
+          tile.prepend(frame);
+        }else{
+          const image=document.createElement('img');
+          image.src=url; image.alt=''; tile.prepend(image);
+        }
+      }catch(_){}
+    }
+    const next=card.getBoundingClientRect();
+    if(top+next.height>innerHeight-gap) card.style.top=Math.max(gap,r.top-next.height-gap)+'px';
+  }catch(_){}
+}
+$('rows').addEventListener('mouseover',e=>{
+  const td=e.target.closest('tr.data td.notecell[data-k="desc"]');
+  if(td&&!td.contains(e.relatedTarget)){ clearTimeout(descHoverTimer); showDescHover(td); }
+});
+$('rows').addEventListener('mouseout',e=>{
+  const td=e.target.closest('tr.data td.notecell[data-k="desc"]');
+  if(td&&!td.contains(e.relatedTarget)) scheduleDescHoverHide();
+});
+$('touter').addEventListener('scroll',hideDescHover);
+window.addEventListener('resize',hideDescHover);
 // the popup is appended to document.body, so the grid's delegation never sees it
 document.addEventListener('click',e=>{ const x=e.target.closest&&e.target.closest('[data-mapexp]');
   if(x){ e.preventDefault(); openMapModal(parseFloat(x.dataset.lat),parseFloat(x.dataset.lng)); } });
@@ -3366,7 +3463,10 @@ function openNoteWorkspace(td,col){
 
   drawBtn.classList.toggle('has-content',!!row.has_drawing);
   renderFiles(); loadFiles();
-  requestAnimationFrame(()=>{ ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); });
+  requestAnimationFrame(()=>{
+    ta.style.height=Math.min(Math.max(112,ta.scrollHeight+2),Math.round(innerHeight*.42))+'px';
+    ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+  });
 }
 
 /* The highlighted entry row is not in the database yet. Frappe still opens its
@@ -3393,7 +3493,11 @@ function openDraftNoteWorkspace(input){
   draw.onclick=()=>{ if(typeof achi_drawing==='undefined') return; ov.style.display='none'; achi_drawing.open({title:`Drawing — ${col.h}`,initial:st.__drawing||'',onSave(json){st.__drawing=json;draw.classList.add('has-content');},onClose(){if(ov.isConnected){ov.style.display='flex';requestAnimationFrame(()=>ta.focus());}}}); };
   q('.pg-note-workspace-close').onclick=close; q('.pg-note-cancel').onclick=close; q('.pg-note-save').onclick=save;
   ov.onmousedown=e=>{if(e.target===ov)close();}; ta.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();save();}};
-  draw.classList.toggle('has-content',!!st.__drawing); renderFiles(); requestAnimationFrame(()=>ta.focus());
+  draw.classList.toggle('has-content',!!st.__drawing); renderFiles();
+  requestAnimationFrame(()=>{
+    ta.style.height=Math.min(Math.max(112,ta.scrollHeight+2),Math.round(innerHeight*.42))+'px';
+    ta.focus();
+  });
 }
 
 async function load(){ try{
