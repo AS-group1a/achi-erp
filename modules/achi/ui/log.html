@@ -550,7 +550,7 @@
   .att-tile-face:hover .att-tile-x{display:block}
   /* Pure-white preview panel, centred on screen and large. Shown/hidden via JS
      (not :hover) so the pointer can travel to it and interact. */
-  .att-preview{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483200;width:680px;max-width:92vw;max-height:88vh;background:#fff;border-radius:18px;box-shadow:0 30px 90px rgba(15,35,75,.32),0 4px 14px rgba(15,35,75,.12);overflow:hidden;flex-direction:column}
+  .att-preview{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483200;width:min(1080px,95vw);max-width:95vw;max-height:92vh;background:#fff;border-radius:18px;box-shadow:0 30px 90px rgba(15,35,75,.32),0 4px 14px rgba(15,35,75,.12);overflow:hidden;flex-direction:column}
   .att-preview.open{display:flex}
   .att-prev-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;color:#1d1d1f;font-size:12.5px;font-weight:700;border-bottom:1px solid #f0f2f6;flex:0 0 auto}
   .att-prev-head span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -560,14 +560,25 @@
   .att-prev-dl{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;background:#f1f4fa;color:#284f9e;border-radius:9px;cursor:pointer;flex:0 0 auto}
   .att-prev-dl:hover{background:#e4ebf7}
   .att-prev-dl svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .att-prev-body{padding:16px;flex:1 1 auto;min-height:220px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:auto}
-  .att-prev-body .att-img{max-width:100%;max-height:74vh;object-fit:contain;border-radius:8px;cursor:zoom-in}
-  .att-prev-body .att-svg{width:100%;height:70vh;max-height:70vh;overflow:hidden;border:0}
+  /* DWG/3D control strip pinned to the top of the expanded window (zoom + rotate
+     for drawings; orthographic view gizmos for 3D). Hidden for image/PDF. */
+  .att-prev-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:9px 16px;border-bottom:1px solid #f0f2f6;background:#f7f9fd;flex:0 0 auto}
+  .att-prev-tools[hidden]{display:none}
+  .att-prev-tools .sep{width:1px;height:20px;background:#dbe3f0;margin:0 3px}
+  .att-prev-tools .lbl{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#7387a8;margin-right:2px}
+  .att-tool{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:34px;height:30px;padding:0 11px;border:1px solid #dde4f0;background:#fff;color:#284f9e;border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1}
+  .att-tool:hover{background:#eef3fb;border-color:#c3d2ea}
+  .att-tool:active{background:#e2eaf7}
+  .att-tool.on{background:#284f9e;color:#fff;border-color:#284f9e}
+  .att-tool svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .att-prev-body{padding:16px;flex:1 1 auto;min-height:300px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:auto}
+  .att-prev-body .att-img{max-width:100%;max-height:78vh;object-fit:contain;border-radius:8px;cursor:zoom-in}
+  .att-prev-body .att-svg{width:100%;height:74vh;max-height:74vh;overflow:hidden;border:0;background:#fff}
   .att-prev-body .att-svg svg{display:block;width:100%;height:100%}
   .att-svg-pz{cursor:grab}
   .att-svg-pz.grabbing{cursor:grabbing}
   .att-svg-pz svg{will-change:transform}
-  .att-prev-body model-viewer{width:100%;height:70vh;background:#fff;border-radius:8px}
+  .att-prev-body model-viewer{width:100%;height:74vh;background:#fff;border-radius:8px}
   .att-prev-body .att-pdf-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
   .att-prev-body .att-pdf{max-width:100%;max-height:72vh;border:1px solid #eef1f6;border-radius:8px;cursor:pointer;box-shadow:0 2px 10px rgba(15,35,75,.08)}
   .att-pdf-hint{font-size:11px;color:#8a94a6;font-weight:600}
@@ -930,31 +941,74 @@ async function renderCadSvg(body,id,name,alive){
     const svg=await r.text(); if(!alive()) return;
     body.innerHTML=`<div class="att-svg">${svg}</div>`;
     // In the big popover, make the drawing pan/zoom-able (scroll to zoom, drag
-    // to pan). The small tile thumbnail stays static.
-    if(body.closest('.att-preview')) attachPanZoom(body.querySelector('.att-svg'));
+    // to pan) and add the zoom/rotate control strip. The small tile thumbnail
+    // stays static and toolless.
+    if(body.closest('.att-preview')){
+      const pz=attachPanZoom(body.querySelector('.att-svg'));
+      buildCadTools(body,pz);
+    }
   }catch(e){ if(alive()) body.innerHTML=`<div class="cad-msg"><b>Preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`; }
 }
 /* Scroll-to-zoom (toward the cursor) + drag-to-pan on the SVG inside a container.
    Uses a CSS transform and pointer capture, so a drag keeps working outside the
    box and nothing leaks onto window. */
 function attachPanZoom(box){
-  if(!box) return;
-  const svg=box.querySelector('svg'); if(!svg) return;
+  if(!box) return null;
+  const svg=box.querySelector('svg'); if(!svg) return null;
   box.classList.add('att-svg-pz');
-  let scale=1,tx=0,ty=0,drag=false,ox=0,oy=0;
-  svg.style.transformOrigin='0 0';
-  const apply=()=>{ svg.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; };
-  box.addEventListener('wheel',e=>{
-    e.preventDefault();
-    const r=box.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
-    const ns=Math.min(40,Math.max(0.25,scale*Math.exp(-e.deltaY*0.0016)));
-    tx=mx-(mx-tx)*(ns/scale); ty=my-(my-ty)*(ns/scale); scale=ns; apply();
-  },{passive:false});
+  let scale=1,tx=0,ty=0,rot=0,drag=false,ox=0,oy=0;
+  // Rotation reads best around the drawing's centre, so pan (translate) is the
+  // outermost transform (screen-space) and zoom/rotate happen around the centre.
+  svg.style.transformOrigin='center center';
+  const apply=()=>{ svg.style.transform=`translate(${tx}px,${ty}px) rotate(${rot}deg) scale(${scale})`; };
+  const zoom=f=>{ scale=Math.min(40,Math.max(0.2,scale*f)); apply(); };
+  box.addEventListener('wheel',e=>{ e.preventDefault(); zoom(Math.exp(-e.deltaY*0.0016)); },{passive:false});
   svg.addEventListener('pointerdown',e=>{ drag=true; ox=e.clientX-tx; oy=e.clientY-ty; try{svg.setPointerCapture(e.pointerId);}catch(_){}; box.classList.add('grabbing'); });
   svg.addEventListener('pointermove',e=>{ if(!drag)return; tx=e.clientX-ox; ty=e.clientY-oy; apply(); });
   const end=e=>{ drag=false; try{svg.releasePointerCapture(e.pointerId);}catch(_){}; box.classList.remove('grabbing'); };
   svg.addEventListener('pointerup',end); svg.addEventListener('pointercancel',end);
-  svg.addEventListener('dblclick',()=>{ scale=1;tx=0;ty=0;apply(); });   // double-click resets
+  const reset=()=>{ scale=1;tx=0;ty=0;rot=0;apply(); };
+  svg.addEventListener('dblclick',reset);                                // double-click resets
+  return { zoom, rotate:d=>{ rot=(rot+(d||90))%360; apply(); }, reset };
+}
+// Small icon-or-text button for the expanded-preview control strip.
+function prevTool(label,title,onClick){
+  const b=document.createElement('button');
+  b.type='button'; b.className='att-tool'; b.title=title; b.innerHTML=label;
+  b.addEventListener('click',e=>{ e.stopPropagation(); onClick(b); });
+  return b;
+}
+const ICON_ROTATE='<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+const ICON_SPIN='<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+// DWG/DXF: zoom + rotate strip driven by the pan/zoom controller above.
+function buildCadTools(body,pz){
+  const tools=body.closest('.att-preview')?.querySelector('.att-prev-tools');
+  if(!tools||!pz) return;
+  tools.innerHTML=''; tools.hidden=false;
+  tools.appendChild(prevTool('&minus;','Zoom out',()=>pz.zoom(1/1.3)));
+  tools.appendChild(prevTool('+','Zoom in',()=>pz.zoom(1.3)));
+  const s=document.createElement('span'); s.className='sep'; tools.appendChild(s);
+  tools.appendChild(prevTool(ICON_ROTATE,'Rotate 90°',()=>pz.rotate(90)));
+  const s2=document.createElement('span'); s2.className='sep'; tools.appendChild(s2);
+  tools.appendChild(prevTool('Fit','Reset view',()=>pz.reset()));
+}
+// RVT/IFC: orthographic view gizmos + spin toggle for the model-viewer.
+function build3DTools(body,mv,hooks){
+  const tools=body.closest('.att-preview')?.querySelector('.att-prev-tools');
+  if(!tools) return;
+  tools.innerHTML=''; tools.hidden=false;
+  const lbl=document.createElement('span'); lbl.className='lbl'; lbl.textContent='View'; tools.appendChild(lbl);
+  const jump=orbit=>{ mv.setAttribute('camera-orbit',orbit); try{ mv.jumpCameraToGoal&&mv.jumpCameraToGoal(); }catch(_){}; };
+  tools.appendChild(prevTool('Front','Front view',()=>jump('0deg 90deg auto')));
+  tools.appendChild(prevTool('Back','Back view',()=>jump('180deg 90deg auto')));
+  tools.appendChild(prevTool('Top','Top view',()=>jump('0deg 0deg auto')));
+  tools.appendChild(prevTool('Side','Side view',()=>jump('90deg 90deg auto')));
+  tools.appendChild(prevTool('Iso','Isometric view',()=>jump('45deg 60deg auto')));
+  const s=document.createElement('span'); s.className='sep'; tools.appendChild(s);
+  const spin=prevTool(ICON_SPIN+'<span>Spin</span>','Toggle auto-rotate',b=>{ b.classList.toggle('on',hooks.toggleSpin()); });
+  tools.appendChild(spin);
+  const s2=document.createElement('span'); s2.className='sep'; tools.appendChild(s2);
+  tools.appendChild(prevTool('Reset','Reset view',()=>{ try{ mv.resetTurntableRotation&&mv.resetTurntableRotation(); }catch(_){}; jump('auto auto auto'); }));
 }
 /* <model-viewer> is loaded lazily on first 3D use so the 1 MB never touches
    normal Call Log browsing. */
@@ -1002,13 +1056,19 @@ async function renderModel3D(body,id,name,alive){
     mv.setAttribute('interaction-prompt','none');
     mv.setAttribute('shadow-intensity','1');
     mv.setAttribute('exposure','1.1');
-    mv.style.cssText='width:100%;height:58vh;background:#eef2f7;display:block;border-radius:8px';
+    mv.style.cssText='width:100%;height:72vh;background:#fff;display:block;border-radius:8px';
     // Idle-frozen to spare the GPU (model-viewer renders on demand — no auto-
-    // rotate means no frames while idle); spin only while the pointer is over it.
+    // rotate means no frames while idle); spin only while the pointer is over
+    // it, UNLESS the Spin toolbar button has pinned it on.
+    let spinSticky=false;
     mv.addEventListener('pointerenter',()=>mv.setAttribute('auto-rotate',''));
-    mv.addEventListener('pointerleave',()=>mv.removeAttribute('auto-rotate'));
+    mv.addEventListener('pointerleave',()=>{ if(!spinSticky) mv.removeAttribute('auto-rotate'); });
     mv.addEventListener('error',()=>{ if(alive()) msg('<div class="cad-msg"><b>3D preview not available</b><br>The model could not be displayed.<br><br>Use <b>Download</b> above to open it in your CAD app.</div>'); });
     body.appendChild(mv);
+    // Expanded popover: orthographic view gizmos + spin toggle at the top.
+    if(body.closest('.att-preview')){
+      build3DTools(body,mv,{ toggleSpin:()=>{ spinSticky=!spinSticky; if(spinSticky) mv.setAttribute('auto-rotate',''); else mv.removeAttribute('auto-rotate'); return spinSticky; } });
+    }
   }catch(e){
     msg(`<div class="cad-msg"><b>3D preview not available</b><br>${esc(e.message)}<br><br>Use <b>Download</b> above to open it in your CAD app.</div>`);
   }
@@ -1112,6 +1172,7 @@ function attachmentTile(f, delAttr, noPop){
           ${hasEditor?`<button type="button" class="att-prev-edit">${is3d?'Open in 3D':'Open in editor'}</button>`:''}
           <button type="button" class="att-prev-dl" title="Download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
         </span></div>
+      <div class="att-prev-tools" hidden></div>
       <div class="att-prev-body">${canPreview?'<div class="cad-loading">Preview…</div>':'<div class="cad-msg">No preview for this type. Use the download button.</div>'}</div>
     </div>`;
   const face=tile.querySelector('.att-tile-face');
