@@ -23,6 +23,12 @@ class ModuleInfo(BaseModel):
     note: str
 
 
+class SocialIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    platform: str = Field(default="", max_length=32)
+    handle: str = Field(default="", max_length=128)
+
+
 class PersonIn(BaseModel):
     """Who the file is for.
 
@@ -38,8 +44,11 @@ class PersonIn(BaseModel):
     first_name: str | None = Field(default=None, max_length=128)
     last_name: str | None = Field(default=None, max_length=128)
     company_name: str | None = Field(default=None, max_length=255)
+    role: str | None = Field(default=None, max_length=64)
+    company_type: str | None = Field(default=None, max_length=64)
     mobile: str | None = Field(default=None, max_length=32)
     email: EmailStr | None = Field(default=None, max_length=255)
+    socials: list[SocialIn] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _require_a_name(self) -> "PersonIn":
@@ -92,6 +101,14 @@ class ContactFileUpdate(BaseModel):
     street: str | None = None
     site_location: str | None = None
     maps_url: str | None = None
+    # Fields the Add Log popup edits but that have no inline-grid editor; the
+    # popup PATCHes them here on edit (column names, so update()'s setattr works).
+    lead_role: str | None = None
+    lead_company_type: str | None = None
+    lead_socials: str | None = None
+    site_number: str | None = None
+    site_building: str | None = None
+    site_floor: str | None = None
     assigned_to_user_id: str | None = None
     notes: str | None = None
 
@@ -242,6 +259,9 @@ class SiteIn(BaseModel):
     street: str | None = Field(default=None, max_length=255)
     site_location: str | None = None
     maps_url: str | None = Field(default=None, max_length=1024)
+    site_number: str | None = Field(default=None, max_length=32)
+    site_building: str | None = Field(default=None, max_length=64)
+    site_floor: str | None = Field(default=None, max_length=32)
 
 
 class QuickLogCreate(BaseModel):
@@ -312,6 +332,9 @@ class LogRowOut(BaseModel):
     stage: str
     status: str
     subject: str = ""
+    role: str | None = None
+    company_type: str | None = None
+    socials: str | None = None            # JSON array of {platform, handle}
     # site (from the file)
     site_location: str | None = None
     city: str | None
@@ -319,6 +342,9 @@ class LogRowOut(BaseModel):
     street: str | None = None
     country: str | None = None
     maps_url: str | None = None
+    site_number: str | None = None
+    site_building: str | None = None
+    site_floor: str | None = None
     owner: str | None = None
     owner_name: str | None = None   # User.full_name; the grid derives initials from it
     # contact (from the canonical directory; None when the row had no phone/email,

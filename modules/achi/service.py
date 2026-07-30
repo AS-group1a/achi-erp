@@ -219,6 +219,8 @@ class ContactFileService:
                 file.lead_mobile = d["mobile"] or None
             if "email" in d:
                 file.lead_email = (d["email"] or "").strip().lower() or None
+            if "role" in d:
+                file.lead_role = d["role"] or None
 
             phone = (file.lead_mobile or "").strip()
             email = (file.lead_email or "").strip()
@@ -386,6 +388,9 @@ class ContactFileService:
                 lead_company=company or None,
                 lead_mobile=phone or None,
                 lead_email=email or None,
+                lead_role=(p.role or "").strip() or None,
+                lead_company_type=(p.company_type or "").strip() or None,
+                lead_socials=json.dumps([s.model_dump() for s in p.socials]) if p.socials else None,
                 subject=data.subject,
                 stage=data.stage,
                 owner_user_id=user_id,

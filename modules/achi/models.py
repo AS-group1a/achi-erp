@@ -61,6 +61,10 @@ class ContactFile(Base):
     lead_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
     lead_mobile: Mapped[str | None] = mapped_column(String(32), nullable=True)
     lead_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lead_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lead_company_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Social handles typed in Add Log, stored as a JSON array of {platform, handle}.
+    lead_socials: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # prospect -> lead -> site_survey -> measurements  (mirrors the Frappe CRM Log)
     # There is deliberately no "client" stage: becoming a client is not a file
@@ -76,6 +80,10 @@ class ContactFile(Base):
     street: Mapped[str | None] = mapped_column(String(255), nullable=True)
     site_location: Mapped[str | None] = mapped_column(Text, nullable=True)
     maps_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # Building-level address detail the Add Log popup collects beside the street.
+    site_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    site_building: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    site_floor: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     # The outcome. Set when the contact becomes a client and the work is real:
     # the file converts into an OCE project (oe_projects_project). Nullable —
