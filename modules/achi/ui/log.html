@@ -1227,7 +1227,7 @@ function laterHidePop(pop){ clearTimeout(_popHideTimer); _popHideTimer=setTimeou
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
-const validLebanonMobile=n=>/^(?:03\d{6}|3\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
+const validLebanonMobile=n=>/^(?:0[1345]\d{6}|3\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
 const validMobile=v=>{const s=String(v||'').trim();if(!s)return true;if(!/^([0-9 +_\-,.*#()]){1,20}$/.test(s))return false;const digits=s.replace(/\D/g,'');if(/^\+?961(?:\D|$)/.test(s))return validLebanonMobile(digits.slice(3));return digits.length>=7&&digits.length<=15;};
 function showFeedback(title,message,input=null){
   input&&input.classList.add('email-invalid');
@@ -2586,6 +2586,13 @@ async function rxSaveAll(keepOpen){
   if(email&&!validEmail(email.value)){
     st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(email); return;
   }
+  // Guard mobile up front like email/rxCreateNew: without this, rxSave rejects the
+  // number but only returns (not throws), so the loop below counts it as saved and
+  // closes the sheet. Validate the dialled value so Lebanese rules actually apply.
+  const mobile=$('rx-mobile');
+  if(mobile&&mobile.value.trim()&&!validMobile(rxFieldValue(mobile))){
+    st.textContent='Invalid mobile number'; st.className='rx-status bad'; showInvalidMobile(mobile); return;
+  }
   const fields=[...$('rx-body').querySelectorAll('[data-k]')];
   const r=ROWS.find(x=>x.id===rxRowId);
   if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
@@ -2634,8 +2641,8 @@ async function rxSave(el){
   const setNote=(t,cls)=>{ if(note){ note.textContent=t; note.className='rx-note '+(cls||''); } };
   const nv=rxFieldValue(el);
   if(String(c.edit.val(r)??'')===nv) return;                // nothing changed
-  if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); showInvalidEmail(el); return; }
-  if(field==='mobile'&&nv&&!validMobile(nv)){ setNote('Invalid mobile','rx-err'); showInvalidMobile(el); return; }
+  if(field==='email'&&nv&&!validEmail(nv)){ setNote('Invalid email','rx-err'); showInvalidEmail(el); throw new Error('Invalid email'); }
+  if(field==='mobile'&&nv&&!validMobile(nv)){ setNote('Invalid mobile','rx-err'); showInvalidMobile(el); throw new Error('Invalid mobile'); }
   try{
     if(target==='file') await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
     else if(target==='contact') await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({[field]:nv||null})});
