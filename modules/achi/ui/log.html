@@ -2257,28 +2257,31 @@ function openExpandedRow(explicitId){
       +`<input class="rx-in tel-num" id="rx-mobile" data-k="mobile" inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${esc(phone.mobilenum)}"></span>`;
   };
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
-  const val=k=>{ if(k==='reference') return src.reference||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
+  const DIRECT={role:'role',company_type:'company_type',subject:'subject',no:'site_number',bldg:'site_building',floor:'site_floor'};
+  const val=k=>{ if(k==='reference') return src.reference||''; if(DIRECT[k]) return src[DIRECT[k]]||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
 
   let html='';
   html+=g('rx-g4',
     F('Pre',        SEL('prefix',[...allPrefixes(),PREFIX_ADD],val('prefix'),true)),
     F('First name', IN('first','Type or pick...',val('first')),true),
     F('Last name',  IN('last','Type or pick...',val('last'))),
-    F('Role',       SEL('role',[...allRoles(),ROLE_ADD],'',true,true)));
+    F('Role',       SEL('role',[...allRoles(),ROLE_ADD],val('role'),true)));
   html+=g('rx-g4',
     F('Phone / WhatsApp', TEL(val('mobile'))),
     F('Email',            EMAIL(val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
-    F('Company type',     SEL('company_type',[...allCompanyTypes(),COMPANY_ADD],'',false,true)));
-  const socialHandles=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">
-    <div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML()}</select>
-    <input class="rx-in" data-nosave placeholder="@handle"></div></div>
+    F('Company type',     SEL('company_type',[...new Set([val('company_type'),...allCompanyTypes()].filter(Boolean)),COMPANY_ADD],val('company_type'),true)));
+  let savedSocials=[]; try{ savedSocials=JSON.parse(src.socials||'[]')||[]; }catch(e){}
+  const socialRow=(plat,handle)=>`<div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML(plat||'IG')}</select>`
+    +`<input class="rx-in" data-nosave placeholder="@handle" value="${esc(handle||'')}"></div>`;
+  const socialRows=(savedSocials.length?savedSocials:[{platform:'',handle:''}]).map(s=>socialRow(s.platform,s.handle)).join('');
+  const socialHandles=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">${socialRows}</div>
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',socialHandles,
     F('Reference',SEL('reference',[...allReferences(),REFERENCE_ADD],val('reference'),true)));
   html+=g('rx-g2',
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
-    F('Log subject', SEL('subject',[...allSubjects(),SUBJECT_ADD],'',true,true)));
+    F('Log subject', SEL('subject',[...new Set([val('subject'),...allSubjects()].filter(Boolean)),SUBJECT_ADD],val('subject'),true)));
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
@@ -2287,9 +2290,9 @@ function openExpandedRow(explicitId){
                 F('District', SEL('district',districtOptions(val('country')),val('district'),true)),
                 F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
-                F('No.',      IN('no','12','',true)),
-                F('Building', IN('bldg','Bldg','',true)),
-                F('Floor',    IN('floor','GF','',true)))
+                F('No.',      IN('no','12',val('no'))),
+                F('Building', IN('bldg','Bldg',val('bldg'))),
+                F('Floor',    IN('floor','GF',val('floor'))))
     +`</div>`;
   html+=`<div class="rx-notes">
     <div class="rx-notes-head">
@@ -2488,20 +2491,60 @@ function rxUpdateMapPreview(){
 /* Collect the sheet's fields into the {person, site, log} shape POST /logs/
    expects — the same shape draftPayload builds for the grid's own rows, so a
    new entry made here is indistinguishable from one typed into the table. */
+// Social handles are a repeatable list (no single data-k), so collect them by row.
+function rxCollectSocials(){
+  const list=$('rx-social-list');
+  return (list?[...list.querySelectorAll('.rx-social')]:[]).map(row=>({
+    platform:(row.querySelector('[data-social-platform]')?.value||'').trim(),
+    handle:(row.querySelector('input')?.value||'').trim()
+  })).filter(s=>s.handle);
+}
+// Popup fields with no COLS/inline-edit entry (role, company type, log subject,
+// social handles, address no/bldg/floor). rxSave only knows COLS fields, so on
+// EDIT these are saved here straight to the file. Read by data-k (IN inputs have
+// no id). See rxSaveAll.
+const rxExtraCur=k=>{ const el=$('rx-body').querySelector('[data-k="'+k+'"]'); return el?String(el.value||'').trim():''; };
+function rxExtrasChanged(r){
+  let saved='[]'; try{ saved=JSON.stringify(JSON.parse(r.socials||'[]')); }catch(e){}
+  return rxExtraCur('role')!==String(r.role||'')
+    || rxExtraCur('company_type')!==String(r.company_type||'')
+    || rxExtraCur('subject')!==String(r.subject||'')
+    || rxExtraCur('no')!==String(r.site_number||'')
+    || rxExtraCur('bldg')!==String(r.site_building||'')
+    || rxExtraCur('floor')!==String(r.site_floor||'')
+    || JSON.stringify(rxCollectSocials())!==saved;
+}
+async function rxSaveExtras(r){
+  const patch={
+    lead_role: rxExtraCur('role')||null,
+    lead_company_type: rxExtraCur('company_type')||null,
+    lead_socials: JSON.stringify(rxCollectSocials()),
+    subject: rxExtraCur('subject')||'',
+    site_number: rxExtraCur('no')||null,
+    site_building: rxExtraCur('bldg')||null,
+    site_floor: rxExtraCur('floor')||null,
+  };
+  await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify(patch)});
+  Object.assign(r,{role:patch.lead_role,company_type:patch.lead_company_type,socials:patch.lead_socials,
+    subject:patch.subject,site_number:patch.site_number,site_building:patch.site_building,site_floor:patch.site_floor});
+}
 function rxCollectNew(){
   const v={};
   $('rx-body').querySelectorAll('[data-k]').forEach(el=>{ v[el.dataset.k]=rxFieldValue(el); });
+  const socials=rxCollectSocials();
   const first=v.first||'', last=v.last||'', company=v.company||'';
   const isCo=!!company && !first && !last;           // company with no person name -> a company contact
   const mob=v.mobile||null;
   const person=isCo
-    ? {is_company:true, company_name:company, mobile:mob, email:v.email||null}
+    ? {is_company:true, company_name:company, company_type:v.company_type||null, mobile:mob, email:v.email||null, socials}
     : {is_company:false, prefix:v.prefix||null, first_name:first||null, last_name:last||null,
-       company_name:company||null, mobile:mob, email:v.email||null};
-  const hasSite=v.country||v.district||v.city||v.street||v.maps||v.location;
+       company_name:company||null, role:v.role||null, company_type:v.company_type||null,
+       mobile:mob, email:v.email||null, socials};
+  const hasSite=v.country||v.district||v.city||v.street||v.maps||v.location||v.no||v.bldg||v.floor;
   const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
-    street:v.street||null, maps_url:v.maps||null, site_location:v.location||null}:null;
-  return {person, site, status:v.status||'open', log_type:v.type||'inbound_call',
+    street:v.street||null, maps_url:v.maps||null, site_location:v.location||null,
+    site_number:v.no||null, site_building:v.bldg||null, site_floor:v.floor||null}:null;
+  return {person, site, subject:v.subject||'', status:v.status||'open', log_type:v.type||'inbound_call',
     category:v.category||null, reference:v.reference||null, description:v.desc||'', updates:v.updates||'',
     follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
 }
@@ -2551,7 +2594,8 @@ async function rxSaveAll(keepOpen){
     const c=COLS.find(x=>x.k===el.dataset.k);
     return c&&c.edit&&String(c.edit.val(r)??'')!==rxFieldValue(el);
   });
-  if(!changed.length){
+  const extrasChanged=rxExtrasChanged(r);
+  if(!changed.length && !extrasChanged){
     st.textContent='Nothing to save'; st.className='rx-status';
     if(!keepOpen) setTimeout(closeExpandedRow,500);
     return;
@@ -2561,6 +2605,8 @@ async function rxSaveAll(keepOpen){
   // firing them together interleaves writes to one row.
   let failed=0;
   for(const el of changed){ try{ await rxSave(el); }catch(e){ failed++; } }
+  // Fields with no COLS/inline-edit entry go straight to the file.
+  if(extrasChanged){ try{ await rxSaveExtras(r); }catch(e){ failed++; } }
   rxBusy(false);
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
   else {
