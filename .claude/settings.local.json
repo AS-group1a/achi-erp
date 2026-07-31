@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./.venv/bin/python -c ' *)"
+      "Bash(./.venv/bin/python -c ' *)",
+      "Bash(awk 'BEGIN{o=0;c=0;p=0;q=0;b=0} {n=gsub\\(/{/,\"{\"\\); o+=n; n=gsub\\(/}/,\"}\"\\); c+=n; n=gsub\\(/\\\\\\(/,\"\\(\"\\); p+=n; n=gsub\\(/\\\\\\)/,\"\\)\"\\); q+=n; n=gsub\\(/\\\\[/,\"[\"\\); b+=n; n=gsub\\(/\\\\]/,\"]\"\\); b-=n} END{print \"braces {}=\",o,c,\" parens \\(\\)=\",p,q}' modules/achi/ui/comment.js)",
+      "Bash(curl -s \"http://localhost:8080/api/v1/achi/ui/comment.js?v=10\")",
+      "Bash(.venv/bin/python -)"
     ]
   }
 }

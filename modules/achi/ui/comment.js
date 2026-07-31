@@ -22,7 +22,12 @@
     return { id: r.id, author: r.author_name || 'Someone', where: r.where || '', text: r.text || '', ts: Date.parse(r.created_at) || Date.now() };
   }
   function mapComment(c) {
-    var m = mapReply(c); m.replies = (c.replies || []).map(mapReply); return m;
+    var m = mapReply(c);
+    m.replies = (c.replies || []).map(mapReply);
+    m.status = c.status || 'open';
+    m.assignedId = c.assigned_to_user_id || null;
+    m.assignedName = c.assigned_to_name || '';
+    return m;
   }
   function fetchComments() {
     return api('/comments').then(function (r) { return r.ok ? r.json() : null; }).then(function (list) {
@@ -49,6 +54,7 @@
   var replyingId = null;
   var activeTab = 'comments';
   var chatFilter = 'all';
+  var commentFilter = 'all';
   var selIndex = -1;
 
   var me = { name: 'You' };
@@ -183,14 +189,25 @@
     + '.acmt-time{font-size:11.5px;color:' + TX3 + ';margin-left:6px;font-weight:500}'
     + '.acmt-issuetag{margin-left:6px;font-size:10.5px;font-weight:700;color:#8a5a12;background:#fff4e0;border-radius:5px;padding:1px 7px}'
     + '.acmt-donetag{margin-left:6px;font-size:10.5px;font-weight:700;color:#15803d;background:#e7f6ec;border-radius:5px;padding:1px 7px}'
+    // Workflow status pills shown next to a comment's author.
+    + '.acmt-tag{margin-left:6px;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;white-space:nowrap}'
+    + '.acmt-tag-testing{color:#8a5a12;background:#fff4e0}'
+    + '.acmt-tag-done{color:#1e40af;background:#e6edfb}'
+    + '.acmt-tag-resolved{color:#15803d;background:#e7f6ec}'
+    // "Assigned by X" — visible to the whole team so nobody double-works an issue.
+    + '.acmt-assigntag{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;color:' + NAVY + ';background:#e8edf9;border-radius:5px;padding:1px 7px;white-space:nowrap}'
     + '.acmt-text{margin:4px 0 0;font-size:13px;line-height:1.55;color:#33373d;white-space:pre-wrap;word-wrap:break-word}'
-    + '.acmt-actions{margin-top:8px;display:flex;align-items:center;gap:14px}'
+    + '.acmt-actions{margin-top:8px;display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px}'
     + '.acmt-link{border:0;background:transparent;color:' + TX2 + ';font:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:0}'
     + '.acmt-link:hover{color:' + NAVY + '}'
     + '.acmt-link.del:hover{color:#c0392b}'
     + '.acmt-link.solve{color:#15803d}'
+    + '.acmt-link.on{color:' + NAVY + ';text-decoration:underline}'
+    + '.acmt-link.assign.on{color:#15803d}'
+    + '.acmt-item.done{opacity:.75}'
     + '.acmt-replies{margin:11px 0 0 20px;padding-left:12px;border-left:2px solid ' + WASH + ';display:flex;flex-direction:column;gap:12px}'
     + '.acmt-reply{display:flex;align-items:flex-start;gap:9px}'
+    + '.acmt-ractions{margin-top:5px}'
     + '.acmt-edit{margin-top:8px}'
     + '.acmt-ta{width:100%;box-sizing:border-box;min-height:56px;resize:vertical;border:1px solid ' + NAVY + ';'
     +   'border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;color:' + TX + ';outline:0;box-shadow:0 0 0 3px rgba(40,79,158,.16)}'
@@ -231,25 +248,57 @@
   }
 
   function replyHTML(r) {
-    return '<div class="acmt-reply">' + avatarHTML(r.author, true)
+    // Reply actions use data-ract (not data-act): the parent item's wiring grabs
+    // every [data-act] inside it, so a reply's button must NOT match that or a
+    // reply-delete would fire against the parent comment's id.
+    return '<div class="acmt-reply" data-rid="' + esc(r.id) + '">' + avatarHTML(r.author, true)
       + '<div class="acmt-body">'
       +   '<div><span class="acmt-name">' + esc(r.author) + '</span>' + whereHTML(r.where) + '<span class="acmt-time">' + esc(ago(r.ts)) + '</span></div>'
       +   '<p class="acmt-text">' + esc(r.text) + '</p>'
+      +   '<div class="acmt-ractions"><button class="acmt-link del" data-ract="delete">Delete</button></div>'
       + '</div></div>';
+  }
+
+  function statusTag(st) {
+    if (st === 'resolved') return '<span class="acmt-tag acmt-tag-resolved">Resolved</span>';
+    if (st === 'testing') return '<span class="acmt-tag acmt-tag-testing">Testing</span>';
+    if (st === 'done') return '<span class="acmt-tag acmt-tag-done">Done</span>';
+    return '';
+  }
+  function assignTag(c) {
+    if (!c.assignedName) return '';
+    return '<span class="acmt-assigntag">👤 Assigned by ' + esc(c.assignedName) + '</span>';
+  }
+  // A small toggle button for a workflow status: clicking the active one clears
+  // it back to "open".
+  function statusBtn(st, label, cur) {
+    return '<button class="acmt-link' + (cur === st ? ' on' : '') + '" data-act="st-' + st + '">' + esc(label) + '</button>';
   }
 
   function itemHTML(c, idx) {
     var replies = c.replies || [];
-    var html = '<div class="acmt-item' + (idx === selIndex ? ' sel' : '') + '" data-id="' + esc(c.id) + '">'
+    var st = c.status || 'open';
+    var cls = 'acmt-item'
+      + (idx === selIndex ? ' sel' : '')
+      + (st === 'resolved' ? ' resolved' : '')
+      + (st === 'done' ? ' done' : '');
+    var html = '<div class="' + cls + '" data-id="' + esc(c.id) + '">'
       + '<div class="acmt-row">'
       +   '<button class="acmt-tri" data-act="toggle" aria-label="Collapse">' + (collapsed[c.id] ? '▶' : '▼') + '</button>'
       +   avatarHTML(c.author, false)
       +   '<div class="acmt-body">'
-      +     '<div><span class="acmt-name">' + esc(c.author) + '</span>' + whereHTML(c.where) + '<span class="acmt-time">' + esc(ago(c.ts)) + '</span></div>'
+      +     '<div><span class="acmt-name">' + esc(c.author) + '</span>' + whereHTML(c.where)
+      +       statusTag(st) + assignTag(c)
+      +       '<span class="acmt-time">' + esc(ago(c.ts)) + '</span></div>'
       +     '<p class="acmt-text">' + esc(c.text) + '</p>';
     if (!collapsed[c.id]) {
       html += '<div class="acmt-actions">'
         +   '<button class="acmt-link" data-act="reply">Reply</button>'
+        +   '<button class="acmt-link assign' + (c.assignedId ? ' on' : '') + '" data-act="assign">'
+        +     (c.assignedId ? 'Unassign' : 'Assign to me') + '</button>'
+        +   statusBtn('resolved', 'Resolved', st)
+        +   statusBtn('testing', 'Testing', st)
+        +   statusBtn('done', 'Done', st)
         +   '<button class="acmt-link del" data-act="delete">Delete</button>'
         + '</div>';
       if (replies.length) html += '<div class="acmt-replies">' + replies.map(replyHTML).join('') + '</div>';
@@ -297,6 +346,20 @@
     });
   }
 
+  function visibleComments() {
+    if (commentFilter === 'all') return comments;
+    return comments.filter(function (c) { return (c.status || 'open') === commentFilter; });
+  }
+
+  function commentEmpty() {
+    if (commentFilter === 'resolved') return '<div class="acmt-empty"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>No resolved comments.</div></div>';
+    if (commentFilter === 'testing') return '<div class="acmt-empty"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>Nothing in testing.</div></div>';
+    if (commentFilter === 'done') return '<div class="acmt-empty"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>Nothing marked done.</div></div>';
+    return EMPTY;
+  }
+
+  function byId(id) { for (var i = 0; i < comments.length; i++) if (comments[i].id === id) return comments[i]; return null; }
+
   function render() {
     if (activeTab === 'chat') renderChat(); else renderComments();
     renderBadge();
@@ -313,7 +376,8 @@
         +   editorHTML('Type a comment…', 'Post')
         + '</div></div></div>';
     }
-    html += comments.length ? comments.map(itemHTML).join('') : (drafting ? '' : EMPTY);
+    var list = visibleComments();
+    html += list.length ? list.map(itemHTML).join('') : (drafting ? '' : commentEmpty());
     els.list.innerHTML = html;
     wireList();
     focusOpenEditor();
@@ -330,9 +394,10 @@
   }
 
   function openIssues() { return messages.filter(function (m) { return m.issue && !m.resolved; }).length; }
+  function openComments() { return comments.filter(function (c) { var s = c.status || 'open'; return s !== 'resolved' && s !== 'done'; }).length; }
 
   function renderBadge() {
-    var n = comments.length + openIssues();
+    var n = openComments() + openIssues();
     els.badge.hidden = n === 0;
     els.badge.textContent = n;
   }
@@ -380,6 +445,19 @@
         });
       }
     });
+
+    // Reply-level actions (their own id, own attribute — see replyHTML).
+    els.list.querySelectorAll('.acmt-reply[data-rid]').forEach(function (rep) {
+      var rid = rep.getAttribute('data-rid');
+      rep.querySelectorAll('[data-ract]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (btn.getAttribute('data-ract') !== 'delete') return;
+          api('/comments/' + encodeURIComponent(rid), { method: 'DELETE' })
+            .then(function (r) { if (r.ok || r.status === 204) fetchComments(); })
+            .catch(function () {});
+        });
+      });
+    });
   }
 
   function wireChat() {
@@ -393,9 +471,28 @@
 
   function byMid(id) { for (var i = 0; i < messages.length; i++) if (messages[i].id === id) return messages[i]; return null; }
 
+  // Persist a workflow change (status / assignment) and refresh the shared list
+  // so every teammate's next poll sees it.
+  function patchComment(id, body) {
+    api('/comments/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (row) { if (row) fetchComments(); })
+      .catch(function () {});
+  }
+
   function onAct(act, id) {
     if (act === 'toggle') { if (collapsed[id]) delete collapsed[id]; else collapsed[id] = true; renderComments(); }
     else if (act === 'reply') { replyingId = replyingId === id ? null : id; drafting = false; renderComments(); }
+    else if (act === 'assign') {
+      var c = byId(id);
+      patchComment(id, { assigned: !(c && c.assignedId) });
+    }
+    else if (act.indexOf('st-') === 0) {
+      var st = act.slice(3);                 // testing | done | resolved
+      var cur = byId(id);
+      // Clicking the current status clears it back to "open" (a toggle).
+      patchComment(id, { status: (cur && cur.status === st) ? 'open' : st });
+    }
     else if (act === 'delete') {
       api('/comments/' + encodeURIComponent(id), { method: 'DELETE' })
         .then(function (r) { if (r.ok || r.status === 204) fetchComments(); })
@@ -442,8 +539,9 @@
   function startNew() { drafting = true; replyingId = null; render(); }
 
   function navComment(dir) {
-    if (!comments.length) return;
-    selIndex = Math.max(0, Math.min(comments.length - 1, (selIndex < 0 ? (dir > 0 ? -1 : comments.length) : selIndex) + dir));
+    var list = visibleComments();
+    if (!list.length) return;
+    selIndex = Math.max(0, Math.min(list.length - 1, (selIndex < 0 ? (dir > 0 ? -1 : list.length) : selIndex) + dir));
     render();
     var el = els.list.querySelectorAll('.acmt-item[data-id]')[selIndex];
     if (el) el.scrollIntoView({ block: 'nearest' });
@@ -505,6 +603,12 @@
       +     '<button data-nav="1" type="button" aria-label="Next comment"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>'
       +   '</div>'
       + '</div>'
+      + '<div class="acmt-cfilter acmt-only-comments">'
+      +   '<button class="acmt-chip on" data-cmf="all" type="button">All</button>'
+      +   '<button class="acmt-chip" data-cmf="resolved" type="button">Resolved</button>'
+      +   '<button class="acmt-chip" data-cmf="testing" type="button">Testing</button>'
+      +   '<button class="acmt-chip" data-cmf="done" type="button">Done</button>'
+      + '</div>'
       + '<div class="acmt-cfilter acmt-only-chat">'
       +   '<button class="acmt-chip on" data-cf="all" type="button">All</button>'
       +   '<button class="acmt-chip" data-cf="issues" type="button">Issues</button>'
@@ -542,12 +646,21 @@
     });
     els.segC.addEventListener('click', function () { setTab('comments'); });
     els.segT.addEventListener('click', function () { setTab('chat'); });
-    panel.querySelectorAll('.acmt-chip').forEach(function (chip) {
+    panel.querySelectorAll('.acmt-only-chat .acmt-chip').forEach(function (chip) {
       chip.addEventListener('click', function () {
         chatFilter = chip.getAttribute('data-cf');
-        panel.querySelectorAll('.acmt-chip').forEach(function (c) { c.classList.remove('on'); });
+        panel.querySelectorAll('.acmt-only-chat .acmt-chip').forEach(function (c) { c.classList.remove('on'); });
         chip.classList.add('on');
         renderChat();
+      });
+    });
+    panel.querySelectorAll('.acmt-only-comments .acmt-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        commentFilter = chip.getAttribute('data-cmf');
+        panel.querySelectorAll('.acmt-only-comments .acmt-chip').forEach(function (c) { c.classList.remove('on'); });
+        chip.classList.add('on');
+        selIndex = -1;
+        renderComments();
       });
     });
     els.ctext.addEventListener('input', updateChatSend);

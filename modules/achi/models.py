@@ -534,5 +534,20 @@ class AchiPageComment(Base):
     author_name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     where: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
     text: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+
+    # A comment is often a bug/task report, so it carries a small workflow.
+    # open -> testing -> done | resolved. "open" is the default (untagged) state;
+    # the Comments-tab filter chips are All / Resolved / Testing / Done. Free set
+    # is fine — the schema is healed additively and never drops columns, so a
+    # value added later still saves. Only the top-level comment carries a status;
+    # replies (parent_id set) stay plain.
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", server_default="open")
+
+    # Who has claimed this comment, so the whole team sees "Assigned by X" and two
+    # people don't fix the same thing. The NAME is stored on the row (not only the
+    # id) so it still reads right after a rename — same reasoning as author_name.
+    assigned_to_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    assigned_to_name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())

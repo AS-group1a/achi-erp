@@ -660,11 +660,31 @@ class ChatMessageOut(BaseModel):
 # ── Page comments ─────────────────────────────────────────────────────────
 
 
+# The comment workflow. "open" is the default, untagged state; the Comments-tab
+# filter chips are All / Resolved / Testing / Done. Kept in sync with the values
+# accepted by CommentPatch and rendered in ui/comment.js.
+COMMENT_STATUSES = ("open", "testing", "done", "resolved")
+
+
 class CommentIn(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     text: str = Field(min_length=1, max_length=4000)
     where: str = ""                      # page label; truncated to 128 server-side
     parent_id: str | None = None         # set to reply to a comment
+
+
+class CommentPatch(BaseModel):
+    """Update a comment's workflow: its status and/or who has claimed it.
+
+    ``assigned`` is a signal, not an id: True claims the comment for the current
+    user (the server fills in the name), False releases it. Assignment is
+    deliberately not restricted to the author — anyone may pick up a comment,
+    which is the whole point of showing "Assigned by X" to the team.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+    status: str | None = Field(default=None, pattern="^(%s)$" % "|".join(COMMENT_STATUSES))
+    assigned: bool | None = None
 
 
 class CommentReplyOut(BaseModel):
@@ -677,4 +697,7 @@ class CommentReplyOut(BaseModel):
 
 
 class CommentOut(CommentReplyOut):
+    status: str = "open"
+    assigned_to_user_id: str | None = None
+    assigned_to_name: str = ""
     replies: list[CommentReplyOut] = Field(default_factory=list)

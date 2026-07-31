@@ -17,7 +17,7 @@ from app.dependencies import CurrentUserId, SessionDep
 from app.modules.users.models import User
 
 from .models import AchiPageComment
-from .schemas import CommentIn, CommentOut, CommentReplyOut
+from .schemas import CommentIn, CommentOut, CommentPatch, CommentReplyOut
 
 comment_router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -74,6 +74,38 @@ async def post_comment(data: CommentIn, session: SessionDep, user_id: CurrentUse
     await session.commit()
     await session.refresh(row)
     return CommentOut.model_validate(row)
+
+
+@comment_router.patch("/comments/{comment_id}", response_model=CommentOut,
+                      summary="Set a comment's status, or claim/release it")
+async def patch_comment(comment_id: str, data: CommentPatch,
+                        session: SessionDep, user_id: CurrentUserId) -> CommentOut:
+    row = (await session.execute(
+        select(AchiPageComment).where(AchiPageComment.id == comment_id)
+    )).scalar_one_or_none()
+    if not row or row.parent_id:            # missing, or a reply — the workflow is on top-level comments only
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Comment not found")
+    if data.status is not None:
+        row.status = data.status
+    if data.assigned is not None:
+        if data.assigned:
+            row.assigned_to_user_id = user_id
+            row.assigned_to_name = await _author_name(session, user_id)
+        else:
+            row.assigned_to_user_id = None
+            row.assigned_to_name = ""
+    await session.commit()
+    await session.refresh(row)
+    # Re-attach this comment's replies so the response matches list_comments; the
+    # relationship is assembled in Python (there is no ORM relationship on the row).
+    replies = (await session.execute(
+        select(AchiPageComment)
+        .where(AchiPageComment.parent_id == row.id)
+        .order_by(AchiPageComment.created_at)
+    )).scalars().all()
+    out = CommentOut.model_validate(row)
+    out.replies = [CommentReplyOut.model_validate(x) for x in replies]
+    return out
 
 
 @comment_router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT,
