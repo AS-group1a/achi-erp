@@ -494,8 +494,25 @@ class AchiChatMessage(Base):
     author_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     author_name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     text: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    # Legacy issue/resolve flags. The UI no longer sets or shows them, but the
+    # columns stay (this module heals additively and never drops columns) so old
+    # rows still load. Left NOT NULL with a 0 default.
     is_issue: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     resolved: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+    # Direct messages: NULL = a team-wide (public) message everyone sees; set = a
+    # private 1:1 message visible only to its author and this recipient. The
+    # recipient's NAME is stored too (like author_name) so a DM still reads right
+    # after a rename. Privacy is enforced server-side in list_chat — the client
+    # is never sent a DM it is not part of.
+    recipient_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    recipient_name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+
+    # @mentions: a JSON array of the user ids tagged in `text`, resolved on the
+    # client from the member directory at post time. Stored opaque (like the log
+    # drawing blob); the client parses it to highlight "you were mentioned".
+    mentions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

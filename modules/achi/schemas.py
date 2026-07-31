@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
@@ -639,22 +640,48 @@ class GeoDistrictOut(GeoDistrictIn):
 class ChatMessageIn(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     text: str = Field(min_length=1, max_length=4000)
-    is_issue: bool = False
+    # None = post to the whole team; set = a private DM to this one user.
+    recipient_user_id: str | None = Field(default=None, max_length=36)
+    # User ids tagged in `text`, resolved on the client from the member list.
+    mentions: list[str] = Field(default_factory=list)
 
 
 class ChatMessagePatch(BaseModel):
     resolved: bool
 
 
+class ChatMemberOut(BaseModel):
+    """A teammate the chat can @mention or DM — id and display name only, so the
+    directory is safe for any authenticated user (no email/role/PII)."""
+    id: str
+    name: str
+
+
 class ChatMessageOut(BaseModel):
-    # is_issue/resolved are Integer 0/1 on the row; Pydantic coerces them to bool.
     model_config = ConfigDict(from_attributes=True)
     id: str
+    author_user_id: str | None = None
     author_name: str
     text: str
-    is_issue: bool
-    resolved: bool
+    # DM addressing (both None on a team-wide message).
+    recipient_user_id: str | None = None
+    recipient_name: str = ""
+    # Parsed from the stored JSON string into a list for the client.
+    mentions: list[str] = Field(default_factory=list)
     created_at: datetime
+
+    @field_validator("mentions", mode="before")
+    @classmethod
+    def _parse_mentions(cls, value):
+        if isinstance(value, str):
+            if not value.strip():
+                return []
+            try:
+                parsed = json.loads(value)
+            except (ValueError, TypeError):
+                return []
+            return [str(x) for x in parsed] if isinstance(parsed, list) else []
+        return value or []
 
 
 # ── Page comments ─────────────────────────────────────────────────────────
