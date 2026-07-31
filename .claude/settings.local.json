@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./.venv/bin/python -c ' *)"
-    ]
+      "Bash(./.venv/bin/python -c ' *)",
+      "Bash(awk 'BEGIN{o=0;c=0;p=0;q=0;b=0} {n=gsub\\(/{/,\"{\"\\); o+=n; n=gsub\\(/}/,\"}\"\\); c+=n; n=gsub\\(/\\\\\\(/,\"\\(\"\\); p+=n; n=gsub\\(/\\\\\\)/,\"\\)\"\\); q+=n; n=gsub\\(/\\\\[/,\"[\"\\); b+=n; n=gsub\\(/\\\\]/,\"]\"\\); b-=n} END{print \"braces {}=\",o,c,\" parens \\(\\)=\",p,q}' modules/achi/ui/comment.js)",
+      "Bash(curl -s \"http://localhost:8080/api/v1/achi/ui/comment.js?v=10\")",
+      "Bash(.venv/bin/python -)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(.venv/bin/python -c \"import json;d=json.load\\(open\\('.claude/settings.local.json'\\)\\);print\\('defaultMode =',d['permissions']['defaultMode']\\);print\\('valid JSON, allow rules kept:',len\\(d['permissions']['allow']\\)\\)\")",
+      "Bash(python3 -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['modules/achi/models.py','modules/achi/schemas.py','modules/achi/chat_router.py']]; print\\('PY syntax OK'\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' --max-time 4 http://localhost:8080/api/health)",
+      "Bash(echo \"health=$\\(curl -s -o /dev/null -w '%{http_code}' --max-time 4 http://localhost:8080/api/health \\)\")",
+      "Bash(echo \"health=$\\(curl -s -o /dev/null -w '%{http_code}' --max-time 4 http://localhost:8080/api/health 2>/dev/null\\)\")"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }
