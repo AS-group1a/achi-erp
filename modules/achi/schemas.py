@@ -695,9 +695,23 @@ COMMENT_STATUSES = ("open", "testing", "done", "resolved")
 
 class CommentIn(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
-    text: str = Field(min_length=1, max_length=4000)
+    # Empty allowed: a comment may carry only an image/video and no words. The
+    # client blocks posting when BOTH text and attachments are empty.
+    text: str = Field(default="", max_length=4000)
     where: str = ""                      # page label; truncated to 128 server-side
     parent_id: str | None = None         # set to reply to a comment
+
+
+class CommentAttachmentOut(BaseModel):
+    """One image/video attached to a comment — what the panel renders inline."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    comment_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
 
 
 class CommentPatch(BaseModel):
@@ -721,6 +735,7 @@ class CommentReplyOut(BaseModel):
     where: str
     text: str
     created_at: datetime
+    attachments: list[CommentAttachmentOut] = Field(default_factory=list)
 
 
 class CommentOut(CommentReplyOut):

@@ -28,7 +28,7 @@
     };
   }
   function mapReply(r) {
-    return { id: r.id, author: r.author_name || 'Someone', where: r.where || '', text: r.text || '', ts: Date.parse(r.created_at) || Date.now() };
+    return { id: r.id, author: r.author_name || 'Someone', where: r.where || '', text: r.text || '', attachments: r.attachments || [], ts: Date.parse(r.created_at) || Date.now() };
   }
   function mapComment(c) {
     var m = mapReply(c);
@@ -68,6 +68,7 @@
   var comments = [];
   var messages = [];
   var members = [];              // [{id, name}] — powers @mentions and DM picker
+  var pendingFiles = [];         // images/videos staged on the open comment editor
   var collapsed = {};
   var drafting = false;
   var replyingId = null;
@@ -234,7 +235,30 @@
     + '.acmt-edit{margin-top:8px}'
     + '.acmt-ta{width:100%;box-sizing:border-box;min-height:56px;resize:vertical;border:1px solid ' + NAVY + ';'
     +   'border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;color:' + TX + ';outline:0;box-shadow:0 0 0 3px rgba(40,79,158,.16)}'
-    + '.acmt-editbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}'
+    + '.acmt-editbtns{display:flex;align-items:center;gap:8px;margin-top:8px}'
+    + '.acmt-spacer{flex:1}'
+    // Attach button (image/video picker).
+    + '.acmt-attach{display:inline-flex;align-items:center;gap:6px;border:1px solid ' + BD + ';background:#fff;color:' + TX2 + ';border-radius:6px;padding:7px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}'
+    + '.acmt-attach:hover{border-color:' + NAVY + ';color:' + NAVY + '}'
+    + '.acmt-clip{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
+    // Staged (pre-post) attachment chips.
+    + '.acmt-atts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}'
+    + '.acmt-atts:empty{display:none}'
+    + '.acmt-att{position:relative;display:flex;align-items:center;gap:7px;max-width:100%;border:1px solid ' + BD + ';border-radius:8px;padding:5px 8px 5px 5px;background:' + WASH + '}'
+    + '.acmt-att img{width:34px;height:34px;object-fit:cover;border-radius:5px;flex:0 0 auto}'
+    + '.acmt-attico{width:34px;height:34px;display:grid;place-items:center;font-size:18px;background:#fff;border-radius:5px;flex:0 0 auto}'
+    + '.acmt-attname{font-size:12px;color:' + TX + ';max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.acmt-attx{border:0;background:transparent;color:' + TX3 + ';cursor:pointer;font-size:13px;line-height:1;padding:2px}'
+    + '.acmt-attx:hover{color:#c0392b}'
+    // Posted media, rendered inside a comment/reply.
+    + '.acmt-media-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}'
+    + '.acmt-media{display:block;max-width:100%;border-radius:8px;overflow:hidden;border:1px solid ' + BD + '}'
+    + '.acmt-media img{max-width:190px;max-height:190px;object-fit:cover;display:block;cursor:zoom-in}'
+    + 'video.acmt-media{max-width:250px;max-height:220px;background:#000}'
+    + '.acmt-filechip{display:inline-flex;align-items:center;gap:6px;border:1px solid ' + BD + ';border-radius:8px;padding:7px 10px;font-size:12px;font-weight:600;color:' + NAVY + ';text-decoration:none;background:#fff}'
+    // Drop-zone highlight.
+    + '.acmt-list.drop{outline:2px dashed ' + NAVY + ';outline-offset:-8px;background:#f5f8ff}'
+    + '.acmt-edit.drop{outline:2px dashed ' + NAVY + ';outline-offset:2px;border-radius:8px}'
     + '.acmt-post{border:0;border-radius:6px;background:' + NAVY + ';color:#fff;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;cursor:pointer}'
     + '.acmt-post:hover{background:#1F3F80}'
     + '.acmt-post:disabled{background:#b7c2da;cursor:default}'
@@ -287,13 +311,113 @@
       + esc(initials(name)) + '</div>';
   }
 
+  var ATTACH_SVG = '<svg class="acmt-clip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+
   function editorHTML(placeholder, postLabel) {
     return '<div class="acmt-edit">'
       + '<textarea class="acmt-ta" placeholder="' + esc(placeholder) + '"></textarea>'
+      + '<div class="acmt-atts"></div>'
       + '<div class="acmt-editbtns">'
+      +   '<label class="acmt-attach" title="Attach images or videos">' + ATTACH_SVG + 'Attach'
+      +     '<input type="file" class="acmt-file" accept="image/*,video/*" multiple hidden></label>'
+      +   '<span class="acmt-spacer"></span>'
       +   '<button class="acmt-cancel" type="button">Cancel</button>'
       +   '<button class="acmt-post" type="button" disabled>' + esc(postLabel) + '</button>'
       + '</div></div>';
+  }
+
+  // ── comment attachments (images/videos) ───────────────────────────────────
+  function isMedia(f) { return !!f && (/^image\//.test(f.type) || /^video\//.test(f.type)); }
+  function dtHasFiles(e) {
+    var dt = e.dataTransfer; if (!dt || !dt.types) return false;
+    for (var i = 0; i < dt.types.length; i++) if (dt.types[i] === 'Files') return true;
+    return false;
+  }
+  function addPending(fileList) {
+    for (var i = 0; i < fileList.length; i++) if (isMedia(fileList[i])) pendingFiles.push(fileList[i]);
+  }
+  function clearPending() {
+    pendingFiles.forEach(function (f) { if (f._u) { try { URL.revokeObjectURL(f._u); } catch (e) {} } });
+    pendingFiles = [];
+  }
+  function syncPost(scope) {
+    var post = scope.querySelector('.acmt-post'), ta = scope.querySelector('.acmt-ta');
+    if (post && ta) post.disabled = !(ta.value.trim() || pendingFiles.length);
+  }
+  function renderAttPreviews(scope) {
+    var box = scope.querySelector('.acmt-atts'); if (!box) return;
+    if (!pendingFiles.length) { box.innerHTML = ''; return; }
+    box.innerHTML = pendingFiles.map(function (f, i) {
+      var thumb;
+      if (/^image\//.test(f.type)) { if (!f._u) f._u = URL.createObjectURL(f); thumb = '<img src="' + f._u + '">'; }
+      else if (/^video\//.test(f.type)) thumb = '<span class="acmt-attico">🎬</span>';
+      else thumb = '<span class="acmt-attico">📄</span>';
+      return '<div class="acmt-att">' + thumb + '<span class="acmt-attname">' + esc(f.name) + '</span>'
+        + '<button class="acmt-attx" type="button" data-ax="' + i + '" aria-label="Remove">✕</button></div>';
+    }).join('');
+    box.querySelectorAll('.acmt-attx').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var f = pendingFiles.splice(parseInt(b.getAttribute('data-ax'), 10), 1)[0];
+        if (f && f._u) { try { URL.revokeObjectURL(f._u); } catch (err) {} }
+        renderAttPreviews(scope); syncPost(scope);
+      });
+    });
+  }
+  function uploadAttachments(commentId, files) {
+    var tok = achiToken();
+    return Promise.all(files.map(function (f) {
+      var fd = new FormData(); fd.append('file', f);
+      // Raw fetch (not api()): must NOT set Content-Type, so the browser adds the
+      // multipart boundary itself.
+      return fetch('/api/v1/achi/comments/' + encodeURIComponent(commentId) + '/attachments',
+        { method: 'POST', headers: tok ? { Authorization: 'Bearer ' + tok } : {}, body: fd })
+        .catch(function () {});
+    }));
+  }
+  // Create the comment, then upload any staged files to it, then run done().
+  function submitComment(body, done) {
+    var files = pendingFiles.slice();
+    api('/comments', { method: 'POST', body: JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (row) {
+        if (!row) return;
+        var finish = function () { clearPending(); done(); };
+        if (files.length) uploadAttachments(row.id, files).then(finish);
+        else finish();
+      })
+      .catch(function () {});
+  }
+  // Render posted attachments inside a comment/reply. The download URL carries the
+  // token as a query param so it works directly as an <img>/<video> src.
+  function attHTML(atts) {
+    if (!atts || !atts.length) return '';
+    var tok = achiToken();
+    var cells = atts.map(function (a) {
+      var url = '/api/v1/achi/comments/attachments/' + encodeURIComponent(a.id) + '/download?token=' + encodeURIComponent(tok);
+      var ct = a.content_type || '';
+      if (/^image\//.test(ct)) return '<a class="acmt-media" href="' + url + '" target="_blank" rel="noreferrer"><img src="' + url + '" alt="' + esc(a.filename) + '" loading="lazy"></a>';
+      if (/^video\//.test(ct)) return '<video class="acmt-media" src="' + url + '" controls preload="metadata"></video>';
+      return '<a class="acmt-filechip" href="' + url + '" target="_blank" rel="noreferrer">📄 ' + esc(a.filename) + '</a>';
+    }).join('');
+    return '<div class="acmt-media-grid">' + cells + '</div>';
+  }
+  // Drop files anywhere on the comments list. If no editor is open it opens a new
+  // comment pre-loaded with them; if one is open it appends without a full
+  // re-render, so text already typed is preserved.
+  function onListDrop(fileList) {
+    var media = [];
+    for (var i = 0; i < fileList.length; i++) if (isMedia(fileList[i])) media.push(fileList[i]);
+    if (!media.length) return;
+    if (!drafting && replyingId === null) {
+      clearPending(); drafting = true;
+      media.forEach(function (f) { pendingFiles.push(f); });
+      render();
+      return;
+    }
+    media.forEach(function (f) { pendingFiles.push(f); });
+    var scope = els.list.querySelector('.acmt-edit');
+    if (scope) { renderAttPreviews(scope); syncPost(scope); }
   }
 
   function replyHTML(r) {
@@ -303,7 +427,8 @@
     return '<div class="acmt-reply" data-rid="' + esc(r.id) + '">' + avatarHTML(r.author, true)
       + '<div class="acmt-body">'
       +   '<div><span class="acmt-name">' + esc(r.author) + '</span>' + whereHTML(r.where) + '<span class="acmt-time">' + esc(ago(r.ts)) + '</span></div>'
-      +   '<p class="acmt-text">' + esc(r.text) + '</p>'
+      +   (r.text ? '<p class="acmt-text">' + esc(r.text) + '</p>' : '')
+      +   attHTML(r.attachments)
       +   '<div class="acmt-ractions"><button class="acmt-link del" data-ract="delete">Delete</button></div>'
       + '</div></div>';
   }
@@ -339,7 +464,8 @@
       +     '<div><span class="acmt-name">' + esc(c.author) + '</span>' + whereHTML(c.where)
       +       statusTag(st) + assignTag(c)
       +       '<span class="acmt-time">' + esc(ago(c.ts)) + '</span></div>'
-      +     '<p class="acmt-text">' + esc(c.text) + '</p>';
+      +     (c.text ? '<p class="acmt-text">' + esc(c.text) + '</p>' : '')
+      +     attHTML(c.attachments);
     if (!collapsed[c.id]) {
       html += '<div class="acmt-actions">'
         +   '<button class="acmt-link" data-act="reply">Reply</button>'
@@ -489,25 +615,46 @@
     var ta = scope.querySelector('.acmt-ta');
     var post = scope.querySelector('.acmt-post');
     var cancel = scope.querySelector('.acmt-cancel');
+    var fileInput = scope.querySelector('.acmt-file');
     if (!ta) return;
-    ta.addEventListener('input', function () { post.disabled = !ta.value.trim(); });
+    function canPost() { return !!(ta.value.trim() || pendingFiles.length); }
+    ta.addEventListener('input', function () { post.disabled = !canPost(); });
     ta.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (ta.value.trim()) onPost(ta.value.trim()); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (canPost()) onPost(ta.value.trim()); }
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelEdit(); }
     });
-    post.addEventListener('click', function () { if (ta.value.trim()) onPost(ta.value.trim()); });
+    post.addEventListener('click', function () { if (canPost()) onPost(ta.value.trim()); });
     cancel.addEventListener('click', cancelEdit);
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        addPending(fileInput.files); fileInput.value = '';   // reset so the same file re-selects
+        renderAttPreviews(scope); syncPost(scope);
+      });
+    }
+    // Drag & drop straight onto the editor. stopPropagation so the list-level
+    // drop handler (which opens a fresh composer) doesn't also fire.
+    ['dragover', 'dragenter'].forEach(function (ev) {
+      scope.addEventListener(ev, function (e) { if (dtHasFiles(e)) { e.preventDefault(); scope.classList.add('drop'); } });
+    });
+    ['dragleave', 'dragend'].forEach(function (ev) {
+      scope.addEventListener(ev, function () { scope.classList.remove('drop'); });
+    });
+    scope.addEventListener('drop', function (e) {
+      if (!dtHasFiles(e)) return;
+      e.preventDefault(); e.stopPropagation(); scope.classList.remove('drop');
+      addPending(e.dataTransfer.files); renderAttPreviews(scope); syncPost(scope);
+    });
+    renderAttPreviews(scope);
+    post.disabled = !canPost();
   }
 
-  function cancelEdit() { drafting = false; replyingId = null; render(); }
+  function cancelEdit() { drafting = false; replyingId = null; clearPending(); render(); }
 
   function wireList() {
     var draft = els.list.querySelector('[data-draft]');
     if (draft) wireEditor(draft, function (text) {
-      api('/comments', { method: 'POST', body: JSON.stringify({ text: text, where: pageLabel().slice(0, 120) }) })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (row) { if (row) { drafting = false; fetchComments(); } })
-        .catch(function () {});
+      submitComment({ text: text, where: pageLabel().slice(0, 120) },
+        function () { drafting = false; fetchComments(); });
     });
 
     els.list.querySelectorAll('.acmt-item[data-id]').forEach(function (item) {
@@ -517,10 +664,8 @@
       });
       if (replyingId === id) {
         wireEditor(item, function (text) {
-          api('/comments', { method: 'POST', body: JSON.stringify({ text: text, where: pageLabel().slice(0, 120), parent_id: id }) })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (row) { if (row) { replyingId = null; fetchComments(); } })
-            .catch(function () {});
+          submitComment({ text: text, where: pageLabel().slice(0, 120), parent_id: id },
+            function () { replyingId = null; fetchComments(); });
         });
       }
     });
@@ -559,7 +704,7 @@
 
   function onAct(act, id) {
     if (act === 'toggle') { if (collapsed[id]) delete collapsed[id]; else collapsed[id] = true; renderComments(); }
-    else if (act === 'reply') { replyingId = replyingId === id ? null : id; drafting = false; renderComments(); }
+    else if (act === 'reply') { replyingId = replyingId === id ? null : id; drafting = false; clearPending(); renderComments(); }
     else if (act === 'assign') {
       var c = byId(id);
       patchComment(id, { assigned: !(c && c.assignedId) });
@@ -700,7 +845,7 @@
   function openPanel() { els.panel.classList.add('open'); els.tab.classList.add('hidden'); render(); fetchComments(); fetchMembers(); fetchChat(); }
   function closePanel() { els.panel.classList.remove('open'); els.tab.classList.remove('hidden'); drafting = false; replyingId = null; }
 
-  function startNew() { drafting = true; replyingId = null; render(); }
+  function startNew() { drafting = true; replyingId = null; clearPending(); render(); }
 
   function navComment(dir) {
     var list = visibleComments();
@@ -852,6 +997,22 @@
     });
     els.ctext.addEventListener('blur', function () { setTimeout(hideMention, 150); });
     els.tsend.addEventListener('click', sendMsg);
+
+    // Drag & drop media onto the comments list (opens/loads the composer).
+    ['dragover', 'dragenter'].forEach(function (ev) {
+      els.list.addEventListener(ev, function (e) {
+        if (activeTab !== 'comments' || !dtHasFiles(e)) return;
+        e.preventDefault(); els.list.classList.add('drop');
+      });
+    });
+    els.list.addEventListener('dragleave', function (e) {
+      if (e.target === els.list) els.list.classList.remove('drop');
+    });
+    els.list.addEventListener('drop', function (e) {
+      if (activeTab !== 'comments' || !dtHasFiles(e)) return;
+      e.preventDefault(); els.list.classList.remove('drop');
+      onListDrop(e.dataTransfer.files);
+    });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && panel.classList.contains('open') && !drafting && replyingId === null) closePanel();
