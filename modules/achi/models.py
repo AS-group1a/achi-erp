@@ -568,3 +568,29 @@ class AchiPageComment(Base):
 
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Images/videos dropped onto the comment. selectin so list_comments loads them
+    # for every comment (and reply) in one extra query, no per-row round-trips.
+    attachments: Mapped[list["AchiCommentAttachment"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class AchiCommentAttachment(Base):
+    """An image or video attached to a page comment. Same shape as LogAttachment
+    (bytes live in app.core.storage; the row holds only the key + display fields),
+    so a comment can carry media without borrowing the log's attachment table."""
+
+    __tablename__ = "achi_comment_attachment"
+    __table_args__ = (Index("ix_achi_comment_attachment_comment", "comment_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    comment_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("achi_page_comment.id", ondelete="CASCADE"), nullable=False
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False, default="application/octet-stream")
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    uploaded_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
