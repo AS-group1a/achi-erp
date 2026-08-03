@@ -97,6 +97,15 @@ mkdir -p "$HOME/.openestimate/packs"
 cp -r packs/achi-scaffolding "$HOME/.openestimate/packs/achi-scaffolding"
 echo "Installed pack -> ~/.openestimate/packs/achi-scaffolding"
 
+# 4c. Load local secrets (SMTP creds, etc.) from a gitignored .env so real email
+# sending works. pydantic's env_file auto-discovery does not reach the repo root
+# once the app is installed in the venv, so we export these into the process the
+# server inherits (env vars are read directly by Settings, .env or not).
+if [ -f .env ]; then
+  set -a; . ./.env; set +a
+  echo "Loaded .env (email/SMTP + any local overrides)"
+fi
+
 # 5. run
 mkdir -p .rundata
 echo ""
