@@ -599,3 +599,55 @@ class AchiCommentAttachment(Base):
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
     uploaded_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AchiEmail(Base):
+    """An email composed on the Log page's compose popup and sent from inside the
+    site. The row is the site's OWN record of the message — kept regardless of
+    what the mail server then does with it — so a sent email can be viewed and
+    managed later rather than vanishing into a mailto: handoff.
+
+    Delivery runs through app.core.email (the same pluggable EmailService the
+    password-reset flow uses); ``status``/``backend``/``error`` record the
+    DeliveryResult so a failed or console-only send is VISIBLE in the record
+    instead of silently lost. A send that the server merely logged (email_backend
+    still on "console") is stored as status="sent" with backend="console", which
+    is the honest signal that it did not actually leave the building.
+
+    The sender's NAME is stored on the row (not only the id) so the record still
+    reads right after a user is renamed or removed — same reasoning as
+    author_name on the chat/comment tables. ``log_id``/``file_id``/``contact_id``
+    tie the email back to the enquiry it was sent from when the compose was opened
+    from a saved grid row; all nullable, since an email may be composed ad hoc.
+    """
+
+    __tablename__ = "achi_email"
+    __table_args__ = (
+        Index("ix_achi_email_created", "created_at"),
+        Index("ix_achi_email_sender", "sender_user_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    sender_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    sender_name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    to_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    subject: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    # The message the user typed, stored as plain text exactly as entered; the
+    # HTML actually sent is derived from this at send time, not stored twice.
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+
+    # Where the compose was opened from, so the record can be tied back to the
+    # enquiry. All nullable — an ad-hoc email need not come from a specific row.
+    log_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    file_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    contact_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+    # The DeliveryResult, recorded so a bounce/auth/console outcome stays visible.
+    # status: "sent" (ok) | "failed". backend: which transport ran (console in
+    # dev, smtp in prod). error: the failure reason when status == "failed".
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="sent", server_default="sent")
+    backend: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
+    error: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())

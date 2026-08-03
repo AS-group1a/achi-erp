@@ -1603,19 +1603,55 @@ function initials(name){
 }
 function avatar(name,id){ if(!name&&!id)return '<span class="mt">—</span>';
   return `<span class="avatar" title="${esc(name||id)}">${esc(initials(name))}</span>`; }
-function openEmailCompose(email,fromRx=false){
+/* Transient bottom-of-screen toast, styled like the "Log saved" one. `ok=false`
+   tints it as a soft warning so a "recorded but not actually delivered" send
+   reads differently from a clean success. */
+function composeToast(text,ok=true){
+  document.querySelector('.save-feedback')?.remove();
+  const t=document.createElement('div');
+  t.className='save-feedback'; t.setAttribute('role','status'); t.setAttribute('aria-live','polite');
+  if(!ok){ t.style.background='#8a5a00'; }
+  t.innerHTML=`<span class="save-feedback-mark">${ok?'✓':'!'}</span><span>${esc(text)}</span>`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+/* The compose popup. `ctx` optionally carries {log_id,file_id,contact_id} so the
+   sent-email record can be tied back to the enquiry it was written from. */
+function openEmailCompose(email,fromRx=false,ctx={}){
   document.querySelector('.compose')?.remove();
   const panel=document.createElement('section'); panel.className='compose'+(fromRx?' from-rx':''); panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
   panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div><button class="compose-close" type="button" aria-label="Close message">&times;</button></div><div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div><div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div><textarea class="compose-body" placeholder="Write your message…"></textarea><div class="compose-foot"><button class="compose-send" type="button">Send</button><button class="compose-mailto" type="button">Open in mail app</button></div>`;
   document.body.appendChild(panel);
   const close=()=>{panel.remove();document.removeEventListener('keydown',onKey);};
   const onKey=e=>{if(e.key==='Escape')close();};
-  const openMail=()=>{const subject=panel.querySelector('.compose-subject').value.trim(),body=panel.querySelector('.compose-body').value.trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
+  const subjEl=panel.querySelector('.compose-subject'), bodyEl=panel.querySelector('.compose-body'), sendBtn=panel.querySelector('.compose-send');
+  const openMail=()=>{const subject=subjEl.value.trim(),body=bodyEl.value.trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
+  /* Actually send the mail through our own API (not a mailto: handoff): the
+     server delivers it via the app's email service and records it in the site.
+     The button locks while the request is in flight so a double-click can't
+     send twice; a failure re-arms it so the user can retry or fall back to
+     "Open in mail app". */
+  const send=async()=>{
+    const subject=subjEl.value.trim(), body=bodyEl.value.trim();
+    if(!subject && !body){ showFeedback('Nothing to send','Add a subject or a message first.'); return; }
+    sendBtn.disabled=true; const label=sendBtn.textContent; sendBtn.textContent='Sending…';
+    try{
+      const rec=await api('/mail/send',{method:'POST',body:JSON.stringify({to:email,subject,body,log_id:ctx.log_id||null,file_id:ctx.file_id||null,contact_id:ctx.contact_id||null})});
+      // A non-SMTP backend (console/noop/memory) means the server only logged
+      // the mail — say so plainly instead of pretending it was delivered.
+      const delivered=rec&&rec.backend==='smtp';
+      composeToast(delivered?'Email sent ✓':'Email recorded — server email isn’t set up yet, so it wasn’t actually delivered.',delivered);
+      close();
+    }catch(err){
+      sendBtn.disabled=false; sendBtn.textContent=label;
+      showFeedback('Couldn’t send',err.message||'Something went wrong sending the email.');
+    }
+  };
   panel.querySelector('.compose-close').onclick=close;
-  panel.querySelector('.compose-send').onclick=openMail;
+  sendBtn.onclick=send;
   panel.querySelector('.compose-mailto').onclick=openMail;
   document.addEventListener('keydown',onKey);
-  requestAnimationFrame(()=>panel.querySelector('.compose-subject').focus());
+  requestAnimationFrame(()=>subjEl.focus());
 }
 /* files/sketch live behind the description popup — mark the cell so a row shows it has them */
 function marks(r){ let s='';
@@ -3280,7 +3316,7 @@ $('thead').addEventListener('keydown',e=>{
 $('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); if(ccb){ openCc(ccb); return; }
   const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); refreshDeleteButton(); return; }
   const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
-  const email=e.target.closest('[data-compose-email]'); if(email){ openEmailCompose(email.dataset.composeEmail); return; }
+  const email=e.target.closest('[data-compose-email]'); if(email){ const tr=email.closest('tr'); const row=tr?ROWS.find(x=>x.id===tr.dataset.log):null; openEmailCompose(email.dataset.composeEmail,false,{log_id:tr&&tr.dataset.log||null,file_id:tr&&tr.dataset.file||null,contact_id:row&&row.contact_id||null}); return; }
   const draftEmail=e.target.closest('[data-draft-compose]'); if(draftEmail){const input=$(draftEmail.dataset.draftCompose);if(input&&validEmail(input.value)&&input.value.trim())openEmailCompose(input.value.trim());return;}
   const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
   const ne=e.target.closest('.note-exp'); if(ne){
