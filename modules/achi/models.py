@@ -122,6 +122,11 @@ class FileLog(Base):
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # How the enquiry reached us. Free-form so Add Log's "+ Add New" values save.
     reference: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Free-form labels the user attaches to a log so a row can be found fast —
+    # stored as one comma-separated string (e.g. "urgent, vip, north branch")
+    # rather than a side table, because the grid searches it as plain text and
+    # never joins on it. NOT NULL/"" like description so a row always has a value.
+    tags: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     occurred_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

@@ -267,6 +267,10 @@ class ContactFileService:
         if "drawing" in d:
             d["drawing"] = d["drawing"] or ""
             d["has_drawing"] = 1 if _drawing_has_shapes(d["drawing"]) else 0
+        # tags is NOT NULL: the grid clears it by PATCHing null, so coerce to ""
+        # rather than let a cleared field violate the column.
+        if "tags" in d and d["tags"] is None:
+            d["tags"] = ""
         for k, v in d.items():
             setattr(log, k, v)
         await self.session.commit()
@@ -411,6 +415,7 @@ class ContactFileService:
             log_type=data.log_type,
             category=data.category,
             reference=data.reference,
+            tags=data.tags,
             occurred_at=data.occurred_at,
             duration_seconds=data.duration_seconds,
             description=data.description,
