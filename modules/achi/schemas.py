@@ -753,25 +753,10 @@ class CommentOut(CommentReplyOut):
 # ── Email (Log-page compose popup) ─────────────────────────────────────────
 
 
-class EmailSendIn(BaseModel):
-    """What the compose popup posts to actually send an email. ``to`` is validated
-    as a real address (EmailStr) so a typo is rejected before it reaches the mail
-    server. The optional *_id fields tie the sent record back to the log row the
-    compose was opened from; they are stored as-is and never trusted for auth."""
-
-    model_config = ConfigDict(str_strip_whitespace=True)
-    to: EmailStr
-    subject: str = Field(default="", max_length=500)
-    body: str = Field(default="", max_length=50000)
-    log_id: str | None = Field(default=None, max_length=36)
-    file_id: str | None = Field(default=None, max_length=36)
-    contact_id: str | None = Field(default=None, max_length=36)
-
-
 class EmailOut(BaseModel):
     """A sent-email record, as returned to the compose popup and (later) a mailbox
     view. ``status`` is "sent" or "failed"; ``backend`` is the transport that ran
-    ("console" means the server only logged it — it did not actually go out)."""
+    ("smtp" once the shared company mailbox is configured, "console" in dev)."""
 
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -786,4 +771,6 @@ class EmailOut(BaseModel):
     status: str = "sent"
     backend: str = ""
     error: str = ""
+    attachment_count: int = 0
+    attachment_names: str = ""
     created_at: datetime

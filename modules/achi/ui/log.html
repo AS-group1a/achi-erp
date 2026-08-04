@@ -36,7 +36,7 @@
   .draft-compose:hover{background:#dbeafe}
   .draft-compose[hidden]{display:none}
   .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
+  .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));display:flex;flex-direction:column;max-height:calc(100vh - 12px);overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
   .compose.from-rx{z-index:2147482700}
   @keyframes compose-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
   .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
@@ -54,6 +54,23 @@
   .compose-send{padding:8px 22px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
   .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:8px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .compose-mailto:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
+  /* rich-text + attachments in the compose box — mirrors the Quick Notes editor */
+  .compose-editor-wrap{position:relative;padding:12px 16px 4px;flex:1 1 auto;min-height:0;overflow:auto}
+  .compose .ql-container{border:1px solid #dbe4f0;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;min-height:150px}
+  .compose .ql-editor{min-height:150px;padding:10px 12px;line-height:1.6;color:#374151}
+  .compose .ql-editor.ql-blank::before{color:#c3ccdb;font-style:normal;left:12px;right:12px}
+  .compose .ql-toolbar{border:1px solid #dbe4f0;border-radius:0 0 7px 7px;border-top:0;background:#fff;padding:7px}
+  .compose-editor-wrap.drag-over .ql-container{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.18)!important}
+  .compose-attachments{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 2px}
+  .compose-attachments:empty{display:none}
+  .compose-chip{display:inline-flex;align-items:center;gap:6px;max-width:210px;padding:4px 8px;border:1px solid #dbe4f0;border-radius:7px;background:#f6f9fe;font-size:11.5px;color:#374151}
+  .compose-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .compose-chip button{border:0;background:transparent;color:#9ca3af;cursor:pointer;font-size:14px;line-height:1;padding:0}
+  .compose-chip button:hover{color:#dc2626}
+  .compose-attach-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1.5px solid #e0e0ea;border-radius:8px;background:#fff;color:#374151;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .compose-attach-btn:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
+  .compose-attach-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .compose-foot-spacer{flex:1}
 
   .kpis{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
   .kpi{flex:1 1 180px;border-radius:12px;padding:15px 18px;color:#fff;transition:transform .15s ease}
@@ -1615,32 +1632,95 @@ function composeToast(text,ok=true){
   document.body.appendChild(t);
   setTimeout(()=>t.remove(),3200);
 }
-/* The compose popup. `ctx` optionally carries {log_id,file_id,contact_id} so the
-   sent-email record can be tied back to the enquiry it was written from. */
+/* POST multipart/form-data (files) with bearer auth + one silent token refresh,
+   the FormData twin of api(). Never sets Content-Type — the browser adds the
+   multipart boundary itself. Throws Error with .status set for the caller. */
+async function apiMultipart(path,formData,retried){
+  const r=await fetch(API+path,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:formData});
+  if(r.status===401){
+    if(!retried && await refreshToken()) return apiMultipart(path,formData,true);
+    throw Object.assign(new Error('Session expired — open the main app on this host, sign in, then reload.'),{status:401}); }
+  const body=await r.json().catch(()=>({}));
+  if(!r.ok){ const d=body.detail; throw Object.assign(new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||('Error '+r.status))),{status:r.status}); }
+  return body;
+}
+/* The compose popup — sends through the shared company mailbox, with the same
+   rich-text toolbar and file attach/drag-drop as the Quick Notes box. `ctx`
+   optionally carries {log_id,file_id,contact_id} so the sent record ties back
+   to the enquiry it was written from. */
 function openEmailCompose(email,fromRx=false,ctx={}){
   document.querySelector('.compose')?.remove();
   const panel=document.createElement('section'); panel.className='compose'+(fromRx?' from-rx':''); panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
-  panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div><button class="compose-close" type="button" aria-label="Close message">&times;</button></div><div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div><div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div><textarea class="compose-body" placeholder="Write your message…"></textarea><div class="compose-foot"><button class="compose-send" type="button">Send</button><button class="compose-mailto" type="button">Open in mail app</button></div>`;
+  panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div>
+      <button class="compose-close" type="button" aria-label="Close message">&times;</button></div>
+    <div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div>
+    <div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div>
+    <div class="compose-editor-wrap" id="compose-dropzone">
+      <div id="compose-quill-editor"></div>
+      <div id="compose-quill-toolbar">
+        <button class="ql-bold"></button><button class="ql-italic"></button><button class="ql-underline"></button><button class="ql-strike"></button>
+        <button class="ql-list" value="ordered"></button><button class="ql-list" value="bullet"></button>
+        <button class="ql-blockquote"></button><button class="ql-clean"></button>
+      </div>
+      <div class="compose-attachments" id="compose-attachments"></div>
+    </div>
+    <input type="file" id="compose-file-input" multiple style="display:none">
+    <div class="compose-foot">
+      <button class="compose-send" type="button">Send</button>
+      <button class="compose-attach-btn" type="button"><svg viewBox="0 0 16 16"><path d="M13.5 9.5v2a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2"/><polyline points="10.5 5.5 8 3 5.5 5.5"/><line x1="8" y1="3" x2="8" y2="10.5"/></svg>Attach file</button>
+      <span class="compose-foot-spacer"></span>
+      <button class="compose-mailto" type="button">Open in mail app</button>
+    </div>`;
   document.body.appendChild(panel);
   const close=()=>{panel.remove();document.removeEventListener('keydown',onKey);};
   const onKey=e=>{if(e.key==='Escape')close();};
-  const subjEl=panel.querySelector('.compose-subject'), bodyEl=panel.querySelector('.compose-body'), sendBtn=panel.querySelector('.compose-send');
-  const openMail=()=>{const subject=subjEl.value.trim(),body=bodyEl.value.trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
-  /* Actually send the mail through our own API (not a mailto: handoff): the
-     server delivers it via the app's email service and records it in the site.
-     The button locks while the request is in flight so a double-click can't
-     send twice; a failure re-arms it so the user can retry or fall back to
-     "Open in mail app". */
+  const subjEl=panel.querySelector('.compose-subject'), sendBtn=panel.querySelector('.compose-send');
+  const attWrap=panel.querySelector('#compose-attachments');
+
+  // Rich-text editor (same Quill setup as Quick Notes).
+  const quill=new Quill(panel.querySelector('#compose-quill-editor'),{theme:'snow',placeholder:'Write your message…',modules:{toolbar:panel.querySelector('#compose-quill-toolbar')}});
+
+  // Attachments held client-side until Send; each is a File, sent as a real
+  // email attachment.
+  const atts=[]; const fmtSz=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
+  const renderAtts=()=>{ attWrap.innerHTML=''; atts.forEach((f,i)=>{ const c=document.createElement('div'); c.className='compose-chip'; c.innerHTML=`<span title="${esc(f.name)}">${esc(f.name)}</span> <button type="button" data-i="${i}" aria-label="Remove">&times;</button><span class="mt" style="font-size:10px">${fmtSz(f.size)}</span>`; attWrap.appendChild(c); }); };
+  attWrap.addEventListener('click',e=>{ const b=e.target.closest('button[data-i]'); if(b){ atts.splice(+b.dataset.i,1); renderAtts(); } });
+  const addFiles=list=>{ for(const f of list) atts.push(f); renderAtts(); };
+  const fileInput=panel.querySelector('#compose-file-input');
+  panel.querySelector('.compose-attach-btn').onclick=()=>fileInput.click();
+  fileInput.addEventListener('change',()=>{ if(fileInput.files.length) addFiles([...fileInput.files]); fileInput.value=''; });
+
+  // Drag-and-drop onto the editor area (same counter trick as Quick Notes).
+  const dz=panel.querySelector('#compose-dropzone'); let dc=0;
+  dz.addEventListener('dragenter',e=>{ e.preventDefault(); if(++dc===1) dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave',()=>{ if(--dc<=0){ dc=0; dz.classList.remove('drag-over'); } });
+  dz.addEventListener('dragover',e=>e.preventDefault());
+  dz.addEventListener('drop',e=>{ e.preventDefault(); dc=0; dz.classList.remove('drag-over'); const fs=[...(e.dataTransfer.files||[])]; if(fs.length) addFiles(fs); });
+
+  const openMail=()=>{const subject=subjEl.value.trim(),body=quill.getText().trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
+
+  /* Send for real: build a multipart form (subject, HTML body, files) and POST
+     to /mail/send, which delivers it through the shared company mailbox and
+     records it. The button locks while in flight so a double-click can't send
+     twice; a failure re-arms it. */
   const send=async()=>{
-    const subject=subjEl.value.trim(), body=bodyEl.value.trim();
-    if(!subject && !body){ showFeedback('Nothing to send','Add a subject or a message first.'); return; }
+    const subject=subjEl.value.trim();
+    let bodyHTML=quill.root.innerHTML; if(bodyHTML==='<p><br></p>') bodyHTML='';
+    const empty=!subject&&!quill.getText().trim()&&!atts.length;
+    if(empty){ showFeedback('Nothing to send','Add a subject, a message, or an attachment first.'); return; }
     sendBtn.disabled=true; const label=sendBtn.textContent; sendBtn.textContent='Sending…';
     try{
-      const rec=await api('/mail/send',{method:'POST',body:JSON.stringify({to:email,subject,body,log_id:ctx.log_id||null,file_id:ctx.file_id||null,contact_id:ctx.contact_id||null})});
-      // A non-SMTP backend (console/noop/memory) means the server only logged
-      // the mail — say so plainly instead of pretending it was delivered.
+      const fd=new FormData();
+      fd.append('to',email); fd.append('subject',subject); fd.append('body',bodyHTML);
+      if(ctx.log_id) fd.append('log_id',ctx.log_id);
+      if(ctx.file_id) fd.append('file_id',ctx.file_id);
+      if(ctx.contact_id) fd.append('contact_id',ctx.contact_id);
+      atts.forEach(f=>fd.append('files',f,f.name));
+      const rec=await apiMultipart('/mail/send',fd);
+      // backend 'smtp' means the company mailbox delivered it; anything else
+      // (console) means the server only logged it — say so honestly.
       const delivered=rec&&rec.backend==='smtp';
-      composeToast(delivered?'Email sent ✓':'Email recorded — server email isn’t set up yet, so it wasn’t actually delivered.',delivered);
+      composeToast(delivered?'Email sent ✓':'Email recorded — the company email isn’t set up yet, so it wasn’t actually delivered.',delivered);
       close();
     }catch(err){
       sendBtn.disabled=false; sendBtn.textContent=label;
