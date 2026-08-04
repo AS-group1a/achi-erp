@@ -1039,7 +1039,7 @@ textarea:focus-visible {
 }
 
 .contact-modal {
-  width: min(720px, 100%);
+  width: min(1040px, 100%);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   border: 1px solid var(--line);
@@ -1060,6 +1060,106 @@ textarea:focus-visible {
 
 .span-2 {
   grid-column: span 2;
+}
+
+.identity-fields {
+  min-width: 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.identity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field-label {
+  color: #4e596b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.repeatable-field,
+.repeatable-list {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.repeatable-row {
+  display: grid;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.phone-row {
+  grid-template-columns: minmax(76px, .65fr) minmax(92px, 1.35fr) 32px;
+}
+
+.social-field {
+  max-width: 560px;
+  margin-top: 14px;
+}
+
+.social-row {
+  grid-template-columns: minmax(105px, .4fr) minmax(170px, 1fr) 32px;
+}
+
+.repeatable-remove {
+  display: inline-grid;
+  width: 32px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #798497;
+  cursor: pointer;
+}
+
+.repeatable-remove:hover,
+.repeatable-remove:focus-visible {
+  border-color: #f2cbc8;
+  background: #fff4f3;
+  color: var(--danger);
+}
+
+.repeatable-remove svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.add-field-button {
+  justify-self: start;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.add-field-button:hover,
+.add-field-button:focus-visible {
+  color: var(--brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.add-field-button:disabled {
+  color: #9ca5b3;
+  cursor: default;
+  text-decoration: none;
 }
 
 .label-note {
@@ -1139,6 +1239,12 @@ textarea:focus-visible {
   }
 }
 
+@media (max-width: 980px) {
+  .identity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .contact-page {
     padding: 22px 18px 40px;
@@ -1152,6 +1258,7 @@ textarea:focus-visible {
   .header-actions .button {
     flex: 1;
   }
+
 }
 
 @media (max-width: 620px) {
@@ -1235,6 +1342,19 @@ textarea:focus-visible {
 
   .span-2 {
     grid-column: auto;
+  }
+
+  .identity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .social-field {
+    max-width: none;
+  }
+
+  .phone-row,
+  .social-row {
+    grid-template-columns: minmax(90px, .4fr) minmax(0, 1fr) 32px;
   }
 
   .map-input-row {

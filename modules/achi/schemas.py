@@ -789,9 +789,13 @@ class ContactInfoContactIn(BaseModel):
     )
     first_name: str | None = Field(default=None, max_length=255)
     last_name: str | None = Field(default=None, max_length=255)
+    prefix: str | None = Field(default=None, max_length=16)
+    role: str | None = Field(default=None, max_length=64)
     company_name: str | None = Field(default=None, max_length=255)
+    company_type: str | None = Field(default=None, max_length=64)
     primary_email: EmailStr | None = Field(default=None, max_length=255)
     phones: list[ContactInfoPhoneIn] = Field(default_factory=list, max_length=8)
+    socials: list[SocialIn] = Field(default_factory=list, max_length=12)
     website: str | None = Field(default=None, max_length=500)
     country_code: str | None = Field(default=None, max_length=2)
     city: str | None = Field(default=None, max_length=128)
@@ -826,6 +830,8 @@ class ContactInfoContactIn(BaseModel):
                 raise ValueError("company_name is required for a company")
             self.first_name = None
             self.last_name = None
+            self.prefix = None
+            self.role = None
         elif not (self.first_name or self.last_name):
             raise ValueError("first_name or last_name is required for a person")
 
