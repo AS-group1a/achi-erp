@@ -12,7 +12,15 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 
-from app.dependencies import CurrentUserId, OptionalUserPayload, RequireRole, SessionDep, SettingsDep
+from app.dependencies import (
+    CurrentUserId,
+    OptionalUserPayload,
+    RequirePermission,
+    RequireRole,
+    SessionDep,
+    SettingsDep,
+)
+from app.modules.contacts.models import Contact
 from app.modules.users.models import User
 
 from . import access
@@ -21,18 +29,19 @@ from .manifest import manifest as MANIFEST
 from .schemas import (
     AttachmentOut,
     ContactFileCreate,
-    LogRowOut,
-    QuickLogCreate,
-    QuickLogOut,
     ContactFileListOut,
     ContactFileOut,
     ContactFileUpdate,
-    FileConvertRequest,
+    ContactInfoContactIn,
     ContactPatch,
+    FileConvertRequest,
     FileLogCreate,
     FileLogOut,
     FileLogUpdate,
+    LogRowOut,
     ModuleInfo,
+    QuickLogCreate,
+    QuickLogOut,
 )
 from .service import ContactFileService
 from .quotation_router import quotation_router
@@ -109,6 +118,210 @@ def ui() -> HTMLResponse:
         (_UI_DIR / "log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+@router.get(
+    "/contact-info/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="ACHI Contact Info UI",
+)
+def contact_info_ui() -> HTMLResponse:
+    """Serve the custom ACHI Contact Info page."""
+
+    return HTMLResponse(
+        (_UI_DIR / "contact_info.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/crm/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="ACHI CRM UI",
+)
+def crm_ui() -> HTMLResponse:
+    """Serve ACHI's CRM workspace over the official OCE CRM API."""
+
+    return HTMLResponse(
+        (_UI_DIR / "crm.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/crm/crm.css",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+)
+def crm_css() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "crm.css").read_text(encoding="utf-8"),
+        media_type="text/css",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/crm/crm.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+)
+def crm_js() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "crm.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+_CONTACT_INFO_TYPES = {
+    "client": "client",
+    "prospect": "lead",
+    "lead": "lead",
+    "supplier": "supplier",
+    "subcontractor": "subcontractor",
+    "internal": "internal",
+    "other": "consultant",
+}
+_CONTACT_INFO_TAG = "achi_contact_info"
+
+
+async def _contact_info_owned_contact(
+    session: SessionDep,
+    contact_id: str,
+    user_id: str,
+) -> Contact:
+    """Load a contact while preserving OCE's tenant ownership rule."""
+
+    contact = await session.get(Contact, contact_id)
+    if contact is None or not contact.is_active:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
+
+    user = await session.get(User, user_id)
+    is_admin = bool(user and user.role == "admin")
+    caller = str(user_id)
+    owns_contact = (
+        str(contact.tenant_id or "") == caller
+        or (contact.tenant_id is None and str(contact.created_by or "") == caller)
+    )
+    if not is_admin and not owns_contact:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied")
+    return contact
+
+
+def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
+    """Write canonical fields to Contact and ACHI-only fields to our bucket."""
+
+    payload = data.model_dump(mode="json")
+    phones = payload["phones"]
+    primary_phone = phones[0]["number"] if phones else None
+
+    contact.contact_type = _CONTACT_INFO_TYPES[data.category]
+    contact.first_name = data.first_name
+    contact.last_name = data.last_name
+    contact.company_name = data.company_name
+    contact.primary_email = str(data.primary_email) if data.primary_email else None
+    contact.primary_phone = primary_phone
+    contact.website = data.website
+    contact.country_code = data.country_code
+    contact.notes = data.notes
+
+    address = dict(contact.address or {})
+    if data.city:
+        address["city"] = data.city
+    else:
+        address.pop("city", None)
+    if data.location:
+        address["formatted"] = data.location
+    else:
+        address.pop("formatted", None)
+    contact.address = address or None
+
+    tags = list(contact.module_tags or [])
+    if _CONTACT_INFO_TAG not in tags:
+        tags.append(_CONTACT_INFO_TAG)
+    contact.module_tags = tags
+
+    properties = dict(contact.custom_properties or {})
+    properties[_CONTACT_INFO_TAG] = {
+        "record_type": data.record_type,
+        "category": data.category,
+        "phones": phones,
+        "source": data.source,
+        "location": data.location,
+        "maps_url": data.maps_url,
+        "quick_links": payload["quick_links"],
+    }
+    contact.custom_properties = properties
+
+
+@router.get(
+    "/contact-info/contact_info.css",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+)
+def contact_info_css() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "contact_info.css").read_text(encoding="utf-8"),
+        media_type="text/css",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/contact-info/contact_info.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+)
+def contact_info_js() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "contact_info.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.post(
+    "/contact-info/contacts",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an ACHI contact",
+)
+async def create_contact_info_contact(
+    data: ContactInfoContactIn,
+    session: SessionDep,
+    user_id: CurrentUserId,
+    _perm: None = Depends(RequirePermission("contacts.create")),
+) -> dict:
+    contact = Contact(
+        contact_type=_CONTACT_INFO_TYPES[data.category],
+        tenant_id=str(user_id),
+        created_by=str(user_id),
+        is_active=True,
+    )
+    _apply_contact_info(contact, data)
+    session.add(contact)
+    await session.commit()
+    await session.refresh(contact)
+    return {"id": str(contact.id)}
+
+
+@router.put(
+    "/contact-info/contacts/{contact_id}",
+    summary="Update an ACHI contact",
+)
+async def update_contact_info_contact(
+    contact_id: str,
+    data: ContactInfoContactIn,
+    session: SessionDep,
+    user_id: CurrentUserId,
+    _perm: None = Depends(RequirePermission("contacts.update")),
+) -> dict:
+    contact = await _contact_info_owned_contact(session, contact_id, str(user_id))
+    _apply_contact_info(contact, data)
+    await session.commit()
+    return {"id": str(contact.id)}
 
 
 @router.get(

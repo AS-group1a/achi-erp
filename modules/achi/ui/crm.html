@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM | ACHI Scaffolding ERP</title>
+  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=1">
+</head>
+<body data-achi-title="CRM">
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7L20 14"/><path d="M20 5v6h-6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m18 6-12 12M6 6l12 12"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><path d="M3 21h18M6 21V3h12v18M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></symbol>
+  </svg>
+
+  <main class="crm-page">
+    <header class="page-header">
+      <div>
+        <p class="breadcrumb">ACHI / CRM</p>
+        <h1>Sales CRM</h1>
+        <p class="page-description">Opportunities, leads and follow-ups</p>
+      </div>
+      <div class="header-actions">
+        <button class="icon-button" type="button" id="refresh-button" aria-label="Refresh CRM" title="Refresh"><svg><use href="#i-refresh"/></svg></button>
+        <button class="button button-secondary" type="button" id="new-lead-button"><svg><use href="#i-user"/></svg>New lead</button>
+        <button class="button button-primary" type="button" id="new-deal-button"><svg><use href="#i-plus"/></svg>New deal</button>
+      </div>
+    </header>
+
+    <section class="metrics-band" aria-label="Pipeline summary">
+      <div class="metric"><span>Open pipeline</span><strong id="metric-pipeline">-</strong><small id="metric-pipeline-note">Loading</small></div>
+      <div class="metric"><span>Weighted value</span><strong id="metric-weighted">-</strong><small id="metric-weighted-note">Probability adjusted</small></div>
+      <div class="metric"><span>Open deals</span><strong id="metric-deals">-</strong><small id="metric-stage-note">Across all stages</small></div>
+      <div class="metric"><span>Open leads</span><strong id="metric-leads">-</strong><small>New and qualifying</small></div>
+      <div class="metric metric-alert"><span>Follow-ups due</span><strong id="metric-activities">-</strong><small id="metric-overdue-note">Due soon</small></div>
+      <div class="metric"><span>30-day win rate</span><strong id="metric-win-rate">-</strong><small>Closed opportunities</small></div>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace-toolbar">
+        <nav class="view-switcher" aria-label="CRM views">
+          <button class="view-button is-active" type="button" data-view="pipeline"><svg><use href="#i-board"/></svg>Pipeline</button>
+          <button class="view-button" type="button" data-view="leads"><svg><use href="#i-user"/></svg>Leads <span id="lead-tab-count">0</span></button>
+          <button class="view-button" type="button" data-view="accounts"><svg><use href="#i-building"/></svg>Accounts <span id="account-tab-count">0</span></button>
+          <button class="view-button" type="button" data-view="activities"><svg><use href="#i-list"/></svg>Activities <span id="activity-tab-count">0</span></button>
+        </nav>
+        <div class="workspace-tools">
+          <label class="search-field" for="crm-search"><svg><use href="#i-search"/></svg><input type="search" id="crm-search" placeholder="Search CRM" autocomplete="off"></label>
+          <select id="status-filter" aria-label="Filter by status"><option value="all">All statuses</option></select>
+          <button class="button button-secondary compact" type="button" id="context-add-button"><svg><use href="#i-plus"/></svg><span>Add</span></button>
+        </div>
+      </div>
+
+      <div class="view-panel" id="pipeline-view"><div class="pipeline-board" id="pipeline-board"><div class="loading-state">Loading pipeline...</div></div></div>
+      <div class="view-panel" id="leads-view" hidden><div class="data-surface" id="leads-list"></div></div>
+      <div class="view-panel" id="accounts-view" hidden><div class="data-surface" id="accounts-list"></div></div>
+      <div class="view-panel" id="activities-view" hidden><div class="data-surface" id="activities-list"></div></div>
+    </section>
+  </main>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="record-drawer" id="record-drawer" aria-hidden="true" aria-label="CRM record details">
+    <header class="drawer-header">
+      <div><p class="drawer-eyebrow" id="drawer-eyebrow">Opportunity</p><h2 id="drawer-title">Record</h2><p id="drawer-subtitle"></p></div>
+      <button class="icon-button" type="button" id="drawer-close" aria-label="Close details" title="Close"><svg><use href="#i-x"/></svg></button>
+    </header>
+    <div class="drawer-command-bar" id="drawer-command-bar"></div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+
+  <div class="modal-backdrop" id="record-modal" hidden>
+    <section class="record-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <header class="modal-header">
+        <div><p class="modal-eyebrow" id="modal-eyebrow">CRM</p><h2 id="modal-title">New record</h2></div>
+        <button class="icon-button" type="button" id="modal-close" aria-label="Close form" title="Close"><svg><use href="#i-x"/></svg></button>
+      </header>
+      <form id="record-form">
+        <div class="form-grid" id="form-fields"></div>
+        <p class="form-error" id="form-error" role="alert"></p>
+        <div class="form-actions">
+          <button class="button button-secondary" type="button" id="modal-cancel">Cancel</button>
+          <button class="button button-primary" type="submit" id="modal-save">Save</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="/api/v1/achi/crm/crm.js?v=1"></script>
+  <script src="/api/v1/achi/ui/chrome.js?v=22"></script>
+</body>
+</html>

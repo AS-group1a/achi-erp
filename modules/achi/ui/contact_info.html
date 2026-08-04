@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Info | ACHI Scaffolding ERP</title>
+  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=5">
+</head>
+<body data-achi-title="Contact Info">
+  <main class="contact-page">
+    <header class="page-header">
+      <div>
+        <p class="breadcrumb">ACHI / Contact Info</p>
+        <h1>Contact Info</h1>
+        <p class="page-description">Clients, prospects, suppliers, subcontractors and internal contacts</p>
+      </div>
+      <div class="header-actions">
+        <button class="button button-secondary" type="button" id="import-button">Import CSV</button>
+        <input type="file" id="import-input" accept=".csv,text/csv" hidden>
+        <button class="button button-secondary" type="button" id="export-button">Export CSV</button>
+        <button class="button button-primary" type="button" id="new-contact-button">New contact</button>
+      </div>
+    </header>
+
+    <section class="directory-switcher" aria-label="Directory type">
+      <button class="switch-button is-active" type="button" data-record-type="person">People</button>
+      <button class="switch-button" type="button" data-record-type="company">Companies</button>
+      <button class="switch-button" type="button" data-record-type="all">All</button>
+    </section>
+
+    <section class="summary-grid" aria-label="Contact categories">
+      <button class="summary-card is-active" type="button" data-category="all"><strong id="all-count">0</strong><span>All</span></button>
+      <button class="summary-card" type="button" data-category="client"><strong id="client-count">0</strong><span>Client</span></button>
+      <button class="summary-card" type="button" data-category="prospect"><strong id="prospect-count">0</strong><span>Prospect</span></button>
+      <button class="summary-card" type="button" data-category="lead"><strong id="lead-count">0</strong><span>Lead</span></button>
+      <button class="summary-card" type="button" data-category="supplier"><strong id="supplier-count">0</strong><span>Supplier</span></button>
+      <button class="summary-card" type="button" data-category="subcontractor"><strong id="subcontractor-count">0</strong><span>Subcontractor</span></button>
+      <button class="summary-card" type="button" data-category="internal"><strong id="internal-count">0</strong><span>Internal</span></button>
+      <button class="summary-card" type="button" data-category="other"><strong id="other-count">0</strong><span>Other</span></button>
+    </section>
+
+    <section class="contacts-surface">
+      <div class="contacts-toolbar">
+        <label class="search-field" for="contact-search">
+          <span aria-hidden="true">&#128269;</span>
+          <input type="search" id="contact-search" placeholder="Search name, company, phone, email or location" autocomplete="off">
+        </label>
+        <div class="toolbar-meta">
+          <span class="contact-total" id="contact-total">Loading contacts...</span>
+          <div class="view-switcher" role="group" aria-label="Contact view">
+            <button class="view-mode-button is-active" type="button" data-view-mode="list" title="Standard view" aria-label="Standard view">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>List</span>
+            </button>
+            <button class="view-mode-button" type="button" data-view-mode="grid" title="Grid view" aria-label="Grid view">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Grid</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrapper" id="list-view">
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Company</th>
+              <th>Category</th>
+              <th>Phone</th>
+              <th>Location</th>
+              <th>Last contact</th>
+              <th>Logs</th>
+              <th>Jobs</th>
+              <th><span class="sr-only">Open</span></th>
+            </tr>
+          </thead>
+          <tbody id="contacts-table-body">
+            <tr><td class="table-message" colspan="9">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="contacts-grid" id="grid-view" hidden></div>
+    </section>
+  </main>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="contact-drawer" id="contact-drawer" aria-hidden="true" aria-label="Contact details">
+    <header class="drawer-header">
+      <div class="drawer-identity">
+        <span class="avatar avatar-large" id="drawer-avatar">--</span>
+        <div>
+          <p class="drawer-record-type" id="drawer-record-type">Person</p>
+          <h2 id="drawer-name">Contact</h2>
+          <p id="drawer-company"></p>
+        </div>
+      </div>
+      <button class="icon-button" type="button" id="drawer-close" aria-label="Close contact drawer" title="Close">&times;</button>
+    </header>
+
+    <div class="drawer-actions" id="drawer-actions"></div>
+
+    <nav class="drawer-tabs" aria-label="Contact detail sections">
+      <button class="drawer-tab is-active" type="button" data-drawer-tab="overview">Overview</button>
+      <button class="drawer-tab" type="button" data-drawer-tab="activity">Activity</button>
+      <button class="drawer-tab" type="button" data-drawer-tab="jobs">Jobs</button>
+      <button class="drawer-tab" type="button" data-drawer-tab="invoices">Invoices</button>
+    </nav>
+
+    <div class="drawer-body">
+      <section class="drawer-panel" data-drawer-panel="overview">
+        <div id="drawer-overview"></div>
+      </section>
+      <section class="drawer-panel" data-drawer-panel="activity" hidden>
+        <form class="quick-log-form" id="quick-log-form" hidden>
+          <div class="form-row">
+            <label>Activity type
+              <select id="quick-log-type">
+                <option value="inbound_call">Inbound call</option>
+                <option value="outbound_call">Outbound call</option>
+                <option value="meeting">Meeting</option>
+                <option value="note">Note</option>
+              </select>
+            </label>
+          </div>
+          <label>Notes
+            <textarea id="quick-log-notes" rows="3" maxlength="5000" required></textarea>
+          </label>
+          <div class="form-actions compact-actions">
+            <button class="button button-secondary" type="button" id="quick-log-cancel">Cancel</button>
+            <button class="button button-primary" type="submit">Save activity</button>
+          </div>
+        </form>
+        <div id="drawer-activity"></div>
+      </section>
+      <section class="drawer-panel" data-drawer-panel="jobs" hidden><div id="drawer-jobs"></div></section>
+      <section class="drawer-panel" data-drawer-panel="invoices" hidden><div id="drawer-invoices"></div></section>
+    </div>
+  </aside>
+
+  <div class="modal-backdrop" id="contact-modal" hidden>
+    <section class="contact-modal" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
+      <header class="modal-header">
+        <div>
+          <p class="modal-eyebrow">Contact directory</p>
+          <h2 id="contact-modal-title">New contact</h2>
+        </div>
+        <button class="icon-button" type="button" id="modal-close" aria-label="Close contact form" title="Close">&times;</button>
+      </header>
+
+      <form id="contact-form">
+        <input type="hidden" id="contact-id">
+        <div class="form-grid">
+          <label>Record type
+            <select id="record-type" required>
+              <option value="person">Person</option>
+              <option value="company">Company</option>
+            </select>
+          </label>
+          <label>Category
+            <select id="contact-category" required>
+              <option value="prospect">Prospect</option>
+              <option value="lead">Lead</option>
+              <option value="client">Client</option>
+              <option value="supplier">Supplier</option>
+              <option value="subcontractor">Subcontractor</option>
+              <option value="internal">Internal</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="person-field">First name
+            <input type="text" id="first-name" maxlength="255">
+          </label>
+          <label class="person-field">Last name
+            <input type="text" id="last-name" maxlength="255">
+          </label>
+          <label class="company-field span-2">Company name
+            <input type="text" id="company-name" maxlength="255">
+          </label>
+          <label>Email
+            <input type="email" id="primary-email" maxlength="255">
+          </label>
+          <label>Primary phone
+            <input type="tel" id="primary-phone" maxlength="50">
+          </label>
+          <label class="span-2">Additional phones <span class="label-note">one per line</span>
+            <textarea id="additional-phones" rows="3" placeholder="Office | +961 ...&#10;Site | +961 ..."></textarea>
+          </label>
+          <label>Website
+            <input type="url" id="website" maxlength="500" placeholder="https://">
+          </label>
+          <label>Source
+            <input type="text" id="contact-source" maxlength="80" placeholder="Referral, website, walk-in...">
+          </label>
+          <label>Country code
+            <input type="text" id="country-code" maxlength="2" placeholder="LB">
+          </label>
+          <label>City
+            <input type="text" id="city" maxlength="128">
+          </label>
+          <label class="span-2">Location / address
+            <input type="text" id="contact-location" maxlength="500" placeholder="Street, building, district or full address">
+          </label>
+          <div class="map-form-field span-2">
+            <label for="maps-url">Map location <span class="label-note">Google Maps link</span></label>
+            <div class="map-input-row">
+              <input type="url" id="maps-url" maxlength="2048" placeholder="https://maps.google.com/...">
+              <button class="button button-secondary" type="button" id="use-current-location">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z"/><circle cx="12" cy="10" r="2"/></svg>
+                Use current location
+              </button>
+            </div>
+            <p class="map-field-status" id="map-field-status"></p>
+          </div>
+          <label class="span-2">Quick links <span class="label-note">Label | URL, one per line</span>
+            <textarea id="quick-links" rows="3" placeholder="LinkedIn | https://linkedin.com/...&#10;Maps | https://maps.google.com/..."></textarea>
+          </label>
+          <label class="span-2">Notes
+            <textarea id="contact-notes" rows="4" maxlength="5000"></textarea>
+          </label>
+        </div>
+        <p class="form-error" id="form-error" role="alert"></p>
+        <div class="form-actions">
+          <button class="button button-secondary" type="button" id="modal-cancel">Cancel</button>
+          <button class="button button-primary" type="submit" id="contact-save">Save contact</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="/api/v1/achi/contact-info/contact_info.js?v=4"></script>
+  <script src="/api/v1/achi/ui/chrome.js?v=21"></script>
+</body>
+</html>
