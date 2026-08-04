@@ -909,7 +909,8 @@
   }
 
   function renderQuickLinkRows(links = []) {
-    $('quick-link-list').innerHTML = links.slice(0, 12).map(quickLinkRowMarkup).join('');
+    const rows = links.length ? links.slice(0, 12) : [{}];
+    $('quick-link-list').innerHTML = rows.map(quickLinkRowMarkup).join('');
     updateQuickLinkRows();
   }
 
@@ -1541,7 +1542,8 @@
       const remove = event.target.closest('[data-remove-quick-link]');
       if (!remove) return;
       remove.closest('[data-quick-link-row]').remove();
-      updateQuickLinkRows();
+      if (!$('quick-link-list').children.length) renderQuickLinkRows();
+      else updateQuickLinkRows();
     });
     $('use-current-location').addEventListener('click', useCurrentLocation);
     $('contact-form').addEventListener('submit', saveContact);
