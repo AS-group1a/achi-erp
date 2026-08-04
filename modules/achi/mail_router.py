@@ -35,7 +35,9 @@ from .schemas import EmailOut
 mail_router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Refuse an oversized request outright — most providers reject >25MB anyway.
+# Total attachment cap. 25 MB is not our number — it is the hard ceiling Gmail
+# (and most providers) enforce on a whole message, so raising it just makes the
+# provider bounce the email. This is the maximum that can actually be delivered.
 _MAX_ATTACH_TOTAL = 25 * 1024 * 1024
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
@@ -99,8 +101,11 @@ async def send_mail(
         content = await f.read()
         total += len(content)
         if total > _MAX_ATTACH_TOTAL:
-            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                                "Attachments are too large (25 MB total maximum).")
+            raise HTTPException(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                "Attachments are too large — email allows about 25 MB per message (the mail "
+                "provider's limit). For bigger files, share a download link in the message instead.",
+            )
         attachments.append(EmailAttachment(
             filename=f.filename or "attachment", content=content,
             content_type=f.content_type or "application/octet-stream"))
