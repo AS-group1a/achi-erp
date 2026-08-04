@@ -36,7 +36,7 @@
   .draft-compose:hover{background:#dbeafe}
   .draft-compose[hidden]{display:none}
   .draft-compose svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
+  .compose{position:fixed;right:28px;bottom:0;z-index:2147482300;width:min(480px,calc(100vw - 24px));display:flex;flex-direction:column;max-height:calc(100vh - 12px);overflow:hidden;border:1.5px solid #cbd9f1;border-bottom:0;border-radius:12px 12px 0 0;background:#fff;box-shadow:0 -4px 32px rgba(0,0,0,.16);animation:compose-in .18s cubic-bezier(.2,0,.2,1) both}
   .compose.from-rx{z-index:2147482700}
   @keyframes compose-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
   .compose-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff}
@@ -54,6 +54,23 @@
   .compose-send{padding:8px 22px;border:0;border-radius:8px;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 7px 18px rgba(30,63,133,.22)}
   .compose-mailto{padding:8px 14px;border:1.5px solid #e0e0ea;border-radius:8px;background:#fff;color:#6b7280;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .compose-mailto:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
+  /* rich-text + attachments in the compose box — mirrors the Quick Notes editor */
+  .compose-editor-wrap{position:relative;padding:12px 16px 4px;flex:1 1 auto;min-height:0;overflow:auto}
+  .compose .ql-container{border:1px solid #dbe4f0;border-radius:7px 7px 0 0;border-bottom:0;background:#fff;font:inherit;font-size:13px;min-height:150px}
+  .compose .ql-editor{min-height:150px;padding:10px 12px;line-height:1.6;color:#374151}
+  .compose .ql-editor.ql-blank::before{color:#c3ccdb;font-style:normal;left:12px;right:12px}
+  .compose .ql-toolbar{border:1px solid #dbe4f0;border-radius:0 0 7px 7px;border-top:0;background:#fff;padding:7px}
+  .compose-editor-wrap.drag-over .ql-container{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.18)!important}
+  .compose-attachments{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 2px}
+  .compose-attachments:empty{display:none}
+  .compose-chip{display:inline-flex;align-items:center;gap:6px;max-width:210px;padding:4px 8px;border:1px solid #dbe4f0;border-radius:7px;background:#f6f9fe;font-size:11.5px;color:#374151}
+  .compose-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .compose-chip button{border:0;background:transparent;color:#9ca3af;cursor:pointer;font-size:14px;line-height:1;padding:0}
+  .compose-chip button:hover{color:#dc2626}
+  .compose-attach-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1.5px solid #e0e0ea;border-radius:8px;background:#fff;color:#374151;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .compose-attach-btn:hover{border-color:#1e3a8a;color:#1e3a8a;background:#eff6ff}
+  .compose-attach-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .compose-foot-spacer{flex:1}
 
   .kpis{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
   .kpi{flex:1 1 180px;border-radius:12px;padding:15px 18px;color:#fff;transition:transform .15s ease}
@@ -421,6 +438,11 @@
   .b-cancelled{background:#f3f3f3;color:#706e6b;border-color:#c9c7c5}
   .b-done{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
   .tag{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;background:#f1f5f9;color:#475569;text-transform:capitalize;white-space:nowrap}
+  /* Tags column: several blue label chips, distinct from the grey type/category
+     tags. Single line inside the fixed-height cell — the row clips extras like
+     every other column, and the full set shows in the pop-up or on a wider column. */
+  .tags{display:inline-flex;flex-wrap:nowrap;gap:4px;align-items:center;max-width:100%}
+  .tag-lbl{background:#eef4ff;color:#2453a6;border:1px solid #d6e2fa;font-weight:700;text-transform:none}
   /* maps cell (ported from the tabbed grid): Open button + copy + hover preview */
   .maps-cell{display:inline-flex;align-items:center;gap:5px}
   .maps-btn{display:inline-flex;align-items:center;gap:4px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;padding:3px 9px;border-radius:8px;background:#eff6ff;white-space:nowrap}
@@ -1466,6 +1488,25 @@ function addType(){
   if(!allTypes().includes(v)) localStorage.setItem(TYPE_KEY,JSON.stringify([...customTypes(),v]));
   clearErr(); return v;
 }
+/* A log carries ONE tag — a label to group and filter it (Supplier, Client, or a
+   custom one). Picklist works like log types: two seeds, plus per-browser custom
+   values in localStorage, plus whatever tags the loaded rows already use so the
+   vocabulary is exactly "the tags in use". "+ Add Tag" prompts for a new one. */
+const TAG_KEY='achi_log_tags', TAG_ADD='__add_tag__';
+const TAGS_SEED=['Supplier','Client'];
+const tagOf=r=>String(r&&r.tags||'').trim();
+const allTags=current=>{
+  const seen=new Set(), out=[];
+  const push=v=>{ v=String(v||'').trim(); const k=v.toLowerCase();
+    if(v&&!seen.has(k)){ seen.add(k); out.push(v); } };
+  TAGS_SEED.forEach(push);
+  customPicklistValues(TAG_KEY).forEach(push);
+  // ROWS is initialised at load; allTags only ever runs from UI handlers, well after.
+  (Array.isArray(ROWS)?ROWS:[]).forEach(r=>push(tagOf(r)));
+  push(current);
+  return out;
+};
+const addTag=()=>addCustomPicklistValue({key:TAG_KEY,values:allTags,label:'tag'});
 const customPrefixes=()=>{ try{ const a=JSON.parse(localStorage.getItem(PREFIX_KEY)||'[]');
   return Array.isArray(a)?a.filter(x=>typeof x==='string'&&x.trim()):[]; }catch(e){ return []; } };
 const allPrefixes=()=>[...PREFIXES,...customPrefixes().filter(x=>!PREFIXES.includes(x))];
@@ -1557,6 +1598,11 @@ function fmtHeaderDT(s){
 const dateTimeHTML=s=>`<span class="dt pg-dt-full">${esc(fmtDT(s))}</span><span class="dt pg-dt-compact">${esc(fmtCompactDT(s))}</span>`;
 const badge=s=>`<span class="badge b-${esc(s)}">${esc(s)}</span>`;
 const tagv=v=>v?`<span class="tag">${esc(label(v))}</span>`:'<span class="mt">—</span>';
+/* Tags are one comma-separated string; split, trim and drop blanks so "a, ,b"
+   never renders an empty chip. Shown as blue label chips to read apart from the
+   grey type/category tags. */
+const splitTags=s=>String(s||'').split(',').map(t=>t.trim()).filter(Boolean);
+const tagsHTML=s=>{const a=splitTags(s);return a.length?`<span class="tags">${a.map(t=>`<span class="tag tag-lbl">${esc(t)}</span>`).join('')}</span>`:'<span class="mt">—</span>';};
 const dash=v=>v?esc(v):'<span class="mt">—</span>';
 const selOpts=(o,v)=>o.map(x=>`<option value="${x}"${x===v?' selected':''}>${esc(label(x))}</option>`).join('');
 function phone(m){ if(!m)return '<span class="mt">—</span>'; const d=m.replace(/[^0-9]/g,''); return `<span class="ph">${esc(m)}</span><a class="wa" href="https://wa.me/${d}" target="_blank" rel="noreferrer" title="WhatsApp">${SVG.wa}</a>`; }
@@ -1574,19 +1620,118 @@ function initials(name){
 }
 function avatar(name,id){ if(!name&&!id)return '<span class="mt">—</span>';
   return `<span class="avatar" title="${esc(name||id)}">${esc(initials(name))}</span>`; }
-function openEmailCompose(email,fromRx=false){
+/* Transient bottom-of-screen toast, styled like the "Log saved" one. `ok=false`
+   tints it as a soft warning so a "recorded but not actually delivered" send
+   reads differently from a clean success. */
+function composeToast(text,ok=true){
+  document.querySelector('.save-feedback')?.remove();
+  const t=document.createElement('div');
+  t.className='save-feedback'; t.setAttribute('role','status'); t.setAttribute('aria-live','polite');
+  if(!ok){ t.style.background='#8a5a00'; }
+  t.innerHTML=`<span class="save-feedback-mark">${ok?'✓':'!'}</span><span>${esc(text)}</span>`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+/* POST multipart/form-data (files) with bearer auth + one silent token refresh,
+   the FormData twin of api(). Never sets Content-Type — the browser adds the
+   multipart boundary itself. Throws Error with .status set for the caller. */
+async function apiMultipart(path,formData,retried){
+  const r=await fetch(API+path,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:formData});
+  if(r.status===401){
+    if(!retried && await refreshToken()) return apiMultipart(path,formData,true);
+    throw Object.assign(new Error('Session expired — open the main app on this host, sign in, then reload.'),{status:401}); }
+  const body=await r.json().catch(()=>({}));
+  if(!r.ok){ const d=body.detail; throw Object.assign(new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||('Error '+r.status))),{status:r.status}); }
+  return body;
+}
+/* The compose popup — sends through the shared company mailbox, with the same
+   rich-text toolbar and file attach/drag-drop as the Quick Notes box. `ctx`
+   optionally carries {log_id,file_id,contact_id} so the sent record ties back
+   to the enquiry it was written from. */
+function openEmailCompose(email,fromRx=false,ctx={}){
   document.querySelector('.compose')?.remove();
   const panel=document.createElement('section'); panel.className='compose'+(fromRx?' from-rx':''); panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
-  panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div><button class="compose-close" type="button" aria-label="Close message">&times;</button></div><div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div><div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div><textarea class="compose-body" placeholder="Write your message…"></textarea><div class="compose-foot"><button class="compose-send" type="button">Send</button><button class="compose-mailto" type="button">Open in mail app</button></div>`;
+  panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div>
+      <button class="compose-close" type="button" aria-label="Close message">&times;</button></div>
+    <div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div>
+    <div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div>
+    <div class="compose-editor-wrap" id="compose-dropzone">
+      <div id="compose-quill-editor"></div>
+      <div id="compose-quill-toolbar">
+        <button class="ql-bold"></button><button class="ql-italic"></button><button class="ql-underline"></button><button class="ql-strike"></button>
+        <button class="ql-list" value="ordered"></button><button class="ql-list" value="bullet"></button>
+        <button class="ql-blockquote"></button><button class="ql-clean"></button>
+      </div>
+      <div class="compose-attachments" id="compose-attachments"></div>
+    </div>
+    <input type="file" id="compose-file-input" multiple style="display:none">
+    <div class="compose-foot">
+      <button class="compose-send" type="button">Send</button>
+      <button class="compose-attach-btn" type="button"><svg viewBox="0 0 16 16"><path d="M13.5 9.5v2a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2"/><polyline points="10.5 5.5 8 3 5.5 5.5"/><line x1="8" y1="3" x2="8" y2="10.5"/></svg>Attach file</button>
+      <span class="compose-foot-spacer"></span>
+      <button class="compose-mailto" type="button">Open in mail app</button>
+    </div>`;
   document.body.appendChild(panel);
   const close=()=>{panel.remove();document.removeEventListener('keydown',onKey);};
   const onKey=e=>{if(e.key==='Escape')close();};
-  const openMail=()=>{const subject=panel.querySelector('.compose-subject').value.trim(),body=panel.querySelector('.compose-body').value.trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
+  const subjEl=panel.querySelector('.compose-subject'), sendBtn=panel.querySelector('.compose-send');
+  const attWrap=panel.querySelector('#compose-attachments');
+
+  // Rich-text editor (same Quill setup as Quick Notes).
+  const quill=new Quill(panel.querySelector('#compose-quill-editor'),{theme:'snow',placeholder:'Write your message…',modules:{toolbar:panel.querySelector('#compose-quill-toolbar')}});
+
+  // Attachments held client-side until Send; each is a File, sent as a real
+  // email attachment.
+  const atts=[]; const fmtSz=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
+  const renderAtts=()=>{ attWrap.innerHTML=''; atts.forEach((f,i)=>{ const c=document.createElement('div'); c.className='compose-chip'; c.innerHTML=`<span title="${esc(f.name)}">${esc(f.name)}</span> <button type="button" data-i="${i}" aria-label="Remove">&times;</button><span class="mt" style="font-size:10px">${fmtSz(f.size)}</span>`; attWrap.appendChild(c); }); };
+  attWrap.addEventListener('click',e=>{ const b=e.target.closest('button[data-i]'); if(b){ atts.splice(+b.dataset.i,1); renderAtts(); } });
+  const addFiles=list=>{ for(const f of list) atts.push(f); renderAtts(); };
+  const fileInput=panel.querySelector('#compose-file-input');
+  panel.querySelector('.compose-attach-btn').onclick=()=>fileInput.click();
+  fileInput.addEventListener('change',()=>{ if(fileInput.files.length) addFiles([...fileInput.files]); fileInput.value=''; });
+
+  // Drag-and-drop onto the editor area (same counter trick as Quick Notes).
+  const dz=panel.querySelector('#compose-dropzone'); let dc=0;
+  dz.addEventListener('dragenter',e=>{ e.preventDefault(); if(++dc===1) dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave',()=>{ if(--dc<=0){ dc=0; dz.classList.remove('drag-over'); } });
+  dz.addEventListener('dragover',e=>e.preventDefault());
+  dz.addEventListener('drop',e=>{ e.preventDefault(); dc=0; dz.classList.remove('drag-over'); const fs=[...(e.dataTransfer.files||[])]; if(fs.length) addFiles(fs); });
+
+  const openMail=()=>{const subject=subjEl.value.trim(),body=quill.getText().trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
+
+  /* Send for real: build a multipart form (subject, HTML body, files) and POST
+     to /mail/send, which delivers it through the shared company mailbox and
+     records it. The button locks while in flight so a double-click can't send
+     twice; a failure re-arms it. */
+  const send=async()=>{
+    const subject=subjEl.value.trim();
+    let bodyHTML=quill.root.innerHTML; if(bodyHTML==='<p><br></p>') bodyHTML='';
+    const empty=!subject&&!quill.getText().trim()&&!atts.length;
+    if(empty){ showFeedback('Nothing to send','Add a subject, a message, or an attachment first.'); return; }
+    sendBtn.disabled=true; const label=sendBtn.textContent; sendBtn.textContent='Sending…';
+    try{
+      const fd=new FormData();
+      fd.append('to',email); fd.append('subject',subject); fd.append('body',bodyHTML);
+      if(ctx.log_id) fd.append('log_id',ctx.log_id);
+      if(ctx.file_id) fd.append('file_id',ctx.file_id);
+      if(ctx.contact_id) fd.append('contact_id',ctx.contact_id);
+      atts.forEach(f=>fd.append('files',f,f.name));
+      const rec=await apiMultipart('/mail/send',fd);
+      // backend 'smtp' means the company mailbox delivered it; anything else
+      // (console) means the server only logged it — say so honestly.
+      const delivered=rec&&rec.backend==='smtp';
+      composeToast(delivered?'Email sent ✓':'Email recorded — the company email isn’t set up yet, so it wasn’t actually delivered.',delivered);
+      close();
+    }catch(err){
+      sendBtn.disabled=false; sendBtn.textContent=label;
+      showFeedback('Couldn’t send',err.message||'Something went wrong sending the email.');
+    }
+  };
   panel.querySelector('.compose-close').onclick=close;
-  panel.querySelector('.compose-send').onclick=openMail;
+  sendBtn.onclick=send;
   panel.querySelector('.compose-mailto').onclick=openMail;
   document.addEventListener('keydown',onKey);
-  requestAnimationFrame(()=>panel.querySelector('.compose-subject').focus());
+  requestAnimationFrame(()=>subjEl.focus());
 }
 /* files/sketch live behind the description popup — mark the cell so a row shows it has them */
 function marks(r){ let s='';
@@ -1632,6 +1777,7 @@ const COLS=[
   {k:'company',h:'Company',        tab:0, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
   {k:'desc',   h:'Description',    tab:0, w:320, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
   {k:'location',h:'Location',      tab:0, w:170, draft:'text', edit:{kind:'text',target:'file',field:'site_location',val:r=>r.site_location||''}},
+  {k:'tags',   h:'Tags',           tab:0, w:170, draft:'select', edit:{kind:'tags',target:'log',field:'tags',val:r=>r.tags||''}},
   {k:'owner',  h:'Owner',          tab:0, w:80},
   {k:'type',   h:'Call Type',      tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
   {k:'category',h:'Category',      tab:0, w:170, draft:'select', edit:{kind:'category',target:'log',field:'category',val:r=>r.category||''}},
@@ -1661,6 +1807,7 @@ function cellHTML(c,r,i){switch(c.k){
   case 'owner': return avatar(r.owner_name,r.owner);
   case 'type': return tagv(r.log_type);
   case 'category': return tagv(r.category);
+  case 'tags': return tagsHTML(r.tags);
   case 'mobile': return phone(r.mobile);
   case 'email': return r.email?`<button class="email-btn" type="button" data-compose-email="${esc(r.email)}" title="Compose email">${SVG.mail}<span>${esc(r.email)}</span></button>`:'<span class="mt">—</span>';
   case 'maps': return r.maps_url
@@ -1803,7 +1950,8 @@ function draftCell(c,dp,st,rowNumber){
   if(c.draft==='select'){
     if(c.k==='prefix') return `<input class="din pg-select-input draft-popup-select" id="${id}" data-dp="${dp}" data-dk="prefix" data-select-value="${esc(st.prefix||'')}" value="${esc(st.prefix||'')}" readonly>`;
     if(c.k==='category') return `<input class="din pg-select-input draft-popup-select" id="${id}" data-dp="${dp}" data-dk="category" data-select-value="${esc(st.category||'')}" value="${esc(label(st.category||''))}" readonly>`;
-    if(c.k==='type') return `<input class="din pg-select-input draft-popup-select" id="${id}" data-dp="${dp}" data-dk="type" data-select-value="${esc(st.type||'inbound_call')}" value="${esc(label(st.type||'inbound_call'))}" readonly>`; }
+    if(c.k==='type') return `<input class="din pg-select-input draft-popup-select" id="${id}" data-dp="${dp}" data-dk="type" data-select-value="${esc(st.type||'inbound_call')}" value="${esc(label(st.type||'inbound_call'))}" readonly>`;
+    if(c.k==='tags') return `<input class="din pg-select-input draft-popup-select" id="${id}" data-dp="${dp}" data-dk="tags" data-select-value="${esc(st.tags||'')}" value="${esc(st.tags||'')}" placeholder="Select tag" readonly>`; }
   if(c.draft==='date') return `<input class="din" id="${id}" data-dp="${dp}" data-dk="${c.k}" type="date" value="${v}">`;
   if(c.draft==='tel'){ const iso=st.iso||DEFAULT_ISO, dial=st.dial||DEFAULT_DIAL;
     return `<span class="tel-wrap"><button type="button" class="tel-cc" data-dp="${dp}" title="Country code"><img src="${flagSrc(iso)}" alt=""><span class="cc">${esc(dial)}</span>${SVG.chev}</button>`
@@ -1830,7 +1978,7 @@ function draftRowHTML(dp,st,isTop,rowNumber){
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix','role','subject','district','city','country'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
+    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
     return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
@@ -1885,7 +2033,7 @@ function toggleRowSelection(tr,force){
 function render(){
   const q=$('q').value.trim().toLowerCase();
   let rows=openOnly?ROWS.filter(r=>r.status==='open'):ROWS;
-  if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category,r.tags].some(v=>String(v||'').toLowerCase().includes(q)));
   let rowNumber=1;
   const body=[
     draftRowHTML('d',topDraft,true,rowNumber++),
@@ -2131,7 +2279,7 @@ function openRxSelect(select,button){
   rxSelectSource=select; rxSelectButton=button;
   const removablePrefixes=new Set(customPrefixes().filter(value=>!PREFIXES.includes(value)));
   rxSelectMenu.innerHTML=[...select.options].map((option,index)=>{
-    const choice=`<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,NOTE_SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`;
+    const choice=`<button type="button" class="rx-select-option${[SOCIAL_ADD_PLATFORM,REFERENCE_ADD,PREFIX_ADD,ROLE_ADD,TYPE_ADD,SUBJECT_ADD,NOTE_SUBJECT_ADD,CITY_ADD,DISTRICT_ADD,COMPANY_ADD,TAG_ADD].includes(option.value)?' add-command':''}" role="option" data-index="${index}" aria-selected="${option.selected}">${esc(option.textContent.trim()||'—')}</button>`;
     return select.dataset.rxSelect==='prefix'&&removablePrefixes.has(option.value)
       ? `<div class="rx-select-row">${choice}<button type="button" class="rx-select-delete" data-value="${esc(option.value)}" aria-label="Delete ${esc(option.value)}" title="Delete">×</button></div>`
       : choice;
@@ -2243,7 +2391,7 @@ function openExpandedRow(explicitId){
      now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===NOTE_SUBJECT_ADD?'+ Add New':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===TAG_ADD?'＋ Add Tag':o===NOTE_SUBJECT_ADD?'+ Add New':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
@@ -2279,9 +2427,12 @@ function openExpandedRow(explicitId){
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',socialHandles,
     F('Reference',SEL('reference',[...allReferences(),REFERENCE_ADD],val('reference'),true)));
-  html+=g('rx-g2',
+  html+=g('rx-g3',
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
-    F('Log subject', SEL('subject',[...new Set([val('subject'),...allSubjects()].filter(Boolean)),SUBJECT_ADD],val('subject'),true)));
+    F('Log subject', SEL('subject',[...new Set([val('subject'),...allSubjects()].filter(Boolean)),SUBJECT_ADD],val('subject'),true)),
+    // One tag to group and filter this log. Same picker as the grid — pick an
+    // existing tag or "+ Add Tag" to create a new one (like the District field).
+    F('Tags',        SEL('tags',[...allTags(val('tags')),TAG_ADD],val('tags'),true)));
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
@@ -2545,7 +2696,7 @@ function rxCollectNew(){
     street:v.street||null, maps_url:v.maps||null, site_location:v.location||null,
     site_number:v.no||null, site_building:v.bldg||null, site_floor:v.floor||null}:null;
   return {person, site, subject:v.subject||'', status:v.status||'open', log_type:v.type||'inbound_call',
-    category:v.category||null, reference:v.reference||null, description:v.desc||'', updates:v.updates||'',
+    category:v.category||null, reference:v.reference||null, tags:(v.tags&&v.tags!==TAG_ADD)?v.tags:'', description:v.desc||'', updates:v.updates||'',
     follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
 }
 
@@ -2891,7 +3042,7 @@ function draftPayload(st){
     :{is_company:false,prefix:st.prefix||null,first_name:first||null,last_name:last||null,company_name:company||null,mobile:mob,email:st.email||null};
   const hasSite=st.country||st.district||st.city||st.street||st.maps||st.location;
   return {person,site:hasSite?{country:st.country||'Lebanon',district:st.district||null,city:st.city||null,street:st.street||null,maps_url:st.maps||null,site_location:st.location||null}:null,
-    status:st.status||'open',log_type:st.type||'inbound_call',category:st.category||null,description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
+    status:st.status||'open',log_type:st.type||'inbound_call',category:st.category||null,tags:st.tags||'',description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
 }
 const committing=new Set();
 /* A row is saveable the moment it has an identity: a first name or a company.
@@ -2988,6 +3139,7 @@ $('rows').addEventListener('click',e=>{
   openSelectPopup(el.closest('td'),el,selectPopupChoices(kind),value=>{
     if(kind==='prefix'&&value===PREFIX_ADD){const added=addPrefix();if(!added)return;value=added;}
     if(kind==='type'&&value===TYPE_ADD){const added=addType();if(!added)return;value=added;}
+    if(kind==='tags'&&value===TAG_ADD){const added=addTag();if(!added)return;value=added;}
     st[kind]=value; el.dataset.selectValue=value; el.value=(kind==='category'||kind==='type'||kind==='status')?label(value):value; el.focus();
   });
 });
@@ -3156,6 +3308,8 @@ $('rx-body').addEventListener('change',e=>{
       ? {sentinel:COMPANY_ADD,add:addCompanyType}
     : el.dataset.rxSelect==='reference'&&el.value===REFERENCE_ADD
       ? {sentinel:REFERENCE_ADD,add:addReference}
+    : el.dataset.rxSelect==='tags'&&el.value===TAG_ADD
+      ? {sentinel:TAG_ADD,add:addTag}
       : null;
   if(customPicklist){
     const previous=el.dataset.rxPreviousValue;
@@ -3242,7 +3396,7 @@ $('thead').addEventListener('keydown',e=>{
 $('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); if(ccb){ openCc(ccb); return; }
   const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); refreshDeleteButton(); return; }
   const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
-  const email=e.target.closest('[data-compose-email]'); if(email){ openEmailCompose(email.dataset.composeEmail); return; }
+  const email=e.target.closest('[data-compose-email]'); if(email){ const tr=email.closest('tr'); const row=tr?ROWS.find(x=>x.id===tr.dataset.log):null; openEmailCompose(email.dataset.composeEmail,false,{log_id:tr&&tr.dataset.log||null,file_id:tr&&tr.dataset.file||null,contact_id:row&&row.contact_id||null}); return; }
   const draftEmail=e.target.closest('[data-draft-compose]'); if(draftEmail){const input=$(draftEmail.dataset.draftCompose);if(input&&validEmail(input.value)&&input.value.trim())openEmailCompose(input.value.trim());return;}
   const rm=e.target.closest('[data-rm]'); if(rm){ removeBottomRow(rm.getAttribute('data-rm')); return; }
   const ne=e.target.closest('.note-exp'); if(ne){
@@ -3567,6 +3721,7 @@ function selectPopupChoices(kind){
   if(kind==='city')     return ['',...CITIES].map(value=>({value,label:value||'—'}));
   if(kind==='country')  return ['',...COUNTRY_NAMES].map(value=>({value,label:value||'—'}));
   if(kind==='type') return [...allTypes(),TYPE_ADD].map(value=>({value,label:value===TYPE_ADD?'＋ Add new…':value}));
+  if(kind==='tags') return ['',...allTags(),TAG_ADD].map(value=>({value,label:value===TAG_ADD?'＋ Add Tag':(value||'—')}));
   if(kind==='category') return ['',...CATEGORIES].map(value=>({value,label:value?label(value):'—'}));
   const removable=new Set(customPrefixes().filter(value=>!PREFIXES.includes(value)));
   return ['',...allPrefixes(),PREFIX_ADD].map(value=>({
@@ -3642,7 +3797,7 @@ function openEditor(td){
     return;
   }
 
-  const frappeSelect=kind==='status'||kind==='type'||kind==='category'||kind==='prefix';
+  const frappeSelect=kind==='status'||kind==='type'||kind==='category'||kind==='prefix'||kind==='tags';
   if(frappeSelect){ el=document.createElement('input');el.type='text';el.readOnly=true;el.className='cellinput pg-select-input';el.dataset.selectValue=val;el.value=(kind==='category'||kind==='type'||kind==='status')?label(val):val; }
   else { el=document.createElement('input'); el.className='cellinput'; el.type=field==='email'?'email':kind==='date'?'date':'text'; el.value=val; }
   td.innerHTML=''; td.appendChild(el); el.focus();
@@ -3677,6 +3832,7 @@ function openEditor(td){
   if(frappeSelect) openSelectPopup(td,el,selectPopupChoices(kind),value=>{
     if(kind==='prefix'&&value===PREFIX_ADD){const added=addPrefix();if(!added){ran=true;refreshCell(td);return;}value=added;}
     if(kind==='type'&&value===TYPE_ADD){const added=addType();if(!added){ran=true;refreshCell(td);return;}value=added;}
+    if(kind==='tags'&&value===TAG_ADD){const added=addTag();if(!added){ran=true;refreshCell(td);return;}value=added;}
     el.dataset.selectValue=value;el.value=(kind==='category'||kind==='type'||kind==='status')?label(value):value;finish(true,false);
   });
 }

@@ -129,6 +129,7 @@ class FileLogCreate(BaseModel):
     log_type: str = Field(default="General", max_length=64)
     category: str | None = Field(default=None, max_length=64)
     reference: str | None = Field(default=None, max_length=64)
+    tags: str = Field(default="", max_length=255)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str = ""
@@ -158,6 +159,7 @@ class FileLogUpdate(BaseModel):
     log_type: str | None = Field(default=None, max_length=64)
     category: str | None = Field(default=None, max_length=64)
     reference: str | None = Field(default=None, max_length=64)
+    tags: str | None = Field(default=None, max_length=255)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str | None = None
@@ -189,6 +191,7 @@ class FileLogOut(BaseModel):
     file_id: str
     log_type: str
     reference: str | None = None
+    tags: str = ""
     occurred_at: datetime | None
     duration_seconds: int | None
     description: str
@@ -278,6 +281,7 @@ class QuickLogCreate(BaseModel):
     log_type: str = Field(default="General", max_length=64)
     category: str | None = Field(default=None, max_length=64)
     reference: str | None = Field(default=None, max_length=64)
+    tags: str = Field(default="", max_length=255)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
     description: str = ""
@@ -319,6 +323,7 @@ class LogRowOut(BaseModel):
     log_type: str
     category: str | None = None
     reference: str | None = None
+    tags: str = ""
     occurred_at: datetime | None
     description: str
     updates: str = ""
@@ -827,3 +832,27 @@ class ContactInfoContactIn(BaseModel):
         if self.country_code:
             self.country_code = self.country_code.upper()
         return self
+# ── Email (Log-page compose popup) ─────────────────────────────────────────
+
+
+class EmailOut(BaseModel):
+    """A sent-email record, as returned to the compose popup and (later) a mailbox
+    view. ``status`` is "sent" or "failed"; ``backend`` is the transport that ran
+    ("smtp" once the shared company mailbox is configured, "console" in dev)."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    sender_user_id: str | None = None
+    sender_name: str = ""
+    to_email: str
+    subject: str = ""
+    body: str = ""
+    log_id: str | None = None
+    file_id: str | None = None
+    contact_id: str | None = None
+    status: str = "sent"
+    backend: str = ""
+    error: str = ""
+    attachment_count: int = 0
+    attachment_names: str = ""
+    created_at: datetime

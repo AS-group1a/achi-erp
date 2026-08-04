@@ -49,6 +49,7 @@ from .survey_router import survey_router
 from .geo_router import geo_router
 from .chat_router import chat_router
 from .comment_router import comment_router
+from .mail_router import mail_router
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ router.include_router(quotation_router)
 router.include_router(geo_router)
 router.include_router(chat_router)
 router.include_router(comment_router)
+router.include_router(mail_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
@@ -1226,6 +1228,7 @@ async def list_logs(
                 log_type=log.log_type,
                 category=log.category,
                 reference=log.reference,
+                tags=log.tags,
                 occurred_at=log.occurred_at,
                 description=log.description,
                 updates=log.updates,
