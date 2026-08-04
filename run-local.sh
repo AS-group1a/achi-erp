@@ -97,13 +97,29 @@ mkdir -p "$HOME/.openestimate/packs"
 cp -r packs/achi-scaffolding "$HOME/.openestimate/packs/achi-scaffolding"
 echo "Installed pack -> ~/.openestimate/packs/achi-scaffolding"
 
-# 4c. Load local secrets (SMTP creds, etc.) from a gitignored .env so real email
-# sending works. pydantic's env_file auto-discovery does not reach the repo root
-# once the app is installed in the venv, so we export these into the process the
-# server inherits (env vars are read directly by Settings, .env or not).
+# 4c. Load the shared company email settings (and any local overrides) from a
+# gitignored .env so the Log page's Send actually delivers. pydantic's env_file
+# auto-discovery does not reach the repo root once the app is installed in the
+# venv, so we export these into the process the server inherits.
+#
+# Parsed line-by-line (not `source`d) on purpose: a stray "KEY= value  # note"
+# with a space after "=" would make `source` try to RUN the value as a command
+# and, under `set -e`, kill the whole launch. Here we trim spaces around the
+# value and drop inline "# ..." comments, so a slightly-off edit still boots.
 if [ -f .env ]; then
-  set -a; . ./.env; set +a
-  echo "Loaded .env (email/SMTP + any local overrides)"
+  while IFS= read -r _raw || [ -n "$_raw" ]; do
+    _line="${_raw%$'\r'}"                                   # tolerate CRLF
+    _line="${_line#"${_line%%[![:space:]]*}"}"              # trim leading space
+    case "$_line" in ''|'#'*) continue ;; esac              # skip blanks/comments
+    case "$_line" in *=*) : ;; *) continue ;; esac          # need a KEY=VALUE
+    _key="${_line%%=*}"; _val="${_line#*=}"
+    _key="${_key%"${_key##*[![:space:]]}"}"                 # trim trailing space on key
+    case "$_val" in *" #"*) _val="${_val%% #*}" ;; esac     # drop " # inline comment"
+    _val="${_val#"${_val%%[![:space:]]*}"}"                 # trim surrounding
+    _val="${_val%"${_val##*[![:space:]]}"}"                 #   whitespace on value
+    [ -n "$_key" ] && export "$_key=$_val"
+  done < .env
+  echo "Loaded .env (company email + any local overrides)"
 fi
 
 # 5. run

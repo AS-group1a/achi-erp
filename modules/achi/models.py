@@ -642,12 +642,19 @@ class AchiEmail(Base):
     file_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     contact_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
-    # The DeliveryResult, recorded so a bounce/auth/console outcome stays visible.
-    # status: "sent" (ok) | "failed". backend: which transport ran (console in
-    # dev, smtp in prod). error: the failure reason when status == "failed".
+    # The DeliveryResult, recorded so a bounce/console outcome stays visible.
+    # status: "sent" (ok) | "failed". backend: which transport ran ("smtp" once
+    # the shared company mailbox is configured, "console" in dev when it isn't).
+    # error: the failure reason when status == "failed".
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="sent", server_default="sent")
     backend: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
     error: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+
+    # Attachments carried on the email. The bytes are sent out with the message,
+    # not stored here — we keep only a count + comma-joined names so the record
+    # reads right without duplicating the files.
+    attachment_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    attachment_names: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
 
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
