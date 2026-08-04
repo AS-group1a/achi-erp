@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact Info | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=5">
+  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=7">
 </head>
 <body data-achi-title="Contact Info">
   <main class="contact-page">
@@ -166,24 +166,69 @@
               <option value="other">Other</option>
             </select>
           </label>
-          <label class="person-field">First name
-            <input type="text" id="first-name" maxlength="255">
-          </label>
-          <label class="person-field">Last name
-            <input type="text" id="last-name" maxlength="255">
-          </label>
-          <label class="company-field span-2">Company name
-            <input type="text" id="company-name" maxlength="255">
-          </label>
-          <label>Email
-            <input type="email" id="primary-email" maxlength="255">
-          </label>
-          <label>Primary phone
-            <input type="tel" id="primary-phone" maxlength="50">
-          </label>
-          <label class="span-2">Additional phones <span class="label-note">one per line</span>
-            <textarea id="additional-phones" rows="3" placeholder="Office | +961 ...&#10;Site | +961 ..."></textarea>
-          </label>
+          <section class="identity-fields span-2" aria-label="Contact identity">
+            <div class="identity-grid">
+              <label class="person-field">Prefix
+                <select id="contact-prefix">
+                  <option value="">None</option>
+                  <option value="Mr">Mr</option>
+                  <option value="Ms">Ms</option>
+                  <option value="Mrs">Mrs</option>
+                  <option value="Dr">Dr</option>
+                  <option value="Eng">Eng</option>
+                  <option value="Arch">Arch</option>
+                </select>
+              </label>
+              <label class="person-field">First name
+                <input type="text" id="first-name" maxlength="255">
+              </label>
+              <label class="person-field">Last name
+                <input type="text" id="last-name" maxlength="255">
+              </label>
+              <label class="person-field">Role
+                <select id="contact-role">
+                  <option value="">None</option>
+                  <option value="Owner">Owner</option>
+                  <option value="Engineer">Engineer</option>
+                  <option value="Contractor">Contractor</option>
+                  <option value="Foreman">Foreman</option>
+                  <option value="Site manager">Site manager</option>
+                  <option value="Architect">Architect</option>
+                  <option value="Procurement">Procurement</option>
+                </select>
+              </label>
+              <label class="phone-field">Phone / WhatsApp
+                <input type="tel" id="primary-phone" maxlength="50" inputmode="tel" autocomplete="tel" placeholder="+961 ...">
+              </label>
+              <label>Email
+                <input type="email" id="primary-email" maxlength="255">
+              </label>
+              <label class="company-field">Company
+                <input type="text" id="company-name" maxlength="255">
+              </label>
+              <label>Company type
+                <select id="company-type">
+                  <option value="">None</option>
+                  <option value="Contractor">Contractor</option>
+                  <option value="Developer">Developer</option>
+                  <option value="Architect">Architect</option>
+                  <option value="Owner">Owner</option>
+                </select>
+              </label>
+            </div>
+            <div class="repeatable-field additional-phone-field">
+              <div class="repeatable-heading">
+                <span class="field-label">Additional numbers</span>
+                <button class="add-field-button" type="button" id="add-phone">+ Add number</button>
+              </div>
+              <div class="repeatable-list" id="phone-list"></div>
+            </div>
+            <div class="repeatable-field social-field">
+              <span class="field-label">Social handles</span>
+              <div class="repeatable-list" id="social-list"></div>
+              <button class="add-field-button" type="button" id="add-social">+ Add handle</button>
+            </div>
+          </section>
           <label>Website
             <input type="url" id="website" maxlength="500" placeholder="https://">
           </label>
@@ -210,9 +255,13 @@
             </div>
             <p class="map-field-status" id="map-field-status"></p>
           </div>
-          <label class="span-2">Quick links <span class="label-note">Label | URL, one per line</span>
-            <textarea id="quick-links" rows="3" placeholder="LinkedIn | https://linkedin.com/...&#10;Maps | https://maps.google.com/..."></textarea>
-          </label>
+          <div class="repeatable-field quick-links-field span-2">
+            <div class="repeatable-heading">
+              <span class="field-label">Quick links</span>
+              <button class="add-field-button" type="button" id="add-quick-link">+ Add link</button>
+            </div>
+            <div class="repeatable-list" id="quick-link-list"></div>
+          </div>
           <label class="span-2">Notes
             <textarea id="contact-notes" rows="4" maxlength="5000"></textarea>
           </label>
@@ -228,7 +277,7 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="/api/v1/achi/contact-info/contact_info.js?v=4"></script>
+  <script src="/api/v1/achi/contact-info/contact_info.js?v=7"></script>
   <script src="/api/v1/achi/ui/chrome.js?v=21"></script>
 </body>
 </html>

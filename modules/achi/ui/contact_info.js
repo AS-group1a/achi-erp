@@ -57,10 +57,13 @@
     /[&<>"]/g,
     character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[character]),
   );
+  const PHONE_LABELS = ['Mobile', 'Office', 'Site', 'WhatsApp', 'Home', 'Other'];
+  const SOCIAL_PLATFORMS = ['IG', 'FB', 'LinkedIn', 'TikTok', 'X'];
 
   let accessToken = getAccessToken();
   let refreshPromise = null;
   let toastTimer = null;
+  let primaryPhoneLabel = 'Mobile';
 
   function storedViewMode() {
     try {
@@ -189,6 +192,21 @@
     return '';
   }
 
+  function socialHref(platform, handle) {
+    const direct = safeHref(handle);
+    if (direct) return direct;
+    const value = String(handle || '').trim().replace(/^@/, '');
+    if (!value) return '';
+    const roots = {
+      IG: 'https://instagram.com/',
+      FB: 'https://facebook.com/',
+      LinkedIn: 'https://linkedin.com/in/',
+      TikTok: 'https://tiktok.com/@',
+      X: 'https://x.com/',
+    };
+    return roots[platform] ? `${roots[platform]}${encodeURIComponent(value)}` : '';
+  }
+
   function normalizeMapsUrl(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -305,6 +323,22 @@
     return ['client', 'supplier', 'subcontractor', 'internal'].includes(type) ? type : 'other';
   }
 
+  function storedSocials(value) {
+    let items = value;
+    if (typeof items === 'string') {
+      try {
+        items = JSON.parse(items);
+      } catch (_error) {
+        return [];
+      }
+    }
+    if (!Array.isArray(items)) return [];
+    return items.map(item => ({
+      platform: String(item && item.platform || ''),
+      handle: String(item && item.handle || ''),
+    })).filter(item => item.handle).slice(0, 12);
+  }
+
   function normalizeContact(raw) {
     const id = String(raw.id);
     const bucket = raw.custom_properties && raw.custom_properties.achi_contact_info
@@ -318,9 +352,20 @@
     const recordType = ['person', 'company'].includes(bucket.record_type)
       ? bucket.record_type
       : inferredRecordType;
-    const displayName = recordType === 'company'
+    const propertyBuckets = Object.values(raw.custom_properties || {}).filter(
+      value => value && typeof value === 'object' && !Array.isArray(value),
+    );
+    const hasContactInfoField = field => Object.prototype.hasOwnProperty.call(bucket, field);
+    const sharedPrefix = propertyBuckets.find(value => value.prefix)?.prefix || '';
+    const loggedPrefix = contactLogs.find(log => log.prefix)?.prefix || '';
+    const loggedRole = contactLogs.find(log => log.role)?.role || '';
+    const loggedCompanyType = contactLogs.find(log => log.company_type)?.company_type || '';
+    const loggedSocials = storedSocials(contactLogs.find(log => log.socials)?.socials);
+    const prefix = hasContactInfoField('prefix') ? (bucket.prefix || '') : (sharedPrefix || loggedPrefix);
+    const baseDisplayName = recordType === 'company'
       ? (raw.company_name || raw.legal_name || 'Unnamed company')
       : ([raw.first_name, raw.last_name].filter(Boolean).join(' ') || raw.company_name || 'Unnamed contact');
+    const displayName = recordType === 'person' && prefix ? `${prefix} ${baseDisplayName}` : baseDisplayName;
     const bucketPhones = Array.isArray(bucket.phones) ? bucket.phones.filter(item => item && item.number) : [];
     const phones = bucketPhones.length
       ? bucketPhones
@@ -337,7 +382,11 @@
       recordType,
       category,
       displayName,
+      prefix,
+      role: hasContactInfoField('role') ? (bucket.role || '') : loggedRole,
+      companyType: hasContactInfoField('company_type') ? (bucket.company_type || '') : loggedCompanyType,
       phones,
+      socials: hasContactInfoField('socials') ? storedSocials(bucket.socials) : loggedSocials,
       primaryPhone: phones[0] ? phones[0].number : (raw.primary_phone || ''),
       source: bucket.source || '',
       quickLinks: Array.isArray(bucket.quick_links) ? bucket.quick_links : [],
@@ -371,7 +420,10 @@
         contact.city,
         contact.location,
         contact.source,
+        contact.role,
+        contact.companyType,
         ...contact.phones.map(phone => phone.number),
+        ...contact.socials.flatMap(social => [social.platform, social.handle]),
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
     });
@@ -527,6 +579,11 @@
     const quickLinks = contact.quickLinks
       .map(link => ({ label: String(link.label || 'Link'), url: safeHref(link.url) }))
       .filter(link => link.url);
+    const socials = contact.socials.map(social => ({
+      platform: String(social.platform || 'Social'),
+      handle: String(social.handle || ''),
+      url: socialHref(social.platform, social.handle),
+    })).filter(social => social.handle);
     const links = state.links[contact.id];
     const crmCount = links
       ? (links.crm_leads || []).length + (links.crm_opportunities || []).length
@@ -537,6 +594,9 @@
       <section class="detail-section">
         <h3>Contact details</h3>
         <dl class="detail-list">
+          ${contact.recordType === 'person' ? detailRow('Prefix', contact.prefix || '-') : ''}
+          ${contact.recordType === 'person' ? detailRow('Role', contact.role || '-') : ''}
+          ${detailRow('Company type', contact.companyType || '-')}
           ${phoneRows}
           ${detailRow('Email', contact.primary_email || '-', contact.primary_email ? `mailto:${contact.primary_email}` : '')}
           ${detailRow('Website', contact.website || '-', website)}
@@ -546,6 +606,14 @@
           ${detailRow('Category', titleCase(contact.category))}
           ${detailRow('Source', contact.source || '-')}
         </dl>
+      </section>
+      <section class="detail-section">
+        <h3>Social handles</h3>
+        ${socials.length ? `<div class="quick-links-list">${socials.map(social => (
+          social.url
+            ? `<a class="quick-link" href="${escapeHtml(social.url)}" target="_blank" rel="noopener noreferrer"><span>${escapeHtml(social.platform)} · ${escapeHtml(social.handle)}</span><span aria-hidden="true">&#8599;</span></a>`
+            : `<div class="quick-link"><span>${escapeHtml(social.platform)} · ${escapeHtml(social.handle)}</span></div>`
+        )).join('')}</div>` : '<div class="empty-state">No social handles saved.</div>'}
       </section>
       ${mapHref ? `<section class="detail-section">
         <h3>Map</h3>
@@ -731,30 +799,139 @@
     $('company-name').required = isCompany;
   }
 
-  function parsePhones(primary, additional) {
+  function repeatableRemoveIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  }
+
+  function optionMarkup(values, selected) {
+    const options = [...values];
+    if (selected && !options.includes(selected)) options.push(selected);
+    return options.map(value => (
+      `<option value="${escapeHtml(value)}"${value === selected ? ' selected' : ''}>${escapeHtml(value)}</option>`
+    )).join('');
+  }
+
+  function phoneRowMarkup(phone = {}) {
+    const label = String(phone.label || 'Mobile');
+    return `<div class="repeatable-row phone-row" data-phone-row>
+      <select data-phone-label aria-label="Phone type">${optionMarkup(PHONE_LABELS, label)}</select>
+      <input type="tel" data-phone-number maxlength="50" inputmode="tel" aria-label="Additional phone number" placeholder="+961 ..." value="${escapeHtml(phone.number || '')}">
+      <button class="repeatable-remove" type="button" data-remove-phone aria-label="Remove phone number" title="Remove phone">${repeatableRemoveIcon()}</button>
+    </div>`;
+  }
+
+  function updatePhoneRows() {
+    const rows = [...$('phone-list').querySelectorAll('[data-phone-row]')];
+    $('add-phone').disabled = rows.length >= 7;
+  }
+
+  function renderPhoneRows(phones = []) {
+    const rows = phones.slice(0, 8);
+    const primary = rows.shift() || {};
+    primaryPhoneLabel = String(primary.label || 'Mobile');
+    $('primary-phone').value = primary.number || '';
+    $('phone-list').innerHTML = rows.map(phoneRowMarkup).join('');
+    updatePhoneRows();
+  }
+
+  function addPhoneRow() {
+    const list = $('phone-list');
+    if (list.querySelectorAll('[data-phone-row]').length >= 7) return;
+    list.insertAdjacentHTML('beforeend', phoneRowMarkup());
+    updatePhoneRows();
+    list.lastElementChild.querySelector('[data-phone-number]').focus();
+  }
+
+  function readPhoneRows() {
     const phones = [];
-    if (primary.trim()) phones.push({ label: 'Mobile', number: primary.trim() });
-    for (const line of additional.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const separator = trimmed.indexOf('|');
-      const label = separator >= 0 ? trimmed.slice(0, separator).trim() : 'Other';
-      const number = separator >= 0 ? trimmed.slice(separator + 1).trim() : trimmed;
-      if (number) phones.push({ label: label || 'Other', number });
-    }
+    const primary = $('primary-phone').value.trim();
+    if (primary) phones.push({ label: primaryPhoneLabel || 'Mobile', number: primary });
+    phones.push(...[...$('phone-list').querySelectorAll('[data-phone-row]')].map(row => ({
+      label: row.querySelector('[data-phone-label]').value.trim() || 'Other',
+      number: row.querySelector('[data-phone-number]').value.trim(),
+    })).filter(phone => phone.number));
     return phones.slice(0, 8);
   }
 
-  function parseQuickLinks(value) {
+  function socialRowMarkup(social = {}) {
+    const platform = String(social.platform || 'IG');
+    return `<div class="repeatable-row social-row" data-social-row>
+      <select data-social-platform aria-label="Social platform">${optionMarkup(SOCIAL_PLATFORMS, platform)}</select>
+      <input type="text" data-social-handle maxlength="128" aria-label="Social handle" placeholder="@handle" value="${escapeHtml(social.handle || '')}">
+      <button class="repeatable-remove" type="button" data-remove-social aria-label="Remove social handle" title="Remove handle">${repeatableRemoveIcon()}</button>
+    </div>`;
+  }
+
+  function updateSocialRows() {
+    $('add-social').disabled = $('social-list').querySelectorAll('[data-social-row]').length >= 12;
+  }
+
+  function renderSocialRows(socials = []) {
+    const rows = socials.length ? socials.slice(0, 12) : [{ platform: 'IG', handle: '' }];
+    $('social-list').innerHTML = rows.map(socialRowMarkup).join('');
+    updateSocialRows();
+  }
+
+  function addSocialRow() {
+    const list = $('social-list');
+    if (list.querySelectorAll('[data-social-row]').length >= 12) return;
+    list.insertAdjacentHTML('beforeend', socialRowMarkup());
+    updateSocialRows();
+    list.lastElementChild.querySelector('[data-social-handle]').focus();
+  }
+
+  function readSocialRows() {
+    return [...$('social-list').querySelectorAll('[data-social-row]')].map(row => ({
+      platform: row.querySelector('[data-social-platform]').value.trim(),
+      handle: row.querySelector('[data-social-handle]').value.trim(),
+    })).filter(social => social.handle).slice(0, 12);
+  }
+
+  function setSelectValue(id, value) {
+    const select = $(id);
+    const normalized = String(value || '');
+    if (normalized && ![...select.options].some(option => option.value === normalized)) {
+      select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(normalized)}">${escapeHtml(normalized)}</option>`);
+    }
+    select.value = normalized;
+  }
+
+  function quickLinkRowMarkup(link = {}) {
+    return `<div class="repeatable-row quick-link-row" data-quick-link-row>
+      <input type="text" data-quick-link-label maxlength="64" aria-label="Link label" placeholder="Label" value="${escapeHtml(link.label || '')}">
+      <input type="text" data-quick-link-url maxlength="2048" inputmode="url" aria-label="Link URL" placeholder="https://" value="${escapeHtml(link.url || '')}">
+      <button class="repeatable-remove" type="button" data-remove-quick-link aria-label="Remove quick link" title="Remove link">${repeatableRemoveIcon()}</button>
+    </div>`;
+  }
+
+  function updateQuickLinkRows() {
+    $('add-quick-link').disabled = $('quick-link-list').querySelectorAll('[data-quick-link-row]').length >= 12;
+  }
+
+  function renderQuickLinkRows(links = []) {
+    const rows = links.length ? links.slice(0, 12) : [{}];
+    $('quick-link-list').innerHTML = rows.map(quickLinkRowMarkup).join('');
+    updateQuickLinkRows();
+  }
+
+  function addQuickLinkRow() {
+    const list = $('quick-link-list');
+    if (list.querySelectorAll('[data-quick-link-row]').length >= 12) return;
+    list.insertAdjacentHTML('beforeend', quickLinkRowMarkup());
+    updateQuickLinkRows();
+    list.lastElementChild.querySelector('[data-quick-link-label]').focus();
+  }
+
+  function readQuickLinkRows() {
     const links = [];
-    for (const line of value.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const separator = trimmed.indexOf('|');
-      if (separator < 0) throw new Error('Each quick link must use: Label | URL');
-      const label = trimmed.slice(0, separator).trim();
-      const url = safeHref(trimmed.slice(separator + 1).trim());
-      if (!label || !url) throw new Error('Quick links need a label and an http, https, mailto, or tel URL');
+    for (const row of $('quick-link-list').querySelectorAll('[data-quick-link-row]')) {
+      const label = row.querySelector('[data-quick-link-label]').value.trim();
+      const rawUrl = row.querySelector('[data-quick-link-url]').value.trim();
+      if (!label && !rawUrl) continue;
+      const url = safeHref(rawUrl);
+      if (!label || !url) {
+        throw new Error('Each quick link needs a label and a valid URL.');
+      }
       links.push({ label, url });
     }
     return links.slice(0, 12);
@@ -769,14 +946,16 @@
       ? contact.recordType
       : (state.recordType === 'company' ? 'company' : 'person');
     $('contact-category').value = contact ? contact.category : 'prospect';
+    setSelectValue('contact-prefix', contact ? contact.prefix : '');
+    setSelectValue('contact-role', contact ? contact.role : '');
     $('first-name').value = contact ? (contact.first_name || '') : '';
     $('last-name').value = contact ? (contact.last_name || '') : '';
     $('company-name').value = contact ? (contact.company_name || '') : '';
+    setSelectValue('company-type', contact ? contact.companyType : '');
     $('primary-email').value = contact ? (contact.primary_email || '') : '';
-    $('primary-phone').value = contact ? (contact.primaryPhone || '') : '';
-    $('additional-phones').value = contact
-      ? contact.phones.slice(1).map(phone => `${phone.label || 'Other'} | ${phone.number}`).join('\n')
-      : '';
+    renderPhoneRows(contact ? contact.phones : []);
+    renderSocialRows(contact ? contact.socials : []);
+    renderQuickLinkRows(contact ? contact.quickLinks : []);
     $('website').value = contact ? (contact.website || '') : '';
     $('contact-source').value = contact ? (contact.source || '') : '';
     $('country-code').value = contact ? (contact.country_code || '') : '';
@@ -784,9 +963,6 @@
     $('contact-location').value = contact ? (contact.location || '') : '';
     $('maps-url').value = contact ? (contact.mapsUrl || '') : '';
     $('map-field-status').textContent = '';
-    $('quick-links').value = contact
-      ? contact.quickLinks.map(link => `${link.label} | ${link.url}`).join('\n')
-      : '';
     $('contact-notes').value = contact ? (contact.notes || '') : '';
     updateIdentityFields();
     $('contact-modal').hidden = false;
@@ -862,7 +1038,7 @@
 
     let quickLinks;
     try {
-      quickLinks = parseQuickLinks($('quick-links').value);
+      quickLinks = readQuickLinkRows();
     } catch (error) {
       $('form-error').textContent = error.message;
       return;
@@ -880,9 +1056,13 @@
       category: $('contact-category').value,
       first_name: firstName || null,
       last_name: lastName || null,
+      prefix: recordType === 'person' ? ($('contact-prefix').value || null) : null,
+      role: recordType === 'person' ? ($('contact-role').value || null) : null,
       company_name: companyName || null,
+      company_type: $('company-type').value || null,
       primary_email: $('primary-email').value.trim() || null,
-      phones: parsePhones($('primary-phone').value, $('additional-phones').value),
+      phones: readPhoneRows(),
+      socials: readSocialRows(),
       website: $('website').value.trim() || null,
       country_code: $('country-code').value.trim().toUpperCase() || null,
       city: $('city').value.trim() || null,
@@ -1035,6 +1215,17 @@
     }).filter(Boolean).slice(0, 8);
   }
 
+  function importedSocials(value) {
+    return String(value || '').split(';').map(item => {
+      const entry = item.trim();
+      if (!entry) return null;
+      const separator = entry.includes('|') ? entry.indexOf('|') : entry.indexOf(':');
+      const platform = separator >= 0 ? entry.slice(0, separator).trim() : 'LinkedIn';
+      const handle = separator >= 0 ? entry.slice(separator + 1).trim() : entry;
+      return handle ? { platform: platform || 'LinkedIn', handle } : null;
+    }).filter(Boolean).slice(0, 12);
+  }
+
   function importCategory(value) {
     const normalized = String(value || 'prospect').trim().toLowerCase().replace(/[\s-]+/g, '_');
     const aliases = {
@@ -1093,9 +1284,13 @@
       category: importCategory(csvValue(record, 'category', 'contactcategory')),
       first_name: firstName || null,
       last_name: lastName || null,
+      prefix: recordType === 'person' ? (csvValue(record, 'prefix', 'title', 'salutation') || null) : null,
+      role: recordType === 'person' ? (csvValue(record, 'role', 'jobtitle', 'position') || null) : null,
       company_name: companyName || null,
+      company_type: csvValue(record, 'companytype', 'organisationtype', 'organizationtype') || null,
       primary_email: csvValue(record, 'email', 'primaryemail') || null,
       phones,
+      socials: importedSocials(csvValue(record, 'socials', 'socialhandles', 'socialmedia')),
       website: csvValue(record, 'website', 'url') || null,
       country_code: countryCode || null,
       city: csvValue(record, 'city', 'locality', 'town') || null,
@@ -1213,14 +1408,20 @@
   function exportCsv() {
     const contacts = visibleContacts();
     const rows = [
-      ['Record type', 'Name', 'Company', 'Category', 'Email', 'Phones', 'Location', 'Maps URL', 'City', 'Country', 'Source', 'Logs', 'Jobs'],
+      ['Record type', 'Prefix', 'Name', 'Role', 'Company', 'Company type', 'Category', 'Email', 'Phones', 'Social handles', 'Location', 'Maps URL', 'City', 'Country', 'Source', 'Logs', 'Jobs'],
       ...contacts.map(contact => [
         contact.recordType,
-        contact.displayName,
+        contact.prefix,
+        contact.recordType === 'company'
+          ? contact.displayName
+          : [contact.first_name, contact.last_name].filter(Boolean).join(' '),
+        contact.role,
         contact.company_name || '',
+        contact.companyType,
         contact.category,
         contact.primary_email || '',
         contact.phones.map(phone => `${phone.label}: ${phone.number}`).join('; '),
+        contact.socials.map(social => `${social.platform}: ${social.handle}`).join('; '),
         contact.location,
         contact.mapsUrl,
         contact.city,
@@ -1321,6 +1522,29 @@
     $('quick-log-form').addEventListener('submit', saveQuickLog);
     $('quick-log-cancel').addEventListener('click', () => { $('quick-log-form').hidden = true; });
     $('record-type').addEventListener('change', updateIdentityFields);
+    $('add-phone').addEventListener('click', addPhoneRow);
+    $('phone-list').addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-phone]');
+      if (!remove) return;
+      remove.closest('[data-phone-row]').remove();
+      updatePhoneRows();
+    });
+    $('add-social').addEventListener('click', addSocialRow);
+    $('social-list').addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-social]');
+      if (!remove) return;
+      remove.closest('[data-social-row]').remove();
+      if (!$('social-list').children.length) renderSocialRows();
+      else updateSocialRows();
+    });
+    $('add-quick-link').addEventListener('click', addQuickLinkRow);
+    $('quick-link-list').addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-quick-link]');
+      if (!remove) return;
+      remove.closest('[data-quick-link-row]').remove();
+      if (!$('quick-link-list').children.length) renderQuickLinkRows();
+      else updateQuickLinkRows();
+    });
     $('use-current-location').addEventListener('click', useCurrentLocation);
     $('contact-form').addEventListener('submit', saveContact);
     $('modal-close').addEventListener('click', closeContactModal);

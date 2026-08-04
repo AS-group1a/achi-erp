@@ -250,7 +250,11 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
     properties[_CONTACT_INFO_TAG] = {
         "record_type": data.record_type,
         "category": data.category,
+        "prefix": data.prefix,
+        "role": data.role,
+        "company_type": data.company_type,
         "phones": phones,
+        "socials": payload["socials"],
         "source": data.source,
         "location": data.location,
         "maps_url": data.maps_url,
