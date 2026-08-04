@@ -38,6 +38,17 @@ services:
       JWT_SECRET: ${JWT_SECRET:?run ./bootstrap.sh to generate}
       SERVE_FRONTEND: "1"
       SEED_DEMO: "false"
+      # Outbound email for the Log-page compose (and password resets etc.).
+      # Set these in deploy/.env to enable real delivery — the same 7 values as
+      # the local .env. Left unset, EMAIL_BACKEND falls back to console (mail is
+      # recorded but NOT delivered), so this is safe to ship empty.
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS: ${SMTP_TLS:-true}
     volumes:
       - appdata:/data          # HOME=/data -> holds ~/.openestimate AND the packs
     expose: ["8080"]
