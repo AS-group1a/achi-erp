@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact Info | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=6">
+  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=7">
 </head>
 <body data-achi-title="Contact Info">
   <main class="contact-page">
@@ -197,11 +197,9 @@
                   <option value="Procurement">Procurement</option>
                 </select>
               </label>
-              <div class="repeatable-field phone-field">
-                <span class="field-label">Phone numbers</span>
-                <div class="repeatable-list" id="phone-list"></div>
-                <button class="add-field-button" type="button" id="add-phone">+ Add phone</button>
-              </div>
+              <label class="phone-field">Phone / WhatsApp
+                <input type="tel" id="primary-phone" maxlength="50" inputmode="tel" autocomplete="tel" placeholder="+961 ...">
+              </label>
               <label>Email
                 <input type="email" id="primary-email" maxlength="255">
               </label>
@@ -217,6 +215,13 @@
                   <option value="Owner">Owner</option>
                 </select>
               </label>
+            </div>
+            <div class="repeatable-field additional-phone-field">
+              <div class="repeatable-heading">
+                <span class="field-label">Additional numbers</span>
+                <button class="add-field-button" type="button" id="add-phone">+ Add number</button>
+              </div>
+              <div class="repeatable-list" id="phone-list"></div>
             </div>
             <div class="repeatable-field social-field">
               <span class="field-label">Social handles</span>
@@ -250,9 +255,13 @@
             </div>
             <p class="map-field-status" id="map-field-status"></p>
           </div>
-          <label class="span-2">Quick links <span class="label-note">Label | URL, one per line</span>
-            <textarea id="quick-links" rows="3" placeholder="LinkedIn | https://linkedin.com/...&#10;Maps | https://maps.google.com/..."></textarea>
-          </label>
+          <div class="repeatable-field quick-links-field span-2">
+            <div class="repeatable-heading">
+              <span class="field-label">Quick links</span>
+              <button class="add-field-button" type="button" id="add-quick-link">+ Add link</button>
+            </div>
+            <div class="repeatable-list" id="quick-link-list"></div>
+          </div>
           <label class="span-2">Notes
             <textarea id="contact-notes" rows="4" maxlength="5000"></textarea>
           </label>
@@ -268,7 +277,7 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="/api/v1/achi/contact-info/contact_info.js?v=5"></script>
+  <script src="/api/v1/achi/contact-info/contact_info.js?v=6"></script>
   <script src="/api/v1/achi/ui/chrome.js?v=21"></script>
 </body>
 </html>

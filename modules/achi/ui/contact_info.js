@@ -63,6 +63,7 @@
   let accessToken = getAccessToken();
   let refreshPromise = null;
   let toastTimer = null;
+  let primaryPhoneLabel = 'Mobile';
 
   function storedViewMode() {
     try {
@@ -810,46 +811,46 @@
     )).join('');
   }
 
-  function phoneRowMarkup(phone = {}, index = 0) {
+  function phoneRowMarkup(phone = {}) {
     const label = String(phone.label || 'Mobile');
     return `<div class="repeatable-row phone-row" data-phone-row>
       <select data-phone-label aria-label="Phone type">${optionMarkup(PHONE_LABELS, label)}</select>
-      <input type="tel" data-phone-number maxlength="50" inputmode="tel" autocomplete="tel" aria-label="${index === 0 ? 'Primary' : 'Additional'} phone number" placeholder="+961 ..." value="${escapeHtml(phone.number || '')}">
+      <input type="tel" data-phone-number maxlength="50" inputmode="tel" aria-label="Additional phone number" placeholder="+961 ..." value="${escapeHtml(phone.number || '')}">
       <button class="repeatable-remove" type="button" data-remove-phone aria-label="Remove phone number" title="Remove phone">${repeatableRemoveIcon()}</button>
     </div>`;
   }
 
   function updatePhoneRows() {
     const rows = [...$('phone-list').querySelectorAll('[data-phone-row]')];
-    rows.forEach((row, index) => {
-      row.classList.toggle('is-primary', index === 0);
-      row.querySelector('[data-phone-number]').setAttribute(
-        'aria-label',
-        `${index === 0 ? 'Primary' : 'Additional'} phone number`,
-      );
-    });
-    $('add-phone').disabled = rows.length >= 8;
+    $('add-phone').disabled = rows.length >= 7;
   }
 
   function renderPhoneRows(phones = []) {
-    const rows = phones.length ? phones.slice(0, 8) : [{ label: 'Mobile', number: '' }];
+    const rows = phones.slice(0, 8);
+    const primary = rows.shift() || {};
+    primaryPhoneLabel = String(primary.label || 'Mobile');
+    $('primary-phone').value = primary.number || '';
     $('phone-list').innerHTML = rows.map(phoneRowMarkup).join('');
     updatePhoneRows();
   }
 
   function addPhoneRow() {
     const list = $('phone-list');
-    if (list.querySelectorAll('[data-phone-row]').length >= 8) return;
-    list.insertAdjacentHTML('beforeend', phoneRowMarkup({}, list.children.length));
+    if (list.querySelectorAll('[data-phone-row]').length >= 7) return;
+    list.insertAdjacentHTML('beforeend', phoneRowMarkup());
     updatePhoneRows();
     list.lastElementChild.querySelector('[data-phone-number]').focus();
   }
 
   function readPhoneRows() {
-    return [...$('phone-list').querySelectorAll('[data-phone-row]')].map(row => ({
+    const phones = [];
+    const primary = $('primary-phone').value.trim();
+    if (primary) phones.push({ label: primaryPhoneLabel || 'Mobile', number: primary });
+    phones.push(...[...$('phone-list').querySelectorAll('[data-phone-row]')].map(row => ({
       label: row.querySelector('[data-phone-label]').value.trim() || 'Other',
       number: row.querySelector('[data-phone-number]').value.trim(),
-    })).filter(phone => phone.number).slice(0, 8);
+    })).filter(phone => phone.number));
+    return phones.slice(0, 8);
   }
 
   function socialRowMarkup(social = {}) {
@@ -895,16 +896,41 @@
     select.value = normalized;
   }
 
-  function parseQuickLinks(value) {
+  function quickLinkRowMarkup(link = {}) {
+    return `<div class="repeatable-row quick-link-row" data-quick-link-row>
+      <input type="text" data-quick-link-label maxlength="64" aria-label="Link label" placeholder="Label" value="${escapeHtml(link.label || '')}">
+      <input type="text" data-quick-link-url maxlength="2048" inputmode="url" aria-label="Link URL" placeholder="https://" value="${escapeHtml(link.url || '')}">
+      <button class="repeatable-remove" type="button" data-remove-quick-link aria-label="Remove quick link" title="Remove link">${repeatableRemoveIcon()}</button>
+    </div>`;
+  }
+
+  function updateQuickLinkRows() {
+    $('add-quick-link').disabled = $('quick-link-list').querySelectorAll('[data-quick-link-row]').length >= 12;
+  }
+
+  function renderQuickLinkRows(links = []) {
+    $('quick-link-list').innerHTML = links.slice(0, 12).map(quickLinkRowMarkup).join('');
+    updateQuickLinkRows();
+  }
+
+  function addQuickLinkRow() {
+    const list = $('quick-link-list');
+    if (list.querySelectorAll('[data-quick-link-row]').length >= 12) return;
+    list.insertAdjacentHTML('beforeend', quickLinkRowMarkup());
+    updateQuickLinkRows();
+    list.lastElementChild.querySelector('[data-quick-link-label]').focus();
+  }
+
+  function readQuickLinkRows() {
     const links = [];
-    for (const line of value.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const separator = trimmed.indexOf('|');
-      if (separator < 0) throw new Error('Each quick link must use: Label | URL');
-      const label = trimmed.slice(0, separator).trim();
-      const url = safeHref(trimmed.slice(separator + 1).trim());
-      if (!label || !url) throw new Error('Quick links need a label and an http, https, mailto, or tel URL');
+    for (const row of $('quick-link-list').querySelectorAll('[data-quick-link-row]')) {
+      const label = row.querySelector('[data-quick-link-label]').value.trim();
+      const rawUrl = row.querySelector('[data-quick-link-url]').value.trim();
+      if (!label && !rawUrl) continue;
+      const url = safeHref(rawUrl);
+      if (!label || !url) {
+        throw new Error('Each quick link needs a label and a valid URL.');
+      }
       links.push({ label, url });
     }
     return links.slice(0, 12);
@@ -928,6 +954,7 @@
     $('primary-email').value = contact ? (contact.primary_email || '') : '';
     renderPhoneRows(contact ? contact.phones : []);
     renderSocialRows(contact ? contact.socials : []);
+    renderQuickLinkRows(contact ? contact.quickLinks : []);
     $('website').value = contact ? (contact.website || '') : '';
     $('contact-source').value = contact ? (contact.source || '') : '';
     $('country-code').value = contact ? (contact.country_code || '') : '';
@@ -935,9 +962,6 @@
     $('contact-location').value = contact ? (contact.location || '') : '';
     $('maps-url').value = contact ? (contact.mapsUrl || '') : '';
     $('map-field-status').textContent = '';
-    $('quick-links').value = contact
-      ? contact.quickLinks.map(link => `${link.label} | ${link.url}`).join('\n')
-      : '';
     $('contact-notes').value = contact ? (contact.notes || '') : '';
     updateIdentityFields();
     $('contact-modal').hidden = false;
@@ -1013,7 +1037,7 @@
 
     let quickLinks;
     try {
-      quickLinks = parseQuickLinks($('quick-links').value);
+      quickLinks = readQuickLinkRows();
     } catch (error) {
       $('form-error').textContent = error.message;
       return;
@@ -1502,8 +1526,7 @@
       const remove = event.target.closest('[data-remove-phone]');
       if (!remove) return;
       remove.closest('[data-phone-row]').remove();
-      if (!$('phone-list').children.length) renderPhoneRows();
-      else updatePhoneRows();
+      updatePhoneRows();
     });
     $('add-social').addEventListener('click', addSocialRow);
     $('social-list').addEventListener('click', event => {
@@ -1512,6 +1535,13 @@
       remove.closest('[data-social-row]').remove();
       if (!$('social-list').children.length) renderSocialRows();
       else updateSocialRows();
+    });
+    $('add-quick-link').addEventListener('click', addQuickLinkRow);
+    $('quick-link-list').addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-quick-link]');
+      if (!remove) return;
+      remove.closest('[data-quick-link-row]').remove();
+      updateQuickLinkRows();
     });
     $('use-current-location').addEventListener('click', useCurrentLocation);
     $('contact-form').addEventListener('submit', saveContact);

@@ -1095,17 +1095,39 @@ textarea:focus-visible {
   gap: 6px;
 }
 
-.phone-row {
-  grid-template-columns: minmax(76px, .65fr) minmax(92px, 1.35fr) 32px;
+.repeatable-list:empty {
+  display: none;
 }
 
+.repeatable-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  gap: 12px;
+}
+
+.phone-row {
+  grid-template-columns: minmax(110px, .4fr) minmax(180px, 1fr) 32px;
+}
+
+.additional-phone-field,
 .social-field {
-  max-width: 560px;
+  max-width: 620px;
   margin-top: 14px;
 }
 
 .social-row {
   grid-template-columns: minmax(105px, .4fr) minmax(170px, 1fr) 32px;
+}
+
+.quick-links-field {
+  width: 100%;
+  max-width: 760px;
+}
+
+.quick-link-row {
+  grid-template-columns: minmax(130px, .4fr) minmax(240px, 1fr) 32px;
 }
 
 .repeatable-remove {
@@ -1348,13 +1370,30 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .social-field {
+  .additional-phone-field,
+  .social-field,
+  .quick-links-field {
     max-width: none;
   }
 
   .phone-row,
   .social-row {
     grid-template-columns: minmax(90px, .4fr) minmax(0, 1fr) 32px;
+  }
+
+  .quick-link-row {
+    grid-template-columns: minmax(0, 1fr) 32px;
+  }
+
+  .quick-link-row [data-quick-link-label],
+  .quick-link-row [data-quick-link-url] {
+    grid-column: 1;
+  }
+
+  .quick-link-row .repeatable-remove {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
   }
 
   .map-input-row {
