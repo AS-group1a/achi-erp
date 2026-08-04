@@ -34,10 +34,11 @@
   // separate navigation and is intentionally not counted as a module.
   var LINKS = [
     { label: 'Log',           href: '/api/v1/achi/ui',        icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
+    { label: 'Contact Info',      href: '/api/v1/achi/contact-info/ui',              icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
     { label: 'Site Survey',   href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
     { label: 'Quotations',    href: '/api/v1/achi/quotations/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h3"/>' },
     { label: 'Contacts',      href: '/contacts',              icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
-    { label: 'CRM',           href: '/crm',                   icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
+    { label: 'CRM',           href: '/api/v1/achi/crm/ui',    icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
     { label: 'Projects',      href: '/projects',              icon: '<path d="M3 7h6l2 2h10v10H3z"/>' },
     { label: 'Project Files', href: '/files',                 icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' }
   ];

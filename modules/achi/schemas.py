@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -750,6 +751,87 @@ class CommentOut(CommentReplyOut):
     replies: list[CommentReplyOut] = Field(default_factory=list)
 
 
+class ContactInfoPhoneIn(BaseModel):
+    """One phone number stored in ACHI's namespaced contact bucket."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: str = Field(default="Mobile", max_length=32)
+    number: str = Field(..., min_length=1, max_length=50)
+
+
+class ContactInfoQuickLinkIn(BaseModel):
+    """A labelled URL shown in the Contact Info drawer."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: str = Field(..., min_length=1, max_length=40)
+    url: str = Field(..., min_length=1, max_length=500)
+
+    @field_validator("url")
+    @classmethod
+    def _safe_url(cls, value: str) -> str:
+        lowered = value.lower()
+        if not lowered.startswith(("https://", "http://", "mailto:", "tel:")):
+            raise ValueError("quick-link URLs must start with http://, https://, mailto:, or tel:")
+        return value
+
+
+class ContactInfoContactIn(BaseModel):
+    """Create or replace the Contact Info fields for a canonical OCE contact."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    record_type: str = Field(pattern=r"^(person|company)$")
+    category: str = Field(
+        default="prospect",
+        pattern=r"^(client|prospect|lead|supplier|subcontractor|internal|other)$",
+    )
+    first_name: str | None = Field(default=None, max_length=255)
+    last_name: str | None = Field(default=None, max_length=255)
+    company_name: str | None = Field(default=None, max_length=255)
+    primary_email: EmailStr | None = Field(default=None, max_length=255)
+    phones: list[ContactInfoPhoneIn] = Field(default_factory=list, max_length=8)
+    website: str | None = Field(default=None, max_length=500)
+    country_code: str | None = Field(default=None, max_length=2)
+    city: str | None = Field(default=None, max_length=128)
+    location: str | None = Field(default=None, max_length=500)
+    maps_url: str | None = Field(default=None, max_length=2048)
+    source: str | None = Field(default=None, max_length=80)
+    quick_links: list[ContactInfoQuickLinkIn] = Field(default_factory=list, max_length=12)
+    notes: str | None = Field(default=None, max_length=5000)
+
+    @field_validator("maps_url")
+    @classmethod
+    def _safe_maps_url(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        try:
+            parsed = urlparse(value)
+        except ValueError as exc:
+            raise ValueError("invalid Google Maps URL") from exc
+        host = (parsed.hostname or "").lower()
+        valid_host = (
+            host in {"maps.app.goo.gl", "goo.gl", "google.com", "maps.google.com"}
+            or host.endswith(".google.com")
+        )
+        if parsed.scheme not in {"http", "https"} or not valid_host:
+            raise ValueError("map URL must be a Google Maps link")
+        return value
+
+    @model_validator(mode="after")
+    def _validate_identity(self) -> "ContactInfoContactIn":
+        if self.record_type == "company":
+            if not self.company_name:
+                raise ValueError("company_name is required for a company")
+            self.first_name = None
+            self.last_name = None
+        elif not (self.first_name or self.last_name):
+            raise ValueError("first_name or last_name is required for a person")
+
+        if self.country_code:
+            self.country_code = self.country_code.upper()
+        return self
 # ── Email (Log-page compose popup) ─────────────────────────────────────────
 
 
