@@ -1033,29 +1033,96 @@ textarea:focus-visible {
   z-index: 100;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 16px;
   overflow-y: auto;
-  background: rgba(19, 27, 41, .48);
+  background: rgba(15, 35, 75, .58);
+  backdrop-filter: blur(4px);
 }
 
 .contact-modal {
+  display: flex;
   width: min(1180px, 100%);
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: var(--shadow);
+  max-height: calc(100vh - 32px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 14px;
+  background: #eef1f6;
+  box-shadow: 0 28px 80px rgba(15, 35, 75, .32);
+}
+
+.contact-modal .modal-header {
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 15px 18px;
+  border-bottom: 0;
+  background: #284f9e;
+  color: #fff;
+}
+
+.contact-modal .modal-header h2 {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.contact-modal .modal-header .icon-button {
+  border: 0;
+  background: rgba(255, 255, 255, .16);
+  color: #fff;
+}
+
+.contact-modal .modal-header .icon-button:hover,
+.contact-modal .modal-header .icon-button:focus-visible {
+  background: rgba(255, 255, 255, .3);
 }
 
 .contact-modal form {
-  padding: 20px;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  background: #eef1f6;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.contact-modal .form-grid {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.contact-modal label,
+.contact-modal .field-label {
+  color: #7f8794;
+}
+
+.contact-modal input,
+.contact-modal select,
+.contact-modal textarea,
+.contact-modal .phone-country-button {
+  border-color: #d7dde8;
+  background: #fff;
+}
+
+.contact-modal input::placeholder,
+.contact-modal textarea::placeholder {
+  color: #8a8f98;
+}
+
+.contact-modal input:focus,
+.contact-modal select:focus,
+.contact-modal textarea:focus {
+  border-color: var(--brand);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(40, 79, 158, .12);
 }
 
 .span-2 {
@@ -1065,7 +1132,7 @@ textarea:focus-visible {
 .identity-fields {
   min-width: 0;
   padding: 0 0 16px;
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid #d9e0eb;
 }
 
 .identity-grid {
@@ -1099,8 +1166,8 @@ textarea:focus-visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   padding: 16px 0;
-  border-top: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
+  border-top: 1px solid #d9e0eb;
+  border-bottom: 1px solid #d9e0eb;
 }
 
 .repeatable-list:empty {
@@ -1348,6 +1415,18 @@ textarea:focus-visible {
   gap: 6px;
 }
 
+.contact-modal .map-input-row .button {
+  border-color: #c7d8f0;
+  background: #eef4fd;
+  color: var(--brand);
+}
+
+.contact-modal .map-input-row .button:hover,
+.contact-modal .map-input-row .button:focus-visible {
+  border-color: #2453a6;
+  background: #e1ecfb;
+}
+
 .map-field-status {
   min-height: 16px;
   margin: 0;
@@ -1368,6 +1447,25 @@ textarea:focus-visible {
   margin-top: 4px;
   padding-top: 16px;
   border-top: 1px solid var(--line-soft);
+}
+
+.contact-modal .form-error {
+  min-height: 0;
+  margin: 0;
+  padding: 0 16px;
+  background: #fff;
+}
+
+.contact-modal .form-error:not(:empty) {
+  padding-top: 10px;
+}
+
+.contact-modal .form-actions {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 11px 18px;
+  border-top: 1px solid #e3e9f3;
+  background: #fff;
 }
 
 .toast {
