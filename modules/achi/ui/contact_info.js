@@ -68,6 +68,8 @@
   const ADD_TAG = '__add_tag__';
   const DEFAULT_ISO = 'lb';
   const DEFAULT_DIAL = '+961';
+  const SHARED_CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500';
+  const CONTACT_REFRESH_MS = 15000;
   const COUNTRIES = [
     ['lb', 'Lebanon', '+961'], ['ae', 'United Arab Emirates', '+971'], ['sa', 'Saudi Arabia', '+966'], ['qa', 'Qatar', '+974'],
     ['kw', 'Kuwait', '+965'], ['bh', 'Bahrain', '+973'], ['om', 'Oman', '+968'], ['jo', 'Jordan', '+962'], ['sy', 'Syria', '+963'],
@@ -721,6 +723,13 @@
     renderTable();
   }
 
+  function applyContactsResponse(contactsResponse) {
+    state.rawContacts = Array.isArray(contactsResponse.items) ? contactsResponse.items : [];
+    rebuildContacts();
+    renderDirectory();
+    if (state.activeContactId) renderDrawer();
+  }
+
   async function loadData({ silent = false } = {}) {
     if (!accessToken) {
       $('contacts-table-body').innerHTML = '<tr><td class="table-message" colspan="9">Open the main ERP, sign in, then reload this page.</td></tr>';
@@ -734,24 +743,35 @@
 
     try {
       const [contactsResponse, files, logs, projects, invoicesResponse] = await Promise.all([
-        request('/api/v1/contacts/?limit=500&sort_by=name&sort_order=asc'),
+        request(SHARED_CONTACTS_PATH),
         request('/api/v1/achi/files/?limit=1000'),
         request('/api/v1/achi/logs/?limit=1000'),
         optionalRequest('/api/v1/projects/?limit=500&status=all'),
         optionalRequest('/api/v1/finance/?limit=100'),
       ]);
-      state.rawContacts = Array.isArray(contactsResponse.items) ? contactsResponse.items : [];
       state.files = Array.isArray(files) ? files : [];
       state.logs = Array.isArray(logs) ? logs : [];
       state.projects = Array.isArray(projects) ? projects : null;
       state.invoices = invoicesResponse && Array.isArray(invoicesResponse.items) ? invoicesResponse.items : null;
-      rebuildContacts();
-      renderDirectory();
-      if (state.activeContactId) renderDrawer();
+      applyContactsResponse(contactsResponse);
     } catch (error) {
       $('contacts-table-body').innerHTML = `<tr><td class="table-message" colspan="9">${escapeHtml(error.message)}</td></tr>`;
       $('contact-total').textContent = 'Could not load contacts';
       showToast(error.message, true);
+    }
+  }
+
+  let contactRefreshInFlight = false;
+
+  async function refreshSharedContacts() {
+    if (!accessToken || document.hidden || contactRefreshInFlight) return;
+    contactRefreshInFlight = true;
+    try {
+      applyContactsResponse(await request(SHARED_CONTACTS_PATH));
+    } catch (_error) {
+      // Keep the current directory visible during a transient background failure.
+    } finally {
+      contactRefreshInFlight = false;
     }
   }
 
@@ -1938,4 +1958,9 @@
 
   bindEvents();
   loadData();
+  window.setInterval(refreshSharedContacts, CONTACT_REFRESH_MS);
+  window.addEventListener('focus', refreshSharedContacts);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshSharedContacts();
+  });
 }());

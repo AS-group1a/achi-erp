@@ -11,6 +11,7 @@ from urllib.parse import quote, urlparse
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
+from sqlalchemy import select
 
 from app.dependencies import (
     CurrentUserId,
@@ -21,6 +22,7 @@ from app.dependencies import (
     SettingsDep,
 )
 from app.modules.contacts.models import Contact
+from app.modules.contacts.schemas import ContactListResponse, ContactResponse
 from app.modules.users.models import User
 
 from . import access
@@ -190,26 +192,18 @@ _CONTACT_INFO_TYPES = {
 _CONTACT_INFO_TAG = "achi_contact_info"
 
 
-async def _contact_info_owned_contact(
-    session: SessionDep,
-    contact_id: str,
-    user_id: str,
-) -> Contact:
-    """Load a contact while preserving OCE's tenant ownership rule."""
+def _is_contact_info_contact(contact: Contact) -> bool:
+    return _CONTACT_INFO_TAG in (contact.module_tags or [])
+
+
+async def _contact_info_shared_contact(session: SessionDep, contact_id: str) -> Contact:
+    """Load a contact from the shared ACHI directory."""
 
     contact = await session.get(Contact, contact_id)
     if contact is None or not contact.is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
-
-    user = await session.get(User, user_id)
-    is_admin = bool(user and user.role == "admin")
-    caller = str(user_id)
-    owns_contact = (
-        str(contact.tenant_id or "") == caller
-        or (contact.tenant_id is None and str(contact.created_by or "") == caller)
-    )
-    if not is_admin and not owns_contact:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied")
+    if not _is_contact_info_contact(contact):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Contact is not in the ACHI directory")
     return contact
 
 
@@ -309,6 +303,37 @@ def contact_info_flag(iso: str) -> FileResponse:
     return FileResponse(flag, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
 
 
+@router.get(
+    "/contact-info/contacts",
+    response_model=ContactListResponse,
+    summary="List the shared ACHI contact directory",
+)
+async def list_contact_info_contacts(
+    session: SessionDep,
+    _user_id: CurrentUserId,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=500, ge=1, le=500),
+    _perm: None = Depends(RequirePermission("contacts.read")),
+) -> ContactListResponse:
+    result = await session.execute(select(Contact).where(Contact.is_active.is_(True)))
+    contacts = [contact for contact in result.scalars().all() if _is_contact_info_contact(contact)]
+    contacts.sort(
+        key=lambda contact: (
+            contact.company_name or "",
+            contact.first_name or "",
+            contact.last_name or "",
+            str(contact.id),
+        )
+    )
+    page = contacts[offset : offset + limit]
+    return ContactListResponse(
+        items=[ContactResponse.model_validate(contact) for contact in page],
+        total=len(contacts),
+        offset=offset,
+        limit=limit,
+    )
+
+
 @router.post(
     "/contact-info/contacts",
     status_code=status.HTTP_201_CREATED,
@@ -341,10 +366,10 @@ async def update_contact_info_contact(
     contact_id: str,
     data: ContactInfoContactIn,
     session: SessionDep,
-    user_id: CurrentUserId,
+    _user_id: CurrentUserId,
     _perm: None = Depends(RequirePermission("contacts.update")),
 ) -> dict:
-    contact = await _contact_info_owned_contact(session, contact_id, str(user_id))
+    contact = await _contact_info_shared_contact(session, contact_id)
     _apply_contact_info(contact, data)
     await session.commit()
     return {"id": str(contact.id)}
