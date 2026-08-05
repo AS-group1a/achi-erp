@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact Info | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=10">
+  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=11">
 </head>
 <body data-achi-title="Contact Info">
   <main class="contact-page">
@@ -46,6 +46,13 @@
           <input type="search" id="contact-search" placeholder="Search name, company, phone, email or location" autocomplete="off">
         </label>
         <div class="toolbar-meta">
+          <div class="status-switcher" role="group" aria-label="Contact status">
+            <button class="status-mode-button is-active" type="button" data-directory-status="active">Active</button>
+            <button class="status-mode-button" type="button" data-directory-status="deleted">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>
+              <span>Deleted</span><span class="status-count" id="deleted-count">0</span>
+            </button>
+          </div>
           <span class="contact-total" id="contact-total">Loading contacts...</span>
           <div class="view-switcher" role="group" aria-label="Contact view">
             <button class="view-mode-button is-active" type="button" data-view-mode="list" title="Standard view" aria-label="Standard view">
@@ -278,7 +285,7 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="/api/v1/achi/contact-info/contact_info.js?v=13"></script>
+  <script src="/api/v1/achi/contact-info/contact_info.js?v=14"></script>
   <script src="/api/v1/achi/ui/chrome.js?v=24"></script>
 </body>
 </html>

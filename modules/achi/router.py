@@ -12,6 +12,7 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import (
     CurrentUserId,
@@ -197,11 +198,16 @@ def _is_contact_info_contact(contact: Contact) -> bool:
     return _CONTACT_INFO_TAG in (contact.module_tags or [])
 
 
-async def _contact_info_shared_contact(session: SessionDep, contact_id: str) -> Contact:
-    """Load a contact from the shared ACHI directory."""
+async def _contact_info_shared_contact(
+    session: SessionDep,
+    contact_id: str,
+    *,
+    is_active: bool = True,
+) -> Contact:
+    """Load an active or deleted contact from the shared ACHI directory."""
 
     contact = await session.get(Contact, contact_id)
-    if contact is None or not contact.is_active:
+    if contact is None or contact.is_active is not is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
     if not _is_contact_info_contact(contact):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Contact is not in the ACHI directory")
@@ -314,8 +320,9 @@ async def list_contact_info_contacts(
     _user_id: CurrentUserId,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=500, ge=1, le=500),
+    deleted: bool = Query(default=False, description="Return deleted contacts instead of active contacts"),
 ) -> ContactListResponse:
-    result = await session.execute(select(Contact).where(Contact.is_active.is_(True)))
+    result = await session.execute(select(Contact).where(Contact.is_active.is_(not deleted)))
     contacts = [contact for contact in result.scalars().all() if _is_contact_info_contact(contact)]
     contacts.sort(
         key=lambda contact: (
@@ -385,6 +392,41 @@ async def delete_contact_info_contact(
 ) -> None:
     contact = await _contact_info_shared_contact(session, contact_id)
     await CanonicalContactService(session).deactivate_contact(contact.id, user_id=str(user_id))
+
+
+@router.post(
+    "/contact-info/contacts/{contact_id}/restore",
+    summary="Restore a deleted shared ACHI contact",
+)
+async def restore_contact_info_contact(
+    contact_id: str,
+    session: SessionDep,
+    _user_id: CurrentUserId,
+) -> dict:
+    contact = await _contact_info_shared_contact(session, contact_id, is_active=False)
+    if contact.primary_email:
+        conflict = await session.execute(
+            select(Contact.id).where(
+                Contact.primary_email == contact.primary_email,
+                Contact.is_active.is_(True),
+                Contact.id != contact.id,
+            )
+        )
+        if conflict.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "This contact cannot be restored because an active contact already uses the same email.",
+            )
+    contact.is_active = True
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This contact cannot be restored because an active contact already uses the same email.",
+        ) from None
+    return {"id": str(contact.id), "restored": True}
 
 
 @router.get(
