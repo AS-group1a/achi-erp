@@ -57,13 +57,45 @@
     /[&<>"]/g,
     character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[character]),
   );
-  const PHONE_LABELS = ['Mobile', 'Office', 'Site', 'WhatsApp', 'Home', 'Other'];
+  const PHONE_LABELS = ['Primary', 'Mobile', 'Office', 'Site', 'WhatsApp', 'Home', 'Other'];
+  const EMAIL_LABELS = ['Primary', 'Work', 'Personal', 'Accounts', 'Sales', 'Other'];
   const SOCIAL_PLATFORMS = ['IG', 'FB', 'LinkedIn', 'TikTok', 'X'];
+  const PREFIXES = ['Mr', 'Ms', 'Mrs', 'Dr', 'Eng', 'Arch'];
+  const CONTACT_TAGS = ['Owner', 'Engineer', 'Contractor', 'Foreman', 'Site manager', 'Architect', 'Procurement'];
+  const PREFIX_STORAGE_KEY = 'achi_prefixes';
+  const TAG_STORAGE_KEY = 'achi_roles';
+  const ADD_PREFIX = '__add_prefix__';
+  const ADD_TAG = '__add_tag__';
+  const DEFAULT_ISO = 'lb';
+  const DEFAULT_DIAL = '+961';
+  const COUNTRIES = [
+    ['lb', 'Lebanon', '+961'], ['ae', 'United Arab Emirates', '+971'], ['sa', 'Saudi Arabia', '+966'], ['qa', 'Qatar', '+974'],
+    ['kw', 'Kuwait', '+965'], ['bh', 'Bahrain', '+973'], ['om', 'Oman', '+968'], ['jo', 'Jordan', '+962'], ['sy', 'Syria', '+963'],
+    ['iq', 'Iraq', '+964'], ['eg', 'Egypt', '+20'], ['tr', 'Turkey', '+90'], ['cy', 'Cyprus', '+357'], ['il', 'Israel', '+972'],
+    ['ps', 'Palestine', '+970'], ['ir', 'Iran', '+98'], ['ye', 'Yemen', '+967'],
+    ['gb', 'United Kingdom', '+44'], ['ie', 'Ireland', '+353'], ['fr', 'France', '+33'], ['de', 'Germany', '+49'],
+    ['it', 'Italy', '+39'], ['es', 'Spain', '+34'], ['pt', 'Portugal', '+351'], ['nl', 'Netherlands', '+31'],
+    ['be', 'Belgium', '+32'], ['ch', 'Switzerland', '+41'], ['at', 'Austria', '+43'], ['se', 'Sweden', '+46'],
+    ['no', 'Norway', '+47'], ['dk', 'Denmark', '+45'], ['fi', 'Finland', '+358'], ['pl', 'Poland', '+48'],
+    ['cz', 'Czechia', '+420'], ['gr', 'Greece', '+30'], ['ro', 'Romania', '+40'], ['bg', 'Bulgaria', '+359'],
+    ['hu', 'Hungary', '+36'], ['hr', 'Croatia', '+385'], ['rs', 'Serbia', '+381'], ['ua', 'Ukraine', '+380'],
+    ['ru', 'Russia', '+7'], ['us', 'United States', '+1'], ['ca', 'Canada', '+1'], ['mx', 'Mexico', '+52'],
+    ['br', 'Brazil', '+55'], ['ar', 'Argentina', '+54'], ['cl', 'Chile', '+56'], ['co', 'Colombia', '+57'],
+    ['au', 'Australia', '+61'], ['nz', 'New Zealand', '+64'], ['in', 'India', '+91'], ['pk', 'Pakistan', '+92'],
+    ['bd', 'Bangladesh', '+880'], ['lk', 'Sri Lanka', '+94'], ['np', 'Nepal', '+977'], ['cn', 'China', '+86'],
+    ['jp', 'Japan', '+81'], ['kr', 'South Korea', '+82'], ['sg', 'Singapore', '+65'], ['my', 'Malaysia', '+60'],
+    ['id', 'Indonesia', '+62'], ['th', 'Thailand', '+66'], ['vn', 'Vietnam', '+84'], ['ph', 'Philippines', '+63'],
+    ['hk', 'Hong Kong', '+852'], ['za', 'South Africa', '+27'], ['ng', 'Nigeria', '+234'], ['ke', 'Kenya', '+254'],
+    ['gh', 'Ghana', '+233'], ['et', 'Ethiopia', '+251'], ['ma', 'Morocco', '+212'], ['dz', 'Algeria', '+213'],
+    ['tn', 'Tunisia', '+216'], ['ly', 'Libya', '+218'], ['sd', 'Sudan', '+249'], ['am', 'Armenia', '+374'],
+    ['ge', 'Georgia', '+995'], ['az', 'Azerbaijan', '+994'], ['kz', 'Kazakhstan', '+7'], ['af', 'Afghanistan', '+93'],
+  ];
 
   let accessToken = getAccessToken();
   let refreshPromise = null;
   let toastTimer = null;
-  let primaryPhoneLabel = 'Mobile';
+  let countryCodeMenu = null;
+  let countryCodeButton = null;
 
   function storedViewMode() {
     try {
@@ -161,6 +193,51 @@
     return String(value || '')
       .replace(/_/g, ' ')
       .replace(/\b\w/g, letter => letter.toUpperCase());
+  }
+
+  function storedChoices(key) {
+    try {
+      const values = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(values) ? values.filter(value => typeof value === 'string' && value.trim()) : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveCustomChoice(key, value) {
+    const choices = storedChoices(key);
+    if (!choices.includes(value)) localStorage.setItem(key, JSON.stringify([...choices, value]));
+  }
+
+  function identityOptions(base, key, selected, sentinel, sentinelLabel) {
+    const values = [...new Set([...base, ...storedChoices(key), selected].filter(Boolean))];
+    return '<option value="">None</option>'
+      + values.map(value => `<option value="${escapeHtml(value)}"${value === selected ? ' selected' : ''}>${escapeHtml(value)}</option>`).join('')
+      + `<option value="${sentinel}">${sentinelLabel}</option>`;
+  }
+
+  function renderIdentityPicklists(prefix = '', tag = '') {
+    $('contact-prefix').innerHTML = identityOptions(PREFIXES, PREFIX_STORAGE_KEY, prefix, ADD_PREFIX, '+ Add new');
+    $('contact-role').innerHTML = identityOptions(CONTACT_TAGS, TAG_STORAGE_KEY, tag, ADD_TAG, '+ Add tag');
+  }
+
+  function addIdentityChoice(select, { key, sentinel, label, maxLength }) {
+    if (select.value !== sentinel) return;
+    const value = (window.prompt(`New ${label} (max ${maxLength} characters):`) || '').trim();
+    if (!value) {
+      select.value = '';
+      return;
+    }
+    if (value.length > maxLength) {
+      showToast(`${titleCase(label)} must be ${maxLength} characters or fewer.`, true);
+      select.value = '';
+      return;
+    }
+    saveCustomChoice(key, value);
+    renderIdentityPicklists(
+      select.id === 'contact-prefix' ? value : $('contact-prefix').value,
+      select.id === 'contact-role' ? value : $('contact-role').value,
+    );
   }
 
   function initials(contact) {
@@ -268,6 +345,111 @@
     return `${tiles}<span class="contact-map-pin">${mapIcon()}</span>`;
   }
 
+  const flagSrc = iso => `/api/v1/achi/contact-info/flags/${iso}.png`;
+
+  function phoneParts(value) {
+    const raw = String(value || '').trim().replace(/^00/, '+');
+    const country = [...COUNTRIES].sort((a, b) => b[2].length - a[2].length)
+      .find(item => raw.startsWith(item[2]));
+    return country
+      ? { iso: country[0], dial: country[2], national: raw.slice(country[2].length).trim() }
+      : { iso: DEFAULT_ISO, dial: DEFAULT_DIAL, national: raw };
+  }
+
+  function detectPhoneCountry(value) {
+    const raw = String(value || '').trim().replace(/^00/, '+');
+    if (!raw.startsWith('+')) return null;
+    const parts = phoneParts(raw);
+    return raw.startsWith(parts.dial) ? parts : null;
+  }
+
+  function countryButtonMarkup(parts, label = 'Choose country code') {
+    return `<button class="phone-country-button" type="button" data-country-picker data-iso="${escapeHtml(parts.iso)}" data-dial="${escapeHtml(parts.dial)}" aria-label="${escapeHtml(label)}" title="Country code">
+      <img src="${flagSrc(parts.iso)}" alt=""><span data-dial-label>${escapeHtml(parts.dial)}</span>
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 4.5 3.5 3 3.5-3"/></svg>
+    </button>`;
+  }
+
+  function setCountryButton(button, iso, dial) {
+    button.dataset.iso = iso;
+    button.dataset.dial = dial;
+    button.querySelector('img').src = flagSrc(iso);
+    button.querySelector('[data-dial-label]').textContent = dial;
+  }
+
+  function renderCountryCodeOptions(query = '') {
+    if (!countryCodeMenu) return;
+    const normalized = query.trim().toLowerCase();
+    const matches = COUNTRIES.filter(country => (
+      !normalized
+      || country[0] === normalized
+      || country[1].toLowerCase().includes(normalized)
+      || country[2].includes(normalized)
+    ));
+    countryCodeMenu.querySelector('.country-code-list').innerHTML = matches.length
+      ? matches.map(country => `<button class="country-code-option" type="button" data-country-iso="${country[0]}" data-country-dial="${country[2]}">
+          <img src="${flagSrc(country[0])}" alt=""><span>${escapeHtml(country[1])}</span><span class="dial-code">${escapeHtml(country[2])}</span>
+        </button>`).join('')
+      : '<div class="empty-state">No matching country code.</div>';
+  }
+
+  function ensureCountryCodeMenu() {
+    if (countryCodeMenu) return;
+    countryCodeMenu = document.createElement('div');
+    countryCodeMenu.className = 'country-code-menu';
+    countryCodeMenu.hidden = true;
+    countryCodeMenu.innerHTML = '<input class="country-code-search" type="search" placeholder="Search country or code..." aria-label="Search country codes"><div class="country-code-list"></div>';
+    document.body.appendChild(countryCodeMenu);
+    countryCodeMenu.querySelector('.country-code-search').addEventListener('input', event => {
+      renderCountryCodeOptions(event.target.value);
+    });
+    countryCodeMenu.addEventListener('click', event => {
+      const option = event.target.closest('[data-country-iso]');
+      if (!option || !countryCodeButton) return;
+      setCountryButton(countryCodeButton, option.dataset.countryIso, option.dataset.countryDial);
+      const input = countryCodeButton.closest('.tel-wrap').querySelector('input');
+      closeCountryCodeMenu();
+      input.focus();
+    });
+  }
+
+  function openCountryCodeMenu(button) {
+    ensureCountryCodeMenu();
+    countryCodeButton = button;
+    const search = countryCodeMenu.querySelector('.country-code-search');
+    search.value = '';
+    renderCountryCodeOptions();
+    const rect = button.getBoundingClientRect();
+    const menuWidth = Math.min(300, window.innerWidth - 24);
+    const menuHeight = 318;
+    countryCodeMenu.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12))}px`;
+    countryCodeMenu.style.top = `${rect.bottom + menuHeight > window.innerHeight ? Math.max(12, rect.top - menuHeight - 4) : rect.bottom + 4}px`;
+    countryCodeMenu.hidden = false;
+    search.focus();
+  }
+
+  function closeCountryCodeMenu() {
+    if (countryCodeMenu) countryCodeMenu.hidden = true;
+    countryCodeButton = null;
+  }
+
+  function normalizePhoneInput(input) {
+    const parts = detectPhoneCountry(input.value);
+    if (!parts) return;
+    setCountryButton(input.closest('.tel-wrap').querySelector('[data-country-picker]'), parts.iso, parts.dial);
+    input.value = parts.national;
+  }
+
+  function fullPhoneNumber(row) {
+    const input = row.querySelector('[data-phone-number], [data-related-phone]');
+    const number = input.value.trim();
+    if (!number) return '';
+    const detected = detectPhoneCountry(number);
+    if (detected) return `${detected.dial} ${detected.national}`.trim();
+    const dial = row.querySelector('[data-country-picker]').dataset.dial || DEFAULT_DIAL;
+    return `${dial} ${number}`.trim();
+  }
+
   function phoneHref(value) {
     const phone = String(value || '').trim();
     return phone ? `tel:${phone.replace(/[^+\d]/g, '')}` : '';
@@ -339,6 +521,24 @@
     })).filter(item => item.handle).slice(0, 12);
   }
 
+  function storedEmails(value, fallback = '') {
+    const items = Array.isArray(value) ? value : [];
+    const emails = items.map(item => ({
+      label: String(item && item.label || 'Other'),
+      address: String(item && item.address || ''),
+    })).filter(item => item.address).slice(0, 8);
+    return emails.length || !fallback ? emails : [{ label: 'Primary', address: String(fallback) }];
+  }
+
+  function storedRelatedContacts(value) {
+    if (!Array.isArray(value)) return [];
+    return value.map(item => ({
+      name: String(item && item.name || ''),
+      tag: String(item && item.tag || ''),
+      phone: String(item && item.phone || ''),
+    })).filter(item => item.name || item.phone).slice(0, 8);
+  }
+
   function normalizeContact(raw) {
     const id = String(raw.id);
     const bucket = raw.custom_properties && raw.custom_properties.achi_contact_info
@@ -362,9 +562,10 @@
     const loggedCompanyType = contactLogs.find(log => log.company_type)?.company_type || '';
     const loggedSocials = storedSocials(contactLogs.find(log => log.socials)?.socials);
     const prefix = hasContactInfoField('prefix') ? (bucket.prefix || '') : (sharedPrefix || loggedPrefix);
+    const middleName = hasContactInfoField('middle_name') ? (bucket.middle_name || '') : '';
     const baseDisplayName = recordType === 'company'
       ? (raw.company_name || raw.legal_name || 'Unnamed company')
-      : ([raw.first_name, raw.last_name].filter(Boolean).join(' ') || raw.company_name || 'Unnamed contact');
+      : ([raw.first_name, middleName, raw.last_name].filter(Boolean).join(' ') || raw.company_name || 'Unnamed contact');
     const displayName = recordType === 'person' && prefix ? `${prefix} ${baseDisplayName}` : baseDisplayName;
     const bucketPhones = Array.isArray(bucket.phones) ? bucket.phones.filter(item => item && item.number) : [];
     const phones = bucketPhones.length
@@ -375,6 +576,7 @@
       .includes(bucket.category)
       ? bucket.category
       : fallbackCategory(raw, contactFiles);
+    const emails = storedEmails(bucket.emails, raw.primary_email);
 
     return {
       ...raw,
@@ -383,9 +585,13 @@
       category,
       displayName,
       prefix,
+      middleName,
       role: hasContactInfoField('role') ? (bucket.role || '') : loggedRole,
       companyType: hasContactInfoField('company_type') ? (bucket.company_type || '') : loggedCompanyType,
       phones,
+      emails,
+      primary_email: emails[0] ? emails[0].address : (raw.primary_email || ''),
+      relatedContacts: storedRelatedContacts(bucket.related_contacts),
       socials: hasContactInfoField('socials') ? storedSocials(bucket.socials) : loggedSocials,
       primaryPhone: phones[0] ? phones[0].number : (raw.primary_phone || ''),
       source: bucket.source || '',
@@ -423,6 +629,8 @@
         contact.role,
         contact.companyType,
         ...contact.phones.map(phone => phone.number),
+        ...contact.emails.flatMap(email => [email.label, email.address]),
+        ...contact.relatedContacts.flatMap(related => [related.name, related.tag, related.phone]),
         ...contact.socials.flatMap(social => [social.platform, social.handle]),
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
@@ -575,6 +783,14 @@
     const phoneRows = contact.phones.length
       ? contact.phones.map(phone => detailRow(phone.label || 'Phone', phone.number, phoneHref(phone.number))).join('')
       : detailRow('Phone', '-');
+    const emailRows = contact.emails.length
+      ? contact.emails.map(email => detailRow(email.label || 'Email', email.address, `mailto:${email.address}`)).join('')
+      : detailRow('Email', '-');
+    const relatedContactRows = contact.relatedContacts.map(related => detailRow(
+      related.tag ? `${related.name} (${related.tag})` : related.name,
+      related.phone || '-',
+      related.phone ? phoneHref(related.phone) : '',
+    )).join('');
     const website = safeHref(contact.website);
     const quickLinks = contact.quickLinks
       .map(link => ({ label: String(link.label || 'Link'), url: safeHref(link.url) }))
@@ -595,10 +811,11 @@
         <h3>Contact details</h3>
         <dl class="detail-list">
           ${contact.recordType === 'person' ? detailRow('Prefix', contact.prefix || '-') : ''}
-          ${contact.recordType === 'person' ? detailRow('Role', contact.role || '-') : ''}
+          ${contact.recordType === 'person' && contact.middleName ? detailRow('Middle name', contact.middleName) : ''}
+          ${contact.recordType === 'person' ? detailRow('Tags', contact.role || '-') : ''}
           ${detailRow('Company type', contact.companyType || '-')}
           ${phoneRows}
-          ${detailRow('Email', contact.primary_email || '-', contact.primary_email ? `mailto:${contact.primary_email}` : '')}
+          ${emailRows}
           ${detailRow('Website', contact.website || '-', website)}
           ${detailRow('Location', contact.location || '-')}
           ${detailRow('City', contact.city || '-')}
@@ -606,6 +823,10 @@
           ${detailRow('Category', titleCase(contact.category))}
           ${detailRow('Source', contact.source || '-')}
         </dl>
+      </section>
+      <section class="detail-section">
+        <h3>Additional contacts</h3>
+        ${relatedContactRows ? `<dl class="detail-list">${relatedContactRows}</dl>` : '<div class="empty-state">No additional contacts saved.</div>'}
       </section>
       <section class="detail-section">
         <h3>Social handles</h3>
@@ -795,6 +1016,7 @@
   function updateIdentityFields() {
     const isCompany = $('record-type').value === 'company';
     document.querySelectorAll('.person-field').forEach(field => { field.hidden = isCompany; });
+    document.querySelector('.identity-fields').hidden = isCompany;
     $('company-name').closest('label').hidden = false;
     $('company-name').required = isCompany;
   }
@@ -811,46 +1033,127 @@
     )).join('');
   }
 
-  function phoneRowMarkup(phone = {}) {
-    const label = String(phone.label || 'Mobile');
+  function phoneRowMarkup(phone = {}, defaultLabel = 'Mobile') {
+    const label = String(phone.label || defaultLabel);
+    const parts = phoneParts(phone.number || '');
     return `<div class="repeatable-row phone-row" data-phone-row>
       <select data-phone-label aria-label="Phone type">${optionMarkup(PHONE_LABELS, label)}</select>
-      <input type="tel" data-phone-number maxlength="50" inputmode="tel" aria-label="Additional phone number" placeholder="+961 ..." value="${escapeHtml(phone.number || '')}">
+      <span class="tel-wrap">
+        ${countryButtonMarkup(parts)}
+        <input type="tel" data-phone-number maxlength="50" inputmode="tel" autocomplete="tel-national" aria-label="Phone number" placeholder="70 123 456" value="${escapeHtml(parts.national)}">
+      </span>
       <button class="repeatable-remove" type="button" data-remove-phone aria-label="Remove phone number" title="Remove phone">${repeatableRemoveIcon()}</button>
     </div>`;
   }
 
   function updatePhoneRows() {
     const rows = [...$('phone-list').querySelectorAll('[data-phone-row]')];
-    $('add-phone').disabled = rows.length >= 7;
+    $('add-phone').disabled = rows.length >= 8;
   }
 
   function renderPhoneRows(phones = []) {
-    const rows = phones.slice(0, 8);
-    const primary = rows.shift() || {};
-    primaryPhoneLabel = String(primary.label || 'Mobile');
-    $('primary-phone').value = primary.number || '';
-    $('phone-list').innerHTML = rows.map(phoneRowMarkup).join('');
+    const rows = phones.length ? phones.slice(0, 8) : [{ label: 'Primary', number: '' }];
+    $('phone-list').innerHTML = rows.map((phone, index) => phoneRowMarkup(phone, index ? 'Mobile' : 'Primary')).join('');
     updatePhoneRows();
   }
 
   function addPhoneRow() {
     const list = $('phone-list');
-    if (list.querySelectorAll('[data-phone-row]').length >= 7) return;
+    if (list.querySelectorAll('[data-phone-row]').length >= 8) return;
     list.insertAdjacentHTML('beforeend', phoneRowMarkup());
     updatePhoneRows();
     list.lastElementChild.querySelector('[data-phone-number]').focus();
   }
 
   function readPhoneRows() {
-    const phones = [];
-    const primary = $('primary-phone').value.trim();
-    if (primary) phones.push({ label: primaryPhoneLabel || 'Mobile', number: primary });
-    phones.push(...[...$('phone-list').querySelectorAll('[data-phone-row]')].map(row => ({
+    const rows = [...$('phone-list').querySelectorAll('[data-phone-row]')];
+    const phones = rows.map(row => ({
       label: row.querySelector('[data-phone-label]').value.trim() || 'Other',
-      number: row.querySelector('[data-phone-number]').value.trim(),
-    })).filter(phone => phone.number));
-    return phones.slice(0, 8);
+      number: fullPhoneNumber(row),
+    })).filter(phone => phone.number).slice(0, 8);
+    const primaryRow = rows.find(row => row.querySelector('[data-phone-number]').value.trim());
+    return {
+      phones,
+      countryCode: primaryRow ? primaryRow.querySelector('[data-country-picker]').dataset.iso.toUpperCase() : null,
+    };
+  }
+
+  function emailRowMarkup(email = {}, defaultLabel = 'Other') {
+    const label = String(email.label || defaultLabel);
+    return `<div class="repeatable-row email-row" data-email-row>
+      <select data-email-label aria-label="Email type">${optionMarkup(EMAIL_LABELS, label)}</select>
+      <input type="email" data-email-address maxlength="255" autocomplete="email" aria-label="Email address" placeholder="name@company.com" value="${escapeHtml(email.address || '')}">
+      <button class="repeatable-remove" type="button" data-remove-email aria-label="Remove email address" title="Remove email">${repeatableRemoveIcon()}</button>
+    </div>`;
+  }
+
+  function updateEmailRows() {
+    $('add-email').disabled = $('email-list').querySelectorAll('[data-email-row]').length >= 8;
+  }
+
+  function renderEmailRows(emails = []) {
+    const rows = emails.length ? emails.slice(0, 8) : [{ label: 'Primary', address: '' }];
+    $('email-list').innerHTML = rows.map((email, index) => emailRowMarkup(email, index ? 'Other' : 'Primary')).join('');
+    updateEmailRows();
+  }
+
+  function addEmailRow() {
+    const list = $('email-list');
+    if (list.querySelectorAll('[data-email-row]').length >= 8) return;
+    list.insertAdjacentHTML('beforeend', emailRowMarkup());
+    updateEmailRows();
+    list.lastElementChild.querySelector('[data-email-address]').focus();
+  }
+
+  function readEmailRows() {
+    return [...$('email-list').querySelectorAll('[data-email-row]')].map(row => ({
+      label: row.querySelector('[data-email-label]').value.trim() || 'Other',
+      address: row.querySelector('[data-email-address]').value.trim(),
+    })).filter(email => email.address).slice(0, 8);
+  }
+
+  function relatedContactRowMarkup(contact = {}) {
+    const parts = phoneParts(contact.phone || '');
+    return `<div class="repeatable-row related-contact-row" data-related-contact-row>
+      <input type="text" data-related-name maxlength="255" aria-label="Additional contact name" placeholder="Contact name" value="${escapeHtml(contact.name || '')}">
+      <input type="text" data-related-tag maxlength="64" aria-label="Relationship or tag" placeholder="Relationship / tag" value="${escapeHtml(contact.tag || '')}">
+      <span class="tel-wrap">
+        ${countryButtonMarkup(parts, 'Choose additional contact country code')}
+        <input type="tel" data-related-phone maxlength="50" inputmode="tel" autocomplete="tel-national" aria-label="Additional contact phone number" placeholder="70 123 456" value="${escapeHtml(parts.national)}">
+      </span>
+      <button class="repeatable-remove" type="button" data-remove-related-contact aria-label="Remove additional contact" title="Remove contact">${repeatableRemoveIcon()}</button>
+    </div>`;
+  }
+
+  function updateRelatedContactRows() {
+    $('add-related-contact').disabled = $('related-contact-list').querySelectorAll('[data-related-contact-row]').length >= 8;
+  }
+
+  function renderRelatedContactRows(contacts = []) {
+    $('related-contact-list').innerHTML = contacts.slice(0, 8).map(relatedContactRowMarkup).join('');
+    updateRelatedContactRows();
+  }
+
+  function addRelatedContactRow() {
+    const list = $('related-contact-list');
+    if (list.querySelectorAll('[data-related-contact-row]').length >= 8) return;
+    list.insertAdjacentHTML('beforeend', relatedContactRowMarkup());
+    updateRelatedContactRows();
+    list.lastElementChild.querySelector('[data-related-name]').focus();
+  }
+
+  function readRelatedContactRows() {
+    const contacts = [];
+    for (const row of $('related-contact-list').querySelectorAll('[data-related-contact-row]')) {
+      const name = row.querySelector('[data-related-name]').value.trim();
+      const tag = row.querySelector('[data-related-tag]').value.trim();
+      const phone = fullPhoneNumber(row);
+      if (!name && !tag && !phone) continue;
+      if (!name) throw new Error('Each additional contact needs a name.');
+      if (!phone) throw new Error(`Enter a phone number for ${name}.`);
+      contacts.push({ name, tag: tag || null, phone });
+    }
+    return contacts.slice(0, 8);
   }
 
   function socialRowMarkup(social = {}) {
@@ -946,19 +1249,19 @@
       ? contact.recordType
       : (state.recordType === 'company' ? 'company' : 'person');
     $('contact-category').value = contact ? contact.category : 'prospect';
-    setSelectValue('contact-prefix', contact ? contact.prefix : '');
-    setSelectValue('contact-role', contact ? contact.role : '');
+    renderIdentityPicklists(contact ? contact.prefix : '', contact ? contact.role : '');
     $('first-name').value = contact ? (contact.first_name || '') : '';
     $('last-name').value = contact ? (contact.last_name || '') : '';
+    $('middle-name').value = contact ? (contact.middleName || '') : '';
     $('company-name').value = contact ? (contact.company_name || '') : '';
     setSelectValue('company-type', contact ? contact.companyType : '');
-    $('primary-email').value = contact ? (contact.primary_email || '') : '';
     renderPhoneRows(contact ? contact.phones : []);
+    renderEmailRows(contact ? contact.emails : []);
+    renderRelatedContactRows(contact ? contact.relatedContacts : []);
     renderSocialRows(contact ? contact.socials : []);
     renderQuickLinkRows(contact ? contact.quickLinks : []);
     $('website').value = contact ? (contact.website || '') : '';
     $('contact-source').value = contact ? (contact.source || '') : '';
-    $('country-code').value = contact ? (contact.country_code || '') : '';
     $('city').value = contact ? (contact.city || '') : '';
     $('contact-location').value = contact ? (contact.location || '') : '';
     $('maps-url').value = contact ? (contact.mapsUrl || '') : '';
@@ -967,10 +1270,13 @@
     updateIdentityFields();
     $('contact-modal').hidden = false;
     document.body.style.overflow = 'hidden';
-    window.setTimeout(() => $('record-type').focus(), 0);
+    window.setTimeout(() => (
+      $('record-type').value === 'person' ? $('contact-prefix') : $('company-name')
+    ).focus(), 0);
   }
 
   function closeContactModal() {
+    closeCountryCodeMenu();
     $('contact-modal').hidden = true;
     if (!$('contact-drawer').classList.contains('is-open')) document.body.style.overflow = '';
   }
@@ -1037,8 +1343,10 @@
     }
 
     let quickLinks;
+    let relatedContacts;
     try {
       quickLinks = readQuickLinkRows();
+      relatedContacts = readRelatedContactRows();
     } catch (error) {
       $('form-error').textContent = error.message;
       return;
@@ -1051,20 +1359,25 @@
       return;
     }
 
+    const phoneData = readPhoneRows();
+    const emails = readEmailRows();
     const payload = {
       record_type: recordType,
       category: $('contact-category').value,
       first_name: firstName || null,
       last_name: lastName || null,
+      middle_name: recordType === 'person' ? ($('middle-name').value.trim() || null) : null,
       prefix: recordType === 'person' ? ($('contact-prefix').value || null) : null,
       role: recordType === 'person' ? ($('contact-role').value || null) : null,
       company_name: companyName || null,
       company_type: $('company-type').value || null,
-      primary_email: $('primary-email').value.trim() || null,
-      phones: readPhoneRows(),
+      primary_email: emails[0] ? emails[0].address : null,
+      emails,
+      phones: phoneData.phones,
+      related_contacts: relatedContacts,
       socials: readSocialRows(),
       website: $('website').value.trim() || null,
-      country_code: $('country-code').value.trim().toUpperCase() || null,
+      country_code: phoneData.countryCode,
       city: $('city').value.trim() || null,
       location: $('contact-location').value.trim() || null,
       maps_url: mapsUrl || null,
@@ -1215,6 +1528,25 @@
     }).filter(Boolean).slice(0, 8);
   }
 
+  function importedEmails(value) {
+    return String(value || '').split(';').map(item => {
+      const entry = item.trim();
+      if (!entry) return null;
+      const separator = entry.includes('|') ? entry.indexOf('|') : entry.indexOf(':');
+      const label = separator >= 0 ? entry.slice(0, separator).trim() : 'Primary';
+      const address = separator >= 0 ? entry.slice(separator + 1).trim() : entry;
+      return address ? { label: label || 'Other', address } : null;
+    }).filter(Boolean).slice(0, 8);
+  }
+
+  function importedRelatedContacts(value) {
+    return String(value || '').split(';').map(item => {
+      const parts = item.split('|').map(part => part.trim());
+      if (!parts.some(Boolean)) return null;
+      return { name: parts[0] || '', tag: parts[1] || null, phone: parts[2] || '' };
+    }).filter(item => item && item.name && item.phone).slice(0, 8);
+  }
+
   function importedSocials(value) {
     return String(value || '').split(';').map(item => {
       const entry = item.trim();
@@ -1246,6 +1578,7 @@
     const company = csvValue(record, 'company', 'companyname', 'legalname');
     const explicitFirstName = csvValue(record, 'firstname', 'givenname');
     const explicitLastName = csvValue(record, 'lastname', 'surname', 'familyname');
+    const middleName = csvValue(record, 'middlename', 'additionalname');
     const rawRecordType = csvValue(record, 'recordtype', 'type').toLowerCase();
     let recordType;
 
@@ -1275,6 +1608,9 @@
     const countryCode = csvValue(record, 'country', 'countrycode').toUpperCase();
     if (countryCode.length > 2) throw new Error(`Country must be a two-letter code: ${countryCode}`);
     const phones = importedPhones(csvValue(record, 'phones', 'phone', 'primaryphone', 'mobile'));
+    const primaryEmail = csvValue(record, 'email', 'primaryemail');
+    const emails = importedEmails(csvValue(record, 'emails'));
+    if (!emails.length && primaryEmail) emails.push({ label: 'Primary', address: primaryEmail });
     const rawMapsUrl = csvValue(record, 'mapsurl', 'maplink', 'googlemaps');
     const mapsUrl = normalizeMapsUrl(rawMapsUrl);
     if (rawMapsUrl && !mapsUrl) throw new Error('Map URL must be a Google Maps link.');
@@ -1284,12 +1620,15 @@
       category: importCategory(csvValue(record, 'category', 'contactcategory')),
       first_name: firstName || null,
       last_name: lastName || null,
+      middle_name: recordType === 'person' ? (middleName || null) : null,
       prefix: recordType === 'person' ? (csvValue(record, 'prefix', 'title', 'salutation') || null) : null,
-      role: recordType === 'person' ? (csvValue(record, 'role', 'jobtitle', 'position') || null) : null,
+      role: recordType === 'person' ? (csvValue(record, 'tags', 'tag', 'role', 'jobtitle', 'position') || null) : null,
       company_name: companyName || null,
       company_type: csvValue(record, 'companytype', 'organisationtype', 'organizationtype') || null,
-      primary_email: csvValue(record, 'email', 'primaryemail') || null,
+      primary_email: emails[0] ? emails[0].address : null,
+      emails,
       phones,
+      related_contacts: importedRelatedContacts(csvValue(record, 'additionalcontacts', 'relatedcontacts')),
       socials: importedSocials(csvValue(record, 'socials', 'socialhandles', 'socialmedia')),
       website: csvValue(record, 'website', 'url') || null,
       country_code: countryCode || null,
@@ -1408,19 +1747,20 @@
   function exportCsv() {
     const contacts = visibleContacts();
     const rows = [
-      ['Record type', 'Prefix', 'Name', 'Role', 'Company', 'Company type', 'Category', 'Email', 'Phones', 'Social handles', 'Location', 'Maps URL', 'City', 'Country', 'Source', 'Logs', 'Jobs'],
+      ['Record type', 'Prefix', 'First name', 'Last name', 'Middle name', 'Tags', 'Company', 'Company type', 'Category', 'Emails', 'Phones', 'Additional contacts', 'Social handles', 'Location', 'Maps URL', 'City', 'Country', 'Source', 'Logs', 'Jobs'],
       ...contacts.map(contact => [
         contact.recordType,
         contact.prefix,
-        contact.recordType === 'company'
-          ? contact.displayName
-          : [contact.first_name, contact.last_name].filter(Boolean).join(' '),
+        contact.recordType === 'company' ? '' : (contact.first_name || ''),
+        contact.recordType === 'company' ? '' : (contact.last_name || ''),
+        contact.middleName,
         contact.role,
         contact.company_name || '',
         contact.companyType,
         contact.category,
-        contact.primary_email || '',
+        contact.emails.map(email => `${email.label}: ${email.address}`).join('; '),
         contact.phones.map(phone => `${phone.label}: ${phone.number}`).join('; '),
+        contact.relatedContacts.map(related => [related.name, related.tag, related.phone].filter(Boolean).join('|')).join('; '),
         contact.socials.map(social => `${social.platform}: ${social.handle}`).join('; '),
         contact.location,
         contact.mapsUrl,
@@ -1522,12 +1862,32 @@
     $('quick-log-form').addEventListener('submit', saveQuickLog);
     $('quick-log-cancel').addEventListener('click', () => { $('quick-log-form').hidden = true; });
     $('record-type').addEventListener('change', updateIdentityFields);
+    $('contact-prefix').addEventListener('change', event => addIdentityChoice(event.target, {
+      key: PREFIX_STORAGE_KEY, sentinel: ADD_PREFIX, label: 'prefix', maxLength: 16,
+    }));
+    $('contact-role').addEventListener('change', event => addIdentityChoice(event.target, {
+      key: TAG_STORAGE_KEY, sentinel: ADD_TAG, label: 'tag', maxLength: 64,
+    }));
     $('add-phone').addEventListener('click', addPhoneRow);
     $('phone-list').addEventListener('click', event => {
       const remove = event.target.closest('[data-remove-phone]');
       if (!remove) return;
       remove.closest('[data-phone-row]').remove();
       updatePhoneRows();
+    });
+    $('add-email').addEventListener('click', addEmailRow);
+    $('email-list').addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-email]');
+      if (!remove) return;
+      remove.closest('[data-email-row]').remove();
+      updateEmailRows();
+    });
+    $('add-related-contact').addEventListener('click', addRelatedContactRow);
+    $('related-contact-list').addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-related-contact]');
+      if (!remove) return;
+      remove.closest('[data-related-contact-row]').remove();
+      updateRelatedContactRows();
     });
     $('add-social').addEventListener('click', addSocialRow);
     $('social-list').addEventListener('click', event => {
@@ -1547,10 +1907,25 @@
     });
     $('use-current-location').addEventListener('click', useCurrentLocation);
     $('contact-form').addEventListener('submit', saveContact);
+    $('contact-form').addEventListener('click', event => {
+      const button = event.target.closest('[data-country-picker]');
+      if (button) openCountryCodeMenu(button);
+    });
+    $('contact-form').addEventListener('paste', event => {
+      if (!event.target.matches('[data-phone-number], [data-related-phone]')) return;
+      window.setTimeout(() => normalizePhoneInput(event.target), 0);
+    });
+    $('contact-form').addEventListener('focusout', event => {
+      if (event.target.matches('[data-phone-number], [data-related-phone]')) normalizePhoneInput(event.target);
+    });
     $('modal-close').addEventListener('click', closeContactModal);
     $('modal-cancel').addEventListener('click', closeContactModal);
     $('contact-modal').addEventListener('click', event => {
       if (event.target === $('contact-modal')) closeContactModal();
+    });
+    document.addEventListener('mousedown', event => {
+      if (!countryCodeMenu || countryCodeMenu.hidden) return;
+      if (!countryCodeMenu.contains(event.target) && !event.target.closest('[data-country-picker]')) closeCountryCodeMenu();
     });
 
     document.addEventListener('keydown', event => {

@@ -251,9 +251,12 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
         "record_type": data.record_type,
         "category": data.category,
         "prefix": data.prefix,
+        "middle_name": data.middle_name,
         "role": data.role,
         "company_type": data.company_type,
         "phones": phones,
+        "emails": payload["emails"],
+        "related_contacts": payload["related_contacts"],
         "socials": payload["socials"],
         "source": data.source,
         "location": data.location,
@@ -287,6 +290,23 @@ def contact_info_js() -> PlainTextResponse:
         media_type="application/javascript",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+@router.get(
+    "/contact-info/flags/{iso}.png",
+    response_class=FileResponse,
+    include_in_schema=False,
+)
+def contact_info_flag(iso: str) -> FileResponse:
+    """Serve the contact picker's bundled flags without a third-party request."""
+
+    normalized = iso.lower()
+    if not re.fullmatch(r"[a-z]{2}", normalized):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Flag not found")
+    flag = _UI_DIR / "flags" / f"{normalized}.png"
+    if not flag.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Flag not found")
+    return FileResponse(flag, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
 
 
 @router.post(
