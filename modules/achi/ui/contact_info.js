@@ -708,7 +708,7 @@
           </button>
           <div class="contact-card-actions">
             ${contact.primaryPhone ? `<a href="${escapeHtml(phoneHref(contact.primaryPhone))}">Call</a>` : ''}
-            ${contact.primaryPhone ? `<a href="${escapeHtml(whatsappHref(contact.primaryPhone))}" target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp chat with ${escapeHtml(contact.displayName)}" title="Open WhatsApp">Wtsp</a>` : ''}
+            ${contact.primaryPhone ? `<a href="${escapeHtml(whatsappHref(contact.primaryPhone))}" target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp chat with ${escapeHtml(contact.displayName)}" title="Open WhatsApp">WA</a>` : ''}
             ${contact.primary_email ? `<a href="mailto:${escapeHtml(contact.primary_email)}">Email</a>` : ''}
             ${mapHref ? `<a data-map-link href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer">${mapIcon()}Map</a>` : ''}
           </div>
