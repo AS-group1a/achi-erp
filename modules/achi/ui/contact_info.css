@@ -1039,7 +1039,7 @@ textarea:focus-visible {
 }
 
 .contact-modal {
-  width: min(1040px, 100%);
+  width: min(1180px, 100%);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   border: 1px solid var(--line);
@@ -1064,14 +1064,13 @@ textarea:focus-visible {
 
 .identity-fields {
   min-width: 0;
-  padding: 16px 0;
-  border-top: 1px solid var(--line-soft);
+  padding: 0 0 16px;
   border-bottom: 1px solid var(--line-soft);
 }
 
 .identity-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1095,6 +1094,15 @@ textarea:focus-visible {
   gap: 6px;
 }
 
+.contact-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
 .repeatable-list:empty {
   display: none;
 }
@@ -1108,13 +1116,137 @@ textarea:focus-visible {
 }
 
 .phone-row {
-  grid-template-columns: minmax(110px, .4fr) minmax(180px, 1fr) 32px;
+  grid-template-columns: minmax(100px, .34fr) minmax(220px, 1fr) 32px;
 }
 
-.additional-phone-field,
 .social-field {
   max-width: 620px;
-  margin-top: 14px;
+}
+
+.related-contacts-field {
+  width: 100%;
+  max-width: 980px;
+}
+
+.email-row {
+  grid-template-columns: minmax(100px, .34fr) minmax(180px, 1fr) 32px;
+}
+
+.related-contact-row {
+  grid-template-columns: minmax(160px, .7fr) minmax(130px, .45fr) minmax(280px, 1fr) 32px;
+}
+
+.tel-wrap {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.tel-wrap input {
+  flex: 1 1 auto;
+  border-radius: 0 6px 6px 0;
+}
+
+.phone-country-button {
+  display: inline-flex;
+  min-width: 88px;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid #cfd6e1;
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.phone-country-button:hover,
+.phone-country-button:focus-visible {
+  border-color: var(--brand);
+  color: var(--brand-hover);
+}
+
+.phone-country-button img,
+.country-code-option img {
+  width: 20px;
+  height: 15px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.phone-country-button svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.country-code-menu {
+  position: fixed;
+  z-index: 140;
+  width: min(300px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .22);
+}
+
+.country-code-search {
+  width: calc(100% - 20px);
+  min-height: 38px;
+  margin: 10px;
+  padding: 7px 10px;
+  border: 1px solid #cfd6e1;
+  border-radius: 6px;
+  color: var(--ink);
+}
+
+.country-code-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line-soft);
+}
+
+.country-code-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.country-code-option:hover,
+.country-code-option:focus-visible {
+  background: #eef4ff;
+  color: var(--brand-hover);
+}
+
+.country-code-option span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-code-option .dial-code {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .social-row {
@@ -1265,6 +1397,10 @@ textarea:focus-visible {
   .identity-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .contact-methods {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
@@ -1370,15 +1506,32 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .additional-phone-field,
   .social-field,
+  .related-contacts-field,
   .quick-links-field {
     max-width: none;
   }
 
   .phone-row,
+  .email-row,
   .social-row {
     grid-template-columns: minmax(90px, .4fr) minmax(0, 1fr) 32px;
+  }
+
+  .related-contact-row {
+    grid-template-columns: minmax(0, 1fr) 32px;
+  }
+
+  .related-contact-row [data-related-name],
+  .related-contact-row [data-related-tag],
+  .related-contact-row .tel-wrap {
+    grid-column: 1;
+  }
+
+  .related-contact-row .repeatable-remove {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
   }
 
   .quick-link-row {

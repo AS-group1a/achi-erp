@@ -760,6 +760,25 @@ class ContactInfoPhoneIn(BaseModel):
     number: str = Field(..., min_length=1, max_length=50)
 
 
+class ContactInfoEmailIn(BaseModel):
+    """One labelled email stored in ACHI's namespaced contact bucket."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: str = Field(default="Other", max_length=32)
+    address: EmailStr = Field(..., max_length=255)
+
+
+class ContactInfoRelatedContactIn(BaseModel):
+    """An alternate person to call when the main contact is unavailable."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(..., min_length=1, max_length=255)
+    tag: str | None = Field(default=None, max_length=64)
+    phone: str = Field(..., min_length=1, max_length=50)
+
+
 class ContactInfoQuickLinkIn(BaseModel):
     """A labelled URL shown in the Contact Info drawer."""
 
@@ -789,12 +808,15 @@ class ContactInfoContactIn(BaseModel):
     )
     first_name: str | None = Field(default=None, max_length=255)
     last_name: str | None = Field(default=None, max_length=255)
+    middle_name: str | None = Field(default=None, max_length=255)
     prefix: str | None = Field(default=None, max_length=16)
     role: str | None = Field(default=None, max_length=64)
     company_name: str | None = Field(default=None, max_length=255)
     company_type: str | None = Field(default=None, max_length=64)
     primary_email: EmailStr | None = Field(default=None, max_length=255)
+    emails: list[ContactInfoEmailIn] = Field(default_factory=list, max_length=8)
     phones: list[ContactInfoPhoneIn] = Field(default_factory=list, max_length=8)
+    related_contacts: list[ContactInfoRelatedContactIn] = Field(default_factory=list, max_length=8)
     socials: list[SocialIn] = Field(default_factory=list, max_length=12)
     website: str | None = Field(default=None, max_length=500)
     country_code: str | None = Field(default=None, max_length=2)
@@ -830,6 +852,7 @@ class ContactInfoContactIn(BaseModel):
                 raise ValueError("company_name is required for a company")
             self.first_name = None
             self.last_name = None
+            self.middle_name = None
             self.prefix = None
             self.role = None
         elif not (self.first_name or self.last_name):
@@ -837,6 +860,10 @@ class ContactInfoContactIn(BaseModel):
 
         if self.country_code:
             self.country_code = self.country_code.upper()
+        if self.emails:
+            self.primary_email = self.emails[0].address
+        elif self.primary_email:
+            self.emails = [ContactInfoEmailIn(label="Primary", address=self.primary_email)]
         return self
 # ── Email (Log-page compose popup) ─────────────────────────────────────────
 
