@@ -23,6 +23,7 @@ from app.dependencies import (
 )
 from app.modules.contacts.models import Contact
 from app.modules.contacts.schemas import ContactListResponse, ContactResponse
+from app.modules.contacts.service import ContactService as CanonicalContactService
 from app.modules.users.models import User
 
 from . import access
@@ -313,7 +314,6 @@ async def list_contact_info_contacts(
     _user_id: CurrentUserId,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=500, ge=1, le=500),
-    _perm: None = Depends(RequirePermission("contacts.read")),
 ) -> ContactListResponse:
     result = await session.execute(select(Contact).where(Contact.is_active.is_(True)))
     contacts = [contact for contact in result.scalars().all() if _is_contact_info_contact(contact)]
@@ -343,7 +343,6 @@ async def create_contact_info_contact(
     data: ContactInfoContactIn,
     session: SessionDep,
     user_id: CurrentUserId,
-    _perm: None = Depends(RequirePermission("contacts.create")),
 ) -> dict:
     contact = Contact(
         contact_type=_CONTACT_INFO_TYPES[data.category],
@@ -367,12 +366,25 @@ async def update_contact_info_contact(
     data: ContactInfoContactIn,
     session: SessionDep,
     _user_id: CurrentUserId,
-    _perm: None = Depends(RequirePermission("contacts.update")),
 ) -> dict:
     contact = await _contact_info_shared_contact(session, contact_id)
     _apply_contact_info(contact, data)
     await session.commit()
     return {"id": str(contact.id)}
+
+
+@router.delete(
+    "/contact-info/contacts/{contact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a shared ACHI contact",
+)
+async def delete_contact_info_contact(
+    contact_id: str,
+    session: SessionDep,
+    user_id: CurrentUserId,
+) -> None:
+    contact = await _contact_info_shared_contact(session, contact_id)
+    await CanonicalContactService(session).deactivate_contact(contact.id, user_id=str(user_id))
 
 
 @router.get(
