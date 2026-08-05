@@ -329,6 +329,10 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z"/><circle cx="12" cy="10" r="2"/></svg>';
   }
 
+  function trashIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>';
+  }
+
   function tileMap(lat, lng, width, height, zoom = 15) {
     const size = 2 ** zoom;
     const worldX = ((lng + 180) / 360) * size * 256;
@@ -797,7 +801,23 @@
     if (mapHref) actions.push(`<a class="drawer-action" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer">${mapIcon()}Map</a>`);
     actions.push('<button class="drawer-action" type="button" id="drawer-add-log">Add activity</button>');
     actions.push('<button class="drawer-action" type="button" id="drawer-edit">Edit</button>');
+    actions.push(`<button class="drawer-action drawer-action-danger" type="button" id="drawer-delete">${trashIcon()}<span>Delete contact</span></button>`);
     $('drawer-actions').innerHTML = actions.join('');
+  }
+
+  async function deleteContact(contact) {
+    if (!contact || !window.confirm(`Delete ${contact.displayName}? This contact will be removed from the shared directory.`)) return;
+    const button = $('drawer-delete');
+    if (button) button.disabled = true;
+    try {
+      await request(`/api/v1/achi/contact-info/contacts/${encodeURIComponent(contact.id)}`, { method: 'DELETE' });
+      closeDrawer();
+      await loadData({ silent: true });
+      showToast('Contact deleted.');
+    } catch (error) {
+      showToast(error.message, true);
+      if (button) button.disabled = false;
+    }
   }
 
   function renderOverview(contact) {
@@ -1873,6 +1893,7 @@
 
     $('drawer-actions').addEventListener('click', event => {
       if (event.target.closest('#drawer-edit')) openContactModal(activeContact());
+      if (event.target.closest('#drawer-delete')) deleteContact(activeContact());
       if (event.target.closest('#drawer-add-log')) {
         setDrawerTab('activity');
         $('quick-log-form').hidden = false;

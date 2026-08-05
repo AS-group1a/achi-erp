@@ -764,6 +764,24 @@ textarea:focus-visible {
   color: var(--brand);
 }
 
+.drawer-action-danger {
+  margin-left: auto;
+  border-color: #e2aaa5;
+  color: #a52d24;
+}
+
+.drawer-action-danger:hover,
+.drawer-action-danger:focus-visible {
+  border-color: #b9342a;
+  background: #fff1ef;
+  color: #8f241b;
+}
+
+.drawer-action-danger:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
 .drawer-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1451,13 +1469,21 @@ textarea:focus-visible {
 
 .contact-modal .form-error {
   min-height: 0;
-  margin: 0;
-  padding: 0 16px;
-  background: #fff;
+  margin: 0 18px;
+  padding: 0;
 }
 
 .contact-modal .form-error:not(:empty) {
-  padding-top: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e7a49e;
+  border-left: 4px solid #b9342a;
+  border-radius: 5px;
+  background: #fff1ef;
+  color: #8f241b;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .contact-modal .form-actions {
