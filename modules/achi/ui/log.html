@@ -1682,9 +1682,36 @@ function openEmailCompose(email,fromRx=false,ctx={}){
 
   // Attachments held client-side until Send; each is a File, sent as a real
   // email attachment.
-  const atts=[]; const fmtSz=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
-  const renderAtts=()=>{ attWrap.innerHTML=''; atts.forEach((f,i)=>{ const c=document.createElement('div'); c.className='compose-chip'; c.innerHTML=`<span title="${esc(f.name)}">${esc(f.name)}</span> <button type="button" data-i="${i}" aria-label="Remove">&times;</button><span class="mt" style="font-size:10px">${fmtSz(f.size)}</span>`; attWrap.appendChild(c); }); };
-  attWrap.addEventListener('click',e=>{ const b=e.target.closest('button[data-i]'); if(b){ atts.splice(+b.dataset.i,1); renderAtts(); } });
+  const atts=[];
+  // Image-preview tiles like the Quick-notes attachments (same .att-* styles and
+  // the shared openPop/keepPop hover popover). These files aren't uploaded yet,
+  // so previews come from a local object URL cached on the File until removed.
+  const cImg=f=>/^image\//i.test(f.type||'')||/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(f.name||'');
+  const cUrl=f=>{ if(!f.__url) f.__url=URL.createObjectURL(f); return f.__url; };
+  const cTile=(f,i)=>{
+    const ext=((f.name||'').split('.').pop()||'file').toLowerCase();
+    const img=cImg(f);
+    const tile=document.createElement('div'); tile.className='att-tile';
+    tile.innerHTML=`
+      <div class="att-tile-face" title="${esc(f.name)}">
+        <div class="att-tile-thumb">${img?`<img class="att-img" src="${cUrl(f)}" alt="">`:`<div class="att-3d-ph"><span>${esc(ext.toUpperCase())}</span></div>`}</div>
+        <span class="att-tile-badge">${esc(ext.toUpperCase())}</span>
+        <div class="att-tile-cap">${esc(f.name)}</div>
+        <button type="button" class="att-tile-x" data-i="${i}" title="Remove">&times;</button>
+      </div>
+      ${img?`<div class="att-preview"><div class="att-prev-head"><span>${esc(f.name)}</span></div>
+        <div class="att-prev-body"><img src="${cUrl(f)}" alt="" style="max-width:100%;max-height:78vh;object-fit:contain"></div></div>`:''}`;
+    if(img){
+      const face=tile.querySelector('.att-tile-face'), pop=tile.querySelector('.att-preview');
+      face.addEventListener('mouseenter',()=>openPop(pop));
+      face.addEventListener('mouseleave',()=>laterHidePop(pop));
+      pop.addEventListener('mouseenter',keepPop);
+      pop.addEventListener('mouseleave',()=>laterHidePop(pop));
+    }
+    return tile;
+  };
+  const renderAtts=()=>{ attWrap.innerHTML=''; if(!atts.length) return; const strip=document.createElement('div'); strip.className='att-strip'; atts.forEach((f,i)=>strip.appendChild(cTile(f,i))); attWrap.appendChild(strip); };
+  attWrap.addEventListener('click',e=>{ const x=e.target.closest('[data-i]'); if(x){ const f=atts[+x.dataset.i]; if(f&&f.__url) URL.revokeObjectURL(f.__url); atts.splice(+x.dataset.i,1); renderAtts(); } });
   const addFiles=list=>{ for(const f of list) atts.push(f); renderAtts(); };
   const fileInput=panel.querySelector('#compose-file-input');
   panel.querySelector('.compose-attach-btn').onclick=()=>fileInput.click();
@@ -4290,6 +4317,27 @@ else { load(); loadCustomCities(); loadCustomDistricts(); }
       const files = [...(e.dataTransfer.files || [])];
       if(files.length) uploadFiles(files);
     });
+
+    /* Quill (the note body) sits inside the dropzone and would otherwise catch a
+       dropped image and embed it INLINE in the text. Intercept the drop on the
+       editor itself in the CAPTURE phase — before Quill sees it — and send the
+       files to Attachments instead, so they land under the message box, not in it. */
+    const noteEditor = dropzone.querySelector('.ql-editor') || (quillDesc && quillDesc.root);
+    if(noteEditor){
+      noteEditor.addEventListener('dragover', e => {
+        if(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) e.preventDefault();
+      }, true);
+      noteEditor.addEventListener('drop', e => {
+        const files = [...(e.dataTransfer && e.dataTransfer.files || [])];
+        if(files.length){
+          e.preventDefault();
+          e.stopPropagation();
+          dragCount = 0;
+          dropzone.classList.remove('drag-over');
+          uploadFiles(files);
+        }
+      }, true);
+    }
 
     /* Clicks on the file list: open or delete */
     if(filesEl){
