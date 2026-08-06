@@ -215,6 +215,12 @@
   .rx-social-remove:hover,.rx-social-remove:focus{outline:0;background:#fff5f5;border-color:#efb5b5;color:#ba0517;box-shadow:0 0 0 3px rgba(186,5,23,.07)}
   .rx-add-handle{display:inline-flex;align-items:center;margin-top:7px;padding:3px 0;border:0;background:transparent;color:#2453a6;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
   .rx-add-handle:hover,.rx-add-handle:focus{outline:0;color:#163b7a;text-decoration:underline}
+  .rx-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .rx-tag-chip{border:1px solid #cfd9e8;background:#fff;color:#334155;border-radius:999px;padding:4px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+  .rx-tag-chip:hover{border-color:#284f9e}
+  .rx-tag-chip.on{background:#284f9e;border-color:#284f9e;color:#fff}
+  .rx-tag-add{border:1px dashed #b9c6db;background:#f6f9fe;color:#284f9e;border-radius:999px;padding:4px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .rx-tag-add:hover{background:#eaf1fb}
   .rx-map{height:38px;border:1px solid #cfe0f8;border-radius:7px;background:#eef4fd;color:var(--navy);font:inherit;font-size:11.5px;font-weight:800;letter-spacing:.06em;cursor:pointer}
   .rx-notes{border:1px solid #e2e8f2;background:#fff;border-radius:10px;padding:13px}
   .rx-notes h4{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#284f9e;margin-bottom:7px}
@@ -491,6 +497,7 @@
   .pg-ac-delete{flex:0 0 24px;border:0;background:transparent;color:#9ca3af;font:700 17px/1 Arial,sans-serif;cursor:pointer}
   .pg-ac-delete:hover,.pg-ac-delete:focus{outline:0;color:#b91c1c}
   .pg-ac-item.pg-ac-active{background:#fff;color:#1e3f85}
+  .pg-ac-item.pg-ac-selected{background:#eef3fb;font-weight:700}
   .pg-ac-item:hover{background:#1e3f85;color:#fff}
   .contact-match-drop{min-width:300px;max-width:min(460px,calc(100vw - 16px))}
   .contact-match-drop.rx-contact-match-drop{z-index:2147482750;min-width:0;max-width:calc(100vw - 16px);max-height:220px;padding:0;border:1.5px solid #1e3f85;border-radius:10px;box-shadow:0 8px 24px rgba(30,63,133,.16)}
@@ -1501,9 +1508,13 @@ const allTags=current=>{
     if(v&&!seen.has(k)){ seen.add(k); out.push(v); } };
   TAGS_SEED.forEach(push);
   customPicklistValues(TAG_KEY).forEach(push);
-  // ROWS is initialised at load; allTags only ever runs from UI handlers, well after.
-  (Array.isArray(ROWS)?ROWS:[]).forEach(r=>push(tagOf(r)));
-  push(current);
+  // A row's tags field is a comma-joined string, and so is `current` — split them
+  // so the vocabulary is INDIVIDUAL tags, never a whole "a,b,c" value shown (and
+  // selectable) as one option. ROWS is initialised at load; allTags only ever runs
+  // from UI handlers, well after.
+  const pushMany=s=>String(s||'').split(',').forEach(push);
+  (Array.isArray(ROWS)?ROWS:[]).forEach(r=>pushMany(tagOf(r)));
+  pushMany(current);
   return out;
 };
 const addTag=()=>addCustomPicklistValue({key:TAG_KEY,values:allTags,label:'tag'});
@@ -1601,7 +1612,7 @@ const tagv=v=>v?`<span class="tag">${esc(label(v))}</span>`:'<span class="mt">�
 /* Tags are one comma-separated string; split, trim and drop blanks so "a, ,b"
    never renders an empty chip. Shown as blue label chips to read apart from the
    grey type/category tags. */
-const splitTags=s=>String(s||'').split(',').map(t=>t.trim()).filter(Boolean);
+const splitTags=s=>{const seen=new Set();return String(s||'').split(',').map(t=>t.trim()).filter(t=>{const k=t.toLowerCase();return t&&!seen.has(k)&&(seen.add(k),true);});};
 const tagsHTML=s=>{const a=splitTags(s);return a.length?`<span class="tags">${a.map(t=>`<span class="tag tag-lbl">${esc(t)}</span>`).join('')}</span>`:'<span class="mt">—</span>';};
 const dash=v=>v?esc(v):'<span class="mt">—</span>';
 const selOpts=(o,v)=>o.map(x=>`<option value="${x}"${x===v?' selected':''}>${esc(label(x))}</option>`).join('');
@@ -2434,6 +2445,15 @@ function openExpandedRow(explicitId){
   const EMAIL=v=>`<span class="draft-email"><input class="rx-in" id="rx-email" data-k="email" inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(v??'')}">`
     +`<button class="draft-compose" type="button" data-rx-compose title="Compose email"${validEmail(v)&&String(v||'').trim()?'':' hidden'}>${SVG.mail}</button></span>`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
+  // Multi-select tags: toggle chips (several allowed). The selected set is kept
+  // comma-joined in the hidden data-k="tags" input, which is what the save path
+  // already reads — so nothing downstream changes.
+  const TAGS=(current)=>{
+    const sel=String(current||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const all=[...new Set([...sel,...allTags(current)])].filter(t=>t&&t!==TAG_ADD);
+    const chips=all.map(t=>`<button type="button" class="rx-tag-chip${sel.includes(t)?' on':''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('');
+    return `<div class="rx-tags">${chips}<button type="button" class="rx-tag-add" data-tag-add>+ Add</button><input type="hidden" data-k="tags" value="${esc(sel.join(','))}"></div>`;
+  };
   const TEL=(v)=>{
     const phone=contactPhoneParts(v);
     return `<span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="rx-mobile" aria-label="Choose country code" title="Country code">`
@@ -2466,9 +2486,9 @@ function openExpandedRow(explicitId){
   html+=g('rx-g3',
     F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
     F('Log subject', SEL('subject',[...new Set([val('subject'),...allSubjects()].filter(Boolean)),SUBJECT_ADD],val('subject'),true)),
-    // One tag to group and filter this log. Same picker as the grid — pick an
-    // existing tag or "+ Add Tag" to create a new one (like the District field).
-    F('Tags',        SEL('tags',[...allTags(val('tags')),TAG_ADD],val('tags'),true)));
+    // One OR MORE tags to group and filter this log. Toggle chips to select
+    // several; "+ Add" creates a new tag (all stored comma-joined in one field).
+    F('Tags',        TAGS(val('tags'))));
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
@@ -3172,10 +3192,14 @@ $('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.d
 $('rows').addEventListener('click',e=>{
   const el=e.target.closest('.draft-popup-select'); if(!el)return;
   const kind=el.dataset.dk, st=stateFor(el.dataset.dp); if(!st)return;
+  if(kind==='tags'){   // several tags, comma-joined; committed with the draft
+    openSelectPopup(el.closest('td'),el,selectPopupChoices('tags'),value=>{ st.tags=value; },
+      {multi:true,addSentinel:TAG_ADD,onAdd:addTag});
+    return;
+  }
   openSelectPopup(el.closest('td'),el,selectPopupChoices(kind),value=>{
     if(kind==='prefix'&&value===PREFIX_ADD){const added=addPrefix();if(!added)return;value=added;}
     if(kind==='type'&&value===TYPE_ADD){const added=addType();if(!added)return;value=added;}
-    if(kind==='tags'&&value===TAG_ADD){const added=addTag();if(!added)return;value=added;}
     st[kind]=value; el.dataset.selectValue=value; el.value=(kind==='category'||kind==='type'||kind==='status')?label(value):value; el.focus();
   });
 });
@@ -3332,6 +3356,24 @@ $('rx-body').addEventListener('paste',e=>{
 $('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&e.target.dataset.k==='mobile') rxValidatePhone(e.target); },true);
 $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
+/* Multi-select Tags: toggle a chip, or "+ Add" a new one. The comma-joined set
+   is written into the hidden data-k="tags" input so the normal save path picks
+   it up. Delegated on rx-body so it survives every popup re-render. */
+$('rx-body').addEventListener('click',e=>{
+  const wrapSync=wrap=>{ const inp=wrap&&wrap.querySelector('input[data-k="tags"]');
+    if(inp) inp.value=[...wrap.querySelectorAll('.rx-tag-chip.on')].map(c=>c.dataset.tag).join(','); };
+  const chip=e.target.closest('.rx-tag-chip');
+  if(chip){ chip.classList.toggle('on'); wrapSync(chip.closest('.rx-tags')); return; }
+  const add=e.target.closest('[data-tag-add]');
+  if(add){
+    const wrap=add.closest('.rx-tags'); if(!wrap) return;
+    const added=addTag(); if(!added) return;
+    let c=[...wrap.querySelectorAll('.rx-tag-chip')].find(x=>x.dataset.tag===added);
+    if(!c){ c=document.createElement('button'); c.type='button'; c.className='rx-tag-chip on'; c.dataset.tag=added; c.textContent=added; wrap.insertBefore(c,add); }
+    else c.classList.add('on');
+    wrapSync(wrap);
+  }
+});
 $('rx-body').addEventListener('change',e=>{
   const el=e.target;
   const customPicklist=el.dataset.rxSelect==='role'&&el.value===ROLE_ADD
@@ -3766,9 +3808,33 @@ function selectPopupChoices(kind){
     removable:removable.has(value)
   }));
 }
-function openSelectPopup(td,el,choices,onPick){
+function openSelectPopup(td,el,choices,onPick,opts){
+  opts=opts||{};
   document.querySelector('.pg-ac-drop')?.remove();
   const drop=document.createElement('div'); drop.className='pg-ac-drop'; document.body.appendChild(drop);
+  const placeDrop=()=>{const r=td.getBoundingClientRect(),maxH=Math.min(260,(choices.length+1)*32),below=innerHeight-r.bottom-8,top=below>=Math.min(maxH,120)?r.bottom+2:Math.max(8,r.top-maxH-2);drop.style.left=Math.max(8,Math.min(r.left,innerWidth-r.width-8))+'px';drop.style.top=top+'px';drop.style.minWidth=r.width+'px';drop.style.maxWidth=Math.max(r.width,innerWidth-16)+'px';};
+  // Multi-select mode (tags): toggle several; the popup stays open. Selection is
+  // kept comma-joined in el.value / el.dataset.selectValue; onPick fires with the
+  // joined string on every change. mousedown+preventDefault keeps focus on the
+  // cell so a click doesn't blur-close the editor mid-selection.
+  if(opts.multi){
+    const addSentinel=opts.addSentinel, onAdd=opts.onAdd;
+    const selected=new Set(String(el.dataset.selectValue||el.value||'').split(',').map(s=>s.trim()).filter(Boolean));
+    const commit=()=>{const j=[...selected].join(',');el.dataset.selectValue=j;el.value=j;onPick(j);};
+    const render=()=>{drop.innerHTML='';choices.forEach(o=>{
+      const isAdd=(o.value===addSentinel);
+      const item=document.createElement('div');item.className='pg-ac-item'+((!isAdd&&selected.has(o.value))?' pg-ac-selected':'');
+      const text=document.createElement('span');text.className='pg-ac-item-label';text.textContent=isAdd?o.label:((selected.has(o.value)?'✓ ':'')+o.label);item.appendChild(text);
+      item.onmousedown=e=>{e.preventDefault();
+        if(isAdd){const added=onAdd&&onAdd();if(added){if(!choices.some(c=>c.value===added))choices.splice(choices.length-1,0,{value:added,label:added});selected.add(added);commit();render();}return;}
+        if(selected.has(o.value))selected.delete(o.value);else selected.add(o.value);commit();render();};
+      drop.appendChild(item);});
+      drop.style.display='block';placeDrop();};
+    el.onclick=()=>render();drop.onwheel=e=>e.stopPropagation();
+    el.onkeydown=e=>{if(e.key==='Escape'||e.key==='Enter'||e.key==='Tab'){e.preventDefault();e.stopPropagation();drop.remove();}};
+    el.addEventListener('blur',()=>setTimeout(()=>drop.remove(),180),{once:true});
+    render();return;
+  }
   let active=Math.max(0,choices.findIndex(o=>o.value===(el.dataset.selectValue??el.value)));
   const place=()=>{const r=td.getBoundingClientRect(),maxH=Math.min(220,choices.length*32),below=innerHeight-r.bottom-8,top=below>=Math.min(maxH,120)?r.bottom+2:Math.max(8,r.top-maxH-2);drop.style.left=Math.max(8,Math.min(r.left,innerWidth-r.width-8))+'px';drop.style.top=top+'px';drop.style.minWidth=r.width+'px';drop.style.maxWidth=Math.max(r.width,innerWidth-16)+'px';};
   const render=(scroll=false)=>{drop.innerHTML='';choices.forEach((o,i)=>{
@@ -3865,10 +3931,11 @@ function openEditor(td){
     if(kind==='prefix' && el.value===PREFIX_ADD){
       const v=addPrefix(); el.innerHTML=prefixOpts(v||val); el.value=v||val; el.focus(); return; }
     finish(true,false); });
-  if(frappeSelect) openSelectPopup(td,el,selectPopupChoices(kind),value=>{
+  if(frappeSelect && kind==='tags'){   // several tags; saved on blur (finish reads el.value)
+    openSelectPopup(td,el,selectPopupChoices('tags'),()=>{},{multi:true,addSentinel:TAG_ADD,onAdd:addTag});
+  } else if(frappeSelect) openSelectPopup(td,el,selectPopupChoices(kind),value=>{
     if(kind==='prefix'&&value===PREFIX_ADD){const added=addPrefix();if(!added){ran=true;refreshCell(td);return;}value=added;}
     if(kind==='type'&&value===TYPE_ADD){const added=addType();if(!added){ran=true;refreshCell(td);return;}value=added;}
-    if(kind==='tags'&&value===TAG_ADD){const added=addTag();if(!added){ran=true;refreshCell(td);return;}value=added;}
     el.dataset.selectValue=value;el.value=(kind==='category'||kind==='type'||kind==='status')?label(value):value;finish(true,false);
   });
 }
