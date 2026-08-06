@@ -281,7 +281,8 @@ textarea:focus-visible {
 }
 
 .toolbar-meta,
-.view-switcher {
+.view-switcher,
+.status-switcher {
   display: flex;
   align-items: center;
 }
@@ -296,6 +297,58 @@ textarea:focus-visible {
   padding: 3px;
   border-radius: 6px;
   background: #eef1f5;
+}
+
+.status-switcher {
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #d9dfe8;
+  border-radius: 6px;
+  background: #f5f7fa;
+}
+
+.status-mode-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #5c6678;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-mode-button:hover {
+  color: var(--brand);
+}
+
+.status-mode-button.is-active {
+  background: #fff;
+  color: var(--brand);
+  box-shadow: 0 1px 3px rgba(25, 35, 55, .12);
+}
+
+.status-count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 9px;
+  background: #e4e9f1;
+  color: #566174;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.status-mode-button.is-active .status-count {
+  background: #dce8ff;
+  color: #204d9c;
 }
 
 .view-mode-button {
@@ -314,6 +367,7 @@ textarea:focus-visible {
 }
 
 .view-mode-button svg,
+.status-mode-button svg,
 .map-link-icon svg,
 .contact-card-actions svg,
 .drawer-action svg,
@@ -472,6 +526,27 @@ textarea:focus-visible {
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.contact-card-actions button {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 0;
+  background: #fff;
+  color: #4c5669;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.contact-card-actions button:hover {
+  background: #f7f9fc;
+  color: var(--brand);
 }
 
 .contact-card-actions a:last-child {
@@ -782,6 +857,22 @@ textarea:focus-visible {
   opacity: .6;
 }
 
+.drawer-action-restore {
+  border-color: #9ab4df;
+  color: var(--brand);
+}
+
+.drawer-action-restore:hover,
+.drawer-action-restore:focus-visible {
+  border-color: var(--brand);
+  background: #edf4ff;
+}
+
+.drawer-action-restore:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
 .drawer-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -817,6 +908,16 @@ textarea:focus-visible {
 
 .detail-section + .detail-section {
   margin-top: 22px;
+}
+
+.deleted-contact-notice {
+  margin-bottom: 18px;
+  padding: 11px 12px;
+  border: 1px solid #dfb2ad;
+  border-radius: 6px;
+  background: #fff4f2;
+  color: #842b24;
+  font-weight: 650;
 }
 
 .detail-section h3,
@@ -1570,6 +1671,7 @@ textarea:focus-visible {
   }
 
   .toolbar-meta {
+    flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
   }

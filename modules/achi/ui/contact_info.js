@@ -68,7 +68,8 @@
   const ADD_TAG = '__add_tag__';
   const DEFAULT_ISO = 'lb';
   const DEFAULT_DIAL = '+961';
-  const SHARED_CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500';
+  const ACTIVE_CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500';
+  const DELETED_CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500&deleted=true';
   const CONTACT_REFRESH_MS = 15000;
   const COUNTRIES = [
     ['lb', 'Lebanon', '+961'], ['ae', 'United Arab Emirates', '+971'], ['sa', 'Saudi Arabia', '+966'], ['qa', 'Qatar', '+974'],
@@ -108,6 +109,7 @@
   }
 
   const state = {
+    contactSets: { active: [], deleted: [] },
     rawContacts: [],
     contacts: [],
     files: [],
@@ -117,6 +119,7 @@
     links: {},
     recordType: 'person',
     category: 'all',
+    directoryStatus: 'active',
     search: '',
     viewMode: storedViewMode(),
     activeContactId: null,
@@ -331,6 +334,10 @@
 
   function trashIcon() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>';
+  }
+
+  function restoreIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>';
   }
 
   function tileMap(lat, lng, width, height, zoom = 15) {
@@ -657,15 +664,16 @@
     const noun = state.recordType === 'all'
       ? 'contacts'
       : (state.recordType === 'company' ? 'companies' : 'people');
-    $('contact-total').textContent = `${contacts.length} ${noun}`;
+    const displayNoun = state.directoryStatus === 'deleted' ? `deleted ${noun}` : noun;
+    $('contact-total').textContent = `${contacts.length} ${displayNoun}`;
     const body = $('contacts-table-body');
     const grid = $('grid-view');
     $('list-view').hidden = state.viewMode !== 'list';
     grid.hidden = state.viewMode !== 'grid';
 
     if (!contacts.length) {
-      body.innerHTML = `<tr><td class="table-message" colspan="9">No ${escapeHtml(noun)} match this view.</td></tr>`;
-      grid.innerHTML = `<div class="grid-message">No ${escapeHtml(noun)} match this view.</div>`;
+      body.innerHTML = `<tr><td class="table-message" colspan="9">No ${escapeHtml(displayNoun)} match this view.</td></tr>`;
+      grid.innerHTML = `<div class="grid-message">No ${escapeHtml(displayNoun)} match this view.</div>`;
       return;
     }
 
@@ -673,7 +681,7 @@
       const mapHref = contactMapHref(contact);
       const location = contact.location || contact.city || '-';
       return `
-      <tr data-contact-id="${escapeHtml(contact.id)}">
+      <tr class="${contact.is_active === false ? 'is-deleted' : ''}" data-contact-id="${escapeHtml(contact.id)}">
         <td>
           <div class="contact-cell">
             <span class="avatar">${escapeHtml(initials(contact))}</span>
@@ -698,7 +706,7 @@
     grid.innerHTML = contacts.map(contact => {
       const mapHref = contactMapHref(contact);
       return `
-        <article class="contact-card">
+        <article class="contact-card${contact.is_active === false ? ' is-deleted' : ''}">
           <button class="contact-card-main" type="button" data-open-contact="${escapeHtml(contact.id)}">
             <span class="contact-card-head">
               <span class="avatar avatar-card">${escapeHtml(initials(contact))}</span>
@@ -713,10 +721,12 @@
             <span class="contact-card-stats"><span><strong>${contact.logCount}</strong> activities</span><span><strong>${contact.jobCount}</strong> jobs</span><span>Last ${escapeHtml(formatDate(contact.lastContact))}</span></span>
           </button>
           <div class="contact-card-actions">
-            ${contact.primaryPhone ? `<a href="${escapeHtml(phoneHref(contact.primaryPhone))}">Call</a>` : ''}
+            ${contact.is_active === false
+    ? `<button type="button" data-open-contact="${escapeHtml(contact.id)}">${restoreIcon()}<span>Review deleted contact</span></button>`
+    : `${contact.primaryPhone ? `<a href="${escapeHtml(phoneHref(contact.primaryPhone))}">Call</a>` : ''}
             ${contact.primaryPhone ? `<a href="${escapeHtml(whatsappHref(contact.primaryPhone))}" target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp chat with ${escapeHtml(contact.displayName)}" title="Open WhatsApp">WA</a>` : ''}
             ${contact.primary_email ? `<a href="mailto:${escapeHtml(contact.primary_email)}">Email</a>` : ''}
-            ${mapHref ? `<a data-map-link href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer">${mapIcon()}Map</a>` : ''}
+            ${mapHref ? `<a data-map-link href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer">${mapIcon()}Map</a>` : ''}`}
           </div>
         </article>`;
     }).join('');
@@ -727,11 +737,41 @@
     renderTable();
   }
 
-  function applyContactsResponse(contactsResponse) {
-    state.rawContacts = Array.isArray(contactsResponse.items) ? contactsResponse.items : [];
+  function updateDirectoryStatusControls() {
+    document.querySelectorAll('[data-directory-status]').forEach(button => {
+      const isActive = button.dataset.directoryStatus === state.directoryStatus;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
+    $('deleted-count').textContent = state.contactSets.deleted.length;
+  }
+
+  function applyContactResponses(activeResponse, deletedResponse) {
+    state.contactSets.active = Array.isArray(activeResponse.items) ? activeResponse.items : [];
+    state.contactSets.deleted = Array.isArray(deletedResponse.items) ? deletedResponse.items : [];
+    state.rawContacts = state.contactSets[state.directoryStatus];
     rebuildContacts();
+    updateDirectoryStatusControls();
     renderDirectory();
-    if (state.activeContactId) renderDrawer();
+    if (state.activeContactId) {
+      if (activeContact()) renderDrawer();
+      else closeDrawer();
+    }
+  }
+
+  function setDirectoryStatus(statusName) {
+    const nextStatus = statusName === 'deleted' ? 'deleted' : 'active';
+    if (nextStatus === state.directoryStatus) return;
+    if (state.activeContactId) closeDrawer();
+    state.directoryStatus = nextStatus;
+    state.rawContacts = state.contactSets[nextStatus];
+    state.category = 'all';
+    rebuildContacts();
+    updateDirectoryStatusControls();
+    document.querySelectorAll('[data-category]').forEach(item => {
+      item.classList.toggle('is-active', item.dataset.category === 'all');
+    });
+    renderDirectory();
   }
 
   async function loadData({ silent = false } = {}) {
@@ -746,8 +786,9 @@
     }
 
     try {
-      const [contactsResponse, files, logs, projects, invoicesResponse] = await Promise.all([
-        request(SHARED_CONTACTS_PATH),
+      const [activeContactsResponse, deletedContactsResponse, files, logs, projects, invoicesResponse] = await Promise.all([
+        request(ACTIVE_CONTACTS_PATH),
+        request(DELETED_CONTACTS_PATH),
         request('/api/v1/achi/files/?limit=1000'),
         request('/api/v1/achi/logs/?limit=1000'),
         optionalRequest('/api/v1/projects/?limit=500&status=all'),
@@ -757,7 +798,7 @@
       state.logs = Array.isArray(logs) ? logs : [];
       state.projects = Array.isArray(projects) ? projects : null;
       state.invoices = invoicesResponse && Array.isArray(invoicesResponse.items) ? invoicesResponse.items : null;
-      applyContactsResponse(contactsResponse);
+      applyContactResponses(activeContactsResponse, deletedContactsResponse);
     } catch (error) {
       $('contacts-table-body').innerHTML = `<tr><td class="table-message" colspan="9">${escapeHtml(error.message)}</td></tr>`;
       $('contact-total').textContent = 'Could not load contacts';
@@ -771,7 +812,11 @@
     if (!accessToken || document.hidden || contactRefreshInFlight) return;
     contactRefreshInFlight = true;
     try {
-      applyContactsResponse(await request(SHARED_CONTACTS_PATH));
+      const [activeContactsResponse, deletedContactsResponse] = await Promise.all([
+        request(ACTIVE_CONTACTS_PATH),
+        request(DELETED_CONTACTS_PATH),
+      ]);
+      applyContactResponses(activeContactsResponse, deletedContactsResponse);
     } catch (_error) {
       // Keep the current directory visible during a transient background failure.
     } finally {
@@ -791,6 +836,10 @@
   }
 
   function renderDrawerActions(contact) {
+    if (contact.is_active === false) {
+      $('drawer-actions').innerHTML = `<button class="drawer-action drawer-action-restore" type="button" id="drawer-restore">${restoreIcon()}<span>Restore contact</span></button>`;
+      return;
+    }
     const actions = [];
     if (contact.primaryPhone) {
       actions.push(`<a class="drawer-action" href="${escapeHtml(phoneHref(contact.primaryPhone))}">Call</a>`);
@@ -806,7 +855,7 @@
   }
 
   async function deleteContact(contact) {
-    if (!contact || !window.confirm(`Delete ${contact.displayName}? This contact will be removed from the shared directory.`)) return;
+    if (!contact || !window.confirm(`Delete ${contact.displayName}? You can restore this contact later from Deleted contacts.`)) return;
     const button = $('drawer-delete');
     if (button) button.disabled = true;
     try {
@@ -814,6 +863,21 @@
       closeDrawer();
       await loadData({ silent: true });
       showToast('Contact deleted.');
+    } catch (error) {
+      showToast(error.message, true);
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function restoreContact(contact) {
+    if (!contact) return;
+    const button = $('drawer-restore');
+    if (button) button.disabled = true;
+    try {
+      await request(`/api/v1/achi/contact-info/contacts/${encodeURIComponent(contact.id)}/restore`, { method: 'POST' });
+      closeDrawer();
+      await loadData({ silent: true });
+      showToast('Contact restored.');
     } catch (error) {
       showToast(error.message, true);
       if (button) button.disabled = false;
@@ -848,6 +912,7 @@
     const mapHref = contactMapHref(contact);
 
     $('drawer-overview').innerHTML = `
+      ${contact.is_active === false ? '<div class="deleted-contact-notice">This contact is deleted. Restore it to return it to the active directory.</div>' : ''}
       <section class="detail-section">
         <h3>Contact details</h3>
         <dl class="detail-list">
@@ -1006,7 +1071,9 @@
     const contact = activeContact();
     if (!contact) return;
     $('drawer-avatar').textContent = initials(contact);
-    $('drawer-record-type').textContent = titleCase(contact.recordType);
+    $('drawer-record-type').textContent = contact.is_active === false
+      ? `Deleted ${titleCase(contact.recordType).toLowerCase()}`
+      : titleCase(contact.recordType);
     $('drawer-name').textContent = contact.displayName;
     $('drawer-company').textContent = contact.recordType === 'person' ? (contact.company_name || '') : (contact.legal_name || '');
     renderDrawerActions(contact);
@@ -1825,6 +1892,10 @@
   }
 
   function bindEvents() {
+    document.querySelectorAll('[data-directory-status]').forEach(button => {
+      button.addEventListener('click', () => setDirectoryStatus(button.dataset.directoryStatus));
+    });
+
     document.querySelectorAll('[data-view-mode]').forEach(button => {
       button.classList.toggle('is-active', button.dataset.viewMode === state.viewMode);
       button.addEventListener('click', () => {
@@ -1877,8 +1948,14 @@
       if (target) openDrawer(target.dataset.openContact);
     });
 
-    $('new-contact-button').addEventListener('click', () => openContactModal());
-    $('import-button').addEventListener('click', () => $('import-input').click());
+    $('new-contact-button').addEventListener('click', () => {
+      setDirectoryStatus('active');
+      openContactModal();
+    });
+    $('import-button').addEventListener('click', () => {
+      setDirectoryStatus('active');
+      $('import-input').click();
+    });
     $('import-input').addEventListener('change', event => {
       const file = event.target.files && event.target.files[0];
       if (file) importCsv(file);
@@ -1894,6 +1971,7 @@
     $('drawer-actions').addEventListener('click', event => {
       if (event.target.closest('#drawer-edit')) openContactModal(activeContact());
       if (event.target.closest('#drawer-delete')) deleteContact(activeContact());
+      if (event.target.closest('#drawer-restore')) restoreContact(activeContact());
       if (event.target.closest('#drawer-add-log')) {
         setDrawerTab('activity');
         $('quick-log-form').hidden = false;
