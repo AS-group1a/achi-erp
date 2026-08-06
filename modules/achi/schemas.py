@@ -308,6 +308,10 @@ class QuickLogOut(BaseModel):
     contact_id: str | None = None
     contact_name: str | None = None
     contact_created: bool = False
+    # How an already-existing contact was recognised — "email", "phone" or
+    # "company". None when the contact was created fresh (or none at all), so
+    # the UI can say WHY no new contact appeared in the directory.
+    contact_matched_by: str | None = None
     # Set when a company was named alongside a person — it gets its own contact.
     company_contact_id: str | None = None
 
