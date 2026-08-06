@@ -451,6 +451,9 @@
   .maps-btn:hover{background:#dbeafe}
   .maps-btn .pin{display:inline-flex;color:#ef4444}
   .maps-btn svg,.pin svg{width:13px;height:13px}
+  .loc-link{display:inline-flex;align-items:center;gap:4px;color:#1e3f85;font-weight:600;text-decoration:none;max-width:100%}
+  .loc-link:hover{text-decoration:underline}
+  .loc-link svg{width:12px;height:12px;flex:0 0 auto;color:#ef4444}
   /* flex:0 0 auto matters: .maps-cell and .draft-map-wrap are flex rows, and a
      fixed width/height alone does NOT stop flex from shrinking these. In a narrow
      column the circles were squeezed into ovals and the icons with them. */
@@ -1856,7 +1859,15 @@ function cellHTML(c,r,i){switch(c.k){
   case 'last': return dash(r.last_name);
   case 'company': return dash(r.company_name);
   case 'desc': return `<span class="desc-cell-text">${r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>'}</span>`+marks(r);
-  case 'location': return dash(r.site_location);
+  case 'location': {
+    // The Location column shows the CITY as a Google Maps link — the pinned
+    // maps_url when one is set, otherwise a Maps search for city/district/country.
+    const _city=String(r.city||'').trim();
+    if(!_city) return '<span class="mt">—</span>';
+    const _q=[r.city,r.district,r.country].filter(Boolean).join(', ');
+    const _url=(r.maps_url&&normalizeMapsUrl(r.maps_url))||('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(_q));
+    return `<a class="loc-link" href="${esc(_url)}" target="_blank" rel="noreferrer" title="Open in Google Maps">${SVG.pin}${esc(_city)}</a>`;
+  }
   case 'owner': return avatar(r.owner_name,r.owner);
   case 'type': return tagv(r.log_type);
   case 'category': return tagv(r.category);
