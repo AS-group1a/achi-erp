@@ -488,10 +488,15 @@
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('data-achi-route') || a.getAttribute('href') || '';
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
-      var route = a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE;
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
-      location.assign(route);
+      // A non-admin's Contacts is the shared ACHI directory — the same page the
+      // standalone chrome links to. Upstream /contacts stays the admin target.
+      if (a.id === CONTACTS_ID && !isAdminUser()) {
+        location.assign('/api/v1/achi/contact-info/ui');
+        return;
+      }
+      location.assign(a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE);
       return;
     }
     var entry = byId(a.id) || byRoute(href);
@@ -530,6 +535,56 @@
   // sessionStorage — it reads both, so we must too, or a no-remember login looks
   // logged-out to us and the limit never applies.
   function authToken() { try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } }
+
+  // --- Role-based sidebar filter -------------------------------------------
+  // Admins keep the full module sidebar everywhere. Every other signed-in user
+  // sees exactly two entries — Log and Contacts — on every OCE page including
+  // /dashboard. The verdict is the JWT's role claim: synchronous (no fetch, no
+  // flash of the wrong sidebar) and purely cosmetic — the API keeps enforcing
+  // real permissions server-side, so hiding here is navigation, not security.
+  var ROLE_HIDDEN = 'data-achi-role-hidden';
+  function tokenRole() {
+    var tok = authToken();
+    if (!tok) return null;
+    try {
+      var part = (tok.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/');
+      while (part.length % 4) part += '=';
+      var claims = JSON.parse(atob(part));
+      return claims && claims.role ? String(claims.role) : null;
+    } catch (e) { return null; }
+  }
+  function isAdminUser() { return tokenRole() === 'admin'; }
+  function applyRoleSidebarFilter() {
+    if (isAdminUser() || !authToken()) {
+      // Restore anything a previous non-admin login hid: on a shared machine
+      // the role can change between sessions without a page load in between.
+      var hidden = document.querySelectorAll('[' + ROLE_HIDDEN + ']');
+      for (var i = 0; i < hidden.length; i++) {
+        hidden[i].style.display = '';
+        hidden[i].removeAttribute('aria-hidden');
+        hidden[i].removeAttribute(ROLE_HIDDEN);
+      }
+      return;
+    }
+    moduleItems().forEach(function (item) {
+      var link = directLink(item);
+      var keep = link && (link.id === ID || link.id === CONTACTS_ID);
+      if (keep) {
+        // inject() clones a row that may already be hidden; a clone inherits
+        // the inline display and our marker, so lift both off the keepers.
+        if (item.getAttribute(ROLE_HIDDEN)) {
+          item.style.display = '';
+          item.removeAttribute('aria-hidden');
+          item.removeAttribute(ROLE_HIDDEN);
+        }
+        return;
+      }
+      if (item.getAttribute(ROLE_HIDDEN)) return;
+      item.style.display = 'none';
+      item.setAttribute('aria-hidden', 'true');
+      item.setAttribute(ROLE_HIDDEN, '1');
+    });
+  }
 
   // Cache the verdict per token so we can decide synchronously on the next load
   // and cover the page BEFORE the OCE app paints — a limited user never glimpses
@@ -608,12 +663,16 @@
     var log = document.getElementById(ID), survey = document.getElementById(ENTRIES[1].id);
     var contacts = document.getElementById(CONTACTS_ID);
     var crm = document.getElementById(CRM_ID);
-    if (log && survey && contacts && crm) return;
-    inject();
-    ensureOverviewModules();
+    if (!(log && survey && contacts && crm)) {
+      inject();
+      ensureOverviewModules();
+    }
+    // Reasserted every tick, not just on injection: React rebuilds sidebar rows
+    // during navigation and a rebuilt row comes back without our display:none.
+    applyRoleSidebarFilter();
   }, 1000);
   // wireSidebarHover() owns the native sidebar; redirectIfOurRoute() hands ACHI
   // routes to their standalone pages and shared second sidebar.
-  function boot() { wireSidebarHover(); inject(); redirectIfOurRoute(); }
+  function boot() { wireSidebarHover(); inject(); applyRoleSidebarFilter(); redirectIfOurRoute(); }
   if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();
