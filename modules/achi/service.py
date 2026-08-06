@@ -70,6 +70,23 @@ def _drawing_has_shapes(payload: str) -> bool:
 # tag value just work - there is no registry check."
 MODULE_TAG = "achi_file"
 
+# The Contacts directory page lists ONLY contacts carrying this tag (the
+# contact-info router filters on it). A contact the log creates or reuses must
+# carry it too, or it exists in the database yet never appears on the Contacts
+# page. router.py imports this name — single source, so they cannot drift.
+CONTACT_INFO_TAG = "achi_contact_info"
+
+
+def _ensure_directory_tag(contact) -> None:
+    """Make the contact visible in the Contacts directory.
+
+    Reassigned rather than appended: module_tags is a JSON column and only a
+    new value is change-tracked (same idiom as custom_properties above).
+    """
+    tags = list(contact.module_tags or [])
+    if CONTACT_INFO_TAG not in tags:
+        contact.module_tags = [*tags, CONTACT_INFO_TAG]
+
 
 async def _next_file_number(session: AsyncSession) -> str:
     """ACHI-YYYY-NNNNN, sequential within the year.
@@ -589,6 +606,13 @@ class ContactFileService:
                     created_by=user_id,
                 )
                 self.session.add(org)
+
+        # New AND reused rows get the directory tag: rows created before this
+        # fix carry only the log tag, so the first log that touches them again
+        # is what promotes them into the Contacts page.
+        for contact in (person, org):
+            if contact is not None:
+                _ensure_directory_tag(contact)
 
         await self.session.flush()
         return person, org, (person_matched if person is not None else org_matched)

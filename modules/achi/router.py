@@ -47,7 +47,7 @@ from .schemas import (
     QuickLogCreate,
     QuickLogOut,
 )
-from .service import ContactFileService
+from .service import CONTACT_INFO_TAG, ContactFileService
 from .quotation_router import quotation_router
 from .survey_router import survey_router
 from .geo_router import geo_router
@@ -191,7 +191,7 @@ _CONTACT_INFO_TYPES = {
     "internal": "internal",
     "other": "consultant",
 }
-_CONTACT_INFO_TAG = "achi_contact_info"
+_CONTACT_INFO_TAG = CONTACT_INFO_TAG  # single source: service.py, shared with the log bridge
 
 
 def _is_contact_info_contact(contact: Contact) -> bool:
