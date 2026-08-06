@@ -1297,12 +1297,23 @@ async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentU
 async def list_logs(
     session: SessionDep, _user_id: CurrentUserId, limit: int = Query(default=200, ge=1, le=1000)
 ) -> list[LogRowOut]:
+    from .models import AchiEmail
+
     svc = ContactFileService(session)
     rows = await svc.list_logs(limit=limit)
     # index rather than unpack: list_logs' tuple width changes when a column is
     # added to its select (owner name was the last one), and a positional unpack
     # here breaks the endpoint when it does
     counts = await svc.attachment_counts([r[0].id for r in rows])
+    # Addresses we've already emailed (any teammate, successfully sent) — one query,
+    # lowercased, so the grid can flag "already emailed" without a lookup per row.
+    sent_to = {
+        (e or "").strip().lower()
+        for e in (await session.execute(
+            select(AchiEmail.to_email).where(AchiEmail.status == "sent")
+        )).scalars().all()
+        if e
+    }
     out: list[LogRowOut] = []
     for log, f, contact, owner_name in rows:
         # A row only has a Contact when a phone or email was given. Without one the
@@ -1370,6 +1381,7 @@ async def list_logs(
                 company_name=company,
                 mobile=mobile,
                 email=email,
+                email_sent=bool(email and email.strip().lower() in sent_to),
             )
         )
     return out
