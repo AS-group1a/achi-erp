@@ -365,6 +365,9 @@ class LogRowOut(BaseModel):
     company_name: str | None = None
     mobile: str | None = None
     email: str | None = None
+    # True when an email has already been sent to this row's address (any teammate),
+    # so the grid can flag it and warn before re-emailing the same person.
+    email_sent: bool = False
 
 
 # ── Site survey ───────────────────────────────────────────────────────────

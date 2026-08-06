@@ -28,6 +28,13 @@
   .save-feedback-mark{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#fff;color:#1e3f85;font-size:16px}
   .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
   .email-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;cursor:pointer;padding:3px 0;text-decoration:none}
+  .email-cell{display:flex;align-items:center;gap:6px;width:100%}
+  .email-cell .email-btn{min-width:0}
+  .email-cell .email-btn>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sent-ic{margin-left:auto;flex:0 0 auto;display:inline-flex}      /* pinned to the end */
+  .sent-ic svg{width:15px;height:15px}
+  .sent-yes{color:#16a34a}
+  .sent-no{color:#9aa4b2}
   .email-btn:hover{text-decoration:underline}
   .email-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .draft-email{display:flex;align-items:center;gap:5px;width:100%}
@@ -46,7 +53,9 @@
   .compose-close:hover{background:rgba(255,255,255,.32)}
   .compose-row{display:flex;align-items:center;min-height:44px;padding:0 20px;border-bottom:1px solid #f0f0f5}
   .compose-label{width:64px;flex-shrink:0;color:#9ca3af;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .compose-recipients{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0;padding:6px 0}
   .compose-recipient{display:inline-flex;align-items:center;padding:5px 10px;border:1.5px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:500}
+  .compose-warn{padding:8px 20px;background:#fff7ed;color:#9a3412;font-size:12.5px;font-weight:600;border-bottom:1px solid #fed7aa}
   .compose-subject{flex:1;border:0;outline:0;background:transparent;color:#111827;font:inherit;font-size:13px}
   .compose-subject::placeholder,.compose-body::placeholder{color:#d1d5db}
   .compose-body{display:block;width:100%;min-height:210px;padding:16px 20px;border:0;outline:0;resize:none;color:#374151;font:inherit;font-size:13px;line-height:1.7}
@@ -101,6 +110,11 @@
   .tb-del.on{opacity:1;pointer-events:all;max-width:200px;padding:7px 13px;border:1.5px solid rgba(252,165,165,.45)}
   .tb-del:hover{background:rgba(239,68,68,.25);border-color:#fca5a5;color:#fff}
   .tb-del svg{width:13px;height:13px}
+  .tb-email{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;background:rgba(255,255,255,.1);color:#bfdbfe;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0;pointer-events:none;max-width:0;padding:0;overflow:hidden;transition:opacity .18s,max-width .18s}
+  .tb-email.on{opacity:1;pointer-events:all;max-width:200px;padding:7px 13px;border:1.5px solid rgba(191,219,254,.5)}
+  .tb-email:hover{background:rgba(59,130,246,.28);border-color:#93c5fd;color:#fff}
+  .tb-email svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .tb-email .tb-cnt{background:#2563eb}
   .tb-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:8px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:0 5px}
   /* phone: country-code picker + number */
   .tel-wrap{display:flex;align-items:center;gap:4px;width:100%}
@@ -712,6 +726,7 @@
           Add Log
         </button>
         <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
+        <button class="tb-email" id="btn-email" type="button" title="Email the selected rows (same message to everyone)">Email <span class="tb-cnt" id="email-count">0</span></button>
       </div>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
@@ -1659,10 +1674,17 @@ async function apiMultipart(path,formData,retried){
    to the enquiry it was written from. */
 function openEmailCompose(email,fromRx=false,ctx={}){
   document.querySelector('.compose')?.remove();
+  // Accept one email OR a list (broadcast). Names + "already emailed" flags come
+  // from the loaded grid rows (the server sets email_sent per row).
+  const recipients=(Array.isArray(email)?email:[email]).map(e=>String(e||'').trim()).filter(Boolean);
+  const rowByEmail=e=>ROWS.find(r=>String(r.email||'').toLowerCase()===String(e||'').toLowerCase());
+  const nameOf=e=>{ const r=rowByEmail(e); return (r&&(r.contact_name||r.company_name))||e; };
+  const alreadySent=recipients.filter(e=>{ const r=rowByEmail(e); return r&&r.email_sent; });
   const panel=document.createElement('section'); panel.className='compose'+(fromRx?' from-rx':''); panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
   panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div>
       <button class="compose-close" type="button" aria-label="Close message">&times;</button></div>
-    <div class="compose-row"><span class="compose-label">To</span><span class="compose-recipient">${esc(email)}</span></div>
+    <div class="compose-row"><span class="compose-label">To</span><span class="compose-recipients">${recipients.map(e=>`<span class="compose-recipient">${esc(e)}</span>`).join('')}</span></div>
+    ${alreadySent.length?`<div class="compose-warn">⚠️ Hey, you already sent to ${esc(alreadySent.map(nameOf).join(', '))}.</div>`:''}
     <div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div>
     <div class="compose-editor-wrap" id="compose-dropzone">
       <div id="compose-quill-editor"></div>
@@ -1742,7 +1764,7 @@ function openEmailCompose(email,fromRx=false,ctx={}){
   quill.root.addEventListener('drop',e=>{ const fs=[...(e.dataTransfer&&e.dataTransfer.files||[])]; if(fs.length){ e.preventDefault(); e.stopPropagation(); dc=0; dz.classList.remove('drag-over'); addFiles(fs); } },true);
   quill.root.addEventListener('paste',e=>{ const fs=[...(e.clipboardData&&e.clipboardData.files||[])]; if(fs.length){ e.preventDefault(); e.stopPropagation(); addFiles(fs); } },true);
 
-  const openMail=()=>{const subject=subjEl.value.trim(),body=quill.getText().trim();window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
+  const openMail=()=>{const subject=subjEl.value.trim(),body=quill.getText().trim();window.location.href=`mailto:${encodeURIComponent(recipients.join(','))}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;};
 
   /* Send for real: build a multipart form (subject, HTML body, files) and POST
      to /mail/send, which delivers it through the shared company mailbox and
@@ -1754,22 +1776,34 @@ function openEmailCompose(email,fromRx=false,ctx={}){
     const empty=!subject&&!quill.getText().trim()&&!atts.length;
     if(empty){ showFeedback('Nothing to send','Add a subject, a message, or an attachment first.'); return; }
     sendBtn.disabled=true; const label=sendBtn.textContent; sendBtn.textContent='Sending…';
-    try{
-      const fd=new FormData();
-      fd.append('to',email); fd.append('subject',subject); fd.append('body',bodyHTML);
-      if(ctx.log_id) fd.append('log_id',ctx.log_id);
-      if(ctx.file_id) fd.append('file_id',ctx.file_id);
-      if(ctx.contact_id) fd.append('contact_id',ctx.contact_id);
-      atts.forEach(f=>fd.append('files',f,f.name));
-      const rec=await apiMultipart('/mail/send',fd);
-      // backend 'smtp' means the company mailbox delivered it; anything else
-      // (console) means the server only logged it — say so honestly.
-      const delivered=rec&&rec.backend==='smtp';
-      composeToast(delivered?'Email sent ✓':'Email recorded — the company email isn’t set up yet, so it wasn’t actually delivered.',delivered);
+    // One POST per recipient — so each send is recorded against its own row and the
+    // "already emailed" state updates for everyone. backend 'smtp' means the company
+    // mailbox delivered it; 'console' means the server only logged it.
+    let okCount=0, failCount=0, delivered=false, lastErr='';
+    for(const to of recipients){
+      try{
+        const fd=new FormData();
+        fd.append('to',to); fd.append('subject',subject); fd.append('body',bodyHTML);
+        const cx = recipients.length===1 ? ctx : (()=>{ const r=rowByEmail(to); return r?{log_id:r.id,file_id:r.file_id,contact_id:r.contact_id}:{}; })();
+        if(cx.log_id) fd.append('log_id',cx.log_id);
+        if(cx.file_id) fd.append('file_id',cx.file_id);
+        if(cx.contact_id) fd.append('contact_id',cx.contact_id);
+        atts.forEach(f=>fd.append('files',f,f.name));
+        const rec=await apiMultipart('/mail/send',fd);
+        okCount++; if(rec&&rec.backend==='smtp') delivered=true;
+      }catch(err){ failCount++; lastErr=err.message||'send failed'; }
+    }
+    if(okCount){
+      composeToast(
+        recipients.length>1
+          ? `Email ${delivered?'sent':'recorded'} for ${okCount}${failCount?` of ${recipients.length}`:''} recipient${okCount>1?'s':''}${delivered?' ✓':' — company email isn’t set up, so nothing was delivered'}`
+          : (delivered?'Email sent ✓':'Email recorded — the company email isn’t set up yet, so it wasn’t actually delivered.'),
+        delivered && !failCount);
+      try{ await load(); }catch(_){}   // refresh so the "sent" icons update
       close();
-    }catch(err){
+    }else{
       sendBtn.disabled=false; sendBtn.textContent=label;
-      showFeedback('Couldn’t send',err.message||'Something went wrong sending the email.');
+      showFeedback('Couldn’t send',lastErr||'Something went wrong sending the email.');
     }
   };
   panel.querySelector('.compose-close').onclick=close;
@@ -1862,7 +1896,14 @@ function cellHTML(c,r,i){switch(c.k){
   case 'category': return tagv(r.category);
   case 'tags': return tagsHTML(r.tags);
   case 'mobile': return phone(r.mobile);
-  case 'email': return r.email?`<button class="email-btn" type="button" data-compose-email="${esc(r.email)}" title="Compose email">${SVG.mail}<span>${esc(r.email)}</span></button>`:'<span class="mt">—</span>';
+  case 'email': {
+    if(!r.email) return '<span class="mt">—</span>';
+    // A sent (green paper-plane) or not-yet (grey clock) badge, pinned to the end.
+    const _sent=r.email_sent
+      ? '<span class="sent-ic sent-yes" title="An email was already sent to this address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></span>'
+      : '<span class="sent-ic sent-no" title="No email sent to this address yet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>';
+    return `<span class="email-cell"><button class="email-btn" type="button" data-compose-email="${esc(r.email)}" title="Compose email">${SVG.mail}<span>${esc(r.email)}</span></button>${_sent}</span>`;
+  }
   case 'maps': return r.maps_url
     ? `<span class="maps-cell"><a class="maps-btn" href="${esc(r.maps_url)}" target="_blank" rel="noreferrer" data-mapurl="${esc(r.maps_url)}"><span class="pin">${SVG.pin}</span><span>Open in Maps</span></a><button class="map-copy" data-copy="${esc(r.maps_url)}" title="Copy link">${SVG.copy}</button><button class="map-edit" data-edit-map title="Edit link">${SVG.pen}</button></span>`
     : '<span class="mt">—</span>';
@@ -2135,9 +2176,23 @@ function revealSavedRow(logId){
    DELETE /logs/ 404s and used to abort the whole batch, deleting nothing. */
 const logKeys=()=>[...selectedRows].filter(k=>String(k).startsWith('log:'));
 const draftKeys=()=>[...selectedRows].filter(k=>String(k).startsWith('draft:'));
+/* Unique email addresses of the selected saved rows — the recipients of a
+   broadcast. Rows with no email are skipped; duplicates are collapsed. */
+function selectedEmails(){
+  const set=new Set();
+  logKeys().forEach(k=>{ const id=String(k).slice(4); const r=ROWS.find(x=>x.id===id); const e=String(r&&r.email||'').trim(); if(e) set.add(e); });
+  return [...set];
+}
+function refreshEmailButton(){
+  const btn=$('btn-email'); if(!btn) return;
+  const emails=selectedEmails();
+  btn.classList.toggle('on', emails.length>0);
+  const c=$('email-count'); if(c) c.textContent=emails.length;
+}
 function refreshDeleteButton(){
   const n=logKeys().length+draftKeys().length, del=$('btn-del');
   if(del){ del.classList.toggle('on', n>0); const c=$('del-count'); if(c) c.textContent=n; }
+  refreshEmailButton();
   // Expand needs exactly one saved row — the same condition the card uses.
   // Expand Row is always available now: with a selection it edits that row,
   // without one it opens a blank form that creates a new entry. Only the tooltip
@@ -3222,6 +3277,7 @@ $('rows').addEventListener('paste',e=>{
 });
 $('add-row').addEventListener('click',addBottomRow);
 $('btn-del').addEventListener('click',deleteSelected);
+$('btn-email').addEventListener('click',()=>{ const emails=selectedEmails(); if(emails.length) openEmailCompose(emails,false,{}); });
 /* Quick quotation. One delegated listener on the card so the eight number
    inputs do not each need wiring, and so the totals stay live while typing. */
 $('qv').addEventListener('input',e=>{ if(e.target.matches('input[type="number"]')) qvTotals(); });
@@ -4184,6 +4240,7 @@ $('q').oninput=render;
 /* boot */
 $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
+$('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="email-count">0</span>';
 loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); loadCustomCities(); loadCustomDistricts(); }
