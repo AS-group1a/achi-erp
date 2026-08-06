@@ -47,7 +47,7 @@ from .schemas import (
     QuickLogCreate,
     QuickLogOut,
 )
-from .service import ContactFileService
+from .service import CONTACT_INFO_TAG, ContactFileService
 from .quotation_router import quotation_router
 from .survey_router import survey_router
 from .geo_router import geo_router
@@ -191,7 +191,7 @@ _CONTACT_INFO_TYPES = {
     "internal": "internal",
     "other": "consultant",
 }
-_CONTACT_INFO_TAG = "achi_contact_info"
+_CONTACT_INFO_TAG = CONTACT_INFO_TAG  # single source: service.py, shared with the log bridge
 
 
 def _is_contact_info_contact(contact: Contact) -> bool:
@@ -816,7 +816,8 @@ async def add_log(
     summary="Log a call (creates the contact and file underneath)",
     description=(
         "The single entry point. Log that the phone rang; the contact is found or "
-        "created (deduped by email) and a file is found or opened for them. Nobody "
+        "created (deduped by email and phone number, formatting-insensitive) and a "
+        "file is found or opened for them. Nobody "
         "should have to open a file by hand before writing down a call.\n\n"
         "The log lands on the contact's most recent OPEN file, or a new one if they "
         "have none. Pass new_file=true when a known contact rings about something "
@@ -833,6 +834,7 @@ async def quick_log(data: QuickLogCreate, session: SessionDep, user_id: CurrentU
         contact_id=r["contact_id"],
         contact_name=r["contact_name"],
         contact_created=r["contact_created"],
+        contact_matched_by=r.get("contact_matched_by"),
         company_contact_id=r.get("company_contact_id"),
     )
 

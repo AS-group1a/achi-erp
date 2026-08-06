@@ -23,6 +23,22 @@ logger = logging.getLogger(__name__)
 _UNSAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 
+def _normalize_phone(raw: str | None) -> str:
+    """A phone number reduced to bare digits with leading zeros dropped.
+
+    "+961 70-123 456", "0096170123456" and "96170123456" all collapse to
+    "96170123456", so formatting can never split one caller into two contacts.
+    Different country codes stay distinct — equating "70123456" with
+    "+96170123456" would need per-country trunk rules we don't want to own.
+    """
+    return re.sub(r"\D", "", raw or "").lstrip("0")
+
+
+def _phone_matches(column, normalized: str):
+    """SQL predicate: the column's digits (leading zeros dropped) equal ours."""
+    return func.ltrim(func.regexp_replace(column, "[^0-9]", "", "g"), "0") == normalized
+
+
 def _safe_filename(name: str) -> str:
     """Reduce an uploaded name to a storage-key-safe tail.
 
@@ -53,6 +69,23 @@ def _drawing_has_shapes(payload: str) -> bool:
 # Our tag in Contact.module_tags. bridge.py: "third-party modules adding their own
 # tag value just work - there is no registry check."
 MODULE_TAG = "achi_file"
+
+# The Contacts directory page lists ONLY contacts carrying this tag (the
+# contact-info router filters on it). A contact the log creates or reuses must
+# carry it too, or it exists in the database yet never appears on the Contacts
+# page. router.py imports this name — single source, so they cannot drift.
+CONTACT_INFO_TAG = "achi_contact_info"
+
+
+def _ensure_directory_tag(contact) -> None:
+    """Make the contact visible in the Contacts directory.
+
+    Reassigned rather than appended: module_tags is a JSON column and only a
+    new value is change-tracked (same idiom as custom_properties above).
+    """
+    tags = list(contact.module_tags or [])
+    if CONTACT_INFO_TAG not in tags:
+        contact.module_tags = [*tags, CONTACT_INFO_TAG]
 
 
 async def _next_file_number(session: AsyncSession) -> str:
@@ -227,7 +260,7 @@ class ContactFileService:
             if phone or email:
                 # Reachable now — same resolution the quick-create path uses, so
                 # a row promoted here and a row created complete end up identical.
-                person, company_contact = await self._resolve_contacts(
+                person, company_contact, _matched = await self._resolve_contacts(
                     first=(file.lead_first_name or "").strip(),
                     last=(file.lead_last_name or "").strip(),
                     company=(file.lead_company or "").strip(),
@@ -367,8 +400,7 @@ class ContactFileService:
         phone = (p.mobile or "").strip()
         email = (p.email or "").strip()
 
-        before = await self._contact_exists(email)
-        person_contact, company_contact = await self._resolve_contacts(
+        person_contact, company_contact, matched_by = await self._resolve_contacts(
             first=first, last=last, company=company, phone=phone, email=email,
             prefix=p.prefix, user_id=user_id,
         )
@@ -432,14 +464,15 @@ class ContactFileService:
             "achi: logged %s -> file %s (%s) contact %s (%s)",
             data.log_type, f.file_number,
             "new" if file_created else "existing", contact_id,
-            "new" if not before else "existing",
+            f"existing, by {matched_by}" if matched_by else "new",
         )
         return {
             "log": log, "file_id": f.id, "file_number": f.file_number,
             "file_created": file_created, "contact_id": contact_id,
             # Falls back to what was typed when no Contact was created (no phone/email).
             "contact_name": _display_name(primary) or " ".join(x for x in (first, last) if x).strip() or company or None,
-            "contact_created": primary is not None and not before,
+            "contact_created": primary is not None and matched_by is None,
+            "contact_matched_by": matched_by,
             "company_contact_id": str(company_contact.id) if company_contact is not None else None,
         }
 
@@ -464,8 +497,9 @@ class ContactFileService:
             hit = await _one(func.lower(Contact.primary_email) == email.lower())
             if hit is not None:
                 return hit
-        if phone:
-            hit = await _one(Contact.primary_phone == phone)
+        normalized = _normalize_phone(phone)
+        if normalized:
+            hit = await _one(_phone_matches(Contact.primary_phone, normalized))
             if hit is not None:
                 return hit
         return None
@@ -497,7 +531,7 @@ class ContactFileService:
     async def _resolve_contacts(
         self, *, first: str, last: str, company: str, phone: str, email: str,
         prefix: str | None, user_id: str | None,
-    ) -> tuple[Contact | None, Contact | None]:
+    ) -> tuple[Contact | None, Contact | None, str | None]:
         """Who gets a directory Contact for this row.
 
         Rules:
@@ -508,13 +542,25 @@ class ContactFileService:
             yields two contacts, not one row with a company field.
           * The person keeps the phone/email; the company only takes them when
             there is no person to own them.
+
+        The third element says how the PRIMARY contact (person, else company) was
+        matched to an existing row — "email", "phone" or "company" — and is None
+        when it was created fresh (or when the row earned no contact). Decided
+        here, at the point of resolution, so the caller's "already existed"
+        status can never disagree with what actually happened.
         """
         if not (phone or email):
-            return None, None
+            return None, None, None
 
         person = None
+        person_matched = None
         if first or last:
             person = await self._find_contact(email=email, phone=phone, tenant_id=user_id)
+            if person is not None:
+                if email and (person.primary_email or "").lower() == email.lower():
+                    person_matched = "email"
+                else:
+                    person_matched = "phone"
             if person is None:
                 person = Contact(
                     contact_type="lead",
@@ -540,10 +586,13 @@ class ContactFileService:
                     person.primary_phone = phone
 
         org = None
+        org_matched = None
         if company:
             org = await self._find_company_contact(company, user_id)
             if org is not None and person is not None and org is person:
                 org = None  # never let the person double as their own company
+            if org is not None:
+                org_matched = "company"
             if org is None:
                 org = Contact(
                     contact_type="lead",
@@ -558,18 +607,15 @@ class ContactFileService:
                 )
                 self.session.add(org)
 
-        await self.session.flush()
-        return person, org
+        # New AND reused rows get the directory tag: rows created before this
+        # fix carry only the log tag, so the first log that touches them again
+        # is what promotes them into the Contacts page.
+        for contact in (person, org):
+            if contact is not None:
+                _ensure_directory_tag(contact)
 
-    async def _contact_exists(self, email: str | None) -> bool:
-        """Did we already know this person? Asked BEFORE the bridge runs, because
-        afterwards the answer is always yes and the UI can't tell the user."""
-        if not (email or "").strip():
-            return False
-        row = await self.session.execute(
-            select(Contact.id).where(func.lower(Contact.primary_email) == email.strip().lower()).limit(1)
-        )
-        return row.scalar_one_or_none() is not None
+        await self.session.flush()
+        return person, org, (person_matched if person is not None else org_matched)
 
     async def _open_file_for(self, contact_id: str) -> ContactFile | None:
         row = await self.session.execute(

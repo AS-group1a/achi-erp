@@ -26,6 +26,7 @@
   .feedback-ok:hover,.feedback-ok:focus,.feedback-ok:focus-visible,.feedback-ok:active{outline:0;background:linear-gradient(135deg,#1e3f85,#284f9e);color:#fff;box-shadow:0 0 0 3px rgba(40,79,158,.2)}
   .save-feedback{position:fixed;z-index:2147483001;right:24px;bottom:24px;display:flex;align-items:center;gap:10px;min-width:220px;padding:14px 20px;border:2px solid #fff;border-radius:12px;background:linear-gradient(135deg,#1e3f85,#2f62bd);color:#fff;box-shadow:0 18px 44px rgba(15,35,75,.28);font-size:14px;font-weight:800}
   .save-feedback-mark{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#fff;color:#1e3f85;font-size:16px}
+  .save-feedback-sub{font-size:12px;font-weight:600;opacity:.92;margin-top:2px;max-width:340px}
   .email-invalid{border-color:#284f9e!important;box-shadow:0 0 0 3px rgba(40,79,158,.16)!important}
   .email-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;cursor:pointer;padding:3px 0;text-decoration:none}
   .email-btn:hover{text-decoration:underline}
@@ -1267,13 +1268,23 @@ function showFeedback(title,message,input=null){
   modal.onkeydown=e=>{ if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();close();} };
   requestAnimationFrame(()=>modal.querySelector('.feedback-ok').focus());
 }
-function showSavedFeedback(){
+/* One line for where the entry's contact went: created fresh, or matched an
+   existing directory row (and by which key). Null when the row earned none. */
+function contactSaveStatus(res){
+  if(!res||!res.contact_id) return null;
+  const name=res.contact_name?` “${res.contact_name}”`:'';
+  if(res.contact_created) return `New contact${name} added to the directory`;
+  const how={phone:'phone number',email:'email',company:'company name'}[res.contact_matched_by];
+  return `Contact${name} already exists${how?' — matched by '+how:''}; no duplicate created`;
+}
+function showSavedFeedback(res){
   document.querySelector('.save-feedback')?.remove();
   const popup=document.createElement('div');
   popup.className='save-feedback';popup.setAttribute('role','status');popup.setAttribute('aria-live','polite');
-  popup.innerHTML='<span class="save-feedback-mark">✓</span><span>Log saved</span>';
+  const cs=contactSaveStatus(res);
+  popup.innerHTML='<span class="save-feedback-mark">✓</span><span>Log saved'+(cs?'<div class="save-feedback-sub">'+esc(cs)+'</div>':'')+'</span>';
   document.body.appendChild(popup);
-  setTimeout(()=>popup.remove(),2600);
+  setTimeout(()=>popup.remove(),cs?4200:2600);
 }
 const showInvalidEmail=input=>showFeedback('Invalid Email','Please Enter a valid Email address',input);
 const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter a valid Phone Number',input);
@@ -2761,7 +2772,11 @@ async function rxCreateNew(keepOpen){
   try{
     const res=await api('/logs/',{method:'POST',body:JSON.stringify(payload)});
     const newLogId=res&&res.log&&res.log.id;
-    st.textContent='Created'; st.className='rx-status ok';
+    const cs=contactSaveStatus(res);
+    st.textContent=cs?'Created — '+cs:'Created'; st.className='rx-status ok';
+    // The sheet may close in 700ms — the toast outlives it, so "already
+    // exists" is never lost with the sheet.
+    if(cs) composeToast(cs,!!res.contact_created);
     await load();                               // pull the new row into the grid
     revealSavedRow(newLogId);
     rxBusy(false);
@@ -3112,7 +3127,7 @@ async function commitDraft(dp){
     if(dp==='d') topDraft={}; else bottomDrafts.splice(+dp.slice(1),1);
     await load();
     revealSavedRow(logId);
-    if(showSaved) showSavedFeedback();
+    if(showSaved) showSavedFeedback(made);
   }catch(e){ fail(e.message); }
   finally{ committing.delete(dp); }
 }
