@@ -833,6 +833,9 @@ class ContactInfoContactIn(BaseModel):
     source: str | None = Field(default=None, max_length=80)
     quick_links: list[ContactInfoQuickLinkIn] = Field(default_factory=list, max_length=12)
     notes: str | None = Field(default=None, max_length=5000)
+    # When the contact was logged. Mirrors the Add Log popup's date/time; defaults
+    # to "now" on the client, but is editable and stored so it can be shown back.
+    contact_date: datetime | None = None
 
     @field_validator("maps_url")
     @classmethod
