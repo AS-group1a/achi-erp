@@ -268,6 +268,25 @@
     }).format(date);
   }
 
+  // <input type="datetime-local"> value ("YYYY-MM-DDTHH:MM") <-> ISO, in local time.
+  function toDatetimeLocalValue(value) {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return '';
+    const p = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
+  }
+
+  function datetimeLocalToISO(value) {
+    if (!value) return null;
+    const date = new Date(value);   // datetime-local has no zone -> parsed as local
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  function refreshContactWhenLabel() {
+    const raw = $('contact-datetime').value;
+    $('contact-when-label').textContent = raw ? formatDateTime(raw) : '';
+  }
+
   function safeHref(value) {
     const href = String(value || '').trim();
     if (/^(https?:|mailto:|tel:)/i.test(href)) return href;
@@ -825,6 +844,7 @@
       logCount: contactLogs.length,
       jobCount: projectsForContact(id).length,
       lastContact: contactLogs[0] ? (contactLogs[0].occurred_at || contactLogs[0].created_at) : null,
+      contactDate: bucket.contact_date || raw.created_at || null,
     };
   }
 
@@ -1138,6 +1158,7 @@
           ${detailRow('Country', contact.country_code || '-')}
           ${detailRow('Category', titleCase(contact.category))}
           ${detailRow('Source', contact.source || '-')}
+          ${detailRow('Date & time', formatDateTime(contact.contactDate))}
         </dl>
       </section>
       <section class="detail-section">
@@ -1592,6 +1613,10 @@
     $('map-field-status').className = 'map-field-status';
     updateModalMapPreview(false);
     $('contact-notes').value = contact ? (contact.notes || '') : '';
+    $('contact-datetime').value = toDatetimeLocalValue(
+      contact ? (contact.contactDate || contact.created_at) : null,
+    );
+    refreshContactWhenLabel();
     updateIdentityFields();
     $('contact-modal').hidden = false;
     document.body.style.overflow = 'hidden';
@@ -1736,6 +1761,7 @@
       source: $('contact-source').value.trim() || null,
       quick_links: quickLinks,
       notes: $('contact-notes').value.trim() || null,
+      contact_date: datetimeLocalToISO($('contact-datetime').value),
     };
 
     const contactId = $('contact-id').value;
@@ -2279,6 +2305,7 @@
     $('contact-city').addEventListener('change', () => {
       if ($('contact-city').value === CITY_ADD) addCityAndSelect();
     });
+    $('contact-datetime').addEventListener('input', refreshContactWhenLabel);
     $('contact-form').addEventListener('submit', saveContact);
     $('contact-form').addEventListener('click', event => {
       const button = event.target.closest('[data-country-picker]');

@@ -767,6 +767,47 @@ textarea:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
+/* Date & time pill in the New/Edit contact header — mirrors the Add Log popup's
+   editable date/time. The transparent datetime-local input sits on top of the
+   styled label, so clicking the pill opens the native picker. */
+.contact-when-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.contact-when-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.contact-when-display svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--brand);
+}
+
+.contact-when {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .drawer-identity {
   display: flex;
   align-items: center;

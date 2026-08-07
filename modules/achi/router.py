@@ -281,6 +281,7 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
         "site_number": data.site_number,
         "site_building": data.site_building,
         "site_floor": data.site_floor,
+        "contact_date": payload["contact_date"],
         "quick_links": payload["quick_links"],
     }
     contact.custom_properties = properties
