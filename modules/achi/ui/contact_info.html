@@ -255,22 +255,41 @@
           <label>Source
             <input type="text" id="contact-source" maxlength="80" placeholder="Referral, website, walk-in...">
           </label>
-          <label>City
-            <input type="text" id="city" maxlength="128">
-          </label>
-          <label class="span-2">Location / address
-            <input type="text" id="contact-location" maxlength="500" placeholder="Street, building, district or full address">
-          </label>
+          <div class="site-info-heading span-2"><span class="field-label">Site info</span></div>
           <div class="map-form-field span-2">
-            <label for="maps-url">Map location <span class="label-note">Google Maps link</span></label>
+            <label for="maps-url">Google maps link <span class="label-note">paste a link or use your location</span></label>
             <div class="map-input-row">
-              <input type="url" id="maps-url" maxlength="2048" placeholder="https://maps.google.com/...">
+              <input type="url" id="maps-url" maxlength="2048" placeholder="https://maps.app.goo.gl/…">
               <button class="button button-secondary" type="button" id="use-current-location">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z"/><circle cx="12" cy="10" r="2"/></svg>
                 Use current location
               </button>
             </div>
             <p class="map-field-status" id="map-field-status"></p>
+            <div class="contact-map-preview map-modal-preview" id="contact-map-preview-modal" hidden></div>
+          </div>
+          <label>Country
+            <select id="contact-country"></select>
+          </label>
+          <label>District
+            <select id="contact-district"></select>
+          </label>
+          <label>City
+            <select id="contact-city"></select>
+          </label>
+          <label>Street
+            <input type="text" id="contact-street" maxlength="255" placeholder="Street name">
+          </label>
+          <div class="site-detail-row span-2">
+            <label>No.
+              <input type="text" id="contact-no" maxlength="32" placeholder="12">
+            </label>
+            <label>Building
+              <input type="text" id="contact-building" maxlength="64" placeholder="Bldg">
+            </label>
+            <label>Floor
+              <input type="text" id="contact-floor" maxlength="32" placeholder="GF">
+            </label>
           </div>
           <div class="repeatable-field quick-links-field span-2">
             <span class="field-label">Quick links</span>

@@ -830,6 +830,13 @@ class ContactInfoContactIn(BaseModel):
     city: str | None = Field(default=None, max_length=128)
     location: str | None = Field(default=None, max_length=500)
     maps_url: str | None = Field(default=None, max_length=2048)
+    # Structured site address, mirroring the Add Log popup's "Site info" block.
+    country: str | None = Field(default=None, max_length=64)
+    district: str | None = Field(default=None, max_length=128)
+    street: str | None = Field(default=None, max_length=255)
+    site_number: str | None = Field(default=None, max_length=32)
+    site_building: str | None = Field(default=None, max_length=64)
+    site_floor: str | None = Field(default=None, max_length=32)
     source: str | None = Field(default=None, max_length=80)
     quick_links: list[ContactInfoQuickLinkIn] = Field(default_factory=list, max_length=12)
     notes: str | None = Field(default=None, max_length=5000)

@@ -236,6 +236,18 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
         address["city"] = data.city
     else:
         address.pop("city", None)
+    if data.country:
+        address["country"] = data.country
+    else:
+        address.pop("country", None)
+    if data.district:
+        address["state"] = data.district
+    else:
+        address.pop("state", None)
+    if data.street:
+        address["street"] = data.street
+    else:
+        address.pop("street", None)
     if data.location:
         address["formatted"] = data.location
     else:
@@ -262,6 +274,13 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
         "source": data.source,
         "location": data.location,
         "maps_url": data.maps_url,
+        "country": data.country,
+        "district": data.district,
+        "city": data.city,
+        "street": data.street,
+        "site_number": data.site_number,
+        "site_building": data.site_building,
+        "site_floor": data.site_floor,
         "contact_date": payload["contact_date"],
         "quick_links": payload["quick_links"],
     }
