@@ -147,6 +147,13 @@
     <section class="contact-modal" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
       <header class="modal-header">
         <h2 id="contact-modal-title">New contact</h2>
+        <span class="contact-when-wrap">
+          <span class="contact-when-display">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M5 2v3M11 2v3M2.5 6.5h11"/></svg>
+            <span id="contact-when-label"></span>
+          </span>
+          <input type="datetime-local" class="contact-when" id="contact-datetime" aria-label="Contact date and time">
+        </span>
         <button class="icon-button" type="button" id="modal-close" aria-label="Close contact form" title="Close">&times;</button>
       </header>
 

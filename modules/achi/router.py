@@ -262,6 +262,7 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
         "source": data.source,
         "location": data.location,
         "maps_url": data.maps_url,
+        "contact_date": payload["contact_date"],
         "quick_links": payload["quick_links"],
     }
     contact.custom_properties = properties
