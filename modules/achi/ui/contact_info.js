@@ -358,6 +358,210 @@
     return `${tiles}<span class="contact-map-pin">${mapIcon()}</span>`;
   }
 
+  // ── Site info: Country / District / City cascade (ported from the Add Log popup)
+  // Predefined districts/cities for the countries ACHI works in. A country not in
+  // GEO leaves District/City free; user-added ones come from /geo (DB-backed).
+  const GEO = {
+    'Lebanon': {
+      'Beirut': ['Achrafieh', 'Hamra', 'Verdun', 'Mar Mikhael', 'Ras Beirut', 'Gemmayzeh', 'Badaro', 'Mazraa', 'Sodeco', 'Ain el Mreisseh', 'Ras el Nabaa', 'Zqaq el Blat', 'Bachoura', 'Msaytbeh', 'Ain el Tineh', 'Manara', 'Clemenceau', 'Kantari', 'Saifi', 'Rmeil'],
+      'Mount Lebanon': ['Baabda', 'Jounieh', 'Jbeil', 'Aley', 'Broummana', 'Bhamdoun', 'Dbayeh', 'Zalka', 'Antelias', 'Beit Mery', 'Bikfaya', 'Beit Chabab', 'Bteghrine', 'Baabdat', 'Zouk Mosbeh', 'Zouk Mikael', 'Kaslik', 'Jal el Dib', 'Naccache', 'Rabieh', 'Mansourieh', 'Dekwaneh', 'Sin el Fil', 'Hazmieh', 'Furn el Chebbak', 'Chiyah', 'Hadath', 'Kfarshima', 'Bsalim', 'Ain Saadeh', 'Damour', 'Naameh', 'Choueifat', 'Sofar', 'Dhour Choueir', 'Bologna'],
+      'North': ['Tripoli', 'Zgharta', 'Batroun', 'Koura', 'Bcharre', 'Amioun', 'Chekka', 'Mina', 'Qalamoun', 'Kousba', 'Enfeh', 'Deddeh', 'Bterram', 'Kfarhata', 'Ehden', 'Kfarsghab', 'Tannourine', 'Douma', 'Hasroun', 'Bziza'],
+      'Akkar': ['Halba', 'Qoubaiyat', 'Bebnine', 'Chadra', 'Michmich', 'Fnaideq', 'Rahbeh', 'Bire', 'Aandqet', 'Tikrit', 'Cheikh Mohammad', 'Mounjez', 'Beino', 'Berqayel'],
+      'Beqaa': ['Zahle', 'Chtaura', 'Anjar', 'Bar Elias', 'Rayak', 'Taalabaya', 'Saadnayel', 'Jdita', 'Kab Elias', 'Ferzol', 'Ablah', 'Qab Elias', 'Majdel Anjar', 'Riyaq', 'Mreijat'],
+      'Baalbek-Hermel': ['Baalbek', 'Hermel', 'Deir el Ahmar', 'Ras Baalbek', 'Aarsal', 'Laboue', 'Nabi Chit', 'Douris', 'Chmistar', 'Britel', 'Younine', 'Fakiha'],
+      'South': ['Sidon', 'Tyre', 'Jezzine', 'Sarafand', 'Ghazieh', 'Zahrani', 'Nabatieh', 'Qana', 'Maghdouche', 'Anqoun', 'Rmeileh', 'Aadloun', 'Bisariyeh', 'Kfar Hatta', 'Ain el Delb'],
+      'Nabatieh': ['Nabatieh', 'Marjayoun', 'Hasbaya', 'Bint Jbeil', 'Kfar Roummane', 'Zawtar', 'Habbouch', 'Ansar', 'Doueir', 'Kfar Tibnit', 'Arnoun', 'Chaqra', 'Tebnine', 'Aitaroun', 'Ainata'],
+    },
+    'United Arab Emirates': {
+      'Abu Dhabi': ['Abu Dhabi', 'Al Ain', 'Ruwais', 'Madinat Zayed'],
+      'Dubai': ['Dubai', 'Jebel Ali', 'Hatta'],
+      'Sharjah': ['Sharjah', 'Khor Fakkan', 'Kalba'],
+      'Ajman': ['Ajman'], 'Umm Al Quwain': ['Umm Al Quwain'],
+      'Ras Al Khaimah': ['Ras Al Khaimah'], 'Fujairah': ['Fujairah', 'Dibba'],
+    },
+    'Saudi Arabia': {
+      'Riyadh': ['Riyadh', 'Al Kharj', 'Diriyah'],
+      'Makkah': ['Mecca', 'Jeddah', 'Taif'],
+      'Madinah': ['Medina', 'Yanbu'],
+      'Eastern Province': ['Dammam', 'Khobar', 'Dhahran', 'Jubail', 'Al Ahsa'],
+      'Asir': ['Abha', 'Khamis Mushait'], 'Tabuk': ['Tabuk'], 'Qassim': ['Buraidah', 'Unaizah'],
+    },
+    'Qatar': {
+      'Doha': ['Doha'], 'Al Rayyan': ['Al Rayyan'], 'Al Wakrah': ['Al Wakrah'],
+      'Al Khor': ['Al Khor'], 'Umm Salal': ['Umm Salal'], 'Al Daayen': ['Lusail'],
+    },
+    'Kuwait': {
+      'Al Asimah': ['Kuwait City'], 'Hawalli': ['Hawalli', 'Salmiya'], 'Farwaniya': ['Farwaniya'],
+      'Ahmadi': ['Ahmadi', 'Fahaheel'], 'Jahra': ['Jahra'], 'Mubarak Al-Kabeer': ['Mubarak Al-Kabeer'],
+    },
+    'Bahrain': {
+      'Capital': ['Manama'], 'Muharraq': ['Muharraq'],
+      'Northern': ['Hamad Town', 'Budaiya'], 'Southern': ['Riffa', 'Isa Town'],
+    },
+    'Oman': {
+      'Muscat': ['Muscat', 'Seeb', 'Bawshar'], 'Dhofar': ['Salalah'],
+      'Al Batinah North': ['Sohar'], 'Al Batinah South': ['Rustaq'],
+      'Musandam': ['Khasab'], 'Al Dakhiliyah': ['Nizwa'],
+    },
+  };
+  const COUNTRY_NAMES = ['Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cambodia', 'Cameroon', 'Canada', 'Cape Verde', 'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros', 'Congo (Brazzaville)', 'Congo (Kinshasa)', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czechia', 'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini', 'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Ivory Coast', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Kosovo', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands', 'Mauritania', 'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Korea', 'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama', 'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 'Sao Tome and Principe', 'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Korea', 'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'];
+  const DISTRICT_ADD = '__add_district__';
+  const CITY_ADD = '__add_city__';
+  const geoCustom = { districts: {}, cities: {} };
+  const districtsFor = country => (GEO[country] ? Object.keys(GEO[country]) : null);
+  const citiesFor = (country, district) => (GEO[country] && GEO[country][district] ? GEO[country][district] : null);
+  const cityKey = (country, district) => `${country || ''}|${district || ''}`;
+  const districtsMerged = country => [...new Set([...(districtsFor(country) || []), ...(geoCustom.districts[country] || [])])];
+  const districtOptions = country => (country ? [...districtsMerged(country), DISTRICT_ADD] : []);
+  const mergedCities = (country, district) => [...new Set([...(citiesFor(country, district) || []), ...(geoCustom.cities[cityKey(country, district)] || [])])];
+  const cityOptions = (country, district) => (country && district ? [...mergedCities(country, district), CITY_ADD] : []);
+
+  // User-added districts/cities live server-side (shared, not per-browser).
+  async function loadGeoCustomLists() {
+    try {
+      const districts = await request('/api/v1/achi/geo/districts');
+      geoCustom.districts = {};
+      for (const row of districts) (geoCustom.districts[row.country] = geoCustom.districts[row.country] || []).push(row.district);
+    } catch (_error) { /* predefined GEO districts still work */ }
+    try {
+      const cities = await request('/api/v1/achi/geo/cities');
+      geoCustom.cities = {};
+      for (const row of cities) {
+        const key = cityKey(row.country, row.district);
+        (geoCustom.cities[key] = geoCustom.cities[key] || []).push(row.city);
+      }
+    } catch (_error) { /* predefined GEO cities still work */ }
+  }
+
+  function geoOptionLabel(value) {
+    if (value === DISTRICT_ADD) return '+ Add district';
+    if (value === CITY_ADD) return '+ Add city';
+    return value || '—';
+  }
+
+  // Value that never leaks the "+ Add" sentinels into saved data.
+  function geoValue(id) {
+    const value = $(id).value.trim();
+    return (value === DISTRICT_ADD || value === CITY_ADD) ? '' : value;
+  }
+
+  function fillGeoSelect(id, list, selected) {
+    const select = $(id);
+    if (!select) return;
+    const options = [...(list || [])];
+    // Keep a saved value that isn't in the predefined list (e.g. legacy free text)
+    // so editing a contact never silently drops its address.
+    if (selected && !options.includes(selected)) options.splice(Math.max(0, options.length - 1), 0, selected);
+    select.innerHTML = ['', ...options]
+      .map(option => `<option value="${escapeHtml(option)}"${option === (selected || '') ? ' selected' : ''}>${escapeHtml(geoOptionLabel(option))}</option>`)
+      .join('');
+    select.value = selected || '';
+  }
+
+  function refreshCountrySelect(selected) { fillGeoSelect('contact-country', COUNTRY_NAMES, selected || ''); }
+  function refreshDistrictSelect(selected) { fillGeoSelect('contact-district', districtOptions($('contact-country').value), selected || ''); }
+  function refreshCitySelect(selected) { fillGeoSelect('contact-city', cityOptions($('contact-country').value, $('contact-district').value), selected || ''); }
+
+  async function addDistrictAndSelect() {
+    const country = $('contact-country').value;
+    if (!country) { refreshDistrictSelect(''); return; }
+    const name = (window.prompt(`New district for ${country} (max 128 characters):`) || '').trim();
+    if (!name) { refreshDistrictSelect(''); return; }
+    if (name.length > 128) { $('form-error').textContent = 'District must be 128 characters or fewer.'; refreshDistrictSelect(''); return; }
+    try {
+      const saved = await request('/api/v1/achi/geo/districts', { method: 'POST', body: { country, district: name } });
+      const list = geoCustom.districts[country] = geoCustom.districts[country] || [];
+      if (!list.includes(saved.district) && !(districtsFor(country) || []).includes(saved.district)) list.push(saved.district);
+      refreshDistrictSelect(saved.district);
+      refreshCitySelect('');
+      $('form-error').textContent = '';
+    } catch (error) { $('form-error').textContent = error.message; refreshDistrictSelect(''); }
+  }
+
+  async function addCityAndSelect() {
+    const country = $('contact-country').value;
+    const district = $('contact-district').value;
+    if (!country || !district) { refreshCitySelect(''); return; }
+    const name = (window.prompt(`New city for ${district} (max 128 characters):`) || '').trim();
+    if (!name) { refreshCitySelect(''); return; }
+    if (name.length > 128) { $('form-error').textContent = 'City must be 128 characters or fewer.'; refreshCitySelect(''); return; }
+    try {
+      const saved = await request('/api/v1/achi/geo/cities', { method: 'POST', body: { country, district, city: name } });
+      const key = cityKey(country, district);
+      const list = geoCustom.cities[key] = geoCustom.cities[key] || [];
+      if (!list.includes(saved.city) && !(citiesFor(country, district) || []).includes(saved.city)) list.push(saved.city);
+      refreshCitySelect(saved.city);
+      $('form-error').textContent = '';
+    } catch (error) { $('form-error').textContent = error.message; refreshCitySelect(''); }
+  }
+
+  // Snap a geocoded name onto an existing option instead of adding a near-duplicate.
+  function geoNorm(value) {
+    return String(value || '').toLowerCase()
+      .replace(/\b(governorate|province|district|region|county|state)\b/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function geoChoice(value, options) {
+    if (!value) return '';
+    const wanted = geoNorm(value);
+    return (options || []).find(option => geoNorm(option) === wanted) || value;
+  }
+
+  function applyGeocodedAddress(data) {
+    if (!data) return;
+    if (data.country) {
+      refreshCountrySelect(geoChoice(data.country, COUNTRY_NAMES));
+      if (data.district) {
+        refreshDistrictSelect(geoChoice(data.district, districtsMerged($('contact-country').value)));
+        if (data.city) refreshCitySelect(geoChoice(data.city, mergedCities($('contact-country').value, $('contact-district').value)));
+      } else {
+        refreshDistrictSelect('');
+        if (data.city) refreshCitySelect(data.city);
+      }
+    }
+    if (data.street && !$('contact-street').value.trim()) $('contact-street').value = data.street;
+  }
+
+  // ── Live map preview under the Google-maps field (mirrors Add Log's rx-mapprev)
+  let modalMapReq = 0;
+  let modalMapTimer = null;
+
+  function drawModalMap(box, url, coordinates) {
+    if (!box || !coordinates) return;
+    box.hidden = false;
+    const width = Math.max(280, Math.round(box.clientWidth || 460));
+    box.innerHTML = tileMap(coordinates.lat, coordinates.lng, width, 200)
+      + `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`;
+  }
+
+  // applyGeocode defaults true (the input listener passes a truthy Event). On
+  // initial open we pass false so a saved contact's Country/District/City is not
+  // silently overwritten by reverse-geocoding the stored link.
+  function updateModalMapPreview(applyGeocode = true) {
+    const box = $('contact-map-preview-modal');
+    if (!box) return;
+    const raw = ($('maps-url').value || '').trim();
+    const url = raw ? normalizeMapsUrl(raw) : '';
+    window.clearTimeout(modalMapTimer);
+    const req = ++modalMapReq;   // newest input wins any in-flight resolve
+    if (!url) { box.hidden = true; box.innerHTML = ''; return; }
+    const inline = mapsCoords(url);   // full links carry coordinates — draw instantly
+    if (inline) drawModalMap(box, url, inline);
+    else { box.hidden = false; box.innerHTML = '<div class="map-load">Loading preview…</div>'; }
+    modalMapTimer = window.setTimeout(async () => {
+      try {
+        const coordinates = await request(`/api/v1/achi/resolve-maps?url=${encodeURIComponent(url)}`);
+        if (req !== modalMapReq) return;   // superseded — drop this result
+        drawModalMap(box, url, coordinates);
+        if (applyGeocode) applyGeocodedAddress(coordinates);
+      } catch (_error) {
+        if (req !== modalMapReq) return;
+        box.hidden = false;
+        box.innerHTML = `<div class="map-load">Preview not available — <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">open in Google Maps</a></div>`;
+      }
+    }, 450);
+  }
+
   const flagSrc = iso => `/api/v1/achi/contact-info/flags/${iso}.png`;
 
   function phoneParts(value) {
@@ -609,8 +813,14 @@
       primaryPhone: phones[0] ? phones[0].number : (raw.primary_phone || ''),
       source: bucket.source || '',
       quickLinks: Array.isArray(bucket.quick_links) ? bucket.quick_links : [],
-      city: address.city || address.locality || address.town || '',
+      city: bucket.city || address.city || address.locality || address.town || '',
       location: bucket.location || address.formatted || address.address_line_1 || address.street || '',
+      country: bucket.country || address.country || '',
+      district: bucket.district || address.state || address.region || '',
+      street: bucket.street || address.street || '',
+      siteNumber: bucket.site_number || '',
+      siteBuilding: bucket.site_building || '',
+      siteFloor: bucket.site_floor || '',
       mapsUrl: normalizeMapsUrl(bucket.maps_url),
       logCount: contactLogs.length,
       jobCount: projectsForContact(id).length,
@@ -1370,10 +1580,17 @@
     renderQuickLinkRows(contact ? contact.quickLinks : []);
     $('website').value = contact ? (contact.website || '') : '';
     $('contact-source').value = contact ? (contact.source || '') : '';
-    $('city').value = contact ? (contact.city || '') : '';
-    $('contact-location').value = contact ? (contact.location || '') : '';
+    refreshCountrySelect(contact ? (contact.country || '') : '');
+    refreshDistrictSelect(contact ? (contact.district || '') : '');
+    refreshCitySelect(contact ? (contact.city || '') : '');
+    $('contact-street').value = contact ? (contact.street || '') : '';
+    $('contact-no').value = contact ? (contact.siteNumber || '') : '';
+    $('contact-building').value = contact ? (contact.siteBuilding || '') : '';
+    $('contact-floor').value = contact ? (contact.siteFloor || '') : '';
     $('maps-url').value = contact ? (contact.mapsUrl || '') : '';
     $('map-field-status').textContent = '';
+    $('map-field-status').className = 'map-field-status';
+    updateModalMapPreview(false);
     $('contact-notes').value = contact ? (contact.notes || '') : '';
     updateIdentityFields();
     $('contact-modal').hidden = false;
@@ -1392,8 +1609,14 @@
   async function useCurrentLocation() {
     const button = $('use-current-location');
     const statusNode = $('map-field-status');
+    if (!window.isSecureContext) {
+      statusNode.textContent = 'Current location requires HTTPS or localhost.';
+      statusNode.className = 'map-field-status bad';
+      return;
+    }
     if (!navigator.geolocation) {
       statusNode.textContent = 'Location is not available in this browser.';
+      statusNode.className = 'map-field-status bad';
       return;
     }
 
@@ -1401,6 +1624,7 @@
     button.disabled = true;
     button.textContent = 'Locating...';
     statusNode.textContent = 'Waiting for location permission...';
+    statusNode.className = 'map-field-status';
     try {
       const position = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -1411,26 +1635,40 @@
       });
       const lat = Number(position.coords.latitude).toFixed(7);
       const lng = Number(position.coords.longitude).toFixed(7);
-      const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-      $('maps-url').value = mapsUrl;
-      statusNode.textContent = 'Location captured. Looking up the address...';
-      try {
-        const resolved = await request(`/api/v1/achi/resolve-maps?url=${encodeURIComponent(mapsUrl)}`);
-        const address = [resolved.street, resolved.city, resolved.district, resolved.country].filter(Boolean).join(', ');
-        if (address) $('contact-location').value = address;
-        if (!$('city').value.trim() && resolved.city) $('city').value = resolved.city;
-        statusNode.textContent = address ? 'Location and address added.' : 'Map location added.';
-      } catch (_error) {
-        statusNode.textContent = 'Map location added. Enter the address manually if needed.';
-      }
+      $('maps-url').value = `https://www.google.com/maps?q=${lat},${lng}`;
+      // Fires the input listener → draws the preview and reverse-geocodes the
+      // Country/District/City/Street fields, exactly as pasting a link would.
+      $('maps-url').dispatchEvent(new Event('input', { bubbles: true }));
+      const accuracy = Number(position.coords.accuracy);
+      const metres = Number.isFinite(accuracy) ? Math.round(accuracy) : null;
+      statusNode.textContent = `Location added${metres === null ? '' : ` — accuracy about ${metres} m`}. Check the map preview before saving.`;
+      statusNode.className = 'map-field-status ok';
     } catch (error) {
       statusNode.textContent = error && error.code === 1
         ? 'Location permission was denied.'
         : 'Could not get your current location.';
+      statusNode.className = 'map-field-status bad';
     } finally {
       button.disabled = false;
       button.innerHTML = originalContent;
     }
+  }
+
+  // Compose the free-text `location` from the structured site fields so CRM views
+  // and the drawer map still get a readable address string.
+  function composeContactLocation() {
+    const street = $('contact-street').value.trim();
+    const no = $('contact-no').value.trim();
+    const building = $('contact-building').value.trim();
+    const floor = $('contact-floor').value.trim();
+    const detail = [
+      street,
+      no && `No. ${no}`,
+      building && `Bldg ${building}`,
+      floor && `Floor ${floor}`,
+    ].filter(Boolean).join(', ');
+    return [detail, geoValue('contact-city'), geoValue('contact-district'), geoValue('contact-country')]
+      .filter(Boolean).join(', ');
   }
 
   async function saveContact(event) {
@@ -1486,8 +1724,14 @@
       socials: readSocialRows(),
       website: $('website').value.trim() || null,
       country_code: phoneData.countryCode,
-      city: $('city').value.trim() || null,
-      location: $('contact-location').value.trim() || null,
+      country: geoValue('contact-country') || null,
+      district: geoValue('contact-district') || null,
+      city: geoValue('contact-city') || null,
+      street: $('contact-street').value.trim() || null,
+      site_number: $('contact-no').value.trim() || null,
+      site_building: $('contact-building').value.trim() || null,
+      site_floor: $('contact-floor').value.trim() || null,
+      location: composeContactLocation() || null,
       maps_url: mapsUrl || null,
       source: $('contact-source').value.trim() || null,
       quick_links: quickLinks,
@@ -2026,6 +2270,15 @@
       else updateQuickLinkRows();
     });
     $('use-current-location').addEventListener('click', useCurrentLocation);
+    $('maps-url').addEventListener('input', updateModalMapPreview);
+    $('contact-country').addEventListener('change', () => { refreshDistrictSelect(''); refreshCitySelect(''); });
+    $('contact-district').addEventListener('change', () => {
+      if ($('contact-district').value === DISTRICT_ADD) addDistrictAndSelect();
+      else refreshCitySelect('');
+    });
+    $('contact-city').addEventListener('change', () => {
+      if ($('contact-city').value === CITY_ADD) addCityAndSelect();
+    });
     $('contact-form').addEventListener('submit', saveContact);
     $('contact-form').addEventListener('click', event => {
       const button = event.target.closest('[data-country-picker]');
@@ -2056,6 +2309,7 @@
   }
 
   bindEvents();
+  loadGeoCustomLists();
   loadData();
   window.setInterval(refreshSharedContacts, CONTACT_REFRESH_MS);
   window.addEventListener('focus', refreshSharedContacts);

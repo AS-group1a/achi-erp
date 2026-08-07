@@ -1554,6 +1554,63 @@ textarea:focus-visible {
   font-weight: 500;
 }
 
+.map-field-status.ok {
+  color: #15803d;
+}
+
+.map-field-status.bad {
+  color: #ba0517;
+}
+
+/* Live map preview under the Google-maps field in the New/Edit contact modal —
+   mirrors the Add Log popup's rx-mapprev. Reuses .contact-map-preview sizing. */
+.map-modal-preview {
+  margin-top: 8px;
+}
+
+.map-modal-preview[hidden] {
+  display: none;
+}
+
+.map-modal-preview a {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 7px 10px;
+  background: #fff;
+  border-top: 1px solid var(--line-soft);
+  color: var(--brand);
+  font-size: 11px;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.map-load {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* "Site info" section divider inside the contact modal. */
+.site-info-heading {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* No. / Building / Floor share one row beneath Street, like Add Log's rx-g4. */
+.site-detail-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .form-error {
   min-height: 20px;
   margin: 12px 0 0;
