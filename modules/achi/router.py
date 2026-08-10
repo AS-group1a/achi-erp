@@ -430,6 +430,86 @@ async def restore_contact_info_contact(
 
 
 @router.get(
+    "/ui/log.css",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Log page styles",
+)
+def ui_log_css() -> PlainTextResponse:
+    """All of the Log page's CSS, split out of log.html into one file."""
+    return PlainTextResponse(
+        (_UI_DIR / "log.css").read_text(encoding="utf-8"),
+        media_type="text/css",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/ui/log-mail.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Log page — email/compose script",
+)
+def ui_log_mail_js() -> PlainTextResponse:
+    """The mail part of the Log page (the compose / broadcast panel).
+
+    Only defines functions (openEmailCompose, …) — nothing runs at load — so it
+    is loaded first and its functions are called later from click handlers."""
+    return PlainTextResponse(
+        (_UI_DIR / "log-mail.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/ui/log-core.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Log page — core helpers + grid render script",
+)
+def ui_log_core_js() -> PlainTextResponse:
+    """Auth/helpers/formatters plus the columns, grid render and expanded row."""
+    return PlainTextResponse(
+        (_UI_DIR / "log-core.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/ui/log.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Log page — save/commit + boot script",
+)
+def ui_log_js() -> PlainTextResponse:
+    """Save & commit, event wiring and the page's boot sequence. Loads after
+    log-mail.js and log-core.js, exactly as in the original single script."""
+    return PlainTextResponse(
+        (_UI_DIR / "log.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/ui/log-notes.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Log page — notes rich-text (Quill) glue",
+)
+def ui_log_notes_js() -> PlainTextResponse:
+    """The Quill rich-text glue for the notes field. This was the SECOND inline
+    script in log.html and must load AFTER quill.js — kept last, unchanged."""
+    return PlainTextResponse(
+        (_UI_DIR / "log-notes.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/ui/drawing.js",
     response_class=PlainTextResponse,
     include_in_schema=False,
