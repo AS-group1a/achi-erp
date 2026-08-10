@@ -218,10 +218,32 @@ class ContactFileService:
     async def get_log(self, log_id: str) -> FileLog | None:
         return await self.session.get(FileLog, log_id)
 
-    async def delete_log(self, log: FileLog) -> None:
-        """Delete one log entry. The file stays (files are plumbing)."""
+    async def delete_log(self, log: FileLog, *, user_id: str | None = None) -> None:
+        """Soft-delete one log entry: the row stays so it can be restored from the
+        Deleted Logs view. The file stays too (files are plumbing)."""
+        log.deleted_at = datetime.now(timezone.utc)
+        log.deleted_by = user_id
+        await self.session.commit()
+
+    async def restore_log(self, log: FileLog) -> None:
+        """Undo a soft delete — the log returns to the active grid."""
+        log.deleted_at = None
+        log.deleted_by = None
+        await self.session.commit()
+
+    async def hard_delete_log(self, log: FileLog) -> None:
+        """Permanently delete a log: its attachment rows cascade with the row, so
+        we only need to reclaim the storage blobs ourselves (same row-then-blob
+        ordering as delete_attachment, so a failure leaves the invisible half)."""
+        keys = [a.storage_key for a in await self.list_attachments(log.id)]
         await self.session.delete(log)
         await self.session.commit()
+        backend = get_storage_backend()
+        for key in keys:
+            try:
+                await backend.delete(key)
+            except Exception:  # noqa: BLE001 - the row is gone; a stale blob is not worth a 500
+                logger.warning("ACHI: could not delete attachment blob %s", key, exc_info=True)
 
     async def update_contact(self, file: ContactFile, data) -> None:
         """Inline-edit the file's linked canonical contact (name/company/phone/…).
@@ -626,20 +648,25 @@ class ContactFileService:
         )
         return row.scalar_one_or_none()
 
-    async def list_logs(self, *, limit: int = 200) -> list[tuple]:
+    async def list_logs(self, *, limit: int = 200, deleted: bool = False) -> list[tuple]:
         """Log rows joined to their file — one query, not N+1.
 
         User is joined for the owner's name: the grid shows initials, and without
         this it only had owner_user_id — a UUID, whose first two characters are
         what produced avatars like "5C". outerjoin because owner_user_id is
         nullable and is not a real FK, so a stale id must not drop the row.
+
+        ``deleted`` flips which side of the soft-delete line we return: the active
+        grid gets live rows (deleted_at IS NULL, newest created first); the Deleted
+        Logs view gets removed rows (deleted_at IS NOT NULL, newest deleted first).
         """
         q = (
             select(FileLog, ContactFile, Contact, User.full_name)
             .join(ContactFile, FileLog.file_id == ContactFile.id)
             .outerjoin(Contact, ContactFile.contact_id == Contact.id)
             .outerjoin(User, ContactFile.owner_user_id == User.id)
-            .order_by(FileLog.created_at.desc())
+            .where(FileLog.deleted_at.is_not(None) if deleted else FileLog.deleted_at.is_(None))
+            .order_by((FileLog.deleted_at if deleted else FileLog.created_at).desc())
             .limit(limit)
         )
         return list((await self.session.execute(q)).all())

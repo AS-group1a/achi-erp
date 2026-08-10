@@ -148,6 +148,13 @@ class FileLog(Base):
     created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    # Soft delete. NULL = live. A deleted log keeps its row so it can be listed in
+    # the Deleted Logs view and restored; a permanent delete removes it for real.
+    # Added additively — the startup auto-heal issues ADD COLUMN IF NOT EXISTS, so
+    # existing databases pick these up as NULL (i.e. every current log stays live).
+    deleted_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
     file: Mapped[ContactFile] = relationship(back_populates="logs")
     attachments: Mapped[list["LogAttachment"]] = relationship(
         back_populates="log", cascade="all, delete-orphan", lazy="selectin"

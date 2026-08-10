@@ -372,6 +372,9 @@ class LogRowOut(BaseModel):
     # True when an email has already been sent to this row's address (any teammate),
     # so the grid can flag it and warn before re-emailing the same person.
     email_sent: bool = False
+    # Set only on rows returned by the Deleted Logs view (deleted=true); NULL for
+    # live rows. Lets that view show when each entry was removed.
+    deleted_at: datetime | None = None
 
 
 # ── Site survey ───────────────────────────────────────────────────────────

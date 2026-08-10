@@ -16,6 +16,10 @@
     <div class="kpi k2 btn" id="k-open-card"><div class="n" id="k-open">0</div><div class="l">Open</div><div class="s">click to filter</div></div>
     <div class="kpi k3"><div class="n" id="k-month">0</div><div class="l">This Month</div><div class="s">log entries</div></div>
     <div class="kpi k4"><div class="n" id="k-done">0</div><div class="l">Done</div><div class="s">completed</div></div>
+    <button class="kpi-deleted" id="btn-deleted" type="button" title="Show deleted logs — restore them or delete them permanently">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      <span>Deleted Logs</span>
+    </button>
   </div>
 
   <div class="shell">
@@ -28,6 +32,12 @@
         </button>
         <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
         <button class="tb-email" id="btn-email" type="button" title="Email the selected rows (same message to everyone)">Email <span class="tb-cnt" id="email-count">0</span></button>
+        <!-- Shown only while the Deleted Logs filter is active (body.deleted-view). -->
+        <span class="dl-acts" id="dl-acts">
+          <span class="dl-acts-label">Viewing deleted</span>
+          <button class="tb-restore" id="btn-restore" type="button" title="Restore the selected logs">Restore <span class="tb-cnt" id="restore-count">0</span></button>
+          <button class="tb-perma" id="btn-perma" type="button" title="Permanently delete the selected logs (cannot be undone)">Delete permanently <span class="tb-cnt" id="perma-count">0</span></button>
+        </span>
       </div>
       <div class="pt" id="tabs">
         <span class="pt-ind" id="ind"></span>
@@ -145,5 +155,6 @@
 <script src="/api/v1/achi/ui/comment.js?v=14"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>
 <script src="/api/v1/achi/ui/log-notes.js?v=1"></script>
+<script src="/api/v1/achi/ui/log-deleted.js?v=1"></script>
 </body>
 </html>

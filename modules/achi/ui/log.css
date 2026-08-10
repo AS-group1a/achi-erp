@@ -700,3 +700,24 @@
 .achi-nav::-webkit-scrollbar{
     display: none;
 }
+
+  /* ── Deleted Logs (grid filter + contextual toolbar) ──────────────────── */
+  /* The chip after the Done KPI that toggles the deleted view. */
+  .kpi-deleted{flex:0 0 auto;align-self:stretch;display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--bd);border-radius:12px;padding:0 18px;background:#fff;color:var(--tx-2);font:inherit;font-size:12px;font-weight:800;letter-spacing:.02em;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,color .15s,transform .15s}
+  .kpi-deleted svg{width:16px;height:16px}
+  .kpi-deleted:hover{border-color:var(--navy);color:var(--navy);transform:translateY(-1px)}
+  .kpi-deleted.on{background:var(--navy);border-color:var(--navy);color:#fff;box-shadow:0 6px 18px rgba(40,79,158,.28)}
+  /* Contextual toolbar — visible only while the deleted view is active. */
+  .dl-acts{display:none;align-items:center;gap:8px}
+  .dl-acts-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.72);white-space:nowrap}
+  body.deleted-view .dl-acts{display:inline-flex}
+  /* Active-log actions make no sense on deleted rows — hide them in this view. */
+  body.deleted-view #add-row,
+  body.deleted-view #expand-row,
+  body.deleted-view #btn-del,
+  body.deleted-view #btn-email{display:none}
+  .tb-restore,.tb-perma{display:inline-flex;align-items:center;gap:6px;border:1.5px solid transparent;border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;padding:7px 13px;transition:background .15s,border-color .15s,color .15s}
+  .tb-restore{background:rgba(52,199,123,.14);color:#bff3d4;border-color:rgba(52,199,123,.4)}
+  .tb-restore:hover{background:rgba(52,199,123,.28);border-color:#7ee2a8;color:#fff}
+  .tb-perma{background:rgba(255,255,255,.08);color:#fca5a5;border-color:rgba(252,165,165,.4)}
+  .tb-perma:hover{background:rgba(239,68,68,.28);border-color:#fca5a5;color:#fff}
