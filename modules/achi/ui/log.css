@@ -736,3 +736,29 @@
   .rx-phone-remove:hover{background:#fdeaea;color:#c02626}
   .rx-add-phone{margin-top:8px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:2px 0}
   .rx-add-phone:hover{text-decoration:underline}
+  /* ── Emails: repeatable "Add Email" list (matches the phone list) ─────── */
+  .rx-email-list{display:flex;flex-direction:column;gap:8px}
+  .rx-email-row{display:grid;grid-template-columns:minmax(72px,94px) minmax(0,1fr) auto;gap:6px;align-items:center}
+  .rx-email-label{min-width:0;padding-left:8px;padding-right:6px}
+  .rx-email-row .draft-email{min-width:0}
+  .rx-email-row .rx-email-addr{flex:1;min-width:0}
+  .rx-email-remove{border:0;background:transparent;color:var(--tx-3);font-size:19px;line-height:1;cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+  .rx-email-remove[hidden]{display:none}
+  .rx-email-remove:hover{background:#fdeaea;color:#c02626}
+  .rx-add-email{margin-top:8px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:2px 0}
+  .rx-add-email:hover{text-decoration:underline}
+  /* ── Additional contacts ("+ Add Contact Person") ────────────────────── */
+  .rx-add-related{display:block;margin-top:6px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:2px 0;text-align:left}
+  .rx-add-related:hover{text-decoration:underline}
+  .rx-related-wrap{display:flex;flex-direction:column;gap:8px}
+  .rx-related-empty{display:none}
+  .rx-related-list{display:flex;flex-direction:column;gap:12px}
+  /* Each contact person is a card that mirrors the main contact fields. */
+  .rx-person{border:1px solid var(--bd);border-radius:12px;padding:12px 14px;background:#f9fbfe;display:flex;flex-direction:column;gap:10px}
+  .rx-person-head{display:flex;align-items:center;justify-content:space-between}
+  .rx-person-t{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tx-2)}
+  .rx-person-x{border:0;background:transparent;color:var(--tx-3);font:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:2px 4px}
+  .rx-person-x:hover{color:#c02626}
+  .rx-g-person{grid-template-columns:minmax(0,1.7fr) minmax(0,1.15fr) minmax(0,0.9fr)}
+  .rx-person-tel{display:grid;grid-template-columns:minmax(72px,96px) minmax(0,1fr);gap:6px;align-items:center}
+  @media (max-width:700px){ .rx-g-person{grid-template-columns:1fr 1fr} }
