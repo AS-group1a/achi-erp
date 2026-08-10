@@ -1515,8 +1515,6 @@ function openExpandedRow(explicitId){
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
-  const EMAIL=v=>`<span class="draft-email"><input class="rx-in" id="rx-email" data-k="email" inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(v??'')}">`
-    +`<button class="draft-compose" type="button" data-rx-compose title="Compose email"${validEmail(v)&&String(v||'').trim()?'':' hidden'}>${SVG.mail}</button></span>`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
   const DIRECT={role:'role',company_type:'company_type',subject:'subject',no:'site_number',bldg:'site_building',floor:'site_floor'};
@@ -1529,10 +1527,14 @@ function openExpandedRow(explicitId){
     F('Last name',  IN('last','Type or pick...',val('last'))),
     F('Role',       SEL('role',[...allRoles(),ROLE_ADD],val('role'),true)));
   html+=g('rx-gc',
-    F('Phone / WhatsApp', rxPhoneListHTML(rxExistingPhones(src))),
-    F('Email',            EMAIL(val('email'))),
+    F('Phone / WhatsApp', rxPhoneListHTML(rxExistingPhones(src))+`<button type="button" class="rx-add-related" id="rx-add-related">+ Add Contact Person</button>`),
+    F('Email',            rxEmailListHTML(rxExistingEmails(src))),
     F('Company',          IN('company','Type or pick',val('company'))),
     F('Company type',     SEL('company_type',[...new Set([val('company_type'),...allCompanyTypes()].filter(Boolean)),COMPANY_ADD],val('company_type'),true)));
+  // Additional contact people — a full-width block under the contact row, filled
+  // by "+ Add Contact Person". Hidden until it has at least one person.
+  const relatedRows=rxRelatedRowsHTML(rxExistingRelated(src));
+  html+=`<div class="rx-related-wrap${relatedRows?'':' rx-related-empty'}" id="rx-related-wrap"><label class="rx-l">Additional contacts</label><div class="rx-related-list" id="rx-related-list">${relatedRows}</div></div>`;
   let savedSocials=[]; try{ savedSocials=JSON.parse(src.socials||'[]')||[]; }catch(e){}
   const socialRow=(plat,handle)=>`<div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML(plat||'IG')}</select>`
     +`<input class="rx-in" data-nosave placeholder="@handle" value="${esc(handle||'')}"></div>`;
@@ -1646,6 +1648,7 @@ function openExpandedRow(explicitId){
   },0);
   $('rx-body').innerHTML=html;
   enhanceRxSelects();
+  rxRenumberPersons();                 // label any pre-existing "Contact N" cards
   $('rx').hidden=false;
 
   // Tiles need the real width, which only exists once the sheet is laid out.
@@ -1833,6 +1836,162 @@ async function rxSavePhones(r){
   await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({phones})});
   r.phones=phones; r.mobile=phones[0]?phones[0].number:'';
 }
+
+/* ── Emails: a repeatable "Add Email" list, saved to the same shared bucket the
+   Contacts page uses (primary_email = first). Mirrors the phone list. ── */
+const EMAIL_LABELS=['Primary','Work','Personal','Accounts','Sales','Other'];
+function rxEmailOptions(sel){
+  const list=EMAIL_LABELS.includes(sel)?EMAIL_LABELS:[sel,...EMAIL_LABELS];
+  return list.map(l=>`<option value="${esc(l)}"${l===sel?' selected':''}>${esc(l)}</option>`).join('');
+}
+function rxEmailRow(email,removable){
+  const addr=(email&&email.address)||'';
+  const label=(email&&email.label)||'Other';
+  const showCompose=validEmail(addr)&&addr.trim();
+  return `<div class="rx-email-row" data-rx-email-row>`
+    +`<select class="rx-in rx-email-label" data-rx-email-label aria-label="Email type">${rxEmailOptions(label)}</select>`
+    +`<span class="draft-email"><input class="rx-in rx-email-addr" data-rx-email inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(addr)}">`
+    +`<button class="draft-compose" type="button" data-rx-compose title="Compose email"${showCompose?'':' hidden'}>${SVG.mail}</button></span>`
+    +`<button type="button" class="rx-email-remove" data-rx-email-remove aria-label="Remove email" title="Remove email"${removable?'':' hidden'}>&times;</button>`
+  +`</div>`;
+}
+function rxEmailListHTML(emails){
+  const list=(emails&&emails.length)?emails:[{label:'Primary',address:''}];
+  return `<div class="rx-email-list" id="rx-email-list">${list.map((e,i)=>rxEmailRow(e,i>0)).join('')}</div>`
+    +`<button type="button" class="rx-add-email" id="rx-add-email">+ Add Email</button>`;
+}
+function rxExistingEmails(src){
+  if(src&&Array.isArray(src.emails)&&src.emails.length) return src.emails;
+  const e=src&&(src.email||'');
+  return e?[{label:'Primary',address:e}]:[];
+}
+function rxCollectEmails(){
+  const out=[];
+  document.querySelectorAll('#rx-email-list [data-rx-email-row]').forEach(row=>{
+    const address=(row.querySelector('.rx-email-addr')?.value||'').trim();
+    if(!address) return;
+    const label=(row.querySelector('[data-rx-email-label]')?.value||'Other').trim()||'Other';
+    out.push({label,address});
+  });
+  return out.slice(0,8);
+}
+function rxFirstInvalidEmail(){
+  for(const row of document.querySelectorAll('#rx-email-list [data-rx-email-row]')){
+    const inp=row.querySelector('.rx-email-addr'); const address=(inp?.value||'').trim();
+    if(address&&!validEmail(address)) return inp;
+  }
+  return null;
+}
+function rxEmailsChanged(r){
+  const norm=a=>JSON.stringify((a||[]).map(e=>({label:e.label||'Other',address:String(e.address||'').trim()})));
+  return norm(rxCollectEmails())!==norm(r&&r.emails);
+}
+async function rxSaveEmails(r){
+  const emails=rxCollectEmails();
+  await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({emails})});
+  r.emails=emails; r.email=emails[0]?emails[0].address:'';
+}
+
+/* ── Additional contact people ("+ Add Contact Person"): name + relationship +
+   phone, saved to the shared related_contacts bucket = the Contacts page. ── */
+/* Each additional contact person is a mini card mirroring the main contact:
+   prefix / first / last / role, then phone / email / primary, with a Remove. */
+function rxPersonOpts(list,sel){
+  return ['',...list].map(o=>`<option value="${esc(o)}"${o===(sel||'')?' selected':''}>${esc(o||'—')}</option>`).join('');
+}
+/* Legacy {name,tag} entries: show the whole name in first, tag as role. */
+function rxPersonFields(rc){
+  rc=rc||{};
+  let first=rc.first_name||'', last=rc.last_name||'';
+  if(!first&&!last&&rc.name){ const p=String(rc.name).trim().split(/\s+/); first=p[0]||''; last=p.slice(1).join(' '); }
+  return {prefix:rc.prefix||'', first, last, role:rc.role||rc.tag||'', phone_label:rc.phone_label||'Mobile', phone:rc.phone||'', email:rc.email||'', primary:!!rc.primary};
+}
+function rxRelatedRow(rc){
+  const f=rxPersonFields(rc);
+  const parts=contactPhoneParts(f.phone);
+  const id=nextPhoneId();
+  return `<div class="rx-person" data-rx-related-row>`
+    +`<div class="rx-person-head"><span class="rx-person-t" data-rx-person-num>Contact</span>`
+      +`<button type="button" class="rx-person-x" data-rx-related-remove aria-label="Remove contact person">&times; Remove</button></div>`
+    +`<div class="rx-grid rx-g4">`
+      +`<div><label class="rx-l">Pre</label><select class="rx-in" data-rc-prefix>${rxPersonOpts(allPrefixes(),f.prefix)}</select></div>`
+      +`<div><label class="rx-l">First name</label><input class="rx-in" data-rc-first maxlength="128" placeholder="Type or pick..." value="${esc(f.first)}"></div>`
+      +`<div><label class="rx-l">Last name</label><input class="rx-in" data-rc-last maxlength="128" placeholder="Type or pick..." value="${esc(f.last)}"></div>`
+      +`<div><label class="rx-l">Role</label><select class="rx-in" data-rc-role>${rxPersonOpts(allRoles(),f.role)}</select></div>`
+    +`</div>`
+    +`<div class="rx-grid rx-g-person">`
+      +`<div><label class="rx-l">Phone / WhatsApp</label><div class="rx-person-tel">`
+        +`<select class="rx-in rx-phone-label" data-rc-phone-label aria-label="Number type">${rxPhoneOptions(f.phone_label)}</select>`
+        +`<span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="${id}" aria-label="Choose country code" title="Country code"><img src="${flagSrc(parts.iso)}" alt=""><span class="cc">${esc(parts.dial)}</span>${SVG.chev}</button>`
+        +`<input class="rx-in tel-num" id="${id}" data-rc-phone data-rx-tel inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${esc(parts.mobilenum)}"></span>`
+      +`</div></div>`
+      +`<div><label class="rx-l">Email</label><input class="rx-in" data-rc-email inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(f.email)}"></div>`
+      +`<div><label class="rx-l">Primary?</label><select class="rx-in" data-rc-primary><option value="no"${f.primary?'':' selected'}>No</option><option value="yes"${f.primary?' selected':''}>Yes</option></select></div>`
+    +`</div>`
+  +`</div>`;
+}
+function rxRelatedRowsHTML(list){ return (list||[]).map(rxRelatedRow).join(''); }
+function rxExistingRelated(src){ return (src&&Array.isArray(src.related_contacts))?src.related_contacts:[]; }
+/* Header numbering — the main contact is Contact 1, so these start at 2. Re-run
+   after add/remove so the numbers stay contiguous. */
+function rxRenumberPersons(){
+  document.querySelectorAll('#rx-related-list [data-rx-related-row]').forEach((row,i)=>{
+    const t=row.querySelector('[data-rx-person-num]'); if(t) t.textContent='Contact '+(i+2);
+  });
+}
+function rxReadPerson(row){
+  const g=s=>row.querySelector(s);
+  const first=(g('[data-rc-first]')?.value||'').trim();
+  const last=(g('[data-rc-last]')?.value||'').trim();
+  const email=(g('[data-rc-email]')?.value||'').trim();
+  const national=(g('[data-rc-phone]')?.value||'').trim();
+  const dial=(g('.tel-cc .cc')?.textContent||DEFAULT_DIAL).trim();
+  return {
+    prefix:(g('[data-rc-prefix]')?.value||'').trim()||null,
+    first_name:first||null, last_name:last||null,
+    role:(g('[data-rc-role]')?.value||'').trim()||null,
+    phone_label:(g('[data-rc-phone-label]')?.value||'Mobile').trim(),
+    phone:national?`${dial} ${national}`.trim():'',
+    email:email||null,
+    primary:(g('[data-rc-primary]')?.value==='yes'),
+    _first:first,_last:last,_email:email,_national:national,_dial:dial,
+  };
+}
+function rxCollectRelated(){
+  const out=[];
+  document.querySelectorAll('#rx-related-list [data-rx-related-row]').forEach(row=>{
+    const p=rxReadPerson(row);
+    if(!p._first&&!p._last&&!p._email&&!p._national) return;      // empty card
+    out.push({prefix:p.prefix,first_name:p.first_name,last_name:p.last_name,role:p.role,phone_label:p.phone_label,phone:p.phone||null,email:p.email,primary:p.primary});
+  });
+  return out.slice(0,8);
+}
+/* A started card needs at least a name; validate phone/email if given. */
+function rxRelatedInvalid(){
+  for(const row of document.querySelectorAll('#rx-related-list [data-rx-related-row]')){
+    const p=rxReadPerson(row);
+    if(!p._first&&!p._last&&!p._email&&!p._national) continue;
+    if(!p._first&&!p._last) return {el:row.querySelector('[data-rc-first]'),msg:'Each contact person needs a name.'};
+    if(p._email&&!validEmail(p._email)) return {el:row.querySelector('[data-rc-email]'),msg:'Invalid email for a contact person.'};
+    if(p._national&&!validMobile(`${p._dial} ${p._national}`)) return {el:row.querySelector('[data-rc-phone]'),msg:'Invalid phone for a contact person.'};
+  }
+  return null;
+}
+/* Normalise both sides to compare (ignores phone_label so relabelling alone is
+   not treated as a change; folds legacy name/tag). */
+function rxPersonKey(e){
+  e=e||{}; const f=rxPersonFields(e);
+  return {prefix:f.prefix||'',first:f.first||'',last:f.last||'',role:f.role||'',phone:String(f.phone||'').trim(),email:String(f.email||'').trim(),primary:!!f.primary};
+}
+function rxRelatedChanged(r){
+  const norm=a=>JSON.stringify((a||[]).map(rxPersonKey));
+  return norm(rxCollectRelated())!==norm(r&&r.related_contacts);
+}
+async function rxSaveRelated(r){
+  const related_contacts=rxCollectRelated();
+  await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({related_contacts})});
+  r.related_contacts=related_contacts;
+}
 function rxExtrasChanged(r){
   let saved='[]'; try{ saved=JSON.stringify(JSON.parse(r.socials||'[]')); }catch(e){}
   return rxExtraCur('role')!==String(r.role||'')
@@ -1863,12 +2022,13 @@ function rxCollectNew(){
   const socials=rxCollectSocials();
   const first=v.first||'', last=v.last||'', company=v.company||'';
   const isCo=!!company && !first && !last;           // company with no person name -> a company contact
-  const mob=(rxCollectPhones()[0]||{}).number||null;   // first number seeds the contact; full list saved after create
+  const mob=(rxCollectPhones()[0]||{}).number||null;   // first number/email seed the contact;
+  const eml=(rxCollectEmails()[0]||{}).address||null;  // full lists are saved right after create
   const person=isCo
-    ? {is_company:true, company_name:company, company_type:v.company_type||null, mobile:mob, email:v.email||null, socials}
+    ? {is_company:true, company_name:company, company_type:v.company_type||null, mobile:mob, email:eml, socials}
     : {is_company:false, prefix:v.prefix||null, first_name:first||null, last_name:last||null,
        company_name:company||null, role:v.role||null, company_type:v.company_type||null,
-       mobile:mob, email:v.email||null, socials};
+       mobile:mob, email:eml, socials};
   const hasSite=v.country||v.district||v.city||v.street||v.maps||v.location||v.no||v.bldg||v.floor;
   const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
     street:v.street||null, maps_url:v.maps||null, site_location:v.location||null,
@@ -1887,12 +2047,17 @@ async function rxCreateNew(keepOpen){
   if(!(payload.person.first_name||payload.person.last_name||payload.person.company_name)){
     st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return;
   }
-  if(payload.person.email && !validEmail(payload.person.email)){
-    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail($('rx-email')); return;
+  const badEmail=rxFirstInvalidEmail();
+  if(badEmail){
+    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(badEmail); return;
   }
   const badPhone=rxFirstInvalidPhone();
   if(badPhone){
     st.textContent='Invalid phone number'; st.className='rx-status bad'; showInvalidMobile(badPhone); return;
+  }
+  const badRel=rxRelatedInvalid();
+  if(badRel){
+    st.textContent=badRel.msg; st.className='rx-status bad'; if(badRel.el) badRel.el.focus(); return;
   }
   rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
   try{
@@ -1904,13 +2069,22 @@ async function rxCreateNew(keepOpen){
     // exists" is never lost with the sheet.
     if(cs) composeToast(cs,!!res.contact_created);
     await load();                               // pull the new row into the grid
-    // Save the full labelled list onto the just-created contact so every number
-    // (and its label) lands in the shared achi_contact_info bucket = the Contacts page.
-    const phones=rxCollectPhones();
+    // Save the full labelled lists onto the just-created contact so every number,
+    // email and contact-person lands in the shared achi_contact_info bucket = the
+    // Contacts page. One PATCH; only the fields with content are sent.
+    const phones=rxCollectPhones(), emails=rxCollectEmails(), related_contacts=rxCollectRelated();
     const nr=ROWS.find(x=>x.id===newLogId);
-    if(nr && phones.length){
-      try{ await api('/files/'+nr.file_id+'/contact',{method:'PATCH',body:JSON.stringify({phones})}); nr.phones=phones; nr.mobile=phones[0].number; }
-      catch(_){}                                // the log is already saved; a phone hiccup must not fail creation
+    if(nr && (phones.length||emails.length||related_contacts.length)){
+      const body={};
+      if(phones.length) body.phones=phones;
+      if(emails.length) body.emails=emails;
+      if(related_contacts.length) body.related_contacts=related_contacts;
+      try{
+        await api('/files/'+nr.file_id+'/contact',{method:'PATCH',body:JSON.stringify(body)});
+        nr.phones=phones; nr.mobile=phones[0]?phones[0].number:nr.mobile;
+        nr.emails=emails; nr.email=emails[0]?emails[0].address:nr.email;
+        nr.related_contacts=related_contacts;
+      }catch(_){}                               // the log is already saved; a contact-detail hiccup must not fail creation
     }
     revealSavedRow(newLogId);
     rxBusy(false);
