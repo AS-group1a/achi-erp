@@ -1528,7 +1528,7 @@ function openExpandedRow(explicitId){
     F('First name', IN('first','Type or pick...',val('first')),true),
     F('Last name',  IN('last','Type or pick...',val('last'))),
     F('Role',       SEL('role',[...allRoles(),ROLE_ADD],val('role'),true)));
-  html+=g('rx-g4',
+  html+=g('rx-gc',
     F('Phone / WhatsApp', rxPhoneListHTML(rxExistingPhones(src))),
     F('Email',            EMAIL(val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
