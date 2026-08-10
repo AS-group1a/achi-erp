@@ -5,12 +5,11 @@ async function rxSaveAll(keepOpen){
   if(email&&!validEmail(email.value)){
     st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(email); return;
   }
-  // Guard mobile up front like email/rxCreateNew: without this, rxSave rejects the
-  // number but only returns (not throws), so the loop below counts it as saved and
-  // closes the sheet. Validate the dialled value so Lebanese rules actually apply.
-  const mobile=$('rx-mobile');
-  if(mobile&&mobile.value.trim()&&!validMobile(rxFieldValue(mobile))){
-    st.textContent='Invalid mobile number'; st.className='rx-status bad'; showInvalidMobile(mobile); return;
+  // Guard the phone rows up front: any invalid number blocks the save and points
+  // the user at the offending row, so a bad number can't slip through on close.
+  const badPhone=rxFirstInvalidPhone();
+  if(badPhone){
+    st.textContent='Invalid phone number'; st.className='rx-status bad'; showInvalidMobile(badPhone); return;
   }
   const fields=[...$('rx-body').querySelectorAll('[data-k]')];
   const r=ROWS.find(x=>x.id===rxRowId);
@@ -21,7 +20,8 @@ async function rxSaveAll(keepOpen){
     return c&&c.edit&&String(c.edit.val(r)??'')!==rxFieldValue(el);
   });
   const extrasChanged=rxExtrasChanged(r);
-  if(!changed.length && !extrasChanged){
+  const phonesChanged=rxPhonesChanged(r);
+  if(!changed.length && !extrasChanged && !phonesChanged){
     st.textContent='Nothing to save'; st.className='rx-status';
     if(!keepOpen) setTimeout(closeExpandedRow,500);
     return;
@@ -33,6 +33,8 @@ async function rxSaveAll(keepOpen){
   for(const el of changed){ try{ await rxSave(el); }catch(e){ failed++; } }
   // Fields with no COLS/inline-edit entry go straight to the file.
   if(extrasChanged){ try{ await rxSaveExtras(r); }catch(e){ failed++; } }
+  // Phone list -> the contact's shared bucket (Contacts sees the same numbers).
+  if(phonesChanged){ try{ await rxSavePhones(r); }catch(e){ failed++; } }
   rxBusy(false);
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
   else {
@@ -514,6 +516,14 @@ $('rx-body').addEventListener('click',e=>{
   }
   const countryCode=e.target.closest('.tel-cc[data-rx-phone]');
   if(countryCode){ openCc(countryCode); return; }
+  if(e.target.closest('#rx-add-phone')){
+    const list=$('rx-phone-list');
+    if(list){ list.insertAdjacentHTML('beforeend', rxPhoneRow({label:'Mobile',number:''},true));
+      list.lastElementChild?.querySelector('.rx-phone-num')?.focus(); }
+    return;
+  }
+  const rmPhone=e.target.closest('[data-rx-phone-remove]');
+  if(rmPhone){ rmPhone.closest('[data-rx-phone-row]')?.remove(); return; }
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
   if(e.target.closest('#rx-files')){ rxOpenWorkspace('files'); return; }
   if(e.target.closest('#rx-draw')){ rxOpenWorkspace('draw'); return; }
@@ -526,7 +536,7 @@ $('rx-body').addEventListener('keydown',e=>{
   const t=e.target;
   if(t.tagName==='TEXTAREA') return;
   e.preventDefault();
-  if((t.dataset.k==='mobile'||t.id==='rx-mobile')&&t.value&&!validMobile(t.value)){ showInvalidMobile(t); return; }
+  if((t.dataset.k==='mobile'||t.dataset.rxTel)&&t.value&&!validMobile(t.value)){ showInvalidMobile(t); return; }
   if(t.dataset.k==='email'&&!validEmail(t.value)){ showInvalidEmail(t); return; }
   const f=[...$('rx-body').querySelectorAll('input,select,textarea,button')].filter(el=>!el.disabled&&el.offsetParent!==null);
   const i=f.indexOf(t);
@@ -559,14 +569,14 @@ function rxValidatePhone(el){
   el.classList.toggle('tel-bad', !!el.value.trim() && !validMobile(`${dial} ${el.value}`));
 }
 $('rx-body').addEventListener('paste',e=>{
-  const el=e.target; if(!el.dataset||el.dataset.k!=='mobile') return;
+  const el=e.target; if(!el.dataset||!(el.dataset.k==='mobile'||el.dataset.rxTel)) return;
   setTimeout(()=>{
     const p=detectPhone(el.value);
     if(p){ setTelCountry(el.closest('.tel-wrap'),p.iso,p.dial); el.value=p.mobilenum; }
     rxValidatePhone(el);
   },0);
 });
-$('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&e.target.dataset.k==='mobile') rxValidatePhone(e.target); },true);
+$('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&(e.target.dataset.k==='mobile'||e.target.dataset.rxTel)) rxValidatePhone(e.target); },true);
 $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 /* Tags: click the field to open the multi-select checkbox dropdown (the same one

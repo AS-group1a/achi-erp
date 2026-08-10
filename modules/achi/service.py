@@ -88,6 +88,34 @@ def _ensure_directory_tag(contact) -> None:
         contact.module_tags = [*tags, CONTACT_INFO_TAG]
 
 
+def _write_contact_phones(contact, phones) -> None:
+    """Persist the Add Log popup's labelled numbers to the ONE place the Contacts
+    page also reads/writes — ``custom_properties[CONTACT_INFO_TAG]["phones"]`` — and
+    mirror the first onto the canonical ``primary_phone``. Tags the contact into the
+    directory so the numbers show on the Contacts page too. This is what keeps the
+    log and Contacts 100% in sync: both edit the same array on the same row.
+
+    ``phones`` is a list of ``{"label","number"}`` dicts (from ContactPatch); blanks
+    are dropped and the list is capped at 8, matching the Contacts editor.
+    """
+    items: list[dict] = []
+    for p in phones or []:
+        number = str((p or {}).get("number") or "").strip()
+        if not number:
+            continue
+        label = (str((p or {}).get("label") or "Mobile").strip() or "Mobile")[:32]
+        items.append({"label": label, "number": number[:50]})
+        if len(items) >= 8:
+            break
+    props = dict(contact.custom_properties or {})
+    bucket = dict(props.get(CONTACT_INFO_TAG) or {})
+    bucket["phones"] = items
+    props[CONTACT_INFO_TAG] = bucket
+    contact.custom_properties = props
+    contact.primary_phone = items[0]["number"] if items else None
+    _ensure_directory_tag(contact)
+
+
 async def _next_file_number(session: AsyncSession) -> str:
     """ACHI-YYYY-NNNNN, sequential within the year.
 
@@ -272,6 +300,14 @@ class ContactFileService:
                 file.lead_prefix = d["prefix"] or None
             if "mobile" in d:
                 file.lead_mobile = d["mobile"] or None
+            # A phone list makes the row reachable just like a single mobile — take
+            # the first number as the lead number so promotion below fires, then
+            # write the full list onto the contact it creates.
+            phone_list = d.get("phones")
+            if phone_list is not None:
+                first_number = next((str((p or {}).get("number") or "").strip()
+                                     for p in phone_list if str((p or {}).get("number") or "").strip()), None)
+                file.lead_mobile = first_number or None
             if "email" in d:
                 file.lead_email = (d["email"] or "").strip().lower() or None
             if "role" in d:
@@ -291,6 +327,8 @@ class ContactFileService:
                 )
                 if person is not None:
                     file.contact_id = str(person.id)
+                    if phone_list is not None:
+                        _write_contact_phones(person, phone_list)
                 if company_contact is not None:
                     file.company_contact_id = str(company_contact.id)
             await self.session.commit()
@@ -312,6 +350,10 @@ class ContactFileService:
             bucket["prefix"] = d["prefix"] or None
             props[MODULE_TAG.split("_", 1)[0]] = bucket
             c.custom_properties = props
+        # The full labelled list wins over a lone `mobile`: it rewrites the shared
+        # achi_contact_info bucket and primary_phone, so Contacts sees the change.
+        if d.get("phones") is not None:
+            _write_contact_phones(c, d["phones"])
         await self.session.commit()
 
     async def update_log(self, log: FileLog, data) -> FileLog:

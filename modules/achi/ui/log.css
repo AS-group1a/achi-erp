@@ -721,3 +721,12 @@
   .tb-restore:hover{background:rgba(52,199,123,.28);border-color:#7ee2a8;color:#fff}
   .tb-perma{background:rgba(255,255,255,.08);color:#fca5a5;border-color:rgba(252,165,165,.4)}
   .tb-perma:hover{background:rgba(239,68,68,.28);border-color:#fca5a5;color:#fff}
+  /* ── Add Log popup — repeatable phone number rows ("Add Number") ──────── */
+  .rx-phone-list{display:flex;flex-direction:column;gap:8px}
+  .rx-phone-row{display:grid;grid-template-columns:minmax(84px,116px) minmax(0,1fr) auto;gap:8px;align-items:center}
+  .rx-phone-label{min-width:0}
+  .rx-phone-remove{border:0;background:transparent;color:var(--tx-3);font-size:19px;line-height:1;cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+  .rx-phone-remove[hidden]{display:none}
+  .rx-phone-remove:hover{background:#fdeaea;color:#c02626}
+  .rx-add-phone{margin-top:8px;border:0;background:transparent;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:2px 0}
+  .rx-add-phone:hover{text-decoration:underline}

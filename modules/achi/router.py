@@ -1483,6 +1483,15 @@ async def list_logs(
         mobile = mobile or f.lead_mobile
         email = email or f.lead_email
         name = " ".join(x for x in (first, last) if x).strip() or company
+        # Labelled numbers for the popup: prefer the shared achi_contact_info bucket
+        # (what the Contacts page edits); fall back to the single primary/lead number
+        # so a contact that predates this feature still shows its one number.
+        phones: list[dict] = []
+        if contact is not None:
+            bucket = (contact.custom_properties or {}).get(_CONTACT_INFO_TAG) or {}
+            phones = [p for p in (bucket.get("phones") or []) if isinstance(p, dict) and str(p.get("number") or "").strip()]
+        if not phones and mobile:
+            phones = [{"label": "Mobile", "number": mobile}]
         out.append(
             LogRowOut(
                 id=log.id,
@@ -1528,6 +1537,7 @@ async def list_logs(
                 email=email,
                 email_sent=bool(email and email.strip().lower() in sent_to),
                 deleted_at=log.deleted_at,
+                phones=phones,
             )
         )
     return out
