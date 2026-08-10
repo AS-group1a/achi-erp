@@ -920,6 +920,11 @@ function cellHTML(c,r,i){switch(c.k){
 
 const ROW_CACHE_KEY='achi_log_rows_v1';
 let ROWS=[], openOnly=false, activeTab=0;
+// Deleted Logs filter. When on, the grid renders `deletedRows` (soft-deleted
+// logs fetched separately) instead of ROWS, read-only, for restore / permanent
+// delete. Kept distinct from ROWS so KPIs and the active list stay correct.
+// Toggled and populated by log-deleted.js.
+let deletedView=false, deletedRows=[];
 /* A full refresh destroys the page before /logs/ can answer. Keep the last
    successful result for this browser tab so the existing table remains visible
    while the fresh request runs. Do not restore it without a login token. */
@@ -1128,13 +1133,15 @@ function toggleRowSelection(tr,force){
 
 function render(){
   const q=$('q').value.trim().toLowerCase();
-  let rows=openOnly?ROWS.filter(r=>r.status==='open'):ROWS;
+  // In the Deleted Logs filter the grid shows deletedRows (read-only) and never
+  // the draft rows or the Open filter — those only make sense for active logs.
+  let rows=deletedView?deletedRows:(openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
   if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category,r.tags].some(v=>String(v||'').toLowerCase().includes(q)));
   let rowNumber=1;
   const body=[
-    draftRowHTML('d',topDraft,true,rowNumber++),
+    deletedView?'':draftRowHTML('d',topDraft,true,rowNumber++),
     rows.length?rows.map((r,i)=>dataRowHTML(r,i,rowNumber++)).join(''):'',
-    bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false,rowNumber++)).join(''),
+    deletedView?'':bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false,rowNumber++)).join(''),
   ].join('');
   $('rows').innerHTML=body;
   refreshSelectionButton();
@@ -1201,6 +1208,7 @@ function refreshDeleteButton(){
   // changes with the selection.
   const exp=$('expand-row'); if(exp) exp.title=selectedLogId()?'Open the selected row to edit':'Open a blank form for a new entry';
   refreshQuickQuote();
+  if(deletedView && window.updateDeletedBar) window.updateDeletedBar();   // keep Restore/Delete counts in step
 }
 
 /* ── quick quotation ────────────────────────────────────────────────────────
@@ -1221,6 +1229,7 @@ function selectedLogId(){
 }
 function refreshQuickQuote(){
   const card=$('qv'); if(!card) return;
+  if(deletedView){ card.hidden=true; return; }   // no quotation from the deleted view
   const id=selectedLogId();
   if(id!==qvLastId){ qvLastId=id; qvHidden=false; qvMsg(''); }
   if(!id||qvHidden){ card.hidden=true; return; }
@@ -1484,6 +1493,7 @@ function rxMapHTML(r){
 }
 
 function openExpandedRow(explicitId){
+  if(deletedView) return;   // deleted rows are read-only — no edit popup, no blank-create
   // With a row selected (or an explicit id from "Save & continue"), edit it.
   // Without one, open blank and CREATE on save — rxRowId === null is the flag
   // the save path reads to tell edit from create.

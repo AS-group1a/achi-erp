@@ -125,7 +125,7 @@ async function deleteSelected(){
   const logs=logKeys(), drafts=draftKeys();
   const n=logs.length+drafts.length;
   if(!n) return;
-  if(!confirm(`Delete ${n} row${n>1?'s':''}? This cannot be undone.`)) return;
+  if(!confirm(`Delete ${n} row${n>1?'s':''}? Saved logs can be restored from the Deleted Logs view.`)) return;
   clearErr();
   const failed=[];
   for(const k of logs){

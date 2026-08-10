@@ -530,6 +530,22 @@ def ui_log_notes_js() -> PlainTextResponse:
 
 
 @router.get(
+    "/ui/log-deleted.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Log page — Deleted Logs view",
+)
+def ui_log_deleted_js() -> PlainTextResponse:
+    """The Deleted Logs panel: list soft-deleted logs, restore, permanent-delete.
+    Self-contained; loads after log.js so its helpers (api, esc, $, load) exist."""
+    return PlainTextResponse(
+        (_UI_DIR / "log-deleted.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/ui/drawing.js",
     response_class=PlainTextResponse,
     include_in_schema=False,
@@ -962,13 +978,39 @@ async def update_log(
     return FileLogOut.model_validate(await svc.update_log(log, data))
 
 
-@router.delete("/logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a log entry")
-async def delete_log(log_id: str, session: SessionDep, _user_id: CurrentUserId) -> Response:
+@router.delete("/logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a log entry (soft — recoverable)")
+async def delete_log(log_id: str, session: SessionDep, user_id: CurrentUserId) -> Response:
+    """Soft delete: the row moves to the Deleted Logs view and can be restored."""
     svc = ContactFileService(session)
     log = await svc.get_log(log_id)
     if log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
-    await svc.delete_log(log)
+    await svc.delete_log(log, user_id=str(user_id))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/logs/{log_id}/restore", summary="Restore a soft-deleted log")
+async def restore_log(log_id: str, session: SessionDep, _user_id: CurrentUserId) -> dict:
+    svc = ContactFileService(session)
+    log = await svc.get_log(log_id)
+    if log is None or log.deleted_at is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Deleted log not found")
+    await svc.restore_log(log)
+    return {"id": log_id, "restored": True}
+
+
+@router.delete(
+    "/logs/{log_id}/permanent",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently delete a log (cannot be undone)",
+    dependencies=[Depends(RequireRole("admin"))],
+)
+async def permanently_delete_log(log_id: str, session: SessionDep, _user_id: CurrentUserId) -> Response:
+    svc = ContactFileService(session)
+    log = await svc.get_log(log_id)
+    if log is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
+    await svc.hard_delete_log(log)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1395,12 +1437,15 @@ async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentU
 
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
 async def list_logs(
-    session: SessionDep, _user_id: CurrentUserId, limit: int = Query(default=200, ge=1, le=1000)
+    session: SessionDep,
+    _user_id: CurrentUserId,
+    limit: int = Query(default=200, ge=1, le=1000),
+    deleted: bool = Query(default=False, description="Return soft-deleted logs (Deleted Logs view) instead of active ones"),
 ) -> list[LogRowOut]:
     from .models import AchiEmail
 
     svc = ContactFileService(session)
-    rows = await svc.list_logs(limit=limit)
+    rows = await svc.list_logs(limit=limit, deleted=deleted)
     # index rather than unpack: list_logs' tuple width changes when a column is
     # added to its select (owner name was the last one), and a positional unpack
     # here breaks the endpoint when it does
@@ -1482,6 +1527,7 @@ async def list_logs(
                 mobile=mobile,
                 email=email,
                 email_sent=bool(email and email.strip().lower() in sent_to),
+                deleted_at=log.deleted_at,
             )
         )
     return out
