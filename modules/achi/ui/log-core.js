@@ -1518,12 +1518,6 @@ function openExpandedRow(explicitId){
   const EMAIL=v=>`<span class="draft-email"><input class="rx-in" id="rx-email" data-k="email" inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(v??'')}">`
     +`<button class="draft-compose" type="button" data-rx-compose title="Compose email"${validEmail(v)&&String(v||'').trim()?'':' hidden'}>${SVG.mail}</button></span>`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
-  const TEL=(v)=>{
-    const phone=contactPhoneParts(v);
-    return `<span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="rx-mobile" aria-label="Choose country code" title="Country code">`
-      +`<img src="${flagSrc(phone.iso)}" alt=""><span class="cc">${esc(phone.dial)}</span>${SVG.chev}</button>`
-      +`<input class="rx-in tel-num" id="rx-mobile" data-k="mobile" inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${esc(phone.mobilenum)}"></span>`;
-  };
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
   const DIRECT={role:'role',company_type:'company_type',subject:'subject',no:'site_number',bldg:'site_building',floor:'site_floor'};
   const val=k=>{ if(k==='reference') return src.reference||''; if(DIRECT[k]) return src[DIRECT[k]]||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
@@ -1535,7 +1529,7 @@ function openExpandedRow(explicitId){
     F('Last name',  IN('last','Type or pick...',val('last'))),
     F('Role',       SEL('role',[...allRoles(),ROLE_ADD],val('role'),true)));
   html+=g('rx-g4',
-    F('Phone / WhatsApp', TEL(val('mobile'))),
+    F('Phone / WhatsApp', rxPhoneListHTML(rxExistingPhones(src))),
     F('Email',            EMAIL(val('email'))),
     F('Company',          IN('company','Type or pick',val('company'))),
     F('Company type',     SEL('company_type',[...new Set([val('company_type'),...allCompanyTypes()].filter(Boolean)),COMPANY_ADD],val('company_type'),true)));
@@ -1775,6 +1769,70 @@ function rxCollectSocials(){
 // EDIT these are saved here straight to the file. Read by data-k (IN inputs have
 // no id). See rxSaveAll.
 const rxExtraCur=k=>{ const el=$('rx-body').querySelector('[data-k="'+k+'"]'); return el?String(el.value||'').trim():''; };
+/* ── Phone numbers: a repeatable "Add Number" list. Saved to the contact's
+   shared achi_contact_info bucket, so the log popup and the Contacts page edit
+   the SAME numbers on the SAME record. Mirrors the Contacts editor (label +
+   country code + number), reusing the popup's own tel-cc / contactPhoneParts. */
+const PHONE_LABELS=['Primary','Mobile','WhatsApp','Office','Site','Home','Other'];
+let rxPhoneSeq=0;
+const nextPhoneId=()=>'rx-phone-'+(++rxPhoneSeq);
+function rxPhoneOptions(sel){
+  const list=PHONE_LABELS.includes(sel)?PHONE_LABELS:[sel,...PHONE_LABELS];
+  return list.map(l=>`<option value="${esc(l)}"${l===sel?' selected':''}>${esc(l)}</option>`).join('');
+}
+function rxPhoneRow(phone,removable){
+  const parts=contactPhoneParts((phone&&phone.number)||'');
+  const label=(phone&&phone.label)||'Mobile';
+  const id=nextPhoneId();
+  return `<div class="rx-phone-row" data-rx-phone-row>`
+    +`<select class="rx-in rx-phone-label" data-rx-phone-label aria-label="Number type">${rxPhoneOptions(label)}</select>`
+    +`<span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="${id}" aria-label="Choose country code" title="Country code"><img src="${flagSrc(parts.iso)}" alt=""><span class="cc">${esc(parts.dial)}</span>${SVG.chev}</button>`
+    +`<input class="rx-in tel-num rx-phone-num" id="${id}" data-rx-tel inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${esc(parts.mobilenum)}"></span>`
+    +`<button type="button" class="rx-phone-remove" data-rx-phone-remove aria-label="Remove number" title="Remove number"${removable?'':' hidden'}>&times;</button>`
+  +`</div>`;
+}
+function rxPhoneListHTML(phones){
+  const list=(phones&&phones.length)?phones:[{label:'Mobile',number:''}];
+  return `<div class="rx-phone-list" id="rx-phone-list">${list.map((p,i)=>rxPhoneRow(p,i>0)).join('')}</div>`
+    +`<button type="button" class="rx-add-phone" id="rx-add-phone">+ Add Number</button>`;
+}
+/* Numbers to seed the popup with: the row's labelled list, else its single number. */
+function rxExistingPhones(src){
+  if(src&&Array.isArray(src.phones)&&src.phones.length) return src.phones;
+  const m=src&&(src.mobile||'');
+  return m?[{label:'Mobile',number:m}]:[];
+}
+/* Read every non-empty row into [{label, number}] — number is dial + national, the
+   same shape the Contacts editor stores. */
+function rxCollectPhones(){
+  const out=[];
+  document.querySelectorAll('#rx-phone-list [data-rx-phone-row]').forEach(row=>{
+    const national=(row.querySelector('.rx-phone-num')?.value||'').trim();
+    if(!national) return;
+    const dial=(row.querySelector('.tel-cc .cc')?.textContent||DEFAULT_DIAL).trim();
+    const label=(row.querySelector('[data-rx-phone-label]')?.value||'Mobile').trim()||'Mobile';
+    out.push({label,number:`${dial} ${national}`.trim()});
+  });
+  return out.slice(0,8);
+}
+function rxFirstInvalidPhone(){
+  for(const row of document.querySelectorAll('#rx-phone-list [data-rx-phone-row]')){
+    const inp=row.querySelector('.rx-phone-num'); const national=(inp?.value||'').trim();
+    if(!national) continue;
+    const dial=(row.querySelector('.tel-cc .cc')?.textContent||DEFAULT_DIAL).trim();
+    if(!validMobile(`${dial} ${national}`)) return inp;
+  }
+  return null;
+}
+function rxPhonesChanged(r){
+  const norm=a=>JSON.stringify((a||[]).map(p=>({label:p.label||'Mobile',number:String(p.number||'').trim()})));
+  return norm(rxCollectPhones())!==norm(r&&r.phones);
+}
+async function rxSavePhones(r){
+  const phones=rxCollectPhones();
+  await api('/files/'+r.file_id+'/contact',{method:'PATCH',body:JSON.stringify({phones})});
+  r.phones=phones; r.mobile=phones[0]?phones[0].number:'';
+}
 function rxExtrasChanged(r){
   let saved='[]'; try{ saved=JSON.stringify(JSON.parse(r.socials||'[]')); }catch(e){}
   return rxExtraCur('role')!==String(r.role||'')
@@ -1805,7 +1863,7 @@ function rxCollectNew(){
   const socials=rxCollectSocials();
   const first=v.first||'', last=v.last||'', company=v.company||'';
   const isCo=!!company && !first && !last;           // company with no person name -> a company contact
-  const mob=v.mobile||null;
+  const mob=(rxCollectPhones()[0]||{}).number||null;   // first number seeds the contact; full list saved after create
   const person=isCo
     ? {is_company:true, company_name:company, company_type:v.company_type||null, mobile:mob, email:v.email||null, socials}
     : {is_company:false, prefix:v.prefix||null, first_name:first||null, last_name:last||null,
@@ -1832,8 +1890,9 @@ async function rxCreateNew(keepOpen){
   if(payload.person.email && !validEmail(payload.person.email)){
     st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail($('rx-email')); return;
   }
-  if(payload.person.mobile && !validMobile(payload.person.mobile)){
-    st.textContent='Invalid mobile number'; st.className='rx-status bad'; showInvalidMobile($('rx-mobile')); return;
+  const badPhone=rxFirstInvalidPhone();
+  if(badPhone){
+    st.textContent='Invalid phone number'; st.className='rx-status bad'; showInvalidMobile(badPhone); return;
   }
   rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
   try{
@@ -1845,6 +1904,14 @@ async function rxCreateNew(keepOpen){
     // exists" is never lost with the sheet.
     if(cs) composeToast(cs,!!res.contact_created);
     await load();                               // pull the new row into the grid
+    // Save the full labelled list onto the just-created contact so every number
+    // (and its label) lands in the shared achi_contact_info bucket = the Contacts page.
+    const phones=rxCollectPhones();
+    const nr=ROWS.find(x=>x.id===newLogId);
+    if(nr && phones.length){
+      try{ await api('/files/'+nr.file_id+'/contact',{method:'PATCH',body:JSON.stringify({phones})}); nr.phones=phones; nr.mobile=phones[0].number; }
+      catch(_){}                                // the log is already saved; a phone hiccup must not fail creation
+    }
     revealSavedRow(newLogId);
     rxBusy(false);
     // Save & continue: reopen on the row we just made so editing carries on,

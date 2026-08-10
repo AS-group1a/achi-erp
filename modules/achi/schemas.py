@@ -138,6 +138,16 @@ class FileLogCreate(BaseModel):
     follow_up_notes: str = ""
 
 
+class PhoneNumberIn(BaseModel):
+    """One labelled phone number. Same shape the Contacts page stores in the
+    contact's ``achi_contact_info`` bucket, so the log and Contacts stay in sync."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: str = Field(default="Mobile", max_length=32)
+    number: str = Field(..., min_length=1, max_length=50)
+
+
 class ContactPatch(BaseModel):
     """Inline-edit the file's linked contact (name / company / phone / email)."""
 
@@ -149,6 +159,9 @@ class ContactPatch(BaseModel):
     company_name: str | None = Field(default=None, max_length=255)
     mobile: str | None = Field(default=None, max_length=32)
     email: EmailStr | None = Field(default=None, max_length=255)
+    # Full labelled list from the Add Log popup's "Add Number" rows. When present it
+    # is written to the contact's achi_contact_info bucket (primary_phone = first).
+    phones: list[PhoneNumberIn] | None = Field(default=None, max_length=8)
 
 
 class FileLogUpdate(BaseModel):
@@ -375,6 +388,10 @@ class LogRowOut(BaseModel):
     # Set only on rows returned by the Deleted Logs view (deleted=true); NULL for
     # live rows. Lets that view show when each entry was removed.
     deleted_at: datetime | None = None
+    # All labelled numbers for this row's contact (from the achi_contact_info
+    # bucket). The popup renders one "Add Number" row per entry; falls back to the
+    # single primary/lead number when the bucket has none.
+    phones: list[PhoneNumberIn] = Field(default_factory=list)
 
 
 # ── Site survey ───────────────────────────────────────────────────────────
