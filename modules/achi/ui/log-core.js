@@ -860,7 +860,7 @@ const COLS=[
   {k:'location',h:'Location',      tab:0, w:170, draft:'text', edit:{kind:'text',target:'file',field:'site_location',val:r=>r.site_location||''}},
   {k:'tags',   h:'Tags',           tab:0, w:170, draft:'select', edit:{kind:'tags',target:'log',field:'tags',val:r=>r.tags||''}},
   {k:'owner',  h:'Owner',          tab:0, w:80},
-  {k:'type',   h:'Call Type',      tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
+  {k:'type',   h:'Log Type',       tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
   {k:'category',h:'Category',      tab:0, w:170, draft:'select', edit:{kind:'category',target:'log',field:'category',val:r=>r.category||''}},
   {k:'mobile', h:'Mobile',         tab:1, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
   {k:'email',  h:'Email',          tab:1, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
