@@ -1015,19 +1015,32 @@
     }
 
     try {
-      const [activeContactsResponse, deletedContactsResponse, files, logs, projects, invoicesResponse] = await Promise.all([
-        request(ACTIVE_CONTACTS_PATH),
-        request(DELETED_CONTACTS_PATH),
-        request('/api/v1/achi/files/?limit=1000'),
-        request('/api/v1/achi/logs/?limit=1000'),
+      const activeContactsPromise = request(ACTIVE_CONTACTS_PATH);
+      const deletedContactsPromise = request(DELETED_CONTACTS_PATH);
+      const enrichmentPromise = Promise.all([
+        optionalRequest('/api/v1/achi/files/?limit=1000'),
+        optionalRequest('/api/v1/achi/logs/?limit=1000'),
         optionalRequest('/api/v1/projects/?limit=500&status=all'),
         optionalRequest('/api/v1/finance/?limit=100'),
       ]);
+
+      const [activeContactsResponse, deletedContactsResponse] = await Promise.all([
+        activeContactsPromise,
+        deletedContactsPromise,
+      ]);
+      applyContactResponses(activeContactsResponse, deletedContactsResponse);
+
+      const [files, logs, projects, invoicesResponse] = await enrichmentPromise;
       state.files = Array.isArray(files) ? files : [];
       state.logs = Array.isArray(logs) ? logs : [];
       state.projects = Array.isArray(projects) ? projects : null;
-      state.invoices = invoicesResponse && Array.isArray(invoicesResponse.items) ? invoicesResponse.items : null;
-      applyContactResponses(activeContactsResponse, deletedContactsResponse);
+      state.invoices = invoicesResponse && Array.isArray(invoicesResponse.items)
+        ? invoicesResponse.items
+        : null;
+
+      rebuildContacts();
+      renderDirectory();
+      if (state.activeContactId && activeContact()) renderDrawer();
     } catch (error) {
       $('contacts-table-body').innerHTML = `<tr><td class="table-message" colspan="9">${escapeHtml(error.message)}</td></tr>`;
       $('contact-total').textContent = 'Could not load contacts';

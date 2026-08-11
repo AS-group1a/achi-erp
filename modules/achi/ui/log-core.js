@@ -429,8 +429,8 @@ function laterHidePop(pop){ clearTimeout(_popHideTimer); _popHideTimer=setTimeou
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 const validEmail=v=>!String(v||'').trim()||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
-const validLebanonMobile=n=>/^(?:0[1345]\d{6}|3\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
-const validMobile=v=>{const s=String(v||'').trim();if(!s)return true;if(!/^([0-9 +_\-,.*#()]){1,20}$/.test(s))return false;const digits=s.replace(/\D/g,'');if(/^\+?961(?:\D|$)/.test(s))return validLebanonMobile(digits.slice(3));return digits.length>=7&&digits.length<=15;};
+const validLebanonPhone=n=>/^(?:0?[13456789]\d{6}|2(?:1|4|5|6|7|8|9)\d{6}|(?:70|71|76|78|79|81)\d{6})$/.test(n);
+const validMobile=v=>{const s=String(v||'').trim();if(!s)return true;if(!/^([0-9 +_\-,.*#()]){1,20}$/.test(s))return false;const digits=s.replace(/\D/g,'');if(/^\+?961(?:\D|$)/.test(s))return validLebanonPhone(digits.slice(3));return digits.length>=7&&digits.length<=15;};
 function showFeedback(title,message,input=null){
   input&&input.classList.add('email-invalid');
   const existing=document.querySelector('.feedback');

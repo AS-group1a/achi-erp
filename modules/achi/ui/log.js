@@ -379,10 +379,10 @@ window.addEventListener('pagehide',flushDrafts);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushDrafts(); });
 window.addEventListener('message',e=>{ if(e&&e.data&&e.data.type==='achi-flush') flushDrafts(); });
 
-/* First Name OR Company is enough to create the row. Leaving either identity
-   field saves immediately, even when the next field is in the same draft row;
-   other fields still wait until the user leaves the row. Pickers and the notes
-   workspace never count as leaving. */
+/* A draft saves only after focus leaves the entire row. Moving from First to
+   Last or Company must keep the same DOM and state alive; committing there
+   rebuilds the table and can discard text entered during the asynchronous save.
+   Pickers and the notes workspace never count as leaving. */
 /* (Description-cell hover preview lives in showDescHover() below — grece's card
    with the note text; its file tray reuses our attachment tiles.) */
 $('rows').addEventListener('focusout',e=>{
@@ -390,14 +390,13 @@ $('rows').addEventListener('focusout',e=>{
   if(!(el.classList&&el.classList.contains('din'))) return;
   const tr=el.closest('tr.draft'), dp=el.dataset&&el.dataset.dp;
   if(!tr||!dp) return;
-  const identityComplete=(el.dataset.dk==='first'||el.dataset.dk==='company')&&!!el.value.trim();
   setTimeout(()=>{
     const a=document.activeElement;
     if(a&&a.closest&&(a.closest('.cc-drop')||a.closest('.pg-note-workspace'))) return;
-    if(!identityComplete&&a&&a.closest&&a.closest('tr.draft')===tr) return;
-    if(document.querySelector('.pg-note-workspace')) return;   // workspace open for this row
+    if(a&&a.closest&&a.closest('tr.draft')===tr) return;
+    if(document.querySelector('.pg-note-workspace')) return;
     const st=stateFor(dp);
-    if(st&&st.__choosingContact)return;
+    if(st&&st.__choosingContact) return;
     if(st&&draftIsSaveable(st)) commitDraft(dp);
   },140);
 });
@@ -1410,12 +1409,88 @@ async function load(){ try{
 
 /* tabs = scroll positions */
 const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
-function moveInd(b){ ind.style.left=b.offsetLeft+'px'; ind.style.width=b.offsetWidth+'px'; }
-function firstThForTab(n){ return $('thead').querySelector(`th[data-tab="${n}"]`); }
-function maxHorizontalScroll(){ return Math.max(0,outer.scrollWidth-outer.clientWidth); }
-function scrollToTab(n){ const th=firstThForTab(n); if(th) outer.scrollTo({left:n===0?0:n===3?maxHorizontalScroll():th.offsetLeft-8,behavior:'smooth'}); setActivePill(n); }
-function setActivePill(n){ activeTab=n; tabsEl.querySelectorAll('.pill-tab').forEach(b=>{const on=+b.dataset.tab===n;b.classList.toggle('on',on);if(on)moveInd(b);}); }
-function tabFromScroll(){ const max=maxHorizontalScroll(); let best=0; if(max>0&&outer.scrollLeft>=max-2) best=3; else{const x=outer.scrollLeft+60;[0,1,2,3].forEach(n=>{const th=firstThForTab(n);if(th&&th.offsetLeft<=x)best=n;});} if(best!==activeTab)setActivePill(best); }
+
+function moveInd(b){
+  ind.style.left=b.offsetLeft+'px';
+  ind.style.width=b.offsetWidth+'px';
+}
+
+function firstThForTab(n){
+  return $('thead').querySelector(`th[data-tab="${n}"]`);
+}
+
+function fixedColumnsRight(){
+  const outerLeft=outer.getBoundingClientRect().left;
+  return FIXED_KEYS.reduce((right,key)=>{
+    const th=$('thead').querySelector(`th[data-k="${key}"]`);
+    return th?Math.max(right,th.getBoundingClientRect().right):right;
+  },outerLeft);
+}
+
+function maxHorizontalScroll(){
+  return Math.max(0,outer.scrollWidth-outer.clientWidth);
+}
+
+function ensureTabScrollSpace(){
+  const table=$('tbl');
+  const last=firstThForTab(3);
+  if(!table||!last) return;
+
+  let spacer=$('tab-scroll-space');
+  if(!spacer){
+    spacer=document.createElement('div');
+    spacer.id='tab-scroll-space';
+    spacer.setAttribute('aria-hidden','true');
+    spacer.style.cssText='height:1px;pointer-events:none';
+    outer.appendChild(spacer);
+  }
+
+  const tableBox=table.getBoundingClientRect();
+  const remaining=tableBox.right-last.getBoundingClientRect().left;
+  const visible=outer.getBoundingClientRect().right-fixedColumnsRight();
+  const tail=Math.max(0,visible-remaining+8);
+  spacer.style.width=Math.ceil(tableBox.width+tail)+'px';
+}
+
+function tabTargetLeft(n){
+  const th=firstThForTab(n);
+  if(!th||n===0) return 0;
+  ensureTabScrollSpace();
+  const delta=th.getBoundingClientRect().left-fixedColumnsRight()-8;
+  return Math.max(
+    0,
+    Math.min(maxHorizontalScroll(),outer.scrollLeft+delta)
+  );
+}
+
+function scrollToTab(n){
+  outer.scrollTo({left:tabTargetLeft(n),behavior:'smooth'});
+  setActivePill(n);
+}
+
+function setActivePill(n){
+  activeTab=n;
+  tabsEl.querySelectorAll('.pill-tab').forEach(b=>{
+    const on=+b.dataset.tab===n;
+    b.classList.toggle('on',on);
+    if(on) moveInd(b);
+  });
+}
+
+function tabFromScroll(){
+  const max=maxHorizontalScroll();
+  let best=0;
+  if(max>0&&outer.scrollLeft>=max-2){
+    best=3;
+  }else{
+    const boundary=fixedColumnsRight()+12;
+    [0,1,2,3].forEach(n=>{
+      const th=firstThForTab(n);
+      if(th&&th.getBoundingClientRect().left<=boundary) best=n;
+    });
+  }
+  if(best!==activeTab) setActivePill(best);
+}
 tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dataset.tab));
 let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('show',outer.scrollTop>200); if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
 $('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
@@ -1439,6 +1514,6 @@ $('q').oninput=render;
 $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
 $('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="email-count">0</span>';
-loadColWidths(); buildHead(); wireColResize(); setActivePill(0); render();
+loadColWidths(); buildHead(); wireColResize(); setActivePill(0); stats(); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); loadCustomCities(); loadCustomDistricts(); }
