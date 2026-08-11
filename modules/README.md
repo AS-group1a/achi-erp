@@ -59,10 +59,12 @@ owning that pipeline forever. Measured separately: the *merge* is free (a route 
 Being on the same origin as the SPA is what makes this work: the page reads the JWT the
 SPA already stored at `localStorage['oe_access_token']`, so there is no second login.
 
-Known trade-off: **it is not in their sidebar.** A sidebar link needs `App.tsx`, which
-needs the frontend build. Bookmark the URL, or take that fork when the pipeline is worth
-it. The page is deliberately unauthenticated — it is a static shell containing no data;
-every fetch it makes carries the bearer token and is authorised by the API.
+ACHI pages appear in both navigation layers without modifying upstream:
+`modules/achi/ui/chrome.js` controls the standalone sidebar, while
+`deploy/overrides/achi-nav.js` injects Log, Contacts, and CRM into OCE's sidebar.
+This keeps navigation outside the pre-built frontend and avoids an `App.tsx` fork.
+The pages are deliberately unauthenticated static shells containing no data; every
+data request carries the bearer token and is authorised by the API.
 
 Keep `ui/files.html`'s palette in sync with `deploy/overrides/achi-theme.css` by hand.
 This page never sees upstream's stylesheet, so the variables can't be shared.

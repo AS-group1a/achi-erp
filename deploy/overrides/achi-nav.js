@@ -490,10 +490,12 @@
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
-      // A non-admin's Contacts is the shared ACHI directory — the same page the
-      // standalone chrome links to. Upstream /contacts stays the admin target.
-      if (a.id === CONTACTS_ID && !isAdminUser()) {
-        location.assign('/api/v1/achi/contact-info/ui');
+      // Non-admins use ACHI's standalone Contacts and CRM pages. Admins keep
+      // the canonical upstream destinations.
+      if (!isAdminUser()) {
+        location.assign(a.id === CONTACTS_ID
+          ? '/api/v1/achi/contact-info/ui'
+          : '/api/v1/achi/crm/ui');
         return;
       }
       location.assign(a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE);
@@ -538,7 +540,7 @@
 
   // --- Role-based sidebar filter -------------------------------------------
   // Admins keep the full module sidebar everywhere. Every other signed-in user
-  // sees exactly two entries — Log and Contacts — on every OCE page including
+  // sees exactly three entries — Log, Contacts and CRM — on every OCE page including
   // /dashboard. The verdict is the JWT's role claim: synchronous (no fetch, no
   // flash of the wrong sidebar) and purely cosmetic — the API keeps enforcing
   // real permissions server-side, so hiding here is navigation, not security.
@@ -568,7 +570,7 @@
     }
     moduleItems().forEach(function (item) {
       var link = directLink(item);
-      var keep = link && (link.id === ID || link.id === CONTACTS_ID);
+      var keep = link && (link.id === ID || link.id === CONTACTS_ID || link.id === CRM_ID);
       if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
         // the inline display and our marker, so lift both off the keepers.
