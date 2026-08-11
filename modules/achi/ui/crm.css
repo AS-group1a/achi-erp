@@ -119,7 +119,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   margin: 0 auto;
   overflow: hidden;
   background: var(--surface);
-  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
@@ -268,7 +267,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(23, 32, 51, .42); }
 .record-modal { width: min(720px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
 .modal-header { padding: 20px 22px 14px; border-bottom: 1px solid var(--line); }
-#record-form { padding: 20px 22px 22px; }
+#record-form, #prospect-form { padding: 20px 22px 22px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .form-grid label { min-width: 0; color: #344054; font-size: 11px; font-weight: 650; }
 .form-grid input, .form-grid select, .form-grid textarea {
@@ -336,3 +335,35 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .modal-backdrop { padding: 0; }
   .record-modal { width: 100%; max-height: 100vh; min-height: 100vh; border: 0; border-radius: 0; }
 }
+
+/* ── CRM table — styled to match the Log page (navy sticky header, zebra rows,
+   status badges) rather than the Contact Info list. */
+.workspace-toolbar { display: flex; align-items: center; gap: 12px; }
+.crm-total { color: var(--muted); font-size: 12px; }
+.tscroll { overflow: auto; max-height: calc(100vh - 220px); background: var(--surface); }
+#tbl { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; table-layout: fixed; }
+#tbl thead th { position: sticky; top: 0; z-index: 2; background: var(--brand); color: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; text-align: left; padding: 0 14px; height: 40px; white-space: nowrap; border-right: 1px solid rgba(255, 255, 255, .08); }
+#tbl tbody td { height: 46px; padding: 0 14px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--surface); color: var(--ink); }
+#tbl tbody td.wide { max-width: 260px; }
+#tbl tbody tr.data:nth-child(even) td { background: #f8faff; }
+#tbl tbody tr.data:hover td { background: #eef4fd; }
+#tbl .name { font-weight: 700; color: var(--ink); }
+#tbl .dt { font-variant-numeric: tabular-nums; color: var(--ink); }
+#tbl .mt { color: var(--soft); }
+#tbl td.empty { text-align: center; color: var(--soft); padding: 26px 14px; }
+/* Status = enquiry stage, shown as the Log page's pill badge. */
+.badge { display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 99px; font-size: 11px; font-weight: 800; white-space: nowrap; border: 1px solid transparent; text-transform: capitalize; }
+.badge.b-prospect { background: #fff4d7; color: #795500; border-color: #f3dfa2; }
+.badge.b-lead { background: #e8eef9; color: #284f9e; border-color: #c5d3ef; }
+.badge.b-site_survey { background: #e0f5f5; color: #0a5f6e; border-color: #8dd5d8; }
+.badge.b-measurements { background: #eff9ef; color: #2e6b3e; border-color: #95d5a0; }
+/* Per-column widths for the 9 CRM columns. */
+#tbl th:nth-child(1) { width: 90px; }
+#tbl th:nth-child(2) { width: 140px; }
+#tbl th:nth-child(3) { width: 130px; }
+#tbl th:nth-child(4) { width: 170px; }
+#tbl th:nth-child(5) { width: 160px; }
+#tbl th:nth-child(6) { width: 120px; }
+#tbl th:nth-child(7) { width: 240px; }
+#tbl th:nth-child(8) { width: 130px; }
+#tbl th:last-child { width: 130px; }

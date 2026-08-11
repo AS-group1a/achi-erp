@@ -1460,7 +1460,7 @@ async def list_logs(
         if e
     }
     out: list[LogRowOut] = []
-    for log, f, contact, owner_name in rows:
+    for log, f, contact, owner_name, assigned_name in rows:
         # A row only has a Contact when a phone or email was given. Without one the
         # identity lives on the file exactly as it was typed, so fall back to that
         # rather than showing a blank row.
@@ -1537,6 +1537,8 @@ async def list_logs(
                 site_floor=f.site_floor,
                 owner=f.owner_user_id,
                 owner_name=owner_name,
+                assigned=f.assigned_to_user_id,
+                assigned_name=assigned_name,
                 contact_id=f.contact_id,
                 company_contact_id=f.company_contact_id,
                 contact_name=name,

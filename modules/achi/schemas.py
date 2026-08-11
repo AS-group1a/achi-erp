@@ -406,6 +406,8 @@ class LogRowOut(BaseModel):
     site_floor: str | None = None
     owner: str | None = None
     owner_name: str | None = None   # User.full_name; the grid derives initials from it
+    assigned: str | None = None        # ContactFile.assigned_to_user_id
+    assigned_name: str | None = None   # assigned User.full_name (CRM "Assigned" column)
     # contact (from the canonical directory; None when the row had no phone/email,
     # in which case the name fields below come from the file as typed)
     contact_id: str | None = None
