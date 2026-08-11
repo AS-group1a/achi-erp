@@ -768,11 +768,10 @@
 
   function storedRelatedContacts(value) {
     if (!Array.isArray(value)) return [];
-    return value.map(item => ({
-      name: String(item && item.name || ''),
-      tag: String(item && item.tag || ''),
-      phone: String(item && item.phone || ''),
-    })).filter(item => item.name || item.phone).slice(0, 8);
+    return value.map(item => {
+      const f = personFields(item);   // folds legacy {name,tag} into the card shape
+      return { prefix: f.prefix, first_name: f.first, last_name: f.last, role: f.role, phone_label: f.phoneLabel, phone: f.phone, email: f.email, primary: f.primary };
+    }).filter(item => item.first_name || item.last_name || item.phone || item.email).slice(0, 8);
   }
 
   function normalizeContact(raw) {
@@ -873,7 +872,7 @@
         contact.companyType,
         ...contact.phones.map(phone => phone.number),
         ...contact.emails.flatMap(email => [email.label, email.address]),
-        ...contact.relatedContacts.flatMap(related => [related.name, related.tag, related.phone]),
+        ...contact.relatedContacts.flatMap(related => [related.prefix, related.first_name, related.last_name, related.role, related.phone, related.email]),
         ...contact.socials.flatMap(social => [social.platform, social.handle]),
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
@@ -1121,11 +1120,13 @@
     const emailRows = contact.emails.length
       ? contact.emails.map(email => detailRow(email.label || 'Email', email.address, `mailto:${email.address}`)).join('')
       : detailRow('Email', '-');
-    const relatedContactRows = contact.relatedContacts.map(related => detailRow(
-      related.tag ? `${related.name} (${related.tag})` : related.name,
-      related.phone || '-',
-      related.phone ? phoneHref(related.phone) : '',
-    )).join('');
+    const relatedContactRows = contact.relatedContacts.map(related => {
+      const nm = [related.prefix, related.first_name, related.last_name].filter(Boolean).join(' ').trim() || 'Contact';
+      const label = related.role ? `${nm} (${related.role})` : nm;
+      const value = related.phone || related.email || '-';
+      const href = related.phone ? phoneHref(related.phone) : (related.email ? `mailto:${related.email}` : '');
+      return detailRow(label, value, href);
+    }).join('');
     const website = safeHref(contact.website);
     const quickLinks = contact.quickLinks
       .map(link => ({ label: String(link.label || 'Link'), url: safeHref(link.url) }))
@@ -1451,16 +1452,46 @@
     })).filter(email => email.address).slice(0, 8);
   }
 
+  // Each additional contact is a mini card mirroring the main contact fields —
+  // matching the Add Log popup so the two pages look and store the same.
+  const RELATED_ROLES = ['Owner', 'Engineer', 'Contractor', 'Foreman', 'Site manager', 'Architect', 'Procurement'];
+
+  function personFields(rc) {
+    rc = rc || {};
+    let first = rc.first_name || '', last = rc.last_name || '';
+    if (!first && !last && rc.name) { const p = String(rc.name).trim().split(/\s+/); first = p[0] || ''; last = p.slice(1).join(' '); }
+    return { prefix: rc.prefix || '', first, last, role: rc.role || rc.tag || '', phoneLabel: rc.phone_label || 'Mobile', phone: rc.phone || '', email: rc.email || '', primary: !!rc.primary };
+  }
+
+  // Options with a leading "—" for the empty choice, matching the Add Log card.
+  function personOpts(list, selected) {
+    return ['', ...list].map(o => `<option value="${escapeHtml(o)}"${o === (selected || '') ? ' selected' : ''}>${escapeHtml(o || '—')}</option>`).join('');
+  }
+
+  // Byte-for-byte the same markup/classes as the Add Log popup's contact-person
+  // card (rx-person / rx-l / rx-in / rx-grid …), with the Contacts data-attrs
+  // kept so the read/remove logic and the country picker still work. The card's
+  // CSS is copied (scoped to .rx-person) into contact_info.css.
   function relatedContactRowMarkup(contact = {}) {
-    const parts = phoneParts(contact.phone || '');
-    return `<div class="repeatable-row related-contact-row" data-related-contact-row>
-      <input type="text" data-related-name maxlength="255" aria-label="Additional contact name" placeholder="Contact name" value="${escapeHtml(contact.name || '')}">
-      <input type="text" data-related-tag maxlength="64" aria-label="Relationship or tag" placeholder="Relationship / tag" value="${escapeHtml(contact.tag || '')}">
-      <span class="tel-wrap">
-        ${countryButtonMarkup(parts, 'Choose additional contact country code')}
-        <input type="tel" data-related-phone maxlength="50" inputmode="tel" autocomplete="tel-national" aria-label="Additional contact phone number" placeholder="70 123 456" value="${escapeHtml(parts.national)}">
-      </span>
-      <button class="repeatable-remove" type="button" data-remove-related-contact aria-label="Remove additional contact" title="Remove contact">${repeatableRemoveIcon()}</button>
+    const f = personFields(contact);
+    const parts = phoneParts(f.phone);
+    return `<div class="rx-person" data-related-contact-row>
+      <div class="rx-person-head"><span class="rx-person-t" data-person-num>Contact</span>
+        <button type="button" class="rx-person-x" data-remove-related-contact aria-label="Remove contact person">&times; Remove</button></div>
+      <div class="rx-grid rx-g4">
+        <div><label class="rx-l">Pre</label><select class="rx-in" data-related-prefix>${personOpts(PREFIXES, f.prefix)}</select></div>
+        <div><label class="rx-l">First name</label><input class="rx-in" type="text" data-related-first maxlength="128" placeholder="Type or pick..." value="${escapeHtml(f.first)}"></div>
+        <div><label class="rx-l">Last name</label><input class="rx-in" type="text" data-related-last maxlength="128" placeholder="Type or pick..." value="${escapeHtml(f.last)}"></div>
+        <div><label class="rx-l">Role</label><select class="rx-in" data-related-role>${personOpts(RELATED_ROLES, f.role)}</select></div>
+      </div>
+      <div class="rx-grid rx-g-person">
+        <div><label class="rx-l">Phone / WhatsApp</label><div class="rx-person-tel">
+          <select class="rx-in rx-phone-label" data-related-phone-label aria-label="Number type">${optionMarkup(PHONE_LABELS, f.phoneLabel)}</select>
+          <span class="tel-wrap">${countryButtonMarkup(parts, 'Choose contact person country code')}<input class="rx-in tel-num" type="tel" data-related-phone maxlength="50" inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${escapeHtml(parts.national)}"></span>
+        </div></div>
+        <div><label class="rx-l">Email</label><input class="rx-in" type="email" data-related-email maxlength="255" autocomplete="email" placeholder="name@company.com" value="${escapeHtml(f.email)}"></div>
+        <div><label class="rx-l">Primary?</label><select class="rx-in" data-related-primary><option value="no"${f.primary ? '' : ' selected'}>No</option><option value="yes"${f.primary ? ' selected' : ''}>Yes</option></select></div>
+      </div>
     </div>`;
   }
 
@@ -1468,9 +1499,14 @@
     $('add-related-contact').disabled = $('related-contact-list').querySelectorAll('[data-related-contact-row]').length >= 8;
   }
 
+  function renumberRelatedContacts() {
+    $('related-contact-list').querySelectorAll('[data-person-num]').forEach((el, i) => { el.textContent = `Contact ${i + 2}`; });
+  }
+
   function renderRelatedContactRows(contacts = []) {
     $('related-contact-list').innerHTML = contacts.slice(0, 8).map(relatedContactRowMarkup).join('');
     updateRelatedContactRows();
+    renumberRelatedContacts();
   }
 
   function addRelatedContactRow() {
@@ -1478,19 +1514,28 @@
     if (list.querySelectorAll('[data-related-contact-row]').length >= 8) return;
     list.insertAdjacentHTML('beforeend', relatedContactRowMarkup());
     updateRelatedContactRows();
-    list.lastElementChild.querySelector('[data-related-name]').focus();
+    renumberRelatedContacts();
+    list.lastElementChild.querySelector('[data-related-first]').focus();
   }
 
   function readRelatedContactRows() {
     const contacts = [];
     for (const row of $('related-contact-list').querySelectorAll('[data-related-contact-row]')) {
-      const name = row.querySelector('[data-related-name]').value.trim();
-      const tag = row.querySelector('[data-related-tag]').value.trim();
+      const g = s => row.querySelector(s);
+      const first = (g('[data-related-first]').value || '').trim();
+      const last = (g('[data-related-last]').value || '').trim();
+      const email = (g('[data-related-email]').value || '').trim();
       const phone = fullPhoneNumber(row);
-      if (!name && !tag && !phone) continue;
-      if (!name) throw new Error('Each additional contact needs a name.');
-      if (!phone) throw new Error(`Enter a phone number for ${name}.`);
-      contacts.push({ name, tag: tag || null, phone });
+      if (!first && !last && !email && !phone) continue;
+      if (!first && !last) throw new Error('Each contact person needs a name.');
+      contacts.push({
+        prefix: (g('[data-related-prefix]').value || '').trim() || null,
+        first_name: first || null, last_name: last || null,
+        role: (g('[data-related-role]').value || '').trim() || null,
+        phone_label: (g('[data-related-phone-label]').value || 'Mobile').trim(),
+        phone: phone || null, email: email || null,
+        primary: g('[data-related-primary]').value === 'yes',
+      });
     }
     return contacts.slice(0, 8);
   }
@@ -2138,7 +2183,7 @@
         contact.category,
         contact.emails.map(email => `${email.label}: ${email.address}`).join('; '),
         contact.phones.map(phone => `${phone.label}: ${phone.number}`).join('; '),
-        contact.relatedContacts.map(related => [related.name, related.tag, related.phone].filter(Boolean).join('|')).join('; '),
+        contact.relatedContacts.map(related => [related.first_name, related.last_name, related.role, related.phone, related.email].filter(Boolean).join('|')).join('; '),
         contact.socials.map(social => `${social.platform}: ${social.handle}`).join('; '),
         contact.location,
         contact.mapsUrl,
@@ -2278,6 +2323,7 @@
       if (!remove) return;
       remove.closest('[data-related-contact-row]').remove();
       updateRelatedContactRows();
+      renumberRelatedContacts();
     });
     $('add-social').addEventListener('click', addSocialRow);
     $('social-list').addEventListener('click', event => {

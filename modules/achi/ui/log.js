@@ -1,16 +1,19 @@
 async function rxSaveAll(keepOpen){
   if(rxRowId===null) return rxCreateNew(keepOpen);   // blank sheet -> create, don't patch
   const st=$('rx-status');
-  const email=$('rx-email');
-  if(email&&!validEmail(email.value)){
-    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(email); return;
+  // Guard the email/phone/contact-person rows up front: any invalid entry blocks
+  // the save and points the user at the offending row, so nothing slips through.
+  const badEmail=rxFirstInvalidEmail();
+  if(badEmail){
+    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(badEmail); return;
   }
-  // Guard mobile up front like email/rxCreateNew: without this, rxSave rejects the
-  // number but only returns (not throws), so the loop below counts it as saved and
-  // closes the sheet. Validate the dialled value so Lebanese rules actually apply.
-  const mobile=$('rx-mobile');
-  if(mobile&&mobile.value.trim()&&!validMobile(rxFieldValue(mobile))){
-    st.textContent='Invalid mobile number'; st.className='rx-status bad'; showInvalidMobile(mobile); return;
+  const badPhone=rxFirstInvalidPhone();
+  if(badPhone){
+    st.textContent='Invalid phone number'; st.className='rx-status bad'; showInvalidMobile(badPhone); return;
+  }
+  const badRel=rxRelatedInvalid();
+  if(badRel){
+    st.textContent=badRel.msg; st.className='rx-status bad'; if(badRel.el) badRel.el.focus(); return;
   }
   const fields=[...$('rx-body').querySelectorAll('[data-k]')];
   const r=ROWS.find(x=>x.id===rxRowId);
@@ -21,7 +24,10 @@ async function rxSaveAll(keepOpen){
     return c&&c.edit&&String(c.edit.val(r)??'')!==rxFieldValue(el);
   });
   const extrasChanged=rxExtrasChanged(r);
-  if(!changed.length && !extrasChanged){
+  const phonesChanged=rxPhonesChanged(r);
+  const emailsChanged=rxEmailsChanged(r);
+  const relatedChanged=rxRelatedChanged(r);
+  if(!changed.length && !extrasChanged && !phonesChanged && !emailsChanged && !relatedChanged){
     st.textContent='Nothing to save'; st.className='rx-status';
     if(!keepOpen) setTimeout(closeExpandedRow,500);
     return;
@@ -33,6 +39,11 @@ async function rxSaveAll(keepOpen){
   for(const el of changed){ try{ await rxSave(el); }catch(e){ failed++; } }
   // Fields with no COLS/inline-edit entry go straight to the file.
   if(extrasChanged){ try{ await rxSaveExtras(r); }catch(e){ failed++; } }
+  // Phone / email / contact-person lists -> the contact's shared bucket, so the
+  // Contacts page sees the same numbers, emails and people.
+  if(phonesChanged){ try{ await rxSavePhones(r); }catch(e){ failed++; } }
+  if(emailsChanged){ try{ await rxSaveEmails(r); }catch(e){ failed++; } }
+  if(relatedChanged){ try{ await rxSaveRelated(r); }catch(e){ failed++; } }
   rxBusy(false);
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
   else {
@@ -507,13 +518,40 @@ $('rx-body').addEventListener('click',e=>{
   if(removeHandle){ closeRxSelect(); removeHandle.closest('.rx-social')?.remove(); return; }
   if(e.target.closest('#rx-add-handle')){ addRxSocialRow(); return; }
   if(e.target.closest('[data-rx-compose]')){
-    const email=$('rx-email');
+    const email=e.target.closest('.rx-email-row')?.querySelector('.rx-email-addr')||$('rx-email');
     if(email&&validEmail(email.value)&&email.value.trim()) openEmailCompose(email.value.trim(),true);
     else if(email) showInvalidEmail(email);
     return;
   }
   const countryCode=e.target.closest('.tel-cc[data-rx-phone]');
   if(countryCode){ openCc(countryCode); return; }
+  if(e.target.closest('#rx-add-phone')){
+    const list=$('rx-phone-list');
+    if(list){ list.insertAdjacentHTML('beforeend', rxPhoneRow({label:'Mobile',number:''},true));
+      list.lastElementChild?.querySelector('.rx-phone-num')?.focus(); }
+    return;
+  }
+  const rmPhone=e.target.closest('[data-rx-phone-remove]');
+  if(rmPhone){ rmPhone.closest('[data-rx-phone-row]')?.remove(); return; }
+  if(e.target.closest('#rx-add-email')){
+    const list=$('rx-email-list');
+    if(list){ list.insertAdjacentHTML('beforeend', rxEmailRow({label:'Other',address:''},true));
+      list.lastElementChild?.querySelector('.rx-email-addr')?.focus(); }
+    return;
+  }
+  const rmEmail=e.target.closest('[data-rx-email-remove]');
+  if(rmEmail){ rmEmail.closest('[data-rx-email-row]')?.remove(); return; }
+  if(e.target.closest('#rx-add-related')){
+    const wrap=$('rx-related-wrap'), list=$('rx-related-list');
+    if(wrap) wrap.classList.remove('rx-related-empty');
+    if(list){ list.insertAdjacentHTML('beforeend', rxRelatedRow({})); rxRenumberPersons();
+      list.lastElementChild?.querySelector('[data-rc-first]')?.focus(); }
+    return;
+  }
+  const rmRel=e.target.closest('[data-rx-related-remove]');
+  if(rmRel){ rmRel.closest('[data-rx-related-row]')?.remove(); rxRenumberPersons();
+    if($('rx-related-list') && !$('rx-related-list').children.length) $('rx-related-wrap')?.classList.add('rx-related-empty');
+    return; }
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
   if(e.target.closest('#rx-files')){ rxOpenWorkspace('files'); return; }
   if(e.target.closest('#rx-draw')){ rxOpenWorkspace('draw'); return; }
@@ -526,8 +564,8 @@ $('rx-body').addEventListener('keydown',e=>{
   const t=e.target;
   if(t.tagName==='TEXTAREA') return;
   e.preventDefault();
-  if((t.dataset.k==='mobile'||t.id==='rx-mobile')&&t.value&&!validMobile(t.value)){ showInvalidMobile(t); return; }
-  if(t.dataset.k==='email'&&!validEmail(t.value)){ showInvalidEmail(t); return; }
+  if((t.dataset.k==='mobile'||t.dataset.rxTel)&&t.value&&!validMobile(t.value)){ showInvalidMobile(t); return; }
+  if((t.dataset.k==='email'||t.dataset.rxEmail!==undefined)&&t.value&&!validEmail(t.value)){ showInvalidEmail(t); return; }
   const f=[...$('rx-body').querySelectorAll('input,select,textarea,button')].filter(el=>!el.disabled&&el.offsetParent!==null);
   const i=f.indexOf(t);
   if(i>=0&&i+1<f.length) f[i+1].focus();
@@ -559,14 +597,14 @@ function rxValidatePhone(el){
   el.classList.toggle('tel-bad', !!el.value.trim() && !validMobile(`${dial} ${el.value}`));
 }
 $('rx-body').addEventListener('paste',e=>{
-  const el=e.target; if(!el.dataset||el.dataset.k!=='mobile') return;
+  const el=e.target; if(!el.dataset||!(el.dataset.k==='mobile'||el.dataset.rxTel)) return;
   setTimeout(()=>{
     const p=detectPhone(el.value);
     if(p){ setTelCountry(el.closest('.tel-wrap'),p.iso,p.dial); el.value=p.mobilenum; }
     rxValidatePhone(el);
   },0);
 });
-$('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&e.target.dataset.k==='mobile') rxValidatePhone(e.target); },true);
+$('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&(e.target.dataset.k==='mobile'||e.target.dataset.rxTel)) rxValidatePhone(e.target); },true);
 $('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 /* Tags: click the field to open the multi-select checkbox dropdown (the same one
@@ -641,9 +679,9 @@ $('rx-body').addEventListener('change',e=>{
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
   if(e.target.dataset&&(e.target.dataset.k==='first'||e.target.dataset.k==='last')) queueContactMatches(e.target);
-  if(e.target.dataset&&e.target.dataset.k==='email'){
+  if(e.target.dataset&&(e.target.dataset.k==='email'||e.target.dataset.rxEmail!==undefined)){
     const valid=validEmail(e.target.value);
-    if(valid) e.target.classList.remove('email-invalid');
+    e.target.classList.toggle('email-invalid', !!e.target.value.trim()&&!valid);
     const button=e.target.closest('.draft-email')?.querySelector('[data-rx-compose]');
     if(button) button.hidden=!(valid&&e.target.value.trim());
   }

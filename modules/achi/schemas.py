@@ -138,6 +138,48 @@ class FileLogCreate(BaseModel):
     follow_up_notes: str = ""
 
 
+class PhoneNumberIn(BaseModel):
+    """One labelled phone number. Same shape the Contacts page stores in the
+    contact's ``achi_contact_info`` bucket, so the log and Contacts stay in sync."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: str = Field(default="Mobile", max_length=32)
+    number: str = Field(..., min_length=1, max_length=50)
+
+
+class EmailEntryIn(BaseModel):
+    """One labelled email. Mirrors the Contacts page's ``emails`` bucket entries."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: str = Field(default="Other", max_length=32)
+    address: EmailStr = Field(..., max_length=255)
+
+
+class RelatedContactIn(BaseModel):
+    """An additional contact person on an enquiry — a mini contact card
+    (prefix / first / last / role / phone / email / primary). Lenient on which
+    fields are filled (the frontend enforces "needs a name"). Legacy ``name`` /
+    ``tag`` are still accepted so an old {name,tag,phone} row survives a re-save;
+    the service folds them into first_name / role. ``email`` is a plain string
+    (not EmailStr) so an odd stored value can never 500 the grid."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    prefix: str | None = Field(default=None, max_length=16)
+    first_name: str | None = Field(default=None, max_length=128)
+    last_name: str | None = Field(default=None, max_length=128)
+    role: str | None = Field(default=None, max_length=64)
+    phone_label: str | None = Field(default=None, max_length=32)
+    phone: str | None = Field(default=None, max_length=50)
+    email: str | None = Field(default=None, max_length=255)
+    primary: bool = False
+    # legacy (pre-card) fields, still accepted and folded in on save
+    name: str | None = Field(default=None, max_length=255)
+    tag: str | None = Field(default=None, max_length=64)
+
+
 class ContactPatch(BaseModel):
     """Inline-edit the file's linked contact (name / company / phone / email)."""
 
@@ -149,6 +191,12 @@ class ContactPatch(BaseModel):
     company_name: str | None = Field(default=None, max_length=255)
     mobile: str | None = Field(default=None, max_length=32)
     email: EmailStr | None = Field(default=None, max_length=255)
+    # Full labelled lists from the Add Log popup. When present, each is written to
+    # the contact's achi_contact_info bucket (primary_phone/email = first entry) —
+    # the SAME arrays the Contacts page edits, so the two pages stay one record.
+    phones: list[PhoneNumberIn] | None = Field(default=None, max_length=8)
+    emails: list[EmailEntryIn] | None = Field(default=None, max_length=8)
+    related_contacts: list[RelatedContactIn] | None = Field(default=None, max_length=8)
 
 
 class FileLogUpdate(BaseModel):
@@ -375,6 +423,14 @@ class LogRowOut(BaseModel):
     # Set only on rows returned by the Deleted Logs view (deleted=true); NULL for
     # live rows. Lets that view show when each entry was removed.
     deleted_at: datetime | None = None
+    # All labelled numbers for this row's contact (from the achi_contact_info
+    # bucket). The popup renders one "Add Number" row per entry; falls back to the
+    # single primary/lead number when the bucket has none.
+    phones: list[PhoneNumberIn] = Field(default_factory=list)
+    # Labelled emails and additional contact people, same bucket. Plain dicts on
+    # output so a legacy/odd stored value can never 500 the whole grid.
+    emails: list[dict] = Field(default_factory=list)
+    related_contacts: list[dict] = Field(default_factory=list)
 
 
 # ── Site survey ───────────────────────────────────────────────────────────
@@ -779,14 +835,9 @@ class ContactInfoEmailIn(BaseModel):
     address: EmailStr = Field(..., max_length=255)
 
 
-class ContactInfoRelatedContactIn(BaseModel):
-    """An alternate person to call when the main contact is unavailable."""
-
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    name: str = Field(..., min_length=1, max_length=255)
-    tag: str | None = Field(default=None, max_length=64)
-    phone: str = Field(..., min_length=1, max_length=50)
+class ContactInfoRelatedContactIn(RelatedContactIn):
+    """An additional contact person on the Contacts page — the same mini contact
+    card as the Add Log popup, so the two pages store one shape."""
 
 
 class ContactInfoQuickLinkIn(BaseModel):

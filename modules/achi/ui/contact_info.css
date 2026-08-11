@@ -1883,3 +1883,26 @@ textarea:focus-visible {
     transition: none;
   }
 }
+
+/* ── Additional contacts: contact-person cards IDENTICAL to the Add Log popup.
+   Copied verbatim from log.css and scoped to .rx-person so they override the
+   Contacts modal's own input/label/phone-button styles. ── */
+.related-contacts-field .repeatable-list { gap: 12px; }
+.rx-person { display: flex; flex-direction: column; gap: 10px; border: 1px solid #dfe4ec; border-radius: 12px; padding: 12px 14px; background: #f9fbfe; }
+.rx-person-head { display: flex; align-items: center; justify-content: space-between; }
+.rx-person-t { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #5b5e66; }
+.rx-person-x { border: 0; background: transparent; color: #8a8f98; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+.rx-person-x:hover { color: #c02626; }
+.rx-person .rx-grid { display: grid; gap: 12px; }
+.rx-person .rx-g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rx-person .rx-g-person { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1.15fr) minmax(0, 0.9fr); }
+.rx-person .rx-l { display: block; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #8a8f98; margin-bottom: 5px; }
+.rx-person .rx-in { width: 100%; height: 38px; border: 1px solid #d7dde8; border-radius: 7px; padding: 0 10px; font: inherit; font-size: 13px; background: #fff; color: #1d1d1f; box-sizing: border-box; }
+.rx-person select.rx-in { cursor: pointer; }
+.rx-person .rx-phone-label { min-width: 0; padding-left: 8px; padding-right: 6px; }
+.rx-person .rx-person-tel { display: grid; grid-template-columns: minmax(72px, 96px) minmax(0, 1fr); gap: 6px; align-items: center; }
+/* phone: standalone rounded country button + full-radius input, like the log's */
+.rx-person .tel-wrap { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; }
+.rx-person .phone-country-button { min-width: auto; min-height: 38px; height: 38px; gap: 4px; padding: 0 8px; border: 1px solid #cfd9e8; border-radius: 6px; }
+.rx-person .tel-wrap input { flex: 1 1 auto; min-width: 0; border-radius: 7px; }
+@media (max-width: 700px) { .rx-person .rx-g4, .rx-person .rx-g-person { grid-template-columns: 1fr 1fr; } }

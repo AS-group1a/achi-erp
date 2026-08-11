@@ -88,6 +88,94 @@ def _ensure_directory_tag(contact) -> None:
         contact.module_tags = [*tags, CONTACT_INFO_TAG]
 
 
+def _write_contact_phones(contact, phones) -> None:
+    """Persist the Add Log popup's labelled numbers to the ONE place the Contacts
+    page also reads/writes — ``custom_properties[CONTACT_INFO_TAG]["phones"]`` — and
+    mirror the first onto the canonical ``primary_phone``. Tags the contact into the
+    directory so the numbers show on the Contacts page too. This is what keeps the
+    log and Contacts 100% in sync: both edit the same array on the same row.
+
+    ``phones`` is a list of ``{"label","number"}`` dicts (from ContactPatch); blanks
+    are dropped and the list is capped at 8, matching the Contacts editor.
+    """
+    items: list[dict] = []
+    for p in phones or []:
+        number = str((p or {}).get("number") or "").strip()
+        if not number:
+            continue
+        label = (str((p or {}).get("label") or "Mobile").strip() or "Mobile")[:32]
+        items.append({"label": label, "number": number[:50]})
+        if len(items) >= 8:
+            break
+    props = dict(contact.custom_properties or {})
+    bucket = dict(props.get(CONTACT_INFO_TAG) or {})
+    bucket["phones"] = items
+    props[CONTACT_INFO_TAG] = bucket
+    contact.custom_properties = props
+    contact.primary_phone = items[0]["number"] if items else None
+    _ensure_directory_tag(contact)
+
+
+def _write_contact_emails(contact, emails) -> None:
+    """Like _write_contact_phones, for the labelled ``emails`` array — mirrors the
+    first onto ``primary_email``. Same shared bucket the Contacts page edits."""
+    items: list[dict] = []
+    for e in emails or []:
+        address = str((e or {}).get("address") or "").strip()
+        if not address:
+            continue
+        label = (str((e or {}).get("label") or "Other").strip() or "Other")[:32]
+        items.append({"label": label, "address": address[:255]})
+        if len(items) >= 8:
+            break
+    props = dict(contact.custom_properties or {})
+    bucket = dict(props.get(CONTACT_INFO_TAG) or {})
+    bucket["emails"] = items
+    props[CONTACT_INFO_TAG] = bucket
+    contact.custom_properties = props
+    contact.primary_email = items[0]["address"] if items else None
+    _ensure_directory_tag(contact)
+
+
+def _write_contact_related(contact, related) -> None:
+    """Additional contact people — mini contact cards stored in the shared bucket's
+    ``related_contacts`` array (extras only; there is no canonical column). Each is
+    normalised to the card shape; a legacy ``{name, tag}`` row is folded into
+    first_name / last_name / role so old data survives a re-save."""
+    items: list[dict] = []
+    for raw in related or []:
+        r = raw or {}
+        first = str(r.get("first_name") or "").strip()
+        last = str(r.get("last_name") or "").strip()
+        if not first and not last and str(r.get("name") or "").strip():
+            parts = str(r.get("name")).strip().split(None, 1)
+            first = parts[0]
+            last = parts[1] if len(parts) > 1 else ""
+        phone = str(r.get("phone") or "").strip()
+        email = str(r.get("email") or "").strip()
+        role = str(r.get("role") or r.get("tag") or "").strip() or None
+        if not (first or last or phone or email):
+            continue
+        items.append({
+            "prefix": (str(r.get("prefix") or "").strip() or None),
+            "first_name": (first[:128] or None),
+            "last_name": (last[:128] or None),
+            "role": (role[:64] if role else None),
+            "phone_label": (str(r.get("phone_label") or "").strip()[:32] or None),
+            "phone": (phone[:50] or None),
+            "email": (email[:255] or None),
+            "primary": bool(r.get("primary")),
+        })
+        if len(items) >= 8:
+            break
+    props = dict(contact.custom_properties or {})
+    bucket = dict(props.get(CONTACT_INFO_TAG) or {})
+    bucket["related_contacts"] = items
+    props[CONTACT_INFO_TAG] = bucket
+    contact.custom_properties = props
+    _ensure_directory_tag(contact)
+
+
 async def _next_file_number(session: AsyncSession) -> str:
     """ACHI-YYYY-NNNNN, sequential within the year.
 
@@ -272,8 +360,25 @@ class ContactFileService:
                 file.lead_prefix = d["prefix"] or None
             if "mobile" in d:
                 file.lead_mobile = d["mobile"] or None
+            # A phone list makes the row reachable just like a single mobile — take
+            # the first number as the lead number so promotion below fires, then
+            # write the full list onto the contact it creates.
+            phone_list = d.get("phones")
+            if phone_list is not None:
+                first_number = next((str((p or {}).get("number") or "").strip()
+                                     for p in phone_list if str((p or {}).get("number") or "").strip()), None)
+                file.lead_mobile = first_number or None
             if "email" in d:
                 file.lead_email = (d["email"] or "").strip().lower() or None
+            # An email list makes the row reachable too — seed the lead email from
+            # the first address so promotion fires; the full list is written below.
+            email_list = d.get("emails")
+            if email_list is not None:
+                first_email = next((str((e or {}).get("address") or "").strip()
+                                    for e in email_list if str((e or {}).get("address") or "").strip()), None)
+                if first_email:
+                    file.lead_email = first_email.lower()
+            related_list = d.get("related_contacts")
             if "role" in d:
                 file.lead_role = d["role"] or None
 
@@ -291,6 +396,12 @@ class ContactFileService:
                 )
                 if person is not None:
                     file.contact_id = str(person.id)
+                    if phone_list is not None:
+                        _write_contact_phones(person, phone_list)
+                    if email_list is not None:
+                        _write_contact_emails(person, email_list)
+                    if related_list is not None:
+                        _write_contact_related(person, related_list)
                 if company_contact is not None:
                     file.company_contact_id = str(company_contact.id)
             await self.session.commit()
@@ -312,6 +423,14 @@ class ContactFileService:
             bucket["prefix"] = d["prefix"] or None
             props[MODULE_TAG.split("_", 1)[0]] = bucket
             c.custom_properties = props
+        # The full labelled lists win over lone `mobile`/`email`: they rewrite the
+        # shared achi_contact_info bucket (+ primary_phone/email), so Contacts sees it.
+        if d.get("phones") is not None:
+            _write_contact_phones(c, d["phones"])
+        if d.get("emails") is not None:
+            _write_contact_emails(c, d["emails"])
+        if d.get("related_contacts") is not None:
+            _write_contact_related(c, d["related_contacts"])
         await self.session.commit()
 
     async def update_log(self, log: FileLog, data) -> FileLog:
