@@ -496,6 +496,13 @@
         location.assign('/api/v1/achi/contact-info/ui');
         return;
       }
+      // CRM opens ACHI's own enquiry table, not the upstream lead/qualified
+      // pipeline. CRM_ROUTE stays '/crm' so the icon-clone + duplicate-hiding
+      // logic above still matches the upstream entry.
+      if (a.id === CRM_ID) {
+        location.assign('/api/v1/achi/crm/ui');
+        return;
+      }
       location.assign(a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE);
       return;
     }

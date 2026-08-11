@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.storage import get_storage_backend
 from app.modules.contacts import bridge
@@ -779,11 +780,15 @@ class ContactFileService:
         grid gets live rows (deleted_at IS NULL, newest created first); the Deleted
         Logs view gets removed rows (deleted_at IS NOT NULL, newest deleted first).
         """
+        # A second User alias resolves the *assigned* person's name (the CRM
+        # table's "Assigned" column), independently of the owner join above.
+        assigned_user = aliased(User)
         q = (
-            select(FileLog, ContactFile, Contact, User.full_name)
+            select(FileLog, ContactFile, Contact, User.full_name, assigned_user.full_name)
             .join(ContactFile, FileLog.file_id == ContactFile.id)
             .outerjoin(Contact, ContactFile.contact_id == Contact.id)
             .outerjoin(User, ContactFile.owner_user_id == User.id)
+            .outerjoin(assigned_user, ContactFile.assigned_to_user_id == assigned_user.id)
             .where(FileLog.deleted_at.is_not(None) if deleted else FileLog.deleted_at.is_(None))
             .order_by((FileLog.deleted_at if deleted else FileLog.created_at).desc())
             .limit(limit)
