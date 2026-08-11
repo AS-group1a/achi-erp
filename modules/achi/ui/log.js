@@ -1029,6 +1029,8 @@ function nextEditableInRow(td){ let n=td.nextElementSibling; while(n){ if(n.hasA
 function refreshCell(td){ const tr=td.closest('tr'); const r=ROWS.find(x=>x.id===tr.dataset.log); const c=COLS.find(x=>x.k===td.dataset.k); if(r&&c){ td.innerHTML=cellHTML(c,r,+tr.dataset.i); } }
 function selectPopupChoices(kind){
   if(kind==='status') return STATUSES.map(value=>({value,label:label(value)}));
+  if(kind==='stage') return GL_STAGE_PIPELINE.map(value=>({value,label:glStageLabel(value)}));
+  if(kind==='comm') return ['','Call','Email','WhatsApp','In-person','Other'].map(value=>({value,label:value||'—'}));
   /* Blank first: these are optional, and without it a row could not be cleared
      once set. Values are shown verbatim — they are proper nouns, not the
      snake_case the other lists carry. */
@@ -1138,8 +1140,8 @@ function openEditor(td){
     return;
   }
 
-  const frappeSelect=kind==='status'||kind==='type'||kind==='category'||kind==='prefix'||kind==='tags';
-  if(frappeSelect){ el=document.createElement('input');el.type='text';el.readOnly=true;el.className='cellinput pg-select-input';el.dataset.selectValue=val;el.value=(kind==='category'||kind==='type'||kind==='status')?label(val):val; }
+  const frappeSelect=kind==='stage'||kind==='comm'||kind==='status'||kind==='type'||kind==='category'||kind==='prefix'||kind==='tags';
+  if(frappeSelect){ el=document.createElement('input');el.type='text';el.readOnly=true;el.className='cellinput pg-select-input';el.dataset.selectValue=val;el.value=kind==='stage'?glStageLabel(val):((kind==='category'||kind==='type'||kind==='status')?label(val):val); }
   else { el=document.createElement('input'); el.className='cellinput'; el.type=field==='email'?'email':kind==='date'?'date':'text'; el.value=val; }
   td.innerHTML=''; td.appendChild(el); el.focus();
   if(el.tagName==='SELECT'){ try{ el.showPicker(); }catch(e){} }   // open on one click
@@ -1175,7 +1177,7 @@ function openEditor(td){
   } else if(frappeSelect) openSelectPopup(td,el,selectPopupChoices(kind),value=>{
     if(kind==='prefix'&&value===PREFIX_ADD){const added=addPrefix();if(!added){ran=true;refreshCell(td);return;}value=added;}
     if(kind==='type'&&value===TYPE_ADD){const added=addType();if(!added){ran=true;refreshCell(td);return;}value=added;}
-    el.dataset.selectValue=value;el.value=(kind==='category'||kind==='type'||kind==='status')?label(value):value;finish(true,false);
+    el.dataset.selectValue=value;el.value=kind==='stage'?glStageLabel(value):((kind==='category'||kind==='type'||kind==='status')?label(value):value);finish(true,false);
   });
 }
 

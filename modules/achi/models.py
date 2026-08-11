@@ -122,6 +122,9 @@ class FileLog(Base):
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # How the enquiry reached us. Free-form so Add Log's "+ Add New" values save.
     reference: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Communication channel for this log (General Log "Communication" column):
+    # Call / Email / WhatsApp / In-person / Other. Free-form, nullable.
+    communication: Mapped[str | None] = mapped_column(String(32), nullable=True)
     # Free-form labels the user attaches to a log so a row can be found fast —
     # stored as one comma-separated string (e.g. "urgent, vip, north branch")
     # rather than a side table, because the grid searches it as plain text and

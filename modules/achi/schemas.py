@@ -207,6 +207,7 @@ class FileLogUpdate(BaseModel):
     log_type: str | None = Field(default=None, max_length=64)
     category: str | None = Field(default=None, max_length=64)
     reference: str | None = Field(default=None, max_length=64)
+    communication: str | None = Field(default=None, max_length=32)
     tags: str | None = Field(default=None, max_length=255)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
@@ -412,6 +413,7 @@ class LogRowOut(BaseModel):
     # boq, cst, qte. Computed from real signals (surveys, drawings, quotations);
     # boq/cst have no data source yet and stay False.
     docs: dict[str, bool] | None = None
+    communication: str | None = None   # General Log "Communication" channel
     # contact (from the canonical directory; None when the row had no phone/email,
     # in which case the name fields below come from the file as typed)
     contact_id: str | None = None

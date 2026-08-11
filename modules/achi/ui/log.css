@@ -770,3 +770,17 @@
   .rx-g-person{grid-template-columns:minmax(0,1.7fr) minmax(0,1.15fr) minmax(0,0.9fr)}
   .rx-person-tel{display:grid;grid-template-columns:minmax(72px,96px) minmax(0,1fr);gap:6px;align-items:center}
   @media (max-width:700px){ .rx-g-person{grid-template-columns:1fr 1fr} }
+
+/* ── General Log extra columns (stage / docs / communication / ref) ─────────
+   Additive; the standard Log never renders these classes. */
+.enq-ref{color:var(--navy);font-weight:700;font-variant-numeric:tabular-nums}
+.lstage{display:flex;flex-direction:column;gap:5px;min-width:0}
+.lstage-top{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.lstage-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.lstage-label{font-weight:800;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lstage-bar{display:flex;gap:3px}
+.lstage-bar .lseg{flex:1;height:3px;border-radius:2px;background:#e2e8f0}
+.ldocs{display:flex;gap:4px;flex-wrap:nowrap}
+.ldoc{display:inline-flex;align-items:center;justify-content:center;min-width:30px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;color:#c2c9d6;font-size:9.5px;font-weight:800;letter-spacing:.03em}
+.ldoc.on{border-color:#bfdbfe;background:#eff6ff;color:var(--navy)}
+.lcomm{display:inline-flex;align-items:center;padding:3px 9px;border:1px solid;border-radius:99px;font-size:11px;font-weight:700}

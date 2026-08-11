@@ -17,6 +17,9 @@
   // `icon` replaces the cloned link's SVG so the entry doesn't wear Project Files'
   // icon; ?v= busts the service-worker cache when a page changes.
   var ENTRIES = [
+    { id: 'achi-nav-general-log', label: 'General Log', route: '/general-log',
+      href: '/api/v1/achi/general-log/ui?v=1',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>' },
     { id: 'achi-nav-log', label: 'Log', route: '/call-log',
       href: '/api/v1/achi/ui?v=67',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
@@ -29,7 +32,9 @@
   ];
   var byRoute = function (r) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].route === r) return ENTRIES[i]; return null; };
   var byId = function (id) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].id === id) return ENTRIES[i]; return null; };
-  var ID = ENTRIES[0].id;
+  // The Log entry is the anchor the Contacts/CRM rows insert after — pin it by
+  // id so adding "General Log" above it doesn't move them.
+  var ID = 'achi-nav-log';
   var CONTACTS_ID = 'achi-nav-contacts';
   var CRM_ID = 'achi-nav-crm';
   var CONTACTS_ROUTE = '/contacts';
@@ -667,10 +672,10 @@
   window.setInterval(function () {
     enforceAccessLimit();   // catches login (token appears) and SPA navigations
     wireSidebarHover();
-    var log = document.getElementById(ID), survey = document.getElementById(ENTRIES[1].id);
+    var log = document.getElementById(ID), gen = document.getElementById('achi-nav-general-log');
     var contacts = document.getElementById(CONTACTS_ID);
     var crm = document.getElementById(CRM_ID);
-    if (!(log && survey && contacts && crm)) {
+    if (!(log && gen && contacts && crm)) {
       inject();
       ensureOverviewModules();
     }

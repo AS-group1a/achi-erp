@@ -127,6 +127,22 @@ def ui() -> HTMLResponse:
 
 
 @router.get(
+    "/general-log/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="General Log UI",
+)
+def general_log_ui() -> HTMLResponse:
+    """The General Log: the same shell/scripts as the Log page (see ui()), but the
+    page presets window.ACHI_LOG_COLS so log-core.js renders a different column
+    set. Same enquiry data (/logs/), so a log added on either page shows on both."""
+    return HTMLResponse(
+        (_UI_DIR / "general_log.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/contact-info/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
@@ -1511,6 +1527,7 @@ async def list_logs(
                 log_type=log.log_type,
                 category=log.category,
                 reference=log.reference,
+                communication=log.communication,
                 tags=log.tags,
                 occurred_at=log.occurred_at,
                 description=log.description,
