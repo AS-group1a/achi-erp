@@ -30,15 +30,18 @@ function openEmailCompose(email,fromRx=false,ctx={}){
   document.querySelector('.compose')?.remove();
   // Accept one email OR a list (broadcast). Names + "already emailed" flags come
   // from the loaded grid rows (the server sets email_sent per row).
-  const recipients=(Array.isArray(email)?email:[email]).map(e=>String(e||'').trim()).filter(Boolean);
+  // Recipient list is now editable in the popup (add via "+", remove via each
+  // chip's ×), so it's a mutable `let`; render/warn recompute off it live.
+  let recipients=(Array.isArray(email)?email:[email]).map(e=>String(e||'').trim()).filter(Boolean);
+  recipients=[...new Map(recipients.map(e=>[e.toLowerCase(),e])).values()]; // de-dupe, keep first spelling
   const rowByEmail=e=>ROWS.find(r=>String(r.email||'').toLowerCase()===String(e||'').toLowerCase());
   const nameOf=e=>{ const r=rowByEmail(e); return (r&&(r.contact_name||r.company_name))||e; };
-  const alreadySent=recipients.filter(e=>{ const r=rowByEmail(e); return r&&r.email_sent; });
+  const isEmail=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
   const panel=document.createElement('section'); panel.className='compose'+(fromRx?' from-rx':''); panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','New Message');
   panel.innerHTML=`<div class="compose-head"><div class="compose-title">${SVG.mail} New Message</div>
       <button class="compose-close" type="button" aria-label="Close message">&times;</button></div>
-    <div class="compose-row"><span class="compose-label">To</span><span class="compose-recipients">${recipients.map(e=>`<span class="compose-recipient">${esc(e)}</span>`).join('')}</span></div>
-    ${alreadySent.length?`<div class="compose-warn">⚠️ Hey, you already sent to ${esc(alreadySent.map(nameOf).join(', '))}.</div>`:''}
+    <div class="compose-row"><span class="compose-label">To</span><span class="compose-recipients" id="compose-recipients"></span></div>
+    <div class="compose-warn" id="compose-warn" hidden></div>
     <div class="compose-row"><span class="compose-label">Subject</span><input class="compose-subject" type="text" placeholder="Subject…"></div>
     <div class="compose-editor-wrap" id="compose-dropzone">
       <div id="compose-quill-editor"></div>
@@ -61,6 +64,40 @@ function openEmailCompose(email,fromRx=false,ctx={}){
   const onKey=e=>{if(e.key==='Escape')close();};
   const subjEl=panel.querySelector('.compose-subject'), sendBtn=panel.querySelector('.compose-send');
   const attWrap=panel.querySelector('#compose-attachments');
+
+  // Editable recipient chips: each chip carries an × to drop it, and a trailing
+  // input + "+" to add one. Re-rendered whole on every change; the "already
+  // emailed" warning recomputes off the current list each time.
+  const recipWrap=panel.querySelector('#compose-recipients');
+  const warnEl=panel.querySelector('#compose-warn');
+  const renderRecipients=()=>{
+    recipWrap.innerHTML=recipients.map((e,i)=>
+      `<span class="compose-recipient">${esc(e)}<button type="button" class="compose-recipient-x" data-i="${i}" title="Remove ${esc(e)}" aria-label="Remove ${esc(e)}">&times;</button></span>`).join('')
+      +`<span class="compose-recipient-add"><input type="text" class="compose-add-input" placeholder="Add email…" aria-label="Add recipient"><button type="button" class="compose-add-btn" title="Add recipient" aria-label="Add recipient">+</button></span>`;
+    const sent=recipients.filter(e=>{ const r=rowByEmail(e); return r&&r.email_sent; });
+    if(sent.length){ warnEl.hidden=false; warnEl.innerHTML=`⚠️ Hey, you already sent to ${esc(sent.map(nameOf).join(', '))}.`; }
+    else warnEl.hidden=true;
+  };
+  const addFromInput=()=>{
+    const inp=recipWrap.querySelector('.compose-add-input'); if(!inp) return;
+    const val=(inp.value||'').trim().replace(/[,;]+$/,'');
+    if(!val) return;
+    if(!isEmail(val)){ inp.classList.add('invalid'); return; }
+    if(!recipients.some(r=>r.toLowerCase()===val.toLowerCase())) recipients.push(val);
+    renderRecipients();
+    recipWrap.querySelector('.compose-add-input')?.focus();
+  };
+  recipWrap.addEventListener('click',e=>{
+    const x=e.target.closest('.compose-recipient-x');
+    if(x){ recipients.splice(+x.dataset.i,1); renderRecipients(); recipWrap.querySelector('.compose-add-input')?.focus(); return; }
+    if(e.target.closest('.compose-add-btn')) addFromInput();
+  });
+  recipWrap.addEventListener('keydown',e=>{
+    if(!e.target.classList.contains('compose-add-input')) return;
+    if(e.key==='Enter'||e.key===','){ e.preventDefault(); addFromInput(); }
+  });
+  recipWrap.addEventListener('input',e=>{ if(e.target.classList.contains('compose-add-input')) e.target.classList.remove('invalid'); });
+  renderRecipients();
 
   // Rich-text editor (same Quill setup as Quick Notes).
   const quill=new Quill(panel.querySelector('#compose-quill-editor'),{theme:'snow',placeholder:'Write your message…',modules:{toolbar:panel.querySelector('#compose-quill-toolbar')}});
@@ -125,6 +162,10 @@ function openEmailCompose(email,fromRx=false,ctx={}){
      records it. The button locks while in flight so a double-click can't send
      twice; a failure re-arms it. */
   const send=async()=>{
+    // Fold in an email typed into the add box but not yet committed with "+".
+    const pend=recipWrap.querySelector('.compose-add-input');
+    if(pend&&pend.value.trim()){ addFromInput(); if(recipWrap.querySelector('.compose-add-input')?.classList.contains('invalid')) return; }
+    if(!recipients.length){ showFeedback('No recipients','Add at least one email address before sending.'); return; }
     const subject=subjEl.value.trim();
     let bodyHTML=quill.root.innerHTML; if(bodyHTML==='<p><br></p>') bodyHTML='';
     const empty=!subject&&!quill.getText().trim()&&!atts.length;
