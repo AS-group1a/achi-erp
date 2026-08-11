@@ -1450,6 +1450,8 @@ async def list_logs(
     # added to its select (owner name was the last one), and a positional unpack
     # here breaks the endpoint when it does
     counts = await svc.attachment_counts([r[0].id for r in rows])
+    # CRM "Docs" pills: which files have a survey / measurements / quotation.
+    survey_files, measured_files, quote_files = await svc.doc_signals([r[1].id for r in rows])
     # Addresses we've already emailed (any teammate, successfully sent) — one query,
     # lowercased, so the grid can flag "already emailed" without a lookup per row.
     sent_to = {
@@ -1539,6 +1541,14 @@ async def list_logs(
                 owner_name=owner_name,
                 assigned=f.assigned_to_user_id,
                 assigned_name=assigned_name,
+                docs={
+                    "srv": f.id in survey_files,
+                    "dwg": bool(log.has_drawing),
+                    "mt": f.id in measured_files,
+                    "boq": False,
+                    "cst": False,
+                    "qte": f.id in quote_files,
+                },
                 contact_id=f.contact_id,
                 company_contact_id=f.company_contact_id,
                 contact_name=name,

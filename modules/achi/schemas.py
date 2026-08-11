@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 # No "client" stage: becoming a client isn't a file state, it's the file
 # converting into a project.
-STAGES = ("prospect", "lead", "site_survey", "measurements")
+STAGES = ("enquiry", "site_survey", "takeoff", "boq", "costing", "quotation")
 STATUSES = ("open", "scheduled", "viewed", "cancelled", "done")
 # What the Add Log dropdown offers. NOT a closed set: the field is validated by
 # length, not by membership, so the UI can add an option without a deploy and the
@@ -71,7 +71,7 @@ class ContactFileCreate(BaseModel):
     person: PersonIn | None = None
 
     subject: str = Field(default="", max_length=255)
-    stage: str = Field(default="prospect", pattern="^(%s)$" % "|".join(STAGES))
+    stage: str = Field(default="enquiry", pattern="^(%s)$" % "|".join(STAGES))
     status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
 
     country: str | None = Field(default=None, max_length=64)
@@ -338,7 +338,7 @@ class QuickLogCreate(BaseModel):
     follow_up_notes: str = ""
 
     subject: str = Field(default="", max_length=255)
-    stage: str = Field(default="prospect", pattern="^(%s)$" % "|".join(STAGES))
+    stage: str = Field(default="enquiry", pattern="^(%s)$" % "|".join(STAGES))
     # Force a new file even if this contact already has one open — a second,
     # unrelated enquiry from someone we already know.
     new_file: bool = False
@@ -408,6 +408,10 @@ class LogRowOut(BaseModel):
     owner_name: str | None = None   # User.full_name; the grid derives initials from it
     assigned: str | None = None        # ContactFile.assigned_to_user_id
     assigned_name: str | None = None   # assigned User.full_name (CRM "Assigned" column)
+    # CRM "Docs" pills — which documents this enquiry has. Keys: srv, dwg, mt,
+    # boq, cst, qte. Computed from real signals (surveys, drawings, quotations);
+    # boq/cst have no data source yet and stay False.
+    docs: dict[str, bool] | None = None
     # contact (from the canonical directory; None when the row had no phone/email,
     # in which case the name fields below come from the file as typed)
     contact_id: str | None = None

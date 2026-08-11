@@ -336,34 +336,48 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .record-modal { width: 100%; max-height: 100vh; min-height: 100vh; border: 0; border-radius: 0; }
 }
 
-/* ── CRM table — styled to match the Log page (navy sticky header, zebra rows,
-   status badges) rather than the Contact Info list. */
+/* ── CRM table — the rich enquiry grid (Log-style navy header). Column widths
+   come from inline th styles set in crm.js (COLS). ───────────────────────── */
 .workspace-toolbar { display: flex; align-items: center; gap: 12px; }
 .crm-total { color: var(--muted); font-size: 12px; }
-.tscroll { overflow: auto; max-height: calc(100vh - 220px); background: var(--surface); }
+.tscroll { overflow: auto; max-height: calc(100vh - 210px); background: var(--surface); }
 #tbl { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; table-layout: fixed; }
-#tbl thead th { position: sticky; top: 0; z-index: 2; background: var(--brand); color: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; text-align: left; padding: 0 14px; height: 40px; white-space: nowrap; border-right: 1px solid rgba(255, 255, 255, .08); }
-#tbl tbody td { height: 46px; padding: 0 14px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--surface); color: var(--ink); }
-#tbl tbody td.wide { max-width: 260px; }
-#tbl tbody tr.data:nth-child(even) td { background: #f8faff; }
-#tbl tbody tr.data:hover td { background: #eef4fd; }
-#tbl .name { font-weight: 700; color: var(--ink); }
-#tbl .dt { font-variant-numeric: tabular-nums; color: var(--ink); }
+#tbl thead th { position: sticky; top: 0; z-index: 2; background: var(--brand); color: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; text-align: left; padding: 0 14px; height: 42px; white-space: nowrap; border-right: 1px solid rgba(255, 255, 255, .08); }
+#tbl tbody td { height: 60px; padding: 8px 14px; border-bottom: 1px solid #eef1f6; border-right: 1px solid #f4f6fa; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--surface); color: var(--ink); }
+#tbl tbody tr.data:nth-child(even) td { background: #f9fbff; }
+#tbl tbody tr.data:hover td { background: #eff4fd; }
 #tbl .mt { color: var(--soft); }
 #tbl td.empty { text-align: center; color: var(--soft); padding: 26px 14px; }
-/* Status = enquiry stage, shown as the Log page's pill badge. */
-.badge { display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 99px; font-size: 11px; font-weight: 800; white-space: nowrap; border: 1px solid transparent; text-transform: capitalize; }
-.badge.b-prospect { background: #fff4d7; color: #795500; border-color: #f3dfa2; }
-.badge.b-lead { background: #e8eef9; color: #284f9e; border-color: #c5d3ef; }
-.badge.b-site_survey { background: #e0f5f5; color: #0a5f6e; border-color: #8dd5d8; }
-.badge.b-measurements { background: #eff9ef; color: #2e6b3e; border-color: #95d5a0; }
-/* Per-column widths for the 9 CRM columns. */
-#tbl th:nth-child(1) { width: 90px; }
-#tbl th:nth-child(2) { width: 140px; }
-#tbl th:nth-child(3) { width: 130px; }
-#tbl th:nth-child(4) { width: 170px; }
-#tbl th:nth-child(5) { width: 160px; }
-#tbl th:nth-child(6) { width: 120px; }
-#tbl th:nth-child(7) { width: 240px; }
-#tbl th:nth-child(8) { width: 130px; }
-#tbl th:last-child { width: 130px; }
+
+#tbl .rn { color: var(--soft); font-variant-numeric: tabular-nums; }
+#tbl .enq-ref { color: var(--brand); font-weight: 700; font-variant-numeric: tabular-nums; cursor: default; }
+#tbl .dt { display: flex; flex-direction: column; line-height: 1.25; font-variant-numeric: tabular-nums; }
+#tbl .dt-time { color: var(--soft); font-size: 11px; }
+#tbl .owner { display: inline-flex; align-items: center; gap: 4px; }
+#tbl .ava { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: #eef2fb; color: var(--brand); font-size: 11px; font-weight: 800; border: 1px solid #d9e2f5; }
+#tbl .chev { width: 12px; height: 12px; fill: none; stroke: #9aa4b8; stroke-width: 2.4; }
+#tbl .nm { display: flex; flex-direction: column; line-height: 1.25; }
+#tbl .nm-main { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+#tbl .nm-sub { color: var(--soft); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+#tbl .ph { font-variant-numeric: tabular-nums; color: var(--ink); }
+/* Stage: dot + label + chevron, with a segmented progress bar underneath. */
+#tbl .stage-cell { display: flex; flex-direction: column; gap: 6px; }
+#tbl .stage-btn { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; padding: 0; cursor: pointer; font: inherit; }
+#tbl .stage-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+#tbl .stage-label { font-weight: 700; }
+#tbl .stage-bar { display: flex; gap: 3px; }
+#tbl .stage-bar .seg { flex: 1; height: 3px; border-radius: 2px; background: #e2e8f0; }
+/* Docs pills — coloured when the enquiry has that document. */
+#tbl .docs { display: flex; gap: 4px; }
+#tbl .doc { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; padding: 3px 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #c2c9d6; font-size: 9.5px; font-weight: 800; letter-spacing: .03em; }
+#tbl .doc.on { border-color: #b9d0f2; background: #eef4fd; color: var(--brand); }
+/* Follow-up */
+#tbl .fu { color: #dc2626; font-weight: 700; font-variant-numeric: tabular-nums; }
+#tbl .fu b { font-weight: 900; }
+
+/* Stage dropdown menu (appended to <body>, positioned in JS). */
+.stage-menu { position: absolute; z-index: 3000; min-width: 168px; padding: 5px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.stage-opt { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.stage-opt:hover { background: var(--brand-soft); }
+.stage-opt.on { font-weight: 800; }
+.stage-opt .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }

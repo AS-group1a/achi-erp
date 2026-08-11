@@ -118,69 +118,122 @@
     toastTimer = window.setTimeout(() => { toast.hidden = true; }, 3200);
   }
 
+  // ── Domain: the enquiry stage pipeline + the document pills ─────────────────
+  const STAGES = [
+    { k: 'enquiry',     label: 'Enquiry',     color: '#2563eb' },
+    { k: 'site_survey', label: 'Site Survey', color: '#0891b2' },
+    { k: 'takeoff',     label: 'Takeoff',     color: '#0ea5e9' },
+    { k: 'boq',         label: 'BOQ',         color: '#7c3aed' },
+    { k: 'costing',     label: 'Costing',     color: '#ea580c' },
+    { k: 'quotation',   label: 'Quotation',   color: '#2563eb' },
+  ];
+  const STAGE_INDEX = {};
+  STAGES.forEach((s, i) => { STAGE_INDEX[s.k] = i; });
+  // Rows created before the pipeline change still carry legacy stage values.
+  const LEGACY_STAGE = { prospect: 'enquiry', lead: 'enquiry', site_survey: 'site_survey', measurements: 'takeoff' };
+  const normStage = s => {
+    const k = LEGACY_STAGE[s] || s;
+    return STAGE_INDEX[k] != null ? k : 'enquiry';
+  };
+  const DOCS = [['srv', 'SURV'], ['dwg', 'DWG'], ['mt', 'M/T'], ['boq', 'BOQ'], ['cst', 'CST'], ['qte', 'QTE']];
+
   // ── Table ────────────────────────────────────────────────────────────────
-  // Each row is an enquiry log; the CRM view shows a fixed subset of columns.
-  // Status is the enquiry STAGE (prospect → lead → …), which is ACHI's own CRM
-  // pipeline — not the open/closed `status`.
+  // One row per enquiry log from /logs/ — the same data the Log page shows, so
+  // anything added there appears here automatically.
   const COLS = [
-    { k: 'ref',      h: 'Ref',         w: 90 },
+    { k: 'num',      h: '#',           w: 48 },
+    { k: 'ref',      h: 'ENQ Ref',     w: 132 },
     { k: 'when',     h: 'Date / Time', w: 150 },
-    { k: 'category', h: 'Category',    w: 150 },
-    { k: 'contact',  h: 'Contact',     w: 170 },
-    { k: 'company',  h: 'Company',     w: 170 },
-    { k: 'type',     h: 'Log Type',    w: 130 },
-    { k: 'subject',  h: 'Subject',     w: 240 },
-    { k: 'assigned', h: 'Assigned',    w: 140 },
-    { k: 'status',   h: 'Status',      w: 130 },
+    { k: 'owner',    h: 'Owner',       w: 92 },
+    { k: 'name',     h: 'Name',        w: 190 },
+    { k: 'phone',    h: 'Phone',       w: 150 },
+    { k: 'location', h: 'Location',    w: 230 },
+    { k: 'desc',     h: 'Description', w: 320 },
+    { k: 'stage',    h: 'Stage',       w: 200 },
+    { k: 'docs',     h: 'Docs',        w: 250 },
+    { k: 'followup', h: 'Follow-up',   w: 128 },
   ];
 
   let ROWS = [];
   let searchTerm = '';
 
   const dash = v => (v != null && String(v).trim() ? esc(v) : '<span class="mt">—</span>');
-  const pretty = v => (v ? String(v).replace(/_/g, ' ') : '');
 
-  function fmtDateTime(v) {
-    if (!v) return '<span class="mt">—</span>';
+  function initials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+
+  function fmtDate(v) {
+    if (!v) return null;
     const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return dash(v);
-    const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
-    const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    return `<span class="dt">${esc(date)}<span class="mt"> · ${esc(time)}</span></span>`;
+    if (Number.isNaN(d.getTime())) return null;
+    return {
+      date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      time: d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+    };
   }
 
-  // Status = the enquiry stage, shown as the Log page's pill badge
-  // (b-prospect / b-lead / …).
-  function badge(s) {
-    if (!s) return '<span class="mt">—</span>';
-    const cls = 'b-' + String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_');
-    return `<span class="badge ${cls}">${esc(pretty(s))}</span>`;
+  function stageCell(r) {
+    const cur = normStage(r.stage);
+    const idx = STAGE_INDEX[cur];
+    const s = STAGES[idx];
+    const segs = STAGES.map((_, i) =>
+      `<span class="seg${i <= idx ? ' on' : ''}" style="${i <= idx ? `background:${s.color}` : ''}"></span>`).join('');
+    return (
+      `<div class="stage-cell" data-file="${esc(r.file_id)}" data-stage="${esc(cur)}">`
+      + '<button type="button" class="stage-btn">'
+      + `<span class="dot" style="background:${s.color}"></span>`
+      + `<span class="stage-label" style="color:${s.color}">${esc(s.label)}</span>`
+      + '<svg viewBox="0 0 24 24" class="chev"><path d="m6 9 6 6 6-6"/></svg>'
+      + '</button>'
+      + `<div class="stage-bar">${segs}</div>`
+      + '</div>'
+    );
   }
 
-  function cellHTML(k, r) {
+  function docsCell(r) {
+    const d = r.docs || {};
+    return `<div class="docs">${DOCS.map(([k, label]) =>
+      `<span class="doc${d[k] ? ' on' : ''}">${label}</span>`).join('')}</div>`;
+  }
+
+  function cellHTML(k, r, i) {
     switch (k) {
-      case 'ref':      return dash(r.reference);
-      case 'when':     return fmtDateTime(r.occurred_at || r.created_at);
-      case 'category': return dash(pretty(r.category));
-      case 'contact':  return r.contact_name ? `<span class="name">${esc(r.contact_name)}</span>` : '<span class="mt">—</span>';
-      case 'company':  return dash(r.company_name);
-      case 'type':     return dash(pretty(r.log_type));
-      case 'subject':  return dash(r.subject);
-      case 'assigned': return dash(r.assigned_name || r.assigned);
-      case 'status':   return badge(r.stage);
-      default:         return '';
+      case 'num':  return `<span class="rn">${i + 1}</span>`;
+      case 'ref':  return r.file_number ? `<a class="enq-ref">${esc(r.file_number)}</a>` : '<span class="mt">—</span>';
+      case 'when': {
+        const t = fmtDate(r.occurred_at || r.created_at);
+        return t ? `<div class="dt"><span class="dt-date">${esc(t.date)}</span><span class="dt-time">${esc(t.time)}</span></div>` : '<span class="mt">—</span>';
+      }
+      case 'owner': return `<span class="owner" title="${esc(r.owner_name || '')}"><span class="ava">${esc(initials(r.owner_name))}</span><svg viewBox="0 0 24 24" class="chev"><path d="m6 9 6 6 6-6"/></svg></span>`;
+      case 'name': {
+        if (!r.contact_name && !r.company_name) return '<span class="mt">—</span>';
+        return `<div class="nm"><span class="nm-main">${esc(r.contact_name || r.company_name)}</span>${r.contact_name && r.company_name ? `<span class="nm-sub">${esc(r.company_name)}</span>` : ''}</div>`;
+      }
+      case 'phone':    return r.mobile ? `<span class="ph">${esc(r.mobile)}</span>` : '<span class="mt">—</span>';
+      case 'location': return dash(r.site_location || [r.city, r.district, r.country].filter(Boolean).join(', '));
+      case 'desc':     return dash(r.description);
+      case 'stage':    return stageCell(r);
+      case 'docs':     return docsCell(r);
+      case 'followup': {
+        const t = fmtDate(r.follow_up_date);
+        return t ? `<span class="fu">${esc(t.date)} <b>!</b></span>` : '<span class="mt">—</span>';
+      }
+      default: return '';
     }
   }
 
   function renderHead() {
-    $('thead').innerHTML = COLS.map(c => `<th>${esc(c.h)}</th>`).join('');
+    $('thead').innerHTML = COLS.map(c => `<th style="width:${c.w}px">${esc(c.h)}</th>`).join('');
   }
 
   function visibleRows() {
     if (!searchTerm) return ROWS;
     return ROWS.filter(r => [
-      r.reference, r.category, r.contact_name, r.company_name,
-      r.log_type, r.subject, r.assigned_name, r.stage,
+      r.file_number, r.contact_name, r.company_name, r.mobile,
+      r.site_location, r.city, r.description, r.subject, normStage(r.stage), r.owner_name,
     ].some(v => String(v || '').toLowerCase().includes(searchTerm)));
   }
 
@@ -189,14 +242,14 @@
   }
 
   function renderRows() {
+    closeStageMenu();
     const rows = visibleRows();
     const total = $('crm-total');
     if (total) total.textContent = `${ROWS.length} record${ROWS.length === 1 ? '' : 's'}`;
     const body = $('rows');
     if (!rows.length) { body.innerHTML = stateRow(searchTerm ? 'No records match your search.' : 'No CRM records yet.'); return; }
-    body.innerHTML = rows.map(r =>
-      `<tr class="data">${COLS.map(c => `<td class="${c.k === 'subject' ? 'wide' : ''}">${cellHTML(c.k, r)}</td>`).join('')}</tr>`,
-    ).join('');
+    body.innerHTML = rows.map((r, i) =>
+      `<tr class="data">${COLS.map(c => `<td class="col-${c.k}">${cellHTML(c.k, r, i)}</td>`).join('')}</tr>`).join('');
   }
 
   async function load() {
@@ -210,10 +263,45 @@
     }
   }
 
+  // ── Stage dropdown: change an enquiry's stage inline (PATCH /files/{id}) ─────
+  let stageMenu = null;
+  function closeStageMenu() { if (stageMenu) { stageMenu.remove(); stageMenu = null; } }
+
+  async function setStage(fileId, key) {
+    closeStageMenu();
+    try {
+      await request(`${API}/files/${encodeURIComponent(fileId)}`, { method: 'PATCH', body: { stage: key } });
+      ROWS.forEach(r => { if (r.file_id === fileId) r.stage = key; });
+      renderRows();
+      showToast('Stage updated.');
+    } catch (error) {
+      showToast(error.message || 'Could not update stage.', true);
+    }
+  }
+
+  function openStageMenu(cell) {
+    closeStageMenu();
+    const fileId = cell.dataset.file;
+    const cur = cell.dataset.stage;
+    const menu = document.createElement('div');
+    menu.className = 'stage-menu';
+    menu.innerHTML = STAGES.map(s =>
+      `<button type="button" class="stage-opt${s.k === cur ? ' on' : ''}" data-stage="${s.k}"><span class="dot" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('');
+    document.body.appendChild(menu);
+    const rect = cell.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    menu.style.left = `${rect.left + window.scrollX}px`;
+    menu.addEventListener('click', e => {
+      const opt = e.target.closest('.stage-opt');
+      if (opt) setStage(fileId, opt.dataset.stage);
+    });
+    stageMenu = menu;
+  }
+
   // ── New Prospect ───────────────────────────────────────────────────────────
   // Manual add. Posts to the SAME /logs/ endpoint the Log page uses, so the new
-  // prospect is created as an enquiry (stage=prospect) + its first log — which
-  // means it shows up in both the CRM table and the Log page, guaranteed.
+  // prospect is created as an enquiry (stage=enquiry) + its first log — showing
+  // up in both the CRM table and the Log page, guaranteed.
   function openProspect() {
     const modal = $('prospect-modal');
     if (!modal) return;
@@ -249,7 +337,7 @@
       },
       subject: val('subject'),
       category: val('category') || null,
-      stage: 'prospect',
+      stage: 'enquiry',
       status: 'open',
       log_type: 'General',
       occurred_at: new Date().toISOString(),
@@ -287,6 +375,14 @@
   if (prospectForm) prospectForm.addEventListener('submit', submitProspect);
   const prospectModal = $('prospect-modal');
   if (prospectModal) prospectModal.addEventListener('click', event => { if (event.target === prospectModal) closeProspect(); });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeProspect(); });
+
+  // Stage dropdown opens on its button; a click anywhere else closes it.
+  $('rows').addEventListener('click', event => {
+    const btn = event.target.closest('.stage-btn');
+    if (btn) { event.stopPropagation(); openStageMenu(btn.closest('.stage-cell')); }
+  });
+  document.addEventListener('click', () => closeStageMenu());
+  window.addEventListener('resize', closeStageMenu);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') { closeProspect(); closeStageMenu(); } });
   load();
 })();
