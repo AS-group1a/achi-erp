@@ -21,7 +21,7 @@
       href: '/api/v1/achi/general-log/ui?v=1',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>' },
     { id: 'achi-nav-log', label: 'Log', route: '/call-log',
-      href: '/api/v1/achi/ui?v=67',
+      href: '/api/v1/achi/ui?v=70',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
     { id: 'achi-nav-survey', label: 'Site Survey', route: '/site-survey',
       href: '/api/v1/achi/surveys/table?v=2',
@@ -45,6 +45,7 @@
   var dragged = null;
   var draggedAt = 0;
   var arranging = false;
+  var achiNavigationPending = false;
   var SIDEBAR_COLLAPSE_DELAY_MS = 120;
   var layoutObserver = null;
 
@@ -495,10 +496,13 @@
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
-      // A non-admin's Contacts is the shared ACHI directory — the same page the
-      // standalone chrome links to. Upstream /contacts stays the admin target.
-      if (a.id === CONTACTS_ID && !isAdminUser()) {
-        location.assign('/api/v1/achi/contact-info/ui');
+      achiNavigationPending = true;
+      // Non-admins use ACHI's standalone Contacts and CRM pages. Admins keep
+      // the canonical upstream destinations.
+      if (!isAdminUser()) {
+        location.assign(a.id === CONTACTS_ID
+          ? '/api/v1/achi/contact-info/ui'
+          : '/api/v1/achi/crm/ui');
         return;
       }
       // CRM opens ACHI's own enquiry table, not the upstream lead/qualified
@@ -518,6 +522,7 @@
     if (entry) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
+      achiNavigationPending = true;
       location.assign(entry.href);
       return;
     }
@@ -550,7 +555,7 @@
 
   // --- Role-based sidebar filter -------------------------------------------
   // Admins keep the full module sidebar everywhere. Every other signed-in user
-  // sees exactly two entries — Log and Contacts — on every OCE page including
+  // sees exactly three entries — Log, Contacts and CRM — on every OCE page including
   // /dashboard. The verdict is the JWT's role claim: synchronous (no fetch, no
   // flash of the wrong sidebar) and purely cosmetic — the API keeps enforcing
   // real permissions server-side, so hiding here is navigation, not security.
@@ -580,7 +585,7 @@
     }
     moduleItems().forEach(function (item) {
       var link = directLink(item);
-      var keep = link && (link.id === ID || link.id === CONTACTS_ID);
+      var keep = link && (link.id === ID || link.id === CONTACTS_ID || link.id === CRM_ID);
       if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
         // the inline display and our marker, so lift both off the keepers.
@@ -628,7 +633,7 @@
   function onOcePage() { var p = location.pathname; return !byRoute(p) && p.indexOf('/api/v1/achi/') !== 0; }
 
   function applyAccessLimit() {
-    if (!isLimited || !onOcePage()) return;
+    if (achiNavigationPending || !isLimited || !onOcePage()) return;
     showGate();
     location.replace(HREF);                    // the Call Log page
   }

@@ -230,8 +230,8 @@
     } catch (e) {}
   }
 
-  /* Admins keep the full mirror sidebar; everyone else gets exactly two
-   * primary destinations (Log, Contacts). The verdict is the JWT's role claim
+  /* Admins keep the full mirror sidebar; everyone else gets exactly three
+   * primary destinations (Log, Contacts, CRM). The verdict is the JWT's role claim
    * from the same storage the SPA uses — synchronous, so the sidebar never
    * flashes the wrong shape. UI-only: the API enforces real permissions. */
   function isAdminUser() {
@@ -246,18 +246,21 @@
     } catch (e) { return false; }
   }
 
-  /* The non-admin ACHI sidebar intentionally exposes exactly two primary
+  /* The non-admin ACHI sidebar intentionally exposes exactly three primary
    * destinations. Full application navigation remains available inside OCE. */
   function showPrimaryLinksOnly() {
     var back = document.querySelector('.achi-chrome .achi-back');
     if (back) back.style.display = 'none';
     var cluster = document.querySelector('.achi-chrome .achi-cluster');
     if (cluster) cluster.style.display = 'none';
-    // Log and Contact Info are the standalone sidebar's permanent destinations.
+    // Log, Contact Info and CRM are the standalone sidebar's permanent destinations.
     var links = document.querySelectorAll('.achi-chrome .achi-link');
     for (var i = 0; i < links.length; i++) {
       var href = (links[i].getAttribute('href') || '').split('?')[0];
-      var alwaysVisible = href === '/api/v1/achi/ui' || href === '/api/v1/achi/contact-info/ui';
+      var alwaysVisible =
+        href === '/api/v1/achi/ui' ||
+        href === '/api/v1/achi/contact-info/ui' ||
+        href === '/api/v1/achi/crm/ui';
       if (!alwaysVisible) links[i].style.display = 'none';
     }
   }

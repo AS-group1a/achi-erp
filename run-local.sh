@@ -11,6 +11,14 @@ PORT="${PORT:-8080}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$HERE"
 
+# PostgreSQL requires real Unix permissions. When this repository is stored on
+# the Windows drive, keep runtime data inside WSL's Linux filesystem.
+if [[ "$HERE" == /mnt/* ]]; then
+  RUNTIME_DIR="${ACHI_RUNTIME_DIR:-$HOME/.local/share/achi-erp-dev}"
+else
+  RUNTIME_DIR="${ACHI_RUNTIME_DIR:-$HERE/.rundata}"
+fi
+
 # 0. uv (manages Python 3.12 — Arch's 3.14 breaks the dep tree)
 if ! command -v uv >/dev/null 2>&1; then
   export PATH="$HOME/.local/bin:$PATH"
@@ -42,7 +50,7 @@ cp deploy/overrides/achi-nav.js  "$DIST/achi-nav.js"
 import re, sys
 p = sys.argv[1]
 html = orig = open(p, encoding="utf-8").read()
-NAV_V = "71"
+NAV_V = "75"
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css?v=11">',
     '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,
@@ -123,7 +131,7 @@ if [ -f .env ]; then
 fi
 
 # 5. run
-mkdir -p .rundata
+mkdir -p "$RUNTIME_DIR"
 echo ""
 echo "================================================================"
 echo "  ACHI ERP on http://localhost:$PORT"
@@ -132,4 +140,4 @@ echo "  Call Log page: http://localhost:$PORT/api/v1/achi/ui"
 echo "  Stop: Ctrl+C"
 echo "================================================================"
 exec env HOME="$HOME" .venv/bin/openconstructionerp serve \
-  --host 127.0.0.1 --port "$PORT" --data-dir "$HERE/.rundata"
+  --host 127.0.0.1 --port "$PORT" --data-dir "$RUNTIME_DIR"
