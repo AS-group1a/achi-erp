@@ -16,7 +16,7 @@ from app.modules.contacts import bridge
 from app.modules.contacts.models import Contact
 from app.modules.users.models import User
 
-from .models import ContactFile, FileLog, LogAttachment
+from .models import ContactFile, FileLog, LogAttachment, Quotation, SiteSurvey
 from .schemas import ContactFileCreate, ContactFileUpdate, FileLogCreate, PersonIn, QuickLogCreate
 
 logger = logging.getLogger(__name__)
@@ -517,6 +517,23 @@ class ContactFileService:
             .group_by(LogAttachment.log_id)
         )
         return {log_id: n for log_id, n in (await self.session.execute(q)).all()}
+
+    async def doc_signals(self, file_ids: list[str]) -> tuple[set[str], set[str], set[str]]:
+        """For the CRM "Docs" pills: which files have a survey / survey with
+        measurements / a quotation. Three membership sets in two grouped queries,
+        not one per row. (BOQ and Costing have no data source yet.)"""
+        if not file_ids:
+            return set(), set(), set()
+        surveys = (await self.session.execute(
+            select(SiteSurvey.file_id, SiteSurvey.has_measurements)
+            .where(SiteSurvey.file_id.in_(file_ids))
+        )).all()
+        survey_files = {fid for fid, _ in surveys if fid}
+        measured_files = {fid for fid, has_m in surveys if fid and has_m}
+        quote_files = set((await self.session.execute(
+            select(Quotation.file_id).where(Quotation.file_id.in_(file_ids))
+        )).scalars().all())
+        return survey_files, measured_files, quote_files
 
     # ── Quick capture ─────────────────────────────────────────────────────
 

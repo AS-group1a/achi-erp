@@ -723,6 +723,25 @@ function removePrefix(value){
   clearErr(); return true;
 }
 const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+/* ── Extra column renderers for the General Log (stage / docs / communication).
+   Additive: the standard Log never renders these columns, so these are inert
+   there. Kept here so both pages share one core script. ──────────────────── */
+const GL_STAGE_PIPELINE=['enquiry','site_survey','takeoff','boq','costing','quotation'];
+const GL_STAGE_COLOR={enquiry:'#2563eb',site_survey:'#0891b2',takeoff:'#0ea5e9',boq:'#7c3aed',costing:'#ea580c',quotation:'#4f46e5',open:'#2563eb',scheduled:'#7c3aed',viewed:'#0891b2',cancelled:'#dc2626',done:'#16a34a'};
+const GL_STAGE_LABEL={boq:'BOQ'};
+const GL_LEGACY_STAGE={prospect:'enquiry',lead:'enquiry',measurements:'takeoff'};
+const glStageKey=s=>{const k=GL_LEGACY_STAGE[s]||s||'enquiry';return GL_STAGE_COLOR[k]?k:'enquiry';};
+const glStageLabel=s=>{const k=glStageKey(s);return GL_STAGE_LABEL[k]||label(k);};
+function glStageCell(r){
+  const k=glStageKey(r.stage),color=GL_STAGE_COLOR[k],pi=GL_STAGE_PIPELINE.indexOf(k);
+  const fill=pi>=0?pi+1:((k==='done'||k==='cancelled')?GL_STAGE_PIPELINE.length:0);
+  const segs=GL_STAGE_PIPELINE.map((_,i)=>`<span class="lseg${i<fill?' on':''}" style="${i<fill?`background:${color}`:''}"></span>`).join('');
+  return `<div class="lstage"><span class="lstage-top"><span class="lstage-dot" style="background:${color}"></span><span class="lstage-label" style="color:${color}">${esc(glStageLabel(k))}</span></span><span class="lstage-bar">${segs}</span></div>`;
+}
+const GL_DOCS=[['srv','SURV'],['dwg','DWG'],['mt','M/T'],['boq','BOQ'],['cst','CST'],['qte','QTE']];
+function glDocsCell(r){const d=r.docs||{};return `<div class="ldocs">${GL_DOCS.map(([k,lb])=>`<span class="ldoc${d[k]?' on':''}">${lb}</span>`).join('')}</div>`;}
+const GL_COMM_COLOR={Call:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',Other:'#64748b'};
+function glCommCell(r){const v=r.communication;if(!v)return '<span class="mt">—</span>';const c=GL_COMM_COLOR[v]||'#64748b';return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14">${esc(v)}</span>`;}
 const SVG={
   mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
   pin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
@@ -848,7 +867,9 @@ const COUNTRIES=[
 ];
 const flagSrc=iso=>`https://flagcdn.com/24x18/${iso}.png`;
 
-const COLS=[
+/* A page may preset window.ACHI_LOG_COLS (the General Log does) to render a
+   different column set; otherwise the standard Log columns below are used. */
+const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&window.ACHI_LOG_COLS.length)?window.ACHI_LOG_COLS:[
   {k:'num',    h:'#',              tab:null, cls:'num pg-f-num', w:42},
   {k:'when',   h:'Date & Time',    tab:null, cls:'pg-f-date', w:132},
   {k:'status', h:'Status',         tab:null, cls:'pg-f-stat', w:105, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
@@ -873,7 +894,7 @@ const COLS=[
   {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
   {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
 ];
-const FIXED_KEYS=['num','when','status'];
+const FIXED_KEYS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_FIXED_KEYS))?window.ACHI_FIXED_KEYS:['num','when','status'];
 const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 function cellHTML(c,r,i){switch(c.k){
   case 'num': return `<span class="rn">${i+1}</span>`;
@@ -916,6 +937,13 @@ function cellHTML(c,r,i){switch(c.k){
   case 'updates': return r.updates?esc(r.updates):'<span class="mt">—</span>';
   case 'followup': return r.follow_up_date?`<span class="badge b-scheduled">${esc(r.follow_up_date)}</span>`:'<span class="mt">—</span>';
   case 'funotes': return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
+  /* General Log extra columns */
+  case 'ref': return r.reference?`<span class="enq-ref">${esc(r.reference)}</span>`:'<span class="mt">—</span>';
+  case 'role': return dash(r.role);
+  case 'stage': return glStageCell(r);
+  case 'communication': return glCommCell(r);
+  case 'last_touch': return r.occurred_at?dateTimeHTML(r.occurred_at):'<span class="mt">—</span>';
+  case 'deliverables': return glDocsCell(r);
 }}
 
 const ROW_CACHE_KEY='achi_log_rows_v1';
@@ -1079,7 +1107,7 @@ function draftRowHTML(dp,st,isTop,rowNumber){
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
+    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
     return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;

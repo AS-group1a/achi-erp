@@ -66,10 +66,10 @@ class ContactFile(Base):
     # Social handles typed in Add Log, stored as a JSON array of {platform, handle}.
     lead_socials: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # prospect -> lead -> site_survey -> measurements  (mirrors the Frappe CRM Log)
+    # CRM pipeline: enquiry -> site_survey -> takeoff -> boq -> costing -> quotation
     # There is deliberately no "client" stage: becoming a client is not a file
     # state, it is the file converting into a project.
-    stage: Mapped[str] = mapped_column(String(32), nullable=False, default="prospect")
+    stage: Mapped[str] = mapped_column(String(32), nullable=False, default="enquiry")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
 
     # This enquiry's site — a contact's second file may be a different address,
@@ -122,6 +122,9 @@ class FileLog(Base):
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # How the enquiry reached us. Free-form so Add Log's "+ Add New" values save.
     reference: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Communication channel for this log (General Log "Communication" column):
+    # Call / Email / WhatsApp / In-person / Other. Free-form, nullable.
+    communication: Mapped[str | None] = mapped_column(String(32), nullable=True)
     # Free-form labels the user attaches to a log so a row can be found fast —
     # stored as one comma-separated string (e.g. "urgent, vip, north branch")
     # rather than a side table, because the grid searches it as plain text and

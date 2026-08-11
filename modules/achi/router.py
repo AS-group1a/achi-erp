@@ -127,6 +127,22 @@ def ui() -> HTMLResponse:
 
 
 @router.get(
+    "/general-log/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="General Log UI",
+)
+def general_log_ui() -> HTMLResponse:
+    """The General Log: the same shell/scripts as the Log page (see ui()), but the
+    page presets window.ACHI_LOG_COLS so log-core.js renders a different column
+    set. Same enquiry data (/logs/), so a log added on either page shows on both."""
+    return HTMLResponse(
+        (_UI_DIR / "general_log.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/contact-info/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
@@ -1450,6 +1466,8 @@ async def list_logs(
     # added to its select (owner name was the last one), and a positional unpack
     # here breaks the endpoint when it does
     counts = await svc.attachment_counts([r[0].id for r in rows])
+    # CRM "Docs" pills: which files have a survey / measurements / quotation.
+    survey_files, measured_files, quote_files = await svc.doc_signals([r[1].id for r in rows])
     # Addresses we've already emailed (any teammate, successfully sent) — one query,
     # lowercased, so the grid can flag "already emailed" without a lookup per row.
     sent_to = {
@@ -1509,6 +1527,7 @@ async def list_logs(
                 log_type=log.log_type,
                 category=log.category,
                 reference=log.reference,
+                communication=log.communication,
                 tags=log.tags,
                 occurred_at=log.occurred_at,
                 description=log.description,
@@ -1539,6 +1558,14 @@ async def list_logs(
                 owner_name=owner_name,
                 assigned=f.assigned_to_user_id,
                 assigned_name=assigned_name,
+                docs={
+                    "srv": f.id in survey_files,
+                    "dwg": bool(log.has_drawing),
+                    "mt": f.id in measured_files,
+                    "boq": False,
+                    "cst": False,
+                    "qte": f.id in quote_files,
+                },
                 contact_id=f.contact_id,
                 company_contact_id=f.company_contact_id,
                 contact_name=name,
