@@ -18,7 +18,7 @@
   // icon; ?v= busts the service-worker cache when a page changes.
   var ENTRIES = [
     { id: 'achi-nav-log', label: 'Log', route: '/call-log',
-      href: '/api/v1/achi/ui?v=67',
+      href: '/api/v1/achi/ui?v=70',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
     { id: 'achi-nav-survey', label: 'Site Survey', route: '/site-survey',
       href: '/api/v1/achi/surveys/table?v=2',
@@ -40,6 +40,7 @@
   var dragged = null;
   var draggedAt = 0;
   var arranging = false;
+  var achiNavigationPending = false;
   var SIDEBAR_COLLAPSE_DELAY_MS = 120;
   var layoutObserver = null;
 
@@ -490,6 +491,7 @@
     if (a.id === CONTACTS_ID || a.id === CRM_ID) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
+      achiNavigationPending = true;
       // Non-admins use ACHI's standalone Contacts and CRM pages. Admins keep
       // the canonical upstream destinations.
       if (!isAdminUser()) {
@@ -515,6 +517,7 @@
     if (entry) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
+      achiNavigationPending = true;
       location.assign(entry.href);
       return;
     }
@@ -625,7 +628,7 @@
   function onOcePage() { var p = location.pathname; return !byRoute(p) && p.indexOf('/api/v1/achi/') !== 0; }
 
   function applyAccessLimit() {
-    if (!isLimited || !onOcePage()) return;
+    if (achiNavigationPending || !isLimited || !onOcePage()) return;
     showGate();
     location.replace(HREF);                    // the Call Log page
   }
