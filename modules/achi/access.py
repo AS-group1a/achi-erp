@@ -23,15 +23,17 @@ from .models import AchiFullAccess
 # Paths a LIMITED user may still reach. Everything else is denied.
 #   /api/v1/achi/        — our own pages and APIs
 #   /api/v1/contacts/    — the Call Log directory (the ACHI pages read/write it)
+#   /api/v1/crm/         — CRM data; upstream still enforces crm.* permissions
 #   /api/v1/branding/    — chrome.js reads the logo/company name (GET only)
 #   /api/v1/users/auth/  — login, refresh, logout (needed to authenticate at all)
 #   /api/v1/users/me     — self identity only; the SPA bootstraps with it
 # Derived from the actual fetches the ACHI front-end makes (grep of ui/*): it
 # calls exactly these plus its own /achi routes. Deliberately tight — a limited
-# user gets 403 on everything else (leads, projects, estimating, admin, …).
+# user gets 403 on everything else (projects, estimating, admin, …).
 LIMITED_ALLOW_PREFIXES: tuple[str, ...] = (
     "/api/v1/achi/",
     "/api/v1/contacts/",
+    "/api/v1/crm/",
     "/api/v1/branding/",
     "/api/v1/users/auth/",
     "/api/v1/users/me",
