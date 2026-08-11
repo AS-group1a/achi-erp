@@ -3,8 +3,10 @@
 Every user can just write and Send: the message goes out through ONE shared
 company mailbox (configured once via the app's email settings — the same
 app.core.email service password-resets use), so no one has to connect an account
-or fiddle with app passwords. The From shows the sender's name on the company
-address and Reply-To is set to the sender, so replies reach the real person.
+or fiddle with app passwords. The mail goes out under a neutral company identity
+("Achi Scaffolding Team") with no Reply-To — recipients never see the individual
+sender's name or personal address. Who actually sent it is still recorded on the
+``achi_email`` row for internal audit; it just isn't put on the wire.
 
 Delivery honours the deployment's ``email_backend`` setting: with SMTP configured
 the mail goes out for real; on the default ``console`` backend the server only
@@ -42,17 +44,21 @@ _MAX_ATTACH_TOTAL = 25 * 1024 * 1024
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
-async def _sender(session, user_id: str | None) -> tuple[str, str | None]:
-    """(display name, email) for the signed-in sender, read once at send time.
-    The name is stamped onto the record; the email becomes Reply-To so replies
-    reach the actual person even though the mail goes out as the company."""
+# Neutral identity every outbound message goes out under, so the recipient sees
+# the company and never the individual who happened to click Send.
+_FROM_NAME = "Achi Scaffolding Team"
+
+
+async def _sender_name(session, user_id: str | None) -> str:
+    """Display name of the signed-in sender, for the INTERNAL record only.
+    It is stamped onto the achi_email row for audit; it is never placed on the
+    outgoing message (no personal name in From, no personal address in Reply-To)."""
     if not user_id:
-        return "Someone", None
+        return "Someone"
     u = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not u:
-        return "Someone", None
-    name = (u.full_name or "").strip() or (u.email.split("@")[0] if u.email else "Someone")
-    return name, (u.email or None)
+        return "Someone"
+    return (u.full_name or "").strip() or (u.email.split("@")[0] if u.email else "Someone")
 
 
 def _html_to_text(fragment: str) -> str:
@@ -62,15 +68,15 @@ def _html_to_text(fragment: str) -> str:
     return html.unescape(text).strip()
 
 
-def _wrap_html(fragment: str, sender_name: str) -> str:
-    """Wrap the Quill body fragment in a readable shell with a small sign-off."""
-    who = html.escape(sender_name or "")
+def _wrap_html(fragment: str) -> str:
+    """Wrap the Quill body fragment in a readable shell with a neutral sign-off
+    (no personal sender name — the mail goes out as the company)."""
     return (
         '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
         'line-height:1.5;color:#1f2937">'
         f"{fragment or ''}"
-        f'<div style="margin-top:18px;color:#6b7280;font-size:12px">Sent by {who} '
-        "via Achi Scaffolding</div></div>"
+        '<div style="margin-top:18px;color:#6b7280;font-size:12px">'
+        "Sent via Achi Scaffolding</div></div>"
     )
 
 
@@ -111,16 +117,18 @@ async def send_mail(
             content_type=f.content_type or "application/octet-stream"))
         names.append(f.filename or "attachment")
 
-    sender_name, sender_email = await _sender(session, user_id)
-    # From = company address with the sender's name; replies go back to them.
-    from_addr = formataddr((sender_name, settings.smtp_from)) if settings.smtp_from else None
+    # Recorded internally for audit, but never put on the outgoing message.
+    sender_name = await _sender_name(session, user_id)
+    # From = company address under the neutral team name. No Reply-To, so replies
+    # return to the company mailbox rather than exposing the individual sender.
+    from_addr = formataddr((_FROM_NAME, settings.smtp_from)) if settings.smtp_from else None
 
     message = EmailMessage(
         to=to_addr,
         subject=subject,
-        html_body=_wrap_html(body, sender_name),
+        html_body=_wrap_html(body),
         from_addr=from_addr,
-        reply_to=sender_email,
+        reply_to=None,
         tags=["achi", "log-compose"],
         attachments=attachments,
     )
