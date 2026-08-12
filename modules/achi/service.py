@@ -65,6 +65,31 @@ def _code_number(code: str | None) -> int | None:
     return int(m.group(2)) if m else None
 
 
+def parse_comm_tally(raw: str | None) -> dict[str, int]:
+    """A log's stored comm_tally JSON → {channel: positive int}, robustly.
+
+    Bad/empty/garbage input yields {} rather than raising, so one corrupt row
+    can never take down the log feed or the per-file summary.
+    """
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, int] = {}
+    for k, v in data.items():
+        try:
+            n = int(v)
+        except (ValueError, TypeError):
+            continue
+        if k and n > 0:
+            out[str(k)] = n
+    return out
+
+
 def _normalize_phone(raw: str | None) -> str:
     """A phone number reduced to bare digits with leading zeros dropped.
 
@@ -695,15 +720,17 @@ class ContactFileService:
 
         One query over the files' active logs; counts, total and latest touch are
         folded in Python so this stays one round-trip regardless of row count and
-        avoids DB-specific NULLS-ordering. `total` counts every log (a touch that
-        never had a channel recorded still happened); `counts` only the ones that
-        named a channel.
+        avoids DB-specific NULLS-ordering. Each log's per-channel `comm_tally`
+        counters are summed into `counts`; a legacy single `communication` value
+        counts as one on its channel. `total` is the sum of all channel counts
+        across the file; `last_channel` is the busiest channel of the most recent
+        touch.
         """
         if not file_ids:
             return {}
         rows = (await self.session.execute(
             select(
-                FileLog.file_id, FileLog.communication,
+                FileLog.file_id, FileLog.communication, FileLog.comm_tally,
                 FileLog.occurred_at, FileLog.created_at,
             ).where(
                 FileLog.file_id.in_(file_ids),
@@ -711,18 +738,22 @@ class ContactFileService:
             )
         )).all()
         summary: dict[str, dict] = {}
-        for file_id, channel, occurred_at, created_at in rows:
+        for file_id, channel, tally_json, occurred_at, created_at in rows:
             entry = summary.setdefault(
                 file_id, {"counts": {}, "total": 0, "last_at": None, "last_channel": None}
             )
-            entry["total"] += 1
-            ch = (channel or "").strip()
-            if ch:
-                entry["counts"][ch] = entry["counts"].get(ch, 0) + 1
+            per = parse_comm_tally(tally_json)
+            if not per:
+                ch = (channel or "").strip()
+                if ch:
+                    per = {ch: 1}
+            for ch, n in per.items():
+                entry["counts"][ch] = entry["counts"].get(ch, 0) + n
+                entry["total"] += n
             when = occurred_at or created_at
             if when is not None and (entry["last_at"] is None or when > entry["last_at"]):
                 entry["last_at"] = when
-                entry["last_channel"] = ch or None
+                entry["last_channel"] = max(per, key=per.get) if per else None
         return summary
 
     # ── Quick capture ─────────────────────────────────────────────────────

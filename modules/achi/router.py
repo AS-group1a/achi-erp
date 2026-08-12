@@ -47,7 +47,7 @@ from .schemas import (
     QuickLogCreate,
     QuickLogOut,
 )
-from .service import CONTACT_INFO_TAG, ContactFileService
+from .service import CONTACT_INFO_TAG, ContactFileService, parse_comm_tally
 from .quotation_router import quotation_router
 from .survey_router import survey_router
 from .geo_router import geo_router
@@ -1557,6 +1557,7 @@ async def list_logs(
                 subject=f.subject or "",
                 role=f.lead_role,
                 company_type=f.lead_company_type,
+                comm_tally=parse_comm_tally(log.comm_tally) or None,
                 socials=f.lead_socials,
                 site_location=f.site_location,
                 city=f.city,

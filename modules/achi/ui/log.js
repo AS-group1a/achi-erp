@@ -710,6 +710,11 @@ $('thead').addEventListener('keydown',e=>{
   e.preventDefault(); toggleSelectAll();
 });
 $('rows').addEventListener('click',e=>{ const ccb=e.target.closest('.tel-cc'); if(ccb){ openCc(ccb); return; }
+  // Communication counter chips: × removes a channel (check first — it's nested
+  // inside the chip), the chip body adds one, the dashed "+" opens the menu.
+  const cdel=e.target.closest('[data-cc-del]'); if(cdel){ const tr=cdel.closest('tr.data'); if(tr) commEdit(tr,cdel.dataset.ccDel,'del'); return; }
+  const cinc=e.target.closest('[data-cc-inc]'); if(cinc){ const tr=cinc.closest('tr.data'); if(tr) commEdit(tr,cinc.dataset.ccInc,'inc'); return; }
+  const cadd=e.target.closest('[data-cc-add]'); if(cadd){ openCommAddMenu(cadd); return; }
   const num=e.target.closest('td[data-select-row]'); if(num){ toggleRowSelection(num.closest('tr.selectable-row')); refreshDeleteButton(); return; }
   const a=e.target.closest('[data-add]'); if(a){ addBottomRow(); return; }
   const email=e.target.closest('[data-compose-email]'); if(email){ const tr=email.closest('tr'); const row=tr?ROWS.find(x=>x.id===tr.dataset.log):null; openEmailCompose(email.dataset.composeEmail,false,{log_id:tr&&tr.dataset.log||null,file_id:tr&&tr.dataset.file||null,contact_id:row&&row.contact_id||null}); return; }
@@ -1407,6 +1412,38 @@ function openDraftNoteWorkspace(input){
     ta.style.height=Math.min(Math.max(112,ta.scrollHeight+2),Math.round(innerHeight*.42))+'px';
     ta.focus();
   });
+}
+
+/* ── Communication counter chips (General Log) ─────────────────────────────
+   Per-log per-channel tally. Edits mutate the row's comm_tally, re-render just
+   the cell, and PATCH the log; the legacy single `communication` is retired
+   (nulled) on first edit so the per-file summary never double-counts. */
+async function commEdit(tr,channel,op){
+  const r=ROWS.find(x=>x.id===tr.dataset.log); if(!r) return;
+  let t=(r.comm_tally&&typeof r.comm_tally==='object')?{...r.comm_tally}:{};
+  if(!Object.keys(t).length && r.communication) t={[r.communication]:1};   // seed from legacy
+  if(op==='del') delete t[channel];
+  else t[channel]=(t[channel]||0)+1;
+  r.comm_tally=t; r.communication=null;
+  const td=tr.querySelector('td[data-k="communication"]'); if(td) refreshCell(td);
+  try{ await api('/logs/'+r.id,{method:'PATCH',body:JSON.stringify({comm_tally:JSON.stringify(t),communication:null})}); }
+  catch(err){ fail(err.message); }
+}
+let commMenuEl=null;
+function closeCommMenu(){ if(commMenuEl){ commMenuEl.remove(); commMenuEl=null; document.removeEventListener('mousedown',commMenuOutside,true); } }
+function commMenuOutside(e){ if(commMenuEl && !commMenuEl.contains(e.target) && !e.target.closest('[data-cc-add]')) closeCommMenu(); }
+function openCommAddMenu(btn){
+  const tr=btn.closest('tr.data'); if(!tr) return;
+  if(commMenuEl){ closeCommMenu(); return; }
+  const menu=document.createElement('div'); menu.className='ctmenu';
+  menu.innerHTML=GL_COMM_ADD.map(k=>`<button type="button" data-cc-pick="${esc(k)}"><span class="cdot" style="background:${glCommColor(k)}"></span>${esc(k)}</button>`).join('');
+  document.body.appendChild(menu);
+  const rc=btn.getBoundingClientRect();
+  menu.style.top=(window.scrollY+rc.bottom+4)+'px';
+  menu.style.left=(window.scrollX+Math.max(8,Math.min(rc.left,window.innerWidth-menu.offsetWidth-8)))+'px';
+  menu.addEventListener('click',ev=>{ const p=ev.target.closest('[data-cc-pick]'); if(!p) return; ev.stopPropagation(); const t=tr; closeCommMenu(); commEdit(t,p.dataset.ccPick,'inc'); });
+  commMenuEl=menu;
+  setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
 
 async function load(){ try{

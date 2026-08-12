@@ -446,7 +446,11 @@
      it, and give the column some left breathing room. Scoped by the body's
      title so the plain Log page keeps its round number badge. */
   body[data-achi-title="General Log"] tbody tr.selectable-row td.num{padding:0 6px 0 12px;text-align:left}
-  body[data-achi-title="General Log"] .rn{width:auto;min-width:24px;padding:0 9px;border-radius:11px;white-space:nowrap;letter-spacing:.02em;font-size:10.5px}
+  body[data-achi-title="General Log"] .rn,
+  body[data-achi-title="General Log"] tbody tr.selectable-row:hover .rn,
+  body[data-achi-title="General Log"] tbody tr.selectable-row.row-selected .rn{
+    width:auto;min-width:0;padding:0;background:transparent;border-radius:0;color:var(--navy);
+    white-space:nowrap;letter-spacing:.02em;font-size:11px}
   .dt{font-variant-numeric:tabular-nums;color:#334155}
   .pg-f-date .pg-dt-compact{display:none}
   .pg-f-date.pg-dt-narrow .pg-dt-full{display:none}
@@ -800,6 +804,22 @@
 .lcomm{display:inline-flex;align-items:center;padding:3px 9px;border:1px solid;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
 .lcomms{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0}
 .lcomm-more{color:#64748b;border-color:#e2e8f0;background:#f8fafc}
+/* Communication counters: one interactive chip per channel (click = +1, ×
+   removes), then a dashed "+" to add a channel. */
+.ctally{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
+.ctchip{display:inline-flex;align-items:center;gap:4px;padding:2px 5px 2px 8px;border:1px solid;border-radius:99px;font-size:11px;font-weight:800;line-height:1;cursor:pointer;background:transparent;transition:box-shadow .12s,transform .05s}
+.ctchip:hover{box-shadow:0 1px 4px rgba(2,6,23,.16)}
+.ctchip:active{transform:translateY(.5px)}
+.ctchip .ctn{font-variant-numeric:tabular-nums;min-width:11px;text-align:center}
+.ctchip .ctx{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:1px;border-radius:50%;font-size:12px;font-weight:700;opacity:.5}
+.ctchip:hover .ctx{opacity:.9}
+.ctchip .ctx:hover{opacity:1;background:rgba(2,6,23,.12)}
+.ctadd{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px dashed #cbd5e1;background:#fff;color:#64748b;font-size:14px;font-weight:700;line-height:1;cursor:pointer;transition:border-color .12s,color .12s,background .12s}
+.ctadd:hover{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.ctmenu{position:absolute;z-index:1200;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 34px rgba(2,6,23,.20);padding:6px;min-width:158px}
+.ctmenu button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600;color:#0f172a;text-align:left}
+.ctmenu button:hover{background:#f1f5f9}
+.ctmenu .cdot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
 /* Last Touch: date over a muted "· channel · N total" sub-line (photo #4). */
 .lt{display:flex;flex-direction:column;gap:1px;min-width:0}
 .lt-date{font-variant-numeric:tabular-nums;color:#334155;font-weight:600}
