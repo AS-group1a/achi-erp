@@ -799,16 +799,19 @@ function glCommCell(r){
 }
 const GL_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtDayMonthYear=s=>{const d=new Date(s);if(isNaN(d))return String(s||'');return `${String(d.getDate()).padStart(2,'0')} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;};
-/* Last Touch cell: the most recent touch date, with a "· CHANNEL · N total"
-   sub-line (photo #4). Uses the per-file summary; falls back to the row's own
-   occurred_at when the summary is absent. */
+/* Last Touch cell: this row's date over a "CHANNELS · N total" sub-line driven
+   by the row's own communication counters — e.g. WA 2 + LI 3 → "WA, LI · 5
+   total". Reads the same per-log tally as the Communication cell so the two
+   always agree and update together. */
 function glLastTouchCell(r){
-  const when=r.last_touch_at||r.occurred_at;
-  if(!when) return '<span class="mt">—</span>';
-  const abbr=r.last_touch_channel?glCommAbbr(r.last_touch_channel):null;
-  const total=r.comm_total||0;
-  const sub=[abbr,total?`${total} total`:''].filter(Boolean).join(' · ');
-  return `<span class="lt"><span class="lt-date">${esc(fmtDayMonthYear(when))}</span>${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}</span>`;
+  const when=r.occurred_at||r.created_at||r.last_touch_at;
+  const t=glCommTally(r);
+  const channels=Object.keys(t).filter(k=>t[k]>0).sort((a,b)=>t[b]-t[a]||a.localeCompare(b));
+  const total=channels.reduce((s,k)=>s+t[k],0);
+  if(!when && !total) return '<span class="mt">—</span>';
+  const abbrs=channels.map(k=>glCommAbbr(k)).join(', ');
+  const sub=[abbrs,total?`${total} total`:''].filter(Boolean).join(' · ');
+  return `<span class="lt"><span class="lt-date">${when?esc(fmtDayMonthYear(when)):'—'}</span>${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}</span>`;
 }
 const SVG={
   mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,

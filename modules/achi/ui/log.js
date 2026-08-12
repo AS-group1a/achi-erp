@@ -1426,6 +1426,7 @@ async function commEdit(tr,channel,op){
   else t[channel]=(t[channel]||0)+1;
   r.comm_tally=t; r.communication=null;
   const td=tr.querySelector('td[data-k="communication"]'); if(td) refreshCell(td);
+  const ltd=tr.querySelector('td[data-k="last_touch"]'); if(ltd) refreshCell(ltd);   // keep Last Touch in step
   try{ await api('/logs/'+r.id,{method:'PATCH',body:JSON.stringify({comm_tally:JSON.stringify(t),communication:null})}); }
   catch(err){ fail(err.message); }
 }
