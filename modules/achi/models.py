@@ -131,7 +131,14 @@ class FileLog(Base):
     reference: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # Communication channel for this log (General Log "Communication" column):
     # Call / Email / WhatsApp / In-person / Other. Free-form, nullable.
+    # Legacy single value — superseded by comm_tally below, kept so old rows
+    # still render. New edits null this and write comm_tally instead.
     communication: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Per-log communication tally: a JSON object of channel -> count, e.g.
+    # {"WhatsApp": 2, "Call": 1}. Lets one row record several touches per
+    # channel (the "WA 2" counter chips). Text/nullable; a new column, so the
+    # additive auto-heal on startup adds it with no migration.
+    comm_tally: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Free-form labels the user attaches to a log so a row can be found fast —
     # stored as one comma-separated string (e.g. "urgent, vip, north branch")
     # rather than a side table, because the grid searches it as plain text and

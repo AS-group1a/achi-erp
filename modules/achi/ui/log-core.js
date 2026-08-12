@@ -776,17 +776,26 @@ const GL_COMM_ABBR={Call:'PH',Phone:'PH',Email:'EM',WhatsApp:'WA','In-person':'I
 const glCommColor=k=>GL_COMM_COLOR[k]||'#64748b';
 const glCommAbbr=k=>GL_COMM_ABBR[k]||String(k||'').slice(0,2).toUpperCase();
 const glCommPill=(k,n)=>{const c=glCommColor(k);return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14" title="${esc(k)}${n!=null?': '+n:''}">${esc(glCommAbbr(k))}${n!=null?' '+n:''}</span>`;};
-/* Communication cell: one pill per channel with its count, most-used first,
-   capped at three with a "+N" overflow. Falls back to the log's single legacy
-   `communication` value when no per-channel counts exist yet. */
+// Channels the "+" menu offers on the Communication cell (kept short on purpose).
+const GL_COMM_ADD=['Call','WhatsApp','Email','LinkedIn'];
+/* This log's own per-channel counters, seeded from the legacy single
+   `communication` value the first time so old rows upgrade seamlessly. */
+function glCommTally(r){
+  let t=r.comm_tally;
+  if(t&&typeof t==='object'&&Object.keys(t).length) return t;
+  return r.communication?{[r.communication]:1}:{};
+}
+/* Communication cell: an interactive counter chip per channel — click a chip to
+   add one, its "×" to remove it — plus a "+" to add a channel. Per log row. */
 function glCommCell(r){
-  const counts=r.comm_counts||{};
-  const channels=Object.keys(counts).filter(k=>counts[k]>0).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));
-  if(!channels.length) return r.communication?`<span class="lcomms">${glCommPill(r.communication,null)}</span>`:'<span class="mt">—</span>';
-  const shown=channels.slice(0,3), rest=channels.length-shown.length;
-  const pills=shown.map(k=>glCommPill(k,counts[k])).join('');
-  const more=rest>0?`<span class="lcomm lcomm-more" title="${esc(channels.slice(3).join(', '))}">+${rest}</span>`:'';
-  return `<span class="lcomms">${pills}${more}</span>`;
+  const t=glCommTally(r);
+  const channels=Object.keys(t).filter(k=>t[k]>0).sort((a,b)=>t[b]-t[a]||a.localeCompare(b));
+  const chips=channels.map(k=>{const c=glCommColor(k);
+    return `<button type="button" class="ctchip" data-cc-inc="${esc(k)}" title="${esc(k)}: ${t[k]} — click to add one" style="color:${c};border-color:${c}55;background:${c}14">`
+      +`<span class="cta">${esc(glCommAbbr(k))}</span><span class="ctn">${t[k]}</span>`
+      +`<span class="ctx" data-cc-del="${esc(k)}" title="Remove ${esc(k)}">×</span></button>`;
+  }).join('');
+  return `<span class="ctally">${chips}<button type="button" class="ctadd" data-cc-add title="Add a channel">+</button></span>`;
 }
 const GL_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtDayMonthYear=s=>{const d=new Date(s);if(isNaN(d))return String(s||'');return `${String(d.getDate()).padStart(2,'0')} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;};

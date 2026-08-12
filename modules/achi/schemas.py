@@ -217,6 +217,7 @@ class FileLogUpdate(BaseModel):
     category: str | None = Field(default=None, max_length=64)
     reference: str | None = Field(default=None, max_length=64)
     communication: str | None = Field(default=None, max_length=32)
+    comm_tally: str | None = Field(default=None, max_length=512)   # JSON {channel: count}
     tags: str | None = Field(default=None, max_length=255)
     occurred_at: datetime | None = None
     duration_seconds: int | None = Field(default=None, ge=0)
@@ -424,7 +425,8 @@ class LogRowOut(BaseModel):
     # boq, cst, qte. Computed from real signals (surveys, drawings, quotations);
     # boq/cst have no data source yet and stay False.
     docs: dict[str, bool] | None = None
-    communication: str | None = None   # General Log "Communication" channel
+    communication: str | None = None   # General Log "Communication" channel (legacy single value)
+    comm_tally: dict[str, int] | None = None   # this log's per-channel counters, e.g. {"WhatsApp": 2}
     # General Log Communication pills + Last Touch: how this file's logs split by
     # channel (e.g. {"Email": 4, "Call": 3}), the total touch count, and the most
     # recent touch (its time + channel). Aggregated per file, so every log row of
