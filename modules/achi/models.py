@@ -72,6 +72,13 @@ class ContactFile(Base):
     stage: Mapped[str] = mapped_column(String(32), nullable=False, default="enquiry")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
 
+    # General Log "#" code: a stage-bucketed, per-bucket sequential id like
+    # "SV001". Nullable — files in an untracked stage (or created before this
+    # feature) simply have none. Assigned/renumbered in service.py on stage
+    # change; the CRM page ignores it. Schema is create_all + additive auto-heal
+    # (main.py), so a new nullable column needs no migration.
+    log_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
     # This enquiry's site — a contact's second file may be a different address,
     # which is exactly why this lives on the file and not the contact.
     country: Mapped[str | None] = mapped_column(String(64), nullable=True)

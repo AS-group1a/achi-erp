@@ -968,7 +968,7 @@ function isOverdueFollowup(r){
   return due<today;
 }
 function cellHTML(c,r,i){switch(c.k){
-  case 'num': return `<span class="rn">${i+1}</span>`;
+  case 'num': return `<span class="rn">${GENERAL_LOG&&r&&r.log_code?esc(r.log_code):i+1}</span>`;
   case 'when': return dateTimeHTML(r.occurred_at||r.created_at);
   case 'status': return badge(r.status);
   case 'prefix': return dash(r.prefix);
@@ -1188,7 +1188,7 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
     const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${GENERAL_LOG&&r.log_code?esc(r.log_code):rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 

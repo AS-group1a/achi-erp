@@ -440,6 +440,13 @@
   tbody tr.selectable-row.row-selected td{background:#dbeafe!important}
   tbody tr.selectable-row.row-selected:hover td{background:#bfdbfe!important}
   tbody tr.selectable-row.row-selected .rn{background:var(--navy);color:#fff}
+  /* General Log: the "#" cell holds a stage code (e.g. PROSP039), not a 1–2
+     digit number. Let the pill grow to fit the text (so the hover/selected
+     fill wraps the whole code instead of a 24px blob it overflows), left-align
+     it, and give the column some left breathing room. Scoped by the body's
+     title so the plain Log page keeps its round number badge. */
+  body[data-achi-title="General Log"] tbody tr.selectable-row td.num{padding:0 6px 0 12px;text-align:left}
+  body[data-achi-title="General Log"] .rn{width:auto;min-width:24px;padding:0 9px;border-radius:11px;white-space:nowrap;letter-spacing:.02em;font-size:10.5px}
   .dt{font-variant-numeric:tabular-nums;color:#334155}
   .pg-f-date .pg-dt-compact{display:none}
   .pg-f-date.pg-dt-narrow .pg-dt-full{display:none}

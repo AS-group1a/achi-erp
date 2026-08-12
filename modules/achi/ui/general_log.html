@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>General Log · Achi Scaffolding ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=3">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=4">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <body data-achi-title="General Log">
@@ -159,7 +159,7 @@
   // number / select-all ("#"); the rest follow the agreed layout. Contact-detail
   // columns (mobile/email/maps/location/role/ref) are intentionally not shown here.
   window.ACHI_LOG_COLS = [
-    {k:'num',          h:'#',              tab:null, w:48},
+    {k:'num',          h:'#',              tab:null, w:92},
     {k:'when',         h:'Date & Time',    tab:null, w:150},
     {k:'status',       h:'Status',         tab:null, w:110, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
     {k:'prefix',       h:'Pre',            tab:null, w:70,  draft:'select', edit:{kind:'prefix',target:'contact',field:'prefix',val:r=>r.prefix||''}},
@@ -181,8 +181,8 @@
     {k:'street',       h:'Street',         tab:null, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
   ];
 </script>
-<script src="/api/v1/achi/ui/log-core.js?v=3"></script>
-<script src="/api/v1/achi/ui/log.js?v=3"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=4"></script>
+<script src="/api/v1/achi/ui/log.js?v=4"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=24"></script>
 <script src="/api/v1/achi/ui/comment.js?v=14"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>

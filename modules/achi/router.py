@@ -1461,6 +1461,15 @@ async def list_logs(
     from .models import AchiEmail
 
     svc = ContactFileService(session)
+    # One-time per process: give any pre-existing / uncoded file its General Log
+    # "#" code. Idempotent and cheap once done, so guarded by a module flag.
+    from . import service as _svc
+    if not _svc._backfill_attempted:
+        _svc._backfill_attempted = True
+        try:
+            await svc.backfill_codes()
+        except Exception:
+            logger.exception("achi: log_code backfill failed")
     rows = await svc.list_logs(limit=limit, deleted=deleted)
     # index rather than unpack: list_logs' tuple width changes when a column is
     # added to its select (owner name was the last one), and a positional unpack
@@ -1542,6 +1551,7 @@ async def list_logs(
                 created_at=log.created_at,
                 file_id=f.id,
                 file_number=f.file_number,
+                log_code=f.log_code,
                 stage=f.stage,
                 status=f.status,
                 subject=f.subject or "",

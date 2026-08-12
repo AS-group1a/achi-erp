@@ -1164,6 +1164,9 @@ function openEditor(td){
       // mirror into the local row (contact/file fields shared across a file's logs)
       ROWS.forEach(r=>{ if((target==='log'&&r.id===logId)||(target!=='log'&&r.file_id===fileId)) r[field]=nv; });
       td.dataset.val=nv; clearErr(); stats();
+      // A stage change re-codes this row's "#" and may renumber its bucket
+      // siblings server-side; refetch so the General Log shows the new codes.
+      if(field==='stage' && window.ACHI_GENERAL_LOG===true){ load(); return; }
     }catch(e){ fail(e.message); } }
     refreshCell(td);
     if(advance){ const nx=nextEditableInRow(td); if(nx){ nx.scrollIntoView({inline:'center',block:'nearest'}); openEditor(nx); } }
