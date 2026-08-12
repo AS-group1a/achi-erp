@@ -535,6 +535,43 @@ class ContactFileService:
         )).scalars().all())
         return survey_files, measured_files, quote_files
 
+    async def communication_summary(self, file_ids: list[str]) -> dict[str, dict]:
+        """Per file: how its logs break down by communication channel, plus the
+        most recent touch. Powers the General Log's Communication pills (EM 4,
+        PH 3, …) and the "Last Touch · N total" sub-line.
+
+        One query over the files' active logs; counts, total and latest touch are
+        folded in Python so this stays one round-trip regardless of row count and
+        avoids DB-specific NULLS-ordering. `total` counts every log (a touch that
+        never had a channel recorded still happened); `counts` only the ones that
+        named a channel.
+        """
+        if not file_ids:
+            return {}
+        rows = (await self.session.execute(
+            select(
+                FileLog.file_id, FileLog.communication,
+                FileLog.occurred_at, FileLog.created_at,
+            ).where(
+                FileLog.file_id.in_(file_ids),
+                FileLog.deleted_at.is_(None),
+            )
+        )).all()
+        summary: dict[str, dict] = {}
+        for file_id, channel, occurred_at, created_at in rows:
+            entry = summary.setdefault(
+                file_id, {"counts": {}, "total": 0, "last_at": None, "last_channel": None}
+            )
+            entry["total"] += 1
+            ch = (channel or "").strip()
+            if ch:
+                entry["counts"][ch] = entry["counts"].get(ch, 0) + 1
+            when = occurred_at or created_at
+            if when is not None and (entry["last_at"] is None or when > entry["last_at"]):
+                entry["last_at"] = when
+                entry["last_channel"] = ch or None
+        return summary
+
     # ── Quick capture ─────────────────────────────────────────────────────
 
     async def quick_log(self, data: QuickLogCreate, *, user_id: str | None) -> dict:

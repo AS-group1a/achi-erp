@@ -1468,6 +1468,8 @@ async def list_logs(
     counts = await svc.attachment_counts([r[0].id for r in rows])
     # CRM "Docs" pills: which files have a survey / measurements / quotation.
     survey_files, measured_files, quote_files = await svc.doc_signals([r[1].id for r in rows])
+    # General Log Communication pills + Last Touch: per-file channel breakdown.
+    comm_summary = await svc.communication_summary([r[1].id for r in rows])
     # Addresses we've already emailed (any teammate, successfully sent) — one query,
     # lowercased, so the grid can flag "already emailed" without a lookup per row.
     sent_to = {
@@ -1501,6 +1503,7 @@ async def list_logs(
         mobile = mobile or f.lead_mobile
         email = email or f.lead_email
         name = " ".join(x for x in (first, last) if x).strip() or company
+        comm = comm_summary.get(f.id) or {}
         # Labelled numbers for the popup: prefer the shared achi_contact_info bucket
         # (what the Contacts page edits); fall back to the single primary/lead number
         # so a contact that predates this feature still shows its one number.
@@ -1566,6 +1569,10 @@ async def list_logs(
                     "cst": False,
                     "qte": f.id in quote_files,
                 },
+                comm_counts=comm.get("counts") or None,
+                comm_total=comm.get("total") or 0,
+                last_touch_at=comm.get("last_at"),
+                last_touch_channel=comm.get("last_channel"),
                 contact_id=f.contact_id,
                 company_contact_id=f.company_contact_id,
                 contact_name=name,

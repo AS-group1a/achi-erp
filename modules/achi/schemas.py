@@ -8,8 +8,17 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 # No "client" stage: becoming a client isn't a file state, it's the file
 # converting into a project.
-STAGES = ("enquiry", "site_survey", "takeoff", "boq", "costing", "quotation")
-STATUSES = ("open", "scheduled", "viewed", "cancelled", "done")
+# The General Log offers the full sales pipeline (18 stages). The original six
+# (enquiry…quotation) are kept in place so files created before the expansion
+# stay valid; the rest were added for the General Log stage dropdown.
+STAGES = (
+    "prospect", "outreach", "follow_up", "first_contact", "second_follow_up",
+    "enquiry", "site_survey", "drawing", "takeoff", "boq", "resources",
+    "costing", "pricing", "quotation", "negotiation", "accepted",
+    "cancelled", "on_hold",
+)
+# "transferred" was added for the General Log; the rest are the original set.
+STATUSES = ("open", "scheduled", "viewed", "cancelled", "done", "transferred")
 # What the Add Log dropdown offers. NOT a closed set: the field is validated by
 # length, not by membership, so the UI can add an option without a deploy and the
 # rows already carrying the older values (inbound_call, quotation, note) stay
@@ -414,6 +423,14 @@ class LogRowOut(BaseModel):
     # boq/cst have no data source yet and stay False.
     docs: dict[str, bool] | None = None
     communication: str | None = None   # General Log "Communication" channel
+    # General Log Communication pills + Last Touch: how this file's logs split by
+    # channel (e.g. {"Email": 4, "Call": 3}), the total touch count, and the most
+    # recent touch (its time + channel). Aggregated per file, so every log row of
+    # the same file carries the same summary.
+    comm_counts: dict[str, int] | None = None
+    comm_total: int = 0
+    last_touch_at: datetime | None = None
+    last_touch_channel: str | None = None
     # contact (from the canonical directory; None when the row had no phone/email,
     # in which case the name fields below come from the file as typed)
     contact_id: str | None = None
