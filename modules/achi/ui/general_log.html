@@ -1,10 +1,11 @@
 <!doctype html>
+<!-- General Log page: company-wide log view (see commit "create a new page called general-log") -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>General Log · Achi Scaffolding ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=2">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=3">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <body data-achi-title="General Log">
@@ -152,20 +153,19 @@
 <!-- General Log = the Log page with a different column set. These globals are
      read by log-core.js (COLS + which columns freeze); everything else is shared. -->
 <script>
-  window.ACHI_FIXED_KEYS = [];   // no frozen columns (REF-first layout)
+  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
+  window.ACHI_FIXED_KEYS = [];   // no frozen columns
+  // Column order requested for the General Log. The first column is the row
+  // number / select-all ("#"); the rest follow the agreed layout. Contact-detail
+  // columns (mobile/email/maps/location/role/ref) are intentionally not shown here.
   window.ACHI_LOG_COLS = [
-    {k:'ref',          h:'REF',            tab:null, w:120, draft:'text', edit:{kind:'text',target:'log',field:'reference',val:r=>r.reference||''}},
+    {k:'num',          h:'#',              tab:null, w:48},
     {k:'when',         h:'Date & Time',    tab:null, w:150},
     {k:'status',       h:'Status',         tab:null, w:110, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
     {k:'prefix',       h:'Pre',            tab:null, w:70,  draft:'select', edit:{kind:'prefix',target:'contact',field:'prefix',val:r=>r.prefix||''}},
-    {k:'first',        h:'First name',     tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
-    {k:'last',         h:'Last name',      tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
+    {k:'first',        h:'First',          tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
+    {k:'last',         h:'Last',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
     {k:'company',      h:'Company',        tab:null, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
-    {k:'role',         h:'Role',           tab:null, w:120},
-    {k:'location',     h:'Location',       tab:null, w:170, draft:'text', edit:{kind:'text',target:'file',field:'site_location',val:r=>r.site_location||''}},
-    {k:'mobile',       h:'Mobile',         tab:null, w:200, draft:'tel',  edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
-    {k:'email',        h:'Email',          tab:null, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
-    {k:'maps',         h:'Google maps',    tab:null, w:130, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
     {k:'desc',         h:'description',    tab:null, w:300, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
     {k:'type',         h:'Log Type',       tab:null, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
     {k:'stage',        h:'Stage',          tab:null, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
@@ -181,8 +181,8 @@
     {k:'street',       h:'Street',         tab:null, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
   ];
 </script>
-<script src="/api/v1/achi/ui/log-core.js?v=2"></script>
-<script src="/api/v1/achi/ui/log.js?v=2"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=3"></script>
+<script src="/api/v1/achi/ui/log.js?v=3"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=24"></script>
 <script src="/api/v1/achi/ui/comment.js?v=14"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>

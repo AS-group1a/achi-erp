@@ -1028,7 +1028,7 @@ function nextEditableInRow(td){ let n=td.nextElementSibling; while(n){ if(n.hasA
 function refreshCell(td){ const tr=td.closest('tr'); const r=ROWS.find(x=>x.id===tr.dataset.log); const c=COLS.find(x=>x.k===td.dataset.k); if(r&&c){ td.innerHTML=cellHTML(c,r,+tr.dataset.i); } }
 function selectPopupChoices(kind){
   if(kind==='status') return STATUSES.map(value=>({value,label:label(value)}));
-  if(kind==='stage') return GL_STAGE_PIPELINE.map(value=>({value,label:glStageLabel(value)}));
+  if(kind==='stage') return GL_STAGE_PIPELINE.map(value=>({value,label:glStageLabel(value),color:GL_STAGE_COLOR[value]}));
   if(kind==='comm') return ['','Call','Email','WhatsApp','In-person','Other'].map(value=>({value,label:value||'—'}));
   /* Blank first: these are optional, and without it a row could not be cleared
      once set. Values are shown verbatim — they are proper nouns, not the
@@ -1079,6 +1079,9 @@ function openSelectPopup(td,el,choices,onPick,opts){
   const place=()=>{const r=td.getBoundingClientRect(),maxH=Math.min(220,choices.length*32),below=innerHeight-r.bottom-8,top=below>=Math.min(maxH,120)?r.bottom+2:Math.max(8,r.top-maxH-2);drop.style.left=Math.max(8,Math.min(r.left,innerWidth-r.width-8))+'px';drop.style.top=top+'px';drop.style.minWidth=r.width+'px';drop.style.maxWidth=Math.max(r.width,innerWidth-16)+'px';};
   const render=(scroll=false)=>{drop.innerHTML='';choices.forEach((o,i)=>{
     const item=document.createElement('div');item.className='pg-ac-item'+(i===active?' pg-ac-active':'');
+    // Stage options carry a colour: show it as a leading dot so the menu matches
+    // the cell's coloured dot (photo #1).
+    if(o.color){const dot=document.createElement('span');dot.className='pg-ac-dot';dot.style.background=o.color;item.appendChild(dot);}
     const text=document.createElement('span');text.className='pg-ac-item-label';text.textContent=o.label;item.appendChild(text);
     if(o.removable){
       const remove=document.createElement('button');remove.type='button';remove.className='pg-ac-delete';remove.textContent='×';remove.title='Delete';remove.setAttribute('aria-label',`Delete ${o.label}`);

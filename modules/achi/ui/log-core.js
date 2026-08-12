@@ -600,7 +600,7 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
       const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
             CITIES=[...new Set(Object.values(GEO).flatMap(d=>Object.values(d).flat()))];
-const STATUSES=['open','scheduled','viewed','cancelled','done'],
+const STATUSES=['open','scheduled','viewed','cancelled','done','transferred'],
       TYPES=['Prospect','Lead','Client','Field','Fleet','Yard','Invoice','Balance','General'],
       CATEGORIES=['lead','site_surveys','measurements_take_off','estimation','quotation','jobs'],
       /* "Pre" pulldown, ported from erp_next_custom tabbed_grid.js (#pg-cm-pre).
@@ -726,22 +726,81 @@ const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase(
 /* ── Extra column renderers for the General Log (stage / docs / communication).
    Additive: the standard Log never renders these columns, so these are inert
    there. Kept here so both pages share one core script. ──────────────────── */
-const GL_STAGE_PIPELINE=['enquiry','site_survey','takeoff','boq','costing','quotation'];
-const GL_STAGE_COLOR={enquiry:'#2563eb',site_survey:'#0891b2',takeoff:'#0ea5e9',boq:'#7c3aed',costing:'#ea580c',quotation:'#4f46e5',open:'#2563eb',scheduled:'#7c3aed',viewed:'#0891b2',cancelled:'#dc2626',done:'#16a34a'};
-const GL_STAGE_LABEL={boq:'BOQ'};
-const GL_LEGACY_STAGE={prospect:'enquiry',lead:'enquiry',measurements:'takeoff'};
-const glStageKey=s=>{const k=GL_LEGACY_STAGE[s]||s||'enquiry';return GL_STAGE_COLOR[k]?k:'enquiry';};
-const glStageLabel=s=>{const k=glStageKey(s);return GL_STAGE_LABEL[k]||label(k);};
+/* The General Log stage dropdown: the full sales pipeline, in order. The keys
+   are what the backend stores (schemas.py STAGES); the labels/colours drive the
+   cell dot, the coloured menu option, and the progress bar. */
+const GL_STAGES=[
+  {k:'prospect',         label:'Prospect',      color:'#2563eb'},
+  {k:'outreach',         label:'Outreach',      color:'#d97706'},
+  {k:'follow_up',        label:'Follow-up',     color:'#0891b2'},
+  {k:'first_contact',    label:'First Contact', color:'#7c3aed'},
+  {k:'second_follow_up', label:'2nd Follow-up', color:'#0d9488'},
+  {k:'enquiry',          label:'Enquiry',       color:'#2563eb'},
+  {k:'site_survey',      label:'Site Survey',   color:'#0891b2'},
+  {k:'drawing',          label:'Drawing',       color:'#0ea5e9'},
+  {k:'takeoff',          label:'Takeoff',       color:'#0284c7'},
+  {k:'boq',              label:'BOQ',           color:'#7c3aed'},
+  {k:'resources',        label:'Resources',     color:'#9333ea'},
+  {k:'costing',          label:'Costing',       color:'#ea580c'},
+  {k:'pricing',          label:'Pricing',       color:'#f59e0b'},
+  {k:'quotation',        label:'Quotation',     color:'#4f46e5'},
+  {k:'negotiation',      label:'Negotiation',   color:'#16a34a'},
+  {k:'accepted',         label:'Accepted',      color:'#15803d'},
+  {k:'cancelled',        label:'Cancelled',     color:'#dc2626'},
+  {k:'on_hold',          label:'On Hold',       color:'#e11d48'},
+];
+const GL_STAGE_BY_KEY=Object.fromEntries(GL_STAGES.map(s=>[s.k,s]));
+const GL_STAGE_ORDER=GL_STAGES.map(s=>s.k);
+// Keys the stage dropdown offers, in order (all of them).
+const GL_STAGE_PIPELINE=GL_STAGE_ORDER.slice();
+const GL_STAGE_COLOR=Object.fromEntries(GL_STAGES.map(s=>[s.k,s.color]));
+// Rows from before the pipeline expansion carry a couple of retired keys.
+const GL_LEGACY_STAGE={lead:'enquiry',measurements:'takeoff'};
+const glStageKey=s=>{const k=GL_LEGACY_STAGE[s]||s||'enquiry';return GL_STAGE_BY_KEY[k]?k:'enquiry';};
+const glStageLabel=s=>{const k=glStageKey(s);return (GL_STAGE_BY_KEY[k]||{}).label||label(k);};
+// The bar is a fixed 6 segments filled to the stage's position in the pipeline,
+// so it stays compact whether there are 6 stages or 18. "cancelled" reads as a
+// stalled deal (empty bar in its own red); everything else fills proportionally.
+const GL_STAGE_SEGMENTS=6;
 function glStageCell(r){
-  const k=glStageKey(r.stage),color=GL_STAGE_COLOR[k],pi=GL_STAGE_PIPELINE.indexOf(k);
-  const fill=pi>=0?pi+1:((k==='done'||k==='cancelled')?GL_STAGE_PIPELINE.length:0);
-  const segs=GL_STAGE_PIPELINE.map((_,i)=>`<span class="lseg${i<fill?' on':''}" style="${i<fill?`background:${color}`:''}"></span>`).join('');
-  return `<div class="lstage"><span class="lstage-top"><span class="lstage-dot" style="background:${color}"></span><span class="lstage-label" style="color:${color}">${esc(glStageLabel(k))}</span></span><span class="lstage-bar">${segs}</span></div>`;
+  const k=glStageKey(r.stage),color=GL_STAGE_COLOR[k],idx=GL_STAGE_ORDER.indexOf(k);
+  const fill=k==='cancelled'?0:Math.max(1,Math.round((idx+1)/GL_STAGE_ORDER.length*GL_STAGE_SEGMENTS));
+  const segs=Array.from({length:GL_STAGE_SEGMENTS},(_,i)=>`<span class="lseg${i<fill?' on':''}" style="${i<fill?`background:${color}`:''}"></span>`).join('');
+  return `<div class="lstage"><span class="lstage-top"><span class="lstage-dot" style="background:${color}"></span><span class="lstage-label" style="color:${color}">${esc(glStageLabel(k))}</span><svg class="lstage-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg></span><span class="lstage-bar">${segs}</span></div>`;
 }
 const GL_DOCS=[['srv','SURV'],['dwg','DWG'],['mt','M/T'],['boq','BOQ'],['cst','CST'],['qte','QTE']];
 function glDocsCell(r){const d=r.docs||{};return `<div class="ldocs">${GL_DOCS.map(([k,lb])=>`<span class="ldoc${d[k]?' on':''}">${lb}</span>`).join('')}</div>`;}
-const GL_COMM_COLOR={Call:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',Other:'#64748b'};
-function glCommCell(r){const v=r.communication;if(!v)return '<span class="mt">—</span>';const c=GL_COMM_COLOR[v]||'#64748b';return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14">${esc(v)}</span>`;}
+const GL_COMM_COLOR={Call:'#2563eb',Phone:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',SMS:'#0891b2',Instagram:'#db2777',Facebook:'#1d4ed8',LinkedIn:'#0a66c2',X:'#0f172a',TikTok:'#0f172a',Other:'#64748b'};
+// Short two/three-letter tags for the Communication pills (photo #3).
+const GL_COMM_ABBR={Call:'PH',Phone:'PH',Email:'EM',WhatsApp:'WA','In-person':'IP',SMS:'SMS',Instagram:'IG',Facebook:'FB',LinkedIn:'LI',X:'X',TikTok:'TT',Other:'··'};
+const glCommColor=k=>GL_COMM_COLOR[k]||'#64748b';
+const glCommAbbr=k=>GL_COMM_ABBR[k]||String(k||'').slice(0,2).toUpperCase();
+const glCommPill=(k,n)=>{const c=glCommColor(k);return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14" title="${esc(k)}${n!=null?': '+n:''}">${esc(glCommAbbr(k))}${n!=null?' '+n:''}</span>`;};
+/* Communication cell: one pill per channel with its count, most-used first,
+   capped at three with a "+N" overflow. Falls back to the log's single legacy
+   `communication` value when no per-channel counts exist yet. */
+function glCommCell(r){
+  const counts=r.comm_counts||{};
+  const channels=Object.keys(counts).filter(k=>counts[k]>0).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));
+  if(!channels.length) return r.communication?`<span class="lcomms">${glCommPill(r.communication,null)}</span>`:'<span class="mt">—</span>';
+  const shown=channels.slice(0,3), rest=channels.length-shown.length;
+  const pills=shown.map(k=>glCommPill(k,counts[k])).join('');
+  const more=rest>0?`<span class="lcomm lcomm-more" title="${esc(channels.slice(3).join(', '))}">+${rest}</span>`:'';
+  return `<span class="lcomms">${pills}${more}</span>`;
+}
+const GL_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtDayMonthYear=s=>{const d=new Date(s);if(isNaN(d))return String(s||'');return `${String(d.getDate()).padStart(2,'0')} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;};
+/* Last Touch cell: the most recent touch date, with a "· CHANNEL · N total"
+   sub-line (photo #4). Uses the per-file summary; falls back to the row's own
+   occurred_at when the summary is absent. */
+function glLastTouchCell(r){
+  const when=r.last_touch_at||r.occurred_at;
+  if(!when) return '<span class="mt">—</span>';
+  const abbr=r.last_touch_channel?glCommAbbr(r.last_touch_channel):null;
+  const total=r.comm_total||0;
+  const sub=[abbr,total?`${total} total`:''].filter(Boolean).join(' · ');
+  return `<span class="lt"><span class="lt-date">${esc(fmtDayMonthYear(when))}</span>${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}</span>`;
+}
 const SVG={
   mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
   pin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
@@ -896,6 +955,18 @@ const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&wi
 ];
 const FIXED_KEYS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_FIXED_KEYS))?window.ACHI_FIXED_KEYS:['num','when','status'];
 const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
+// The General Log sets this so shared cells (e.g. Follow-up) can render its
+// variant without changing how the standard Log page looks.
+const GENERAL_LOG=(typeof window!=='undefined'&&window.ACHI_GENERAL_LOG===true);
+// A follow-up date is overdue once it's in the past and the file isn't closed.
+function isOverdueFollowup(r){
+  if(!r||!r.follow_up_date) return false;
+  if(r.status==='done'||r.status==='cancelled') return false;
+  const due=new Date(String(r.follow_up_date)+'T00:00:00');
+  if(isNaN(due)) return false;
+  const today=new Date(); today.setHours(0,0,0,0);
+  return due<today;
+}
 function cellHTML(c,r,i){switch(c.k){
   case 'num': return `<span class="rn">${i+1}</span>`;
   case 'when': return dateTimeHTML(r.occurred_at||r.created_at);
@@ -935,14 +1006,21 @@ function cellHTML(c,r,i){switch(c.k){
   case 'city': return dash(r.city);
   case 'street': return dash(r.street);
   case 'updates': return r.updates?esc(r.updates):'<span class="mt">—</span>';
-  case 'followup': return r.follow_up_date?`<span class="badge b-scheduled">${esc(r.follow_up_date)}</span>`:'<span class="mt">—</span>';
+  case 'followup': {
+    if(!r.follow_up_date) return '<span class="mt">—</span>';
+    const overdue=isOverdueFollowup(r);
+    // General Log renders it as plain text (red + "!" when overdue); the standard
+    // Log page keeps its badge, just tinted red when overdue.
+    if(GENERAL_LOG) return `<span class="fu-date${overdue?' fu-overdue':''}">${esc(r.follow_up_date)}${overdue?' !':''}</span>`;
+    return `<span class="badge ${overdue?'b-cancelled fu-overdue':'b-scheduled'}">${esc(r.follow_up_date)}${overdue?' !':''}</span>`;
+  }
   case 'funotes': return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
   /* General Log extra columns */
   case 'ref': return r.reference?`<span class="enq-ref">${esc(r.reference)}</span>`:'<span class="mt">—</span>';
   case 'role': return dash(r.role);
   case 'stage': return glStageCell(r);
   case 'communication': return glCommCell(r);
-  case 'last_touch': return r.occurred_at?dateTimeHTML(r.occurred_at):'<span class="mt">—</span>';
+  case 'last_touch': return glLastTouchCell(r);
   case 'deliverables': return glDocsCell(r);
 }}
 
