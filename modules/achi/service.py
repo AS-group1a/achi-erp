@@ -23,6 +23,47 @@ logger = logging.getLogger(__name__)
 
 _UNSAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
+# ── General Log "#" code buckets ──────────────────────────────────────────────
+# The General Log's "#" column shows a stage-bucketed code like "SV001" instead
+# of a plain row number. Several early pipeline stages roll up into ENQ; the
+# stages not listed here ("other": drawing, boq, resources, costing, pricing,
+# negotiation, accepted, cancelled, on_hold) never assign or change a code — a
+# file parked in one of them keeps whatever code it last had (frozen).
+STAGE_CODE_BUCKETS: dict[str, str] = {
+    "prospect": "PROSP",
+    "outreach": "ENQ",
+    "follow_up": "ENQ",
+    "first_contact": "ENQ",
+    "second_follow_up": "ENQ",
+    "enquiry": "ENQ",
+    "site_survey": "SV",
+    "takeoff": "MT",
+    "quotation": "QUOT",
+}
+_CODE_RE = re.compile(r"^([A-Z]+)(\d+)$")
+# Set once per process the first time the log feed is served, so the one-time
+# backfill of existing rows isn't re-attempted on every request.
+_backfill_attempted = False
+
+
+def _bucket_for_stage(stage: str | None) -> str | None:
+    """The code bucket a stage belongs to, or None for an 'other' stage."""
+    return STAGE_CODE_BUCKETS.get(stage or "")
+
+
+def _stages_for_bucket(bucket: str) -> list[str]:
+    return [s for s, b in STAGE_CODE_BUCKETS.items() if b == bucket]
+
+
+def _code_prefix(code: str | None) -> str | None:
+    m = _CODE_RE.match(code or "")
+    return m.group(1) if m else None
+
+
+def _code_number(code: str | None) -> int | None:
+    m = _CODE_RE.match(code or "")
+    return int(m.group(2)) if m else None
+
 
 def _normalize_phone(raw: str | None) -> str:
     """A phone number reduced to bare digits with leading zeros dropped.
@@ -245,6 +286,7 @@ class ContactFileService:
             tenant_id=user_id,
             **data.model_dump(exclude={"contact_id", "person"}),
         )
+        await self._assign_new_code(f)   # General Log "#" code, if the stage is tracked
         self.session.add(f)
         await self.session.commit()   # the bridge never commits — that's ours to do
         await self.session.refresh(f)
@@ -272,9 +314,120 @@ class ContactFileService:
             return None
         return _display_name(await self.session.get(Contact, contact_id))
 
+    # ── General Log "#" code assignment ──────────────────────────────────────
+    async def _bucket_holders(self, bucket: str) -> list[ContactFile]:
+        """Every file that occupies a numbered slot in this bucket.
+
+        That's any file whose code already carries the bucket's prefix (live or
+        frozen), plus any file whose current stage maps to the bucket — the
+        union, so a fresh number never collides with a frozen one.
+        """
+        q = select(ContactFile).where(
+            or_(
+                ContactFile.log_code.like(f"{bucket}%"),
+                ContactFile.stage.in_(_stages_for_bucket(bucket)),
+            )
+        )
+        return list((await self.session.execute(q)).scalars().all())
+
+    async def _assign_new_code(self, f: ContactFile) -> None:
+        """Give ``f`` the next free code in the bucket its stage maps to.
+
+        Appends (max existing number + 1) so it never clashes with a frozen
+        holder. No-op when the stage is untracked.
+        """
+        bucket = _bucket_for_stage(f.stage)
+        if not bucket:
+            return
+        nums = [
+            _code_number(h.log_code)
+            for h in await self._bucket_holders(bucket)
+            if h.id != f.id and _code_prefix(h.log_code) == bucket
+        ]
+        nums = [n for n in nums if n]
+        f.log_code = f"{bucket}{(max(nums) + 1) if nums else 1:03d}"
+
+    async def _renumber_bucket(self, bucket: str, *, exclude_id: str | None = None) -> None:
+        """Compact the live holders of a bucket to close a freed-up gap.
+
+        Frozen holders (a file parked in an 'other' stage but still carrying this
+        bucket's code) keep their number — the user asked that those never
+        change — so live rows are packed into the lowest numbers *around* them,
+        which also guarantees no two rows share a code.
+        """
+        holders = [
+            h for h in await self._bucket_holders(bucket)
+            if _code_prefix(h.log_code) == bucket and h.id != exclude_id
+        ]
+        reserved = {
+            _code_number(h.log_code)
+            for h in holders
+            if _bucket_for_stage(h.stage) != bucket and _code_number(h.log_code)
+        }
+        live = [h for h in holders if _bucket_for_stage(h.stage) == bucket]
+        live.sort(key=lambda h: _code_number(h.log_code) or 0)
+        n = 0
+        for h in live:
+            n += 1
+            while n in reserved:
+                n += 1
+            code = f"{bucket}{n:03d}"
+            if h.log_code != code:
+                h.log_code = code
+
+    async def _apply_stage_code(self, f: ContactFile, old_stage: str | None) -> None:
+        """Re-code ``f`` (and heal siblings) after its stage changed.
+
+        - Into an 'other' stage → keep the frozen code, keep the slot held.
+        - Within the same bucket (e.g. outreach → enquiry) → code unchanged.
+        - Into a different tracked bucket → append a fresh code there, then
+          close the gap left behind in the old bucket.
+        """
+        new_bucket = _bucket_for_stage(f.stage)
+        old_bucket = _code_prefix(f.log_code)
+        if new_bucket is None or old_bucket == new_bucket:
+            return
+        await self._assign_new_code(f)   # f.log_code now carries new_bucket
+        if old_bucket:
+            await self._renumber_bucket(old_bucket, exclude_id=f.id)
+
+    async def backfill_codes(self) -> bool:
+        """One-time: code every un-coded file that sits in a tracked stage.
+
+        Ordered by creation time so the oldest file in each bucket is 001.
+        Idempotent — files already coded, or in an 'other' stage, are skipped.
+        """
+        files = list((await self.session.execute(
+            select(ContactFile).where(ContactFile.log_code.is_(None))
+        )).scalars().all())
+        by_bucket: dict[str, list[ContactFile]] = {}
+        for x in files:
+            b = _bucket_for_stage(x.stage)
+            if b:
+                by_bucket.setdefault(b, []).append(x)
+        if not by_bucket:
+            return False
+        for bucket, items in by_bucket.items():
+            items.sort(key=lambda x: (x.created_at or datetime.min.replace(tzinfo=timezone.utc), x.file_number))
+            existing = [
+                _code_number(h.log_code)
+                for h in await self._bucket_holders(bucket)
+                if _code_prefix(h.log_code) == bucket
+            ]
+            n = max([e for e in existing if e], default=0)
+            for x in items:
+                n += 1
+                x.log_code = f"{bucket}{n:03d}"
+        await self.session.commit()
+        return True
+
     async def update(self, f: ContactFile, data: ContactFileUpdate) -> ContactFile:
-        for k, v in data.model_dump(exclude_unset=True).items():
+        d = data.model_dump(exclude_unset=True)
+        old_stage = f.stage
+        for k, v in d.items():
             setattr(f, k, v)
+        if "stage" in d and d["stage"] != old_stage:
+            await self._apply_stage_code(f, old_stage)
         await self.session.commit()
         await self.session.refresh(f)
         return f

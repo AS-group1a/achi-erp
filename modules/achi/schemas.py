@@ -267,6 +267,7 @@ class ContactFileOut(BaseModel):
     file_number: str
     contact_id: str | None = None
     subject: str
+    log_code: str | None = None
     stage: str
     status: str
     country: str | None
@@ -398,6 +399,7 @@ class LogRowOut(BaseModel):
     created_at: datetime
     file_id: str
     file_number: str
+    log_code: str | None = None   # General Log "#" code, e.g. "SV001"
     stage: str
     status: str
     subject: str = ""
