@@ -3,13 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Log · Achi Scaffolding ERP</title>
+<title>Call Log · ACHI Scaffolding ERP</title>
 <link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=2">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
-<body data-achi-title="Log">
+<body data-achi-title="Call Log">
 <main>
   <div class="err" id="err"></div>
+
+  <!-- ACHI page header -->
+  <section style="
+    margin-bottom: 22px;
+    padding: 22px 26px;
+    background: linear-gradient(135deg, #111827, #1f2937);
+    border-radius: 14px;
+    color: white;
+  ">
+    <div style="
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    ">
+      ACHI SCAFFOLDING
+    </div>
+
+    <h1 style="
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    ">
+      Call Log
+    </h1>
+
+    <p style="
+      margin: 7px 0 0;
+      font-size: 14px;
+      opacity: 0.75;
+    ">
+      Manage prospects, customer calls, follow-ups and quotations in one place.
+    </p>
+  </section>
 
   <div class="kpis">
     <div class="kpi k1"><div class="n" id="k-total">0</div><div class="l">Total Logs</div><div class="s">all time</div></div>
@@ -47,7 +83,11 @@
         <button class="pill-tab" data-tab="3">Notes &amp; Outcome</button>
       </div>
       <div class="nav-right">
-        <input class="search" id="q" placeholder="Search name, file, city, text…">
+        <input
+  class="search"
+  id="q"
+  placeholder="Search company, contact, phone, email, city…"
+>
       </div>
     </div>
     <div class="tscroll" id="touter">
