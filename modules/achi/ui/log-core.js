@@ -470,7 +470,7 @@ const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter
    values are the ones the team uses; DISTRICTS/CITIES are Lebanon-specific
    because that is where the sites are. */
 const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
-      LOG_STATES=['OPEN','TRANSFERED','ONGOING','DONE','CANCELLED'],
+      LOG_STATES=['OPEN','TRANSFERED','ONGOING','SCHEDULE','DONE','CANCELLED'],
       COPY_TARGETS=['Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
@@ -1586,8 +1586,7 @@ function rxFieldHTML(c,r){
   let control;
   if(RX_LONG.has(c.k)) control=`<textarea ${attrs}>${esc(v)}</textarea>`;
   else if(c.edit&&c.edit.kind==='date') control=`<input type="date" ${attrs} value="${esc(v)}">`;
-  else if(c.edit&&['status','type','category','prefix','role','subject','district','city','country'].includes(c.edit.kind)){
-    // Same option sets the grid's popup uses, so the two cannot disagree —
+  else if(c.edit&&['status','type','category','prefix','role','subject','district','city','country','stage','comm'].includes(c.edit.kind)){    // Same option sets the grid's popup uses, so the two cannot disagree —
     // minus the "＋ Add new…" sentinel, which is a command, not a value. In a
     // real <select> it is directly selectable and would be saved as a prefix.
     const opts=(selectPopupChoices(c.edit.kind)||[]).filter(o=>{const v=(typeof o==='string'?o:o.value);return v!==PREFIX_ADD&&v!==TYPE_ADD;});
@@ -1667,6 +1666,18 @@ function openExpandedRow(explicitId){
     // One OR MORE tags — click to open a checkbox dropdown (the same picker the
     // grid uses). Selections are stored comma-joined in this data-k="tags" input.
     F('Tags',        `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
+        // General Log-only fields. Reuse the exact COLS definitions so the popup and
+    // table read/write the same stage, communication and updates values.
+    const isGeneralLog=COLS.some(c=>c.k==='stage')&&COLS.some(c=>c.k==='communication');
+
+    if(isGeneralLog){
+      const generalFields=['stage','communication','updates']
+        .map(k=>COLS.find(c=>c.k===k&&c.edit))
+        .filter(Boolean);
+
+      if(generalFields.length)
+        html+=g('rx-g3',...generalFields.map(c=>rxFieldHTML(c,src)));
+    }
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
@@ -2161,6 +2172,15 @@ function rxBusy(on){ const a=$('rx-save'),b=$('rx-cancel'); if(a)a.disabled=on; 
 async function rxCreateNew(keepOpen){
   const st=$('rx-status');
   const payload=rxCollectNew();
+    // Stage and Communication are General Log fields. The normal create payload does
+  // not carry them, so remember their popup values and patch the newly created row
+  // through the same COLS target/field mapping used by inline edits.
+  const deferredGeneral={};
+
+  for(const key of ['stage','communication']){
+    const el=$('rx-body').querySelector(`[data-k="${key}"]`);
+    if(el) deferredGeneral[key]=rxFieldValue(el);
+  }
   // A file needs an identity — the same rule the grid enforces before saving.
   if(!(payload.person.first_name||payload.person.last_name||payload.person.company_name)){
     st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return;
@@ -2192,6 +2212,47 @@ async function rxCreateNew(keepOpen){
     // Contacts page. One PATCH; only the fields with content are sent.
     const phones=rxCollectPhones(), emails=rxCollectEmails(), related_contacts=rxCollectRelated();
     const nr=ROWS.find(x=>x.id===newLogId);
+    // Apply General Log-only values after creation. This deliberately follows each
+// column's edit.target/edit.field instead of duplicating backend assumptions.
+if(nr){
+  for(const [key,value] of Object.entries(deferredGeneral)){
+    const c=COLS.find(x=>x.k===key&&x.edit);
+
+    if(!c||!value) continue;
+
+    const field=c.edit.field;
+    const target=c.edit.target;
+
+    try{
+      if(target==='file')
+        await api('/files/'+nr.file_id,{
+          method:'PATCH',
+          body:JSON.stringify({[field]:value})
+        });
+
+      else if(target==='contact')
+        await api('/files/'+nr.file_id+'/contact',{
+          method:'PATCH',
+          body:JSON.stringify({[field]:value})
+        });
+
+      else
+        await api('/logs/'+newLogId,{
+          method:'PATCH',
+          body:JSON.stringify({[field]:value})
+        });
+
+      ROWS.forEach(x=>{
+        if(
+          (target==='log'&&x.id===newLogId) ||
+          (target!=='log'&&x.file_id===nr.file_id)
+        )
+          x[field]=value;
+      });
+
+    }catch(_){}
+  }
+}
     if(nr && (phones.length||emails.length||related_contacts.length)){
       const body={};
       if(phones.length) body.phones=phones;

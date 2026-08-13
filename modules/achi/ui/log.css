@@ -180,6 +180,7 @@
   .rx-state-mark{--rx-state-glow:rgba(134,239,172,.58);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:#22c55e;color:#fff;font-size:11px;font-weight:900;line-height:1}
   .rx-state-mark.transfered{--rx-state-glow:rgba(147,197,253,.58);background:#3b82f6}
   .rx-state-mark.ongoing{--rx-state-glow:rgba(254,240,138,.62);background:#facc15}
+  .rx-state-mark.schedule{--rx-state-glow:rgba(192,132,252,.60);background:#a855f7;}
   .rx-state-mark.done{--rx-state-glow:rgba(252,165,165,.58);width:auto;height:auto;border-radius:0;background:transparent;color:#ef4444;font-size:15px}
   .rx-state-mark.cancelled{--rx-state-glow:rgba(203,213,225,.62);background:#a7b1c1}
   .rx-state-btn .rx-state-mark{transform-origin:center;animation:rx-state-pulse 1.8s ease-in-out infinite}
@@ -190,9 +191,28 @@
   @media (prefers-reduced-motion:reduce){.rx-state-btn .rx-state-mark{animation:none}}
   .rx-state-menu{position:absolute;z-index:20;top:calc(100% + 5px);left:0;min-width:158px;padding:5px;background:#fff;border:1.5px solid #1e3f85;border-radius:9px;box-shadow:0 10px 28px rgba(15,35,75,.24)}
   .rx-state-menu[hidden]{display:none}
-  .rx-state-option{display:flex;align-items:center;gap:9px;width:100%;height:34px;padding:0 10px;border:0;border-radius:6px;background:#fff;color:#1e3f85;font:inherit;font-size:12px;font-weight:750;text-align:left;cursor:pointer}
-  .rx-state-option:hover,.rx-state-option:focus,.rx-state-option[aria-selected="true"]{outline:0;background:#1e3f85;color:#fff}
-  .rx-tag{font-size:12px;opacity:.88;flex:1 1 auto;white-space:nowrap}
+  .rx-state-option{display:flex;align-items:center;gap:9px;width:100%;height:34px;padding:0 10px;border:0;border-radius:6px;background:#fff;color:#1e3f85;font:inherit;font-size:12px;font-weight:750;text-align:left;cursor:pointer;transition:background .15s ease,color .15s ease}
+/* Currently selected status */
+.rx-state-option[aria-selected="true"]{
+  outline:0;
+  background:#1e3f85;
+  color:#fff;
+}
+
+/* Hover over another status */
+.rx-state-option:hover,
+.rx-state-option:focus{
+  outline:0;
+  background:#eef4fd;
+  color:#1e3f85;
+}
+
+/* Keep selected row dark even when hovered */
+.rx-state-option[aria-selected="true"]:hover,
+.rx-state-option[aria-selected="true"]:focus{
+  background:#173d7c;
+  color:#fff;
+}  .rx-tag{font-size:12px;opacity:.88;flex:1 1 auto;white-space:nowrap}
   .rx-cols{display:flex;flex:1 1 auto;min-height:0;background:#fff}
   .rx-body{flex:1 1 auto;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;background:#fff;box-shadow:none}
   .rx-grid{display:grid;gap:12px}

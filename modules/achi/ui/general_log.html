@@ -166,6 +166,13 @@
     {k:'first',        h:'First',          tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
     {k:'last',         h:'Last',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
     {k:'company',      h:'Company',        tab:null, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+
+    {k:'role',         h:'Role',           tab:null, w:120},
+    {k:'owner',        h:'Owner',          tab:null, w:90},
+    {k:'location',     h:'Location',       tab:null, w:170, draft:'text', edit:{kind:'text',target:'file',field:'site_location',val:r=>r.site_location||''}},
+    {k:'mobile',       h:'Mobile',         tab:null, w:200, draft:'tel',  edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+    {k:'email',        h:'Email',          tab:null, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
+    {k:'maps',         h:'Google maps',    tab:null, w:130, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
     {k:'desc',         h:'description',    tab:null, w:300, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
     {k:'type',         h:'Log Type',       tab:null, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
     {k:'stage',        h:'Stage',          tab:null, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
