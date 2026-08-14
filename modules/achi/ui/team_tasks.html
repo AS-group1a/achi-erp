@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Tasks | ACHI Scaffolding ERP</title>
+  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=1">
+</head>
+
+<body data-achi-title="Team Tasks">
+  <main class="achi-task-page">
+    <header class="achi-task-page-header">
+      <div>
+        <p class="achi-task-breadcrumb">ACHI / TEAM TASKS</p>
+        <h1>Team Tasks</h1>
+        <p class="achi-task-page-description">
+          Assign work, follow progress and review completed tasks
+        </p>
+      </div>
+
+      <div
+        class="achi-task-header-actions"
+        id="achi-task-header-actions"
+        hidden
+      >
+        <button
+          class="achi-task-button achi-task-button-secondary"
+          type="button"
+          id="achi-task-work-requests-button"
+        >
+          Work requests
+          <span
+            class="achi-task-button-count"
+            id="achi-task-work-request-count"
+            hidden
+          >0</span>
+        </button>
+
+        <button
+          class="achi-task-icon-button"
+          type="button"
+          id="achi-task-refresh-button"
+          aria-label="Refresh team tasks"
+          title="Refresh"
+        >
+          &#8635;
+        </button>
+
+        <button
+          class="achi-task-button achi-task-button-primary"
+          type="button"
+          id="achi-task-new-button"
+        >
+          + New task
+        </button>
+      </div>
+    </header>
+
+    <section
+      class="achi-task-page-message"
+      id="achi-task-loading"
+      role="status"
+      aria-live="polite"
+    >
+      Checking Team Tasks access...
+    </section>
+
+    <section
+      class="achi-task-page-error"
+      id="achi-task-page-error"
+      role="alert"
+      hidden
+    >
+      <h2>Team Tasks could not be opened</h2>
+      <p id="achi-task-page-error-message"></p>
+      <button
+        class="achi-task-button achi-task-button-secondary"
+        type="button"
+        id="achi-task-page-retry"
+      >
+        Try again
+      </button>
+    </section>
+
+    <div id="achi-task-content" hidden>
+      <section
+        class="achi-task-metrics"
+        aria-label="Team task summary"
+      >
+        <article class="achi-task-metric-card">
+          <span>Total tasks</span>
+          <strong id="achi-task-metric-total">0</strong>
+          <small>Matching the current filters</small>
+        </article>
+
+        <article class="achi-task-metric-card">
+          <span>Unassigned</span>
+          <strong id="achi-task-metric-unassigned">0</strong>
+          <small>Waiting for an assignee</small>
+        </article>
+
+        <article class="achi-task-metric-card">
+          <span>Ready for review</span>
+          <strong id="achi-task-metric-review">0</strong>
+          <small>Submitted by employees</small>
+        </article>
+
+        <article class="achi-task-metric-card achi-task-metric-overdue">
+          <span>Overdue</span>
+          <strong id="achi-task-metric-overdue">0</strong>
+          <small>Past their due date</small>
+        </article>
+      </section>
+
+      <section class="achi-task-workspace">
+        <form
+          class="achi-task-filter-bar"
+          id="achi-task-filter-form"
+        >
+          <label
+            class="achi-task-search-field"
+            for="achi-task-filter-search"
+          >
+            <span class="achi-task-sr-only">Search tasks</span>
+            <input
+              type="search"
+              id="achi-task-filter-search"
+              maxlength="200"
+              placeholder="Search task number, title or description"
+              autocomplete="off"
+            >
+          </label>
+
+          <label for="achi-task-filter-assignee">
+            <span class="achi-task-sr-only">Filter by assignee</span>
+            <select id="achi-task-filter-assignee">
+              <option value="">All assignees</option>
+              <option value="__unassigned__">Unassigned</option>
+            </select>
+          </label>
+
+                    <label for="achi-task-filter-priority">
+            <span class="achi-task-sr-only">Filter by priority</span>
+            <select id="achi-task-filter-priority">
+              <option value="">All priorities</option>
+              <option value="urgent">Urgent</option>
+              <option value="high">High</option>
+              <option value="normal">Normal</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+
+          <label for="achi-task-filter-status">
+            <span class="achi-task-sr-only">Filter by status</span>
+            <select id="achi-task-filter-status">
+              <option value="active">Open tasks</option>
+              <option value="">All statuses</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="to_do">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="ready_for_review">Ready for Review</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+
+          <label class="achi-task-checkbox-field">
+            <input
+              type="checkbox"
+              id="achi-task-filter-overdue"
+            >
+            <span>Overdue only</span>
+          </label>
+
+          <button
+            class="achi-task-button achi-task-button-secondary"
+            type="button"
+            id="achi-task-filter-reset"
+          >
+            Reset
+          </button>
+
+          <span
+            class="achi-task-filter-total"
+            id="achi-task-total"
+            aria-live="polite"
+          >
+            0 tasks
+          </span>
+        </form>
+
+        <div
+          class="achi-task-board"
+          id="achi-task-board"
+          aria-label="Team task board"
+        >
+          <section
+            class="achi-task-column achi-task-column-unassigned"
+            id="achi-task-column-unassigned"
+            data-achi-task-status="unassigned"
+          >
+            <header>
+              <h2>Unassigned</h2>
+              <span id="achi-task-count-unassigned">0</span>
+            </header>
+            <div
+              class="achi-task-card-list"
+              id="achi-task-list-unassigned"
+              role="list"
+            ></div>
+          </section>
+
+          <section
+            class="achi-task-column achi-task-column-to-do"
+            id="achi-task-column-to-do"
+            data-achi-task-status="to_do"
+          >
+            <header>
+              <h2>To Do</h2>
+              <span id="achi-task-count-to-do">0</span>
+            </header>
+            <div
+              class="achi-task-card-list"
+              id="achi-task-list-to-do"
+              role="list"
+            ></div>
+          </section>
+
+          <section
+            class="achi-task-column achi-task-column-in-progress"
+            id="achi-task-column-in-progress"
+            data-achi-task-status="in_progress"
+          >
+            <header>
+              <h2>In Progress</h2>
+              <span id="achi-task-count-in-progress">0</span>
+            </header>
+            <div
+              class="achi-task-card-list"
+              id="achi-task-list-in-progress"
+              role="list"
+            ></div>
+          </section>
+
+          <section
+            class="achi-task-column achi-task-column-blocked"
+            id="achi-task-column-blocked"
+            data-achi-task-status="blocked"
+          >
+            <header>
+              <h2>Blocked</h2>
+              <span id="achi-task-count-blocked">0</span>
+            </header>
+            <div
+              class="achi-task-card-list"
+              id="achi-task-list-blocked"
+              role="list"
+            ></div>
+          </section>
+
+          <section
+            class="achi-task-column achi-task-column-review"
+            id="achi-task-column-ready-for-review"
+            data-achi-task-status="ready_for_review"
+          >
+            <header>
+              <h2>Ready for Review</h2>
+              <span id="achi-task-count-ready-for-review">0</span>
+            </header>
+            <div
+              class="achi-task-card-list"
+              id="achi-task-list-ready-for-review"
+              role="list"
+            ></div>
+          </section>
+        </div>
+
+                <section
+          class="achi-task-terminal-results"
+          id="achi-task-terminal-results"
+          hidden
+        >
+          <header>
+            <h2 id="achi-task-terminal-heading">Closed tasks</h2>
+            <span id="achi-task-terminal-count">0</span>
+          </header>
+          <div
+            class="achi-task-terminal-list"
+            id="achi-task-terminal-list"
+            role="list"
+          ></div>
+        </section>
+
+        <footer class="achi-task-pagination">
+          <span
+            id="achi-task-page-summary"
+            aria-live="polite"
+          >
+            No tasks
+          </span>
+
+          <div>
+            <button
+              class="achi-task-button achi-task-button-secondary"
+              type="button"
+              id="achi-task-page-previous"
+              disabled
+            >
+              Previous
+            </button>
+
+            <button
+              class="achi-task-button achi-task-button-secondary"
+              type="button"
+              id="achi-task-page-next"
+              disabled
+            >
+              Next
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  </main>
+
+  <dialog
+    class="achi-task-dialog achi-task-work-request-dialog"
+    id="achi-task-work-request-dialog"
+    aria-labelledby="achi-task-work-request-heading"
+  >
+    <div class="achi-task-dialog-shell">
+      <header class="achi-task-dialog-header">
+        <div>
+          <p class="achi-task-dialog-eyebrow">TEAM TASKS</p>
+          <h2 id="achi-task-work-request-heading">Work requests</h2>
+          <p>Employees who have requested another task.</p>
+        </div>
+
+        <button
+          class="achi-task-icon-button"
+          type="button"
+          id="achi-task-work-request-close"
+          aria-label="Close work requests"
+        >
+          &times;
+        </button>
+      </header>
+
+      <div class="achi-task-dialog-toolbar">
+        <label for="achi-task-work-request-filter">
+          <span class="achi-task-sr-only">Filter work requests</span>
+          <select id="achi-task-work-request-filter">
+            <option value="pending">Pending</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="">All requests</option>
+          </select>
+        </label>
+
+        <button
+          class="achi-task-button achi-task-button-secondary"
+          type="button"
+          id="achi-task-work-request-refresh"
+        >
+          Refresh
+        </button>
+
+        <span id="achi-task-work-request-total">0 requests</span>
+      </div>
+
+      <p
+        class="achi-task-form-error"
+        id="achi-task-work-request-error"
+        role="alert"
+      ></p>
+
+      <div
+        class="achi-task-work-request-list"
+        id="achi-task-work-request-list"
+      ></div>
+    </div>
+  </dialog>
+
+  <dialog
+    class="achi-task-dialog achi-task-editor-dialog"
+    id="achi-task-editor-dialog"
+    aria-labelledby="achi-task-editor-heading"
+  >
+    <div class="achi-task-dialog-shell">
+      <header class="achi-task-dialog-header">
+        <div>
+          <p class="achi-task-dialog-eyebrow">TEAM TASKS</p>
+          <h2 id="achi-task-editor-heading">New task</h2>
+        </div>
+
+        <button
+          class="achi-task-icon-button"
+          type="button"
+          id="achi-task-editor-close"
+          aria-label="Close task form"
+        >
+          &times;
+        </button>
+      </header>
+
+      <form id="achi-task-editor-form">
+        <input type="hidden" id="achi-task-editor-id">
+
+        <div class="achi-task-form-grid">
+          <label class="achi-task-span-2">
+            Title
+            <input
+              type="text"
+              id="achi-task-editor-title"
+              maxlength="255"
+              required
+              autocomplete="off"
+            >
+          </label>
+
+          <label class="achi-task-span-2">
+            Description
+            <textarea
+              id="achi-task-editor-description"
+              maxlength="20000"
+              rows="5"
+            ></textarea>
+          </label>
+
+          <label>
+            Assign to
+            <select id="achi-task-editor-assignee">
+              <option value="">Unassigned</option>
+            </select>
+          </label>
+
+          <label>
+            Priority
+            <select id="achi-task-editor-priority">
+              <option value="normal">Normal</option>
+              <option value="low">Low</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </label>
+
+
+
+
+          <label class="achi-task-span-2">
+            Due date and time
+            <input
+              type="datetime-local"
+              id="achi-task-editor-due"
+            >
+          </label>
+
+          <fieldset class="achi-task-related-fields achi-task-span-2">
+            <legend>Related record <span>optional</span></legend>
+
+            <label>
+              Record type
+              <input
+                type="text"
+                id="achi-task-editor-related-type"
+                maxlength="32"
+                placeholder="For example: contact or CRM"
+                autocomplete="off"
+              >
+            </label>
+
+            <label>
+              Record ID
+              <input
+                type="text"
+                id="achi-task-editor-related-id"
+                maxlength="64"
+                autocomplete="off"
+              >
+            </label>
+
+            <label class="achi-task-span-2">
+              Display label
+              <input
+                type="text"
+                id="achi-task-editor-related-label"
+                maxlength="255"
+                autocomplete="off"
+              >
+            </label>
+          </fieldset>
+        </div>
+
+        <p
+          class="achi-task-form-error"
+          id="achi-task-editor-error"
+          role="alert"
+        ></p>
+
+        <div class="achi-task-form-actions">
+          <button
+            class="achi-task-button achi-task-button-secondary"
+            type="button"
+            id="achi-task-editor-cancel"
+          >
+            Cancel
+          </button>
+
+          <button
+            class="achi-task-button achi-task-button-primary"
+            type="submit"
+            id="achi-task-editor-save"
+          >
+            Save task
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog
+    class="achi-task-dialog achi-task-detail-dialog"
+    id="achi-task-detail-dialog"
+    aria-labelledby="achi-task-detail-title"
+  >
+    <div class="achi-task-dialog-shell">
+      <header class="achi-task-dialog-header">
+        <div>
+          <p
+            class="achi-task-dialog-eyebrow"
+            id="achi-task-detail-number"
+          >
+            TASK
+          </p>
+          <h2 id="achi-task-detail-title">Task details</h2>
+          <p id="achi-task-detail-summary"></p>
+        </div>
+
+        <button
+          class="achi-task-icon-button"
+          type="button"
+          id="achi-task-detail-close"
+          aria-label="Close task details"
+        >
+          &times;
+        </button>
+      </header>
+
+      <div
+        class="achi-task-detail-actions"
+        id="achi-task-detail-actions"
+      >
+        <button
+          class="achi-task-button achi-task-button-secondary"
+          type="button"
+          id="achi-task-detail-edit"
+        >
+          Edit
+        </button>
+
+        <button
+          class="achi-task-button achi-task-button-primary"
+          type="button"
+          id="achi-task-detail-approve"
+          hidden
+        >
+          Approve
+        </button>
+
+        <button
+          class="achi-task-button achi-task-button-secondary"
+          type="button"
+          id="achi-task-detail-return"
+          hidden
+        >
+          Return for changes
+        </button>
+
+        <button
+          class="achi-task-button achi-task-button-danger"
+          type="button"
+          id="achi-task-detail-cancel"
+          hidden
+        >
+          Cancel task
+        </button>
+
+        <button
+          class="achi-task-button achi-task-button-secondary"
+          type="button"
+          id="achi-task-detail-reopen"
+          hidden
+        >
+          Reopen
+        </button>
+      </div>
+
+      <p
+        class="achi-task-form-error"
+        id="achi-task-detail-error"
+        role="alert"
+      ></p>
+
+      <div class="achi-task-detail-layout">
+        <section class="achi-task-detail-main">
+          <div class="achi-task-detail-badges">
+            <span id="achi-task-detail-status"></span>
+            <span id="achi-task-detail-priority"></span>
+          </div>
+
+          <section class="achi-task-detail-section">
+            <h3>Description</h3>
+            <p id="achi-task-detail-description"></p>
+          </section>
+
+          <section
+            class="achi-task-detail-section achi-task-blocked-section"
+            id="achi-task-detail-blocked-section"
+            hidden
+          >
+            <h3>Blocked reason</h3>
+            <p id="achi-task-detail-blocked-reason"></p>
+          </section>
+
+          <section
+            class="achi-task-detail-section achi-task-review-section"
+            id="achi-task-detail-review-section"
+            hidden
+          >
+            <h3>Review note</h3>
+            <p id="achi-task-detail-review-note"></p>
+          </section>
+
+          <section class="achi-task-detail-section">
+            <div class="achi-task-section-heading">
+              <h3>Comments</h3>
+              <span id="achi-task-comments-count">0</span>
+            </div>
+
+            <div
+              class="achi-task-comments-list"
+              id="achi-task-comments-list"
+            ></div>
+
+            <form id="achi-task-comment-form">
+              <label for="achi-task-comment-body">
+                Add a comment
+              </label>
+
+              <textarea
+                id="achi-task-comment-body"
+                maxlength="5000"
+                rows="3"
+                required
+              ></textarea>
+
+              <p
+                class="achi-task-form-error"
+                id="achi-task-comment-error"
+                role="alert"
+              ></p>
+
+              <button
+                class="achi-task-button achi-task-button-primary"
+                type="submit"
+                id="achi-task-comment-submit"
+              >
+                Add comment
+              </button>
+            </form>
+          </section>
+
+          <section class="achi-task-detail-section">
+            <h3>History</h3>
+            <div
+              class="achi-task-history-list"
+              id="achi-task-history-list"
+            ></div>
+          </section>
+        </section>
+
+        <aside class="achi-task-detail-sidebar">
+          <dl>
+            <div>
+              <dt>Assigned to</dt>
+              <dd id="achi-task-detail-assignee">Unassigned</dd>
+            </div>
+
+            <div>
+              <dt>Due</dt>
+              <dd id="achi-task-detail-due">No due date</dd>
+            </div>
+
+            <div>
+              <dt>Related record</dt>
+              <dd id="achi-task-detail-related">None</dd>
+            </div>
+
+            <div>
+              <dt>Created by</dt>
+              <dd id="achi-task-detail-created-by">-</dd>
+            </div>
+
+            <div>
+              <dt>Created</dt>
+              <dd id="achi-task-detail-created-at">-</dd>
+            </div>
+
+            <div>
+              <dt>Last updated</dt>
+              <dd id="achi-task-detail-updated-at">-</dd>
+            </div>
+
+            <div>
+              <dt>Completed by</dt>
+              <dd id="achi-task-detail-completed-by">-</dd>
+            </div>
+          </dl>
+        </aside>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog
+    class="achi-task-dialog achi-task-action-dialog"
+    id="achi-task-action-dialog"
+    aria-labelledby="achi-task-action-heading"
+  >
+    <div class="achi-task-dialog-shell">
+      <header class="achi-task-dialog-header">
+        <div>
+          <p class="achi-task-dialog-eyebrow">TEAM TASKS</p>
+          <h2 id="achi-task-action-heading">Confirm action</h2>
+          <p id="achi-task-action-description"></p>
+        </div>
+
+        <button
+          class="achi-task-icon-button"
+          type="button"
+          id="achi-task-action-close"
+          aria-label="Close action form"
+        >
+          &times;
+        </button>
+      </header>
+
+      <form id="achi-task-action-form">
+        <input type="hidden" id="achi-task-action-name">
+
+        <label
+          class="achi-task-action-field"
+          id="achi-task-action-field"
+          for="achi-task-action-input"
+        >
+          Note
+          <textarea
+            id="achi-task-action-input"
+            maxlength="5000"
+            rows="4"
+          ></textarea>
+        </label>
+
+        <p
+          class="achi-task-form-error"
+          id="achi-task-action-error"
+          role="alert"
+        ></p>
+
+        <div class="achi-task-form-actions">
+          <button
+            class="achi-task-button achi-task-button-secondary"
+            type="button"
+            id="achi-task-action-cancel"
+          >
+            Go back
+          </button>
+
+          <button
+            class="achi-task-button achi-task-button-primary"
+            type="submit"
+            id="achi-task-action-submit"
+          >
+            Confirm
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <div
+    class="achi-task-toast"
+    id="achi-task-toast"
+    role="status"
+    aria-live="polite"
+    hidden
+  ></div>
+
+  <script src="/api/v1/achi/tasks/team_tasks.js?v=1"></script>
+  <script src="/api/v1/achi/ui/chrome.js?v=24"></script>
+</body>
+</html>

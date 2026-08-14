@@ -54,6 +54,7 @@ from .geo_router import geo_router
 from .chat_router import chat_router
 from .comment_router import comment_router
 from .mail_router import mail_router
+from .task_router import task_router
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ router.include_router(geo_router)
 router.include_router(chat_router)
 router.include_router(comment_router)
 router.include_router(mail_router)
+router.include_router(task_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
@@ -616,6 +618,20 @@ def ui_comment_js() -> PlainTextResponse:
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+
+@router.get(
+    "/ui/task_drawer.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Employee My Tasks tab for the ACHI comment drawer",
+)
+def ui_task_drawer_js() -> PlainTextResponse:
+    """Serve the isolated Employee My Tasks drawer script."""
+    return PlainTextResponse(
+        (_UI_DIR / "task_drawer.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 @router.get(
     "/ui/model-viewer.js",
