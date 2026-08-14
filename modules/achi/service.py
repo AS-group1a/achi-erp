@@ -40,7 +40,30 @@ STAGE_CODE_BUCKETS: dict[str, str] = {
     "takeoff": "MT",
     "quotation": "QUOT",
 }
-_CODE_RE = re.compile(r"^([A-Z]+)(\d+)$")
+_CODE_RE = re.compile(r"^([A-Z]+)-?(\d+)$")
+
+LOG_CODE_ORDER = {
+    "PROSP": 0,
+    "ENQ": 1,
+    "SV": 2,
+    "MT": 3,
+    "QUOT": 4,
+}
+
+
+def _log_code_sort_key(code: str | None) -> tuple[int, int, str]:
+    m = _CODE_RE.match(code or "")
+    if not m:
+        return (999, 999999, code or "")
+
+    prefix = m.group(1)
+    number = int(m.group(2))
+
+    return (
+        LOG_CODE_ORDER.get(prefix, 999),
+        number,
+        code or "",
+    )
 # Set once per process the first time the log feed is served, so the one-time
 # backfill of existing rows isn't re-attempted on every request.
 _backfill_attempted = False
@@ -370,7 +393,7 @@ class ContactFileService:
             if h.id != f.id and _code_prefix(h.log_code) == bucket
         ]
         nums = [n for n in nums if n]
-        f.log_code = f"{bucket}{(max(nums) + 1) if nums else 1:03d}"
+        f.log_code = f"{bucket}-{(max(nums) + 1) if nums else 1:04d}"
 
     async def _renumber_bucket(self, bucket: str, *, exclude_id: str | None = None) -> None:
         """Compact the live holders of a bucket to close a freed-up gap.
@@ -396,7 +419,7 @@ class ContactFileService:
             n += 1
             while n in reserved:
                 n += 1
-            code = f"{bucket}{n:03d}"
+            code = f"{bucket}-{n:04d}"
             if h.log_code != code:
                 h.log_code = code
 
@@ -442,7 +465,7 @@ class ContactFileService:
             n = max([e for e in existing if e], default=0)
             for x in items:
                 n += 1
-                x.log_code = f"{bucket}{n:03d}"
+                x.log_code = f"{bucket}-{n:04d}"
         await self.session.commit()
         return True
 
@@ -1031,7 +1054,12 @@ class ContactFileService:
             .order_by((FileLog.deleted_at if deleted else FileLog.created_at).desc())
             .limit(limit)
         )
-        return list((await self.session.execute(q)).all())
+        rows = list((await self.session.execute(q)).all())
+
+        if not deleted:
+            rows.sort(key=lambda row: _log_code_sort_key(row[1].log_code))
+
+        return rows
 
     # ── cross-module links ────────────────────────────────────────────────
     async def contact_links(self, contact_id: str) -> dict:

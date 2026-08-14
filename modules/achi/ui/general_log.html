@@ -170,7 +170,14 @@
     {k:'type',         h:'Log Type',       tab:null, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
     {k:'stage',        h:'Stage',          tab:null, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
     {k:'communication',h:'Communication',  tab:null, w:188},
-    {k:'last_touch',   h:'Last Touch',     tab:null, w:150},
+    {k:'last_touch',   h:'Last Touch',     tab:null, w:200,
+      edit:{
+        kind:'datetime',
+        target:'log',
+        field:'occurred_at',
+        val:r=>r.occurred_at||''
+      }
+    },
     {k:'deliverables', h:'Deliverables',   tab:null, w:250},
     {k:'tags',         h:'Tags',           tab:null, w:170, draft:'select', edit:{kind:'tags',target:'log',field:'tags',val:r=>r.tags||''}},
     {k:'updates',      h:'Updates',        tab:null, w:280, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
