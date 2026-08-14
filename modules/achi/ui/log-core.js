@@ -798,20 +798,43 @@ function glCommCell(r){
   return `<span class="ctally">${chips}<button type="button" class="ctadd" data-cc-add title="Add a channel">+</button></span>`;
 }
 const GL_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const fmtDayMonthYear=s=>{const d=new Date(s);if(isNaN(d))return String(s||'');return `${String(d.getDate()).padStart(2,'0')} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;};
-/* Last Touch cell: this row's date over a "CHANNELS · N total" sub-line driven
-   by the row's own communication counters — e.g. WA 2 + LI 3 → "WA, LI · 5
-   total". Reads the same per-log tally as the Communication cell so the two
-   always agree and update together. */
+
+function toLocalDateTimeValue(value){
+  if(!value) return '';
+
+  const d=new Date(value);
+  if(isNaN(d)) return '';
+
+  const p=n=>String(n).padStart(2,'0');
+
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`
+       + `T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function glLastTouchCell(r){
   const when=r.occurred_at||r.created_at||r.last_touch_at;
+
   const t=glCommTally(r);
-  const channels=Object.keys(t).filter(k=>t[k]>0).sort((a,b)=>t[b]-t[a]||a.localeCompare(b));
+  const channels=Object.keys(t)
+    .filter(k=>t[k]>0)
+    .sort((a,b)=>t[b]-t[a]||a.localeCompare(b));
+
   const total=channels.reduce((s,k)=>s+t[k],0);
-  if(!when && !total) return '<span class="mt">—</span>';
   const abbrs=channels.map(k=>glCommAbbr(k)).join(', ');
   const sub=[abbrs,total?`${total} total`:''].filter(Boolean).join(' · ');
-  return `<span class="lt"><span class="lt-date">${when?esc(fmtDayMonthYear(when)):'—'}</span>${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}</span>`;
+
+  return `
+    <span class="lt">
+      <input
+        type="datetime-local"
+        class="lt-picker"
+        data-last-touch
+        value="${esc(toLocalDateTimeValue(when))}"
+        aria-label="Last touch date and time"
+      >
+      ${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}
+    </span>
+  `;
 }
 const SVG={
   mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
@@ -1265,6 +1288,43 @@ function render(){
   refreshSelectionButton();
   refreshDeleteButton();
 }
+
+/* Save the General Log Last Touch date + time. */
+$('rows').addEventListener('change',async e=>{
+  const input=e.target.closest('input[data-last-touch]');
+  if(!input) return;
+
+  const tr=input.closest('tr[data-log]');
+  if(!tr) return;
+
+  const logId=tr.dataset.log;
+  const row=ROWS.find(r=>String(r.id)===String(logId));
+  const previous=row&&row.occurred_at ? row.occurred_at : '';
+
+  try{
+    input.disabled=true;
+
+    const occurredAt=input.value
+      ? new Date(input.value).toISOString()
+      : null;
+
+    await api('/logs/'+logId,{
+      method:'PATCH',
+      body:JSON.stringify({
+        occurred_at:occurredAt
+      })
+    });
+
+    if(row) row.occurred_at=occurredAt;
+
+    clearErr();
+  }catch(err){
+    input.value=toLocalDateTimeValue(previous);
+    fail(err.message||'Could not update Last Touch');
+  }finally{
+    input.disabled=false;
+  }
+});
 
 /* Keep row creation spatially obvious. The grid has its own vertical scroll
    container, so scrolling the page is not enough: target the exact rendered
