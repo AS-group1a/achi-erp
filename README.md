@@ -58,7 +58,7 @@ SITE_ADDRESS=erp.achi.example ./bootstrap.sh     # or <ip>.sslip.io for free TLS
 ```
 
 Reference host: Hetzner **CX32** (4 vCPU x86, 8 GB) ≈ €7/mo — the practical minimum, since
-OCE ships no Celery worker in production and runs jobs in-process. CX42 (16 GB) if adopted.
+OCE ships no Celery worker in production and runs jobs in-process. CX42 (16 GB) if adopted
 
 ## Secrets
 
