@@ -145,6 +145,24 @@ def general_log_ui() -> HTMLResponse:
 
 
 @router.get(
+    "/prospect/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="Prospects UI",
+)
+def prospect_ui() -> HTMLResponse:
+    """Serve the General Log-style Prospects page.
+
+    This first version intentionally shares the General Log data and behaviour.
+    Prospect-only filtering will be added later after the workflow is approved.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "prospect.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/contact-info/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
@@ -166,10 +184,13 @@ def contact_info_ui() -> HTMLResponse:
     summary="ACHI CRM UI",
 )
 def crm_ui() -> HTMLResponse:
-    """Serve ACHI's CRM workspace over the official OCE CRM API."""
+    """Serve the General Log-style CRM page.
 
+    This first version intentionally shares the General Log data and behaviour.
+    CRM-specific filtering will be added later after the workflow is approved.
+    """
     return HTMLResponse(
-        (_UI_DIR / "crm.html").read_text(encoding="utf-8"),
+        (_UI_DIR / "crm_general_log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
