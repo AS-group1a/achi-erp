@@ -1,0 +1,201 @@
+<!doctype html>
+<!-- CRM page: company-wide log view (see commit "create a new page called general-log") -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM · Achi Scaffolding ERP</title>
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=6">
+<link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
+</head>
+<body data-achi-title="CRM">
+<main>
+  <div class="err" id="err"></div>
+
+  <div class="kpis">
+    <div class="kpi k1"><div class="n" id="k-total">0</div><div class="l">Total Logs</div><div class="s">all time</div></div>
+    <div class="kpi k2 btn" id="k-open-card"><div class="n" id="k-open">0</div><div class="l">Open</div><div class="s">click to filter</div></div>
+    <div class="kpi k3"><div class="n" id="k-month">0</div><div class="l">This Month</div><div class="s">log entries</div></div>
+    <div class="kpi k4"><div class="n" id="k-done">0</div><div class="l">Done</div><div class="s">completed</div></div>
+    <button class="kpi-deleted" id="btn-deleted" type="button" title="Show deleted logs — restore them or delete them permanently">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      <span>Deleted Logs</span>
+    </button>
+  </div>
+
+  <div class="shell">
+    <div class="nav">
+      <div class="nav-actions">
+        <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
+        <button class="tb-exp" id="expand-row" type="button" title="Open the full form — a selected row to edit, or blank for a new entry">
+            <span class="tb-add-plus">+</span>
+          Add Log
+        </button>
+        <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
+        <button class="tb-email" id="btn-email" type="button" title="Email the selected rows (same message to everyone)">Email <span class="tb-cnt" id="email-count">0</span></button>
+        <!-- Shown only while the Deleted Logs filter is active (body.deleted-view). -->
+        <span class="dl-acts" id="dl-acts">
+          <span class="dl-acts-label">Viewing deleted</span>
+          <button class="tb-restore" id="btn-restore" type="button" title="Restore the selected logs">Restore <span class="tb-cnt" id="restore-count">0</span></button>
+          <button class="tb-perma" id="btn-perma" type="button" title="Permanently delete the selected logs (cannot be undone)">Delete permanently <span class="tb-cnt" id="perma-count">0</span></button>
+        </span>
+      </div>
+      <div class="pt" id="tabs">
+        <span class="pt-ind" id="ind"></span>
+        <button class="pill-tab on" data-tab="0">Log Details</button>
+        <button class="pill-tab" data-tab="1">Contact Info</button>
+        <button class="pill-tab" data-tab="2">Site</button>
+        <button class="pill-tab" data-tab="3">Notes &amp; Outcome</button>
+      </div>
+      <div class="nav-right">
+        <input class="search" id="q" placeholder="Search name, file, city, text…">
+      </div>
+    </div>
+    <div class="tscroll" id="touter">
+      <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
+    </div>
+    <div class="vrz" id="vrz" title="Drag to resize table height"></div>
+  </div>
+
+  <!-- Expanded row. Built by JS from COLS so it cannot drift from the table:
+       add a column there and it appears here too. -->
+  <div class="rx" id="rx" hidden>
+    <div class="rx-box" role="dialog" aria-modal="true" aria-labelledby="rx-title">
+      <div class="rx-head">
+        <h2 id="rx-title">Add Log</h2>
+        <span class="rx-chip" id="rx-num">Log</span>
+        <span class="rx-when-wrap">
+          <span class="rx-when-display"><span id="rx-when-label"></span>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M5 2v3M11 2v3M2.5 6.5h11"/></svg>
+          </span>
+          <input type="datetime-local" class="rx-when" id="rx-when" aria-label="Log date and time">
+        </span>
+        <div class="rx-state" id="rx-state">
+          <button type="button" class="rx-state-btn" id="rx-state-btn" aria-haspopup="listbox" aria-expanded="false">
+            <span class="rx-state-mark" id="rx-state-mark"></span>
+            <span id="rx-state-label">OPEN</span>
+            <svg class="rx-state-arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m2.5 4.5 3.5 3 3.5-3"/></svg>
+          </button>
+          <div class="rx-state-menu" id="rx-state-menu" role="listbox" aria-label="Log status" hidden></div>
+        </div>
+        <p class="rx-tag" id="rx-sub">fill while you're on the call — everything prices itself live</p>
+        <button type="button" class="rx-x" id="rx-close" aria-label="Close">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="rx-cols">
+        <div class="rx-body" id="rx-body"></div>
+      </div>
+      <div class="rx-foot">
+        <label class="rx-copy-l" for="rx-copy">ON SAVE, COPY TO</label>
+        <select class="rx-copy" id="rx-copy"></select>
+        <span class="rx-copy-h">the log stays here — a linked copy opens the same popup from that module</span>
+        <span class="rx-status" id="rx-status"></span>
+        <div class="rx-foot-btns">
+          <button type="button" class="rx-cancel" id="rx-cancel">Cancel</button>
+          <button type="button" class="rx-save" id="rx-save">Save Log</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick quotation. Below the table, like the ERPNext quick view it replaces.
+       Hidden until exactly one saved row is selected: a quotation is addressed to
+       one customer, and drafting from a blank draft row would address nobody. -->
+  <section class="qv" id="qv" hidden>
+    <div class="qv-head">
+      <div>
+        <h2>Quick quotation</h2>
+        <p class="qv-for" id="qv-for"></p>
+      </div>
+      <button type="button" class="qv-x" id="qv-collapse" title="Hide" aria-label="Hide quick quotation">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="qv-grid">
+      <label class="qv-f"><span>Area (m²)</span><input id="qv-area" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label class="qv-f"><span>Weeks</span><input id="qv-weeks" type="number" min="0" step="0.5" placeholder="0"></label>
+      <label class="qv-f"><span>Rate /m²/week</span><input id="qv-rate" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Erection</span><input id="qv-erection" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Transport</span><input id="qv-transport" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Extras</span><input id="qv-extras" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>Discount</span><input id="qv-discount" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="qv-f"><span>VAT %</span><input id="qv-vat" type="number" min="0" step="0.1" placeholder="11"></label>
+    </div>
+    <details class="qv-more" id="qv-more">
+      <summary>Add more information</summary>
+      <div class="qv-grid qv-grid-wide">
+        <label class="qv-f qv-span"><span>Scope of work</span><textarea id="qv-scope" rows="2" placeholder="What is being erected, where, and for how long"></textarea></label>
+        <label class="qv-f"><span>Site city</span><input id="qv-city" type="text"></label>
+        <label class="qv-f"><span>Valid until</span><input id="qv-valid" type="date"></label>
+        <label class="qv-f qv-span"><span>Notes</span><textarea id="qv-notes" rows="2" placeholder="Anything the customer should see on the quotation"></textarea></label>
+      </div>
+    </details>
+    <div class="qv-foot">
+      <div class="qv-totals">
+        <span>Subtotal <b id="qv-sub">0.00</b></span>
+        <span>VAT <b id="qv-vatv">0.00</b></span>
+        <span class="qv-total">Total <b id="qv-tot">0.00</b></span>
+      </div>
+      <div class="qv-actions">
+        <span class="qv-msg" id="qv-msg"></span>
+        <button type="button" class="qv-draft" id="qv-draft">Draft quotation</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<button class="totop" id="totop" title="Back to top">&#8963;</button>
+
+<!-- the canvas drawing tool behind the popup's Drawing button; served by our own router -->
+<script src="/api/v1/achi/ui/drawing.js?v=2"></script>
+<script src="/api/v1/achi/ui/log-mail.js?v=1"></script>
+<!-- CRM = the Log page with a different column set. These globals are
+     read by log-core.js (COLS + which columns freeze); everything else is shared. -->
+<script>
+  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
+  window.ACHI_FIXED_KEYS = [];   // no frozen columns
+  window.ACHI_LOG_COLS = [
+    {k:'num',          h:'#',              tab:null, w:92},
+    {k:'when',         h:'Date & Time',    tab:null, w:150},
+    {k:'status',       h:'Status',         tab:null, w:110, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
+    {k:'prefix',       h:'Pre',            tab:null, w:70,  draft:'select', edit:{kind:'prefix',target:'contact',field:'prefix',val:r=>r.prefix||''}},
+    {k:'first',        h:'First',          tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
+    {k:'last',         h:'Last',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
+    {k:'company',      h:'Company',        tab:null, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+    {k:'owner',        h:'Owner',          tab:null, w:80},
+    {k:'mobile',       h:'Mobile',         tab:null, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+    {k:'email',        h:'Email',          tab:null, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
+    {k:'maps',         h:'Maps',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
+    {k:'desc',         h:'description',    tab:null, w:300, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
+    {k:'type',         h:'Log Type',       tab:null, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
+    {k:'stage',        h:'Stage',          tab:null, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
+    {k:'communication',h:'Communication',  tab:null, w:188},
+    {k:'last_touch',   h:'Last Touch',     tab:null, w:200,
+      edit:{
+        kind:'datetime',
+        target:'log',
+        field:'occurred_at',
+        val:r=>r.occurred_at||''
+      }
+    },
+    {k:'deliverables', h:'Deliverables',   tab:null, w:250},
+    {k:'tags',         h:'Tags',           tab:null, w:170, draft:'select', edit:{kind:'tags',target:'log',field:'tags',val:r=>r.tags||''}},
+    {k:'updates',      h:'Updates',        tab:null, w:280, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
+    {k:'followup',     h:'Follow up date', tab:null, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
+    {k:'country',      h:'Country',        tab:null, w:110, draft:'text', edit:{kind:'country',target:'file',field:'country',val:r=>r.country||''}},
+    {k:'district',     h:'District',       tab:null, w:120, draft:'text', edit:{kind:'district',target:'file',field:'district',val:r=>r.district||''}},
+    {k:'city',         h:'City',           tab:null, w:120, draft:'text', edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
+    {k:'street',       h:'Street',         tab:null, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
+  ];
+</script>
+<script src="/api/v1/achi/ui/log-core.js?v=6"></script>
+<script src="/api/v1/achi/ui/log.js?v=6"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=24"></script>
+<script src="/api/v1/achi/ui/comment.js?v=14"></script>
+<script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
+<script src="/api/v1/achi/ui/quill.js"></script>
+<script src="/api/v1/achi/ui/log-notes.js?v=1"></script>
+<script src="/api/v1/achi/ui/log-deleted.js?v=1"></script>
+</body>
+</html>

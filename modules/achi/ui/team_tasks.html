@@ -153,14 +153,14 @@
           <label for="achi-task-filter-status">
             <span class="achi-task-sr-only">Filter by status</span>
             <select id="achi-task-filter-status">
-              <option value="active">Open tasks</option>
+              <option value="active">Board tasks</option>
               <option value="">All statuses</option>
               <option value="unassigned">Unassigned</option>
               <option value="to_do">To Do</option>
               <option value="in_progress">In Progress</option>
               <option value="blocked">Blocked</option>
               <option value="ready_for_review">Ready for Review</option>
-              <option value="completed">Completed</option>
+              <option value="completed">Done</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </label>
@@ -274,6 +274,22 @@
               role="list"
             ></div>
           </section>
+
+          <section
+            class="achi-task-column achi-task-column-done"
+            id="achi-task-column-done"
+            data-achi-task-status="completed"
+          >
+            <header>
+              <h2>Done</h2>
+              <span id="achi-task-count-done">0</span>
+            </header>
+            <div
+              class="achi-task-card-list"
+              id="achi-task-list-done"
+              role="list"
+            ></div>
+          </section>
         </div>
 
                 <section
@@ -282,7 +298,7 @@
           hidden
         >
           <header>
-            <h2 id="achi-task-terminal-heading">Closed tasks</h2>
+            <h2 id="achi-task-terminal-heading">Cancelled tasks</h2>
             <span id="achi-task-terminal-count">0</span>
           </header>
           <div

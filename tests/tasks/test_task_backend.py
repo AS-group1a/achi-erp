@@ -165,6 +165,11 @@ class MemoryTaskService(TaskService):
         self.tasks = {task.id: task for task in tasks}
         self.actors = dict(actors or ACTORS)
 
+    async def _next_task_number(self) -> str:
+        return service_module._task_number(
+            len(self.tasks) + 1
+        )
+
     async def _actor(
         self,
         actor_id: str,
@@ -510,35 +515,22 @@ class IdentityAndRoleTests(unittest.TestCase):
             422,
         )
 
-    def test_task_identity_is_unique_and_fits_column(
-        self,
-    ) -> None:
-        seen_ids: set[str] = set()
-        seen_numbers: set[str] = set()
+    def test_task_number_format(self) -> None:
+        self.assertEqual(
+            service_module._task_number(1),
+            "TASK-001",
+        )
+        self.assertEqual(
+            service_module._task_number(42),
+            "TASK-042",
+        )
+        self.assertEqual(
+            service_module._task_number(1000),
+            "TASK-1000",
+        )
 
-        for _ in range(100):
-            task_id, task_number = (
-                service_module._new_task_identity()
-            )
-
-            self.assertEqual(
-                str(uuid.UUID(task_id)),
-                task_id,
-            )
-            self.assertRegex(
-                task_number,
-                re.compile(r"^TASK-[A-Z2-7]{26}$"),
-            )
-            self.assertLessEqual(
-                len(task_number),
-                32,
-            )
-
-            seen_ids.add(task_id)
-            seen_numbers.add(task_number)
-
-        self.assertEqual(len(seen_ids), 100)
-        self.assertEqual(len(seen_numbers), 100)
+        with self.assertRaises(ValueError):
+            service_module._task_number(0)
 
     def test_role_capabilities(self) -> None:
         expected = {

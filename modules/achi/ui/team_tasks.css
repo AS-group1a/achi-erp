@@ -1239,3 +1239,6 @@ body[data-achi-title="Team Tasks"] textarea:focus-visible {
 }
 
 }
+.achi-task-column-done > header {
+  border-top-color: #159a63;
+}
