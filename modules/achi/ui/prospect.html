@@ -1,14 +1,14 @@
 <!doctype html>
-<!-- Prospects page: company-wide log view (see commit "create a new page called general-log") -->
+<!-- PROSP page: company-wide log view (see commit "create a new page called general-log") -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prospects · Achi Scaffolding ERP</title>
+<title>PROSP · Achi Scaffolding ERP</title>
 <link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=6">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
-<body data-achi-title="Prospects">
+<body data-achi-title="PROSP">
 <main>
   <div class="err" id="err"></div>
 
@@ -150,7 +150,7 @@
 <!-- the canvas drawing tool behind the popup's Drawing button; served by our own router -->
 <script src="/api/v1/achi/ui/drawing.js?v=2"></script>
 <script src="/api/v1/achi/ui/log-mail.js?v=1"></script>
-<!-- Prospects = the Log page with a different column set. These globals are
+<!-- PROSP = the Log page with a different column set. These globals are
      read by log-core.js (COLS + which columns freeze); everything else is shared. -->
 <script>
   window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants

@@ -148,10 +148,10 @@ def general_log_ui() -> HTMLResponse:
     "/prospect/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
-    summary="Prospects UI",
+    summary="PROSP UI",
 )
 def prospect_ui() -> HTMLResponse:
-    """Serve the General Log-style Prospects page.
+    """Serve the General Log-style PROSP page.
 
     This first version intentionally shares the General Log data and behaviour.
     Prospect-only filtering will be added later after the workflow is approved.
