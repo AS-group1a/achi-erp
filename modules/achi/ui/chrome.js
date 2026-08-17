@@ -39,7 +39,7 @@
     { label: 'Quotations',    href: '/api/v1/achi/quotations/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h3"/>' },
     { label: 'Contacts',      href: '/contacts',              icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
     { label: 'CRM',           href: '/api/v1/achi/crm/ui',    icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
-    { label: 'Prospects',     href: '/api/v1/achi/prospect/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>' },
+    { label: 'PROSP',     href: '/api/v1/achi/prospect/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>' },
     { label: 'Projects',      href: '/projects',              icon: '<path d="M3 7h6l2 2h10v10H3z"/>' },
     { label: 'Project Files', href: '/files',                 icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' }
   ];
