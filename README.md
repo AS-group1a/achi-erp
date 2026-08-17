@@ -83,3 +83,5 @@ retain copyright/licence notices in source. §7's white-label addendum applies t
 **commercial-licence** holders, not AGPL internal use.
 
 **Revisit before exposing this outside the company** — AGPL §13 and §7 both become live then.
+
+
