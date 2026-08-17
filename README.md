@@ -5,7 +5,7 @@
 
 Deployment and branding for **Achi Scaffolding ERP**, built on OpenConstructionERP.
 
-## The key decision: we do not fork
+## The key decision: we do not fork.
 
 OpenConstructionERP is installed **stock from PyPI at a pinned version**. Nothing upstream is
 modified. Everything ACHI-specific lives in this repo — 12 files.
