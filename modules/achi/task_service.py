@@ -7,15 +7,15 @@ in the same database transaction.
 
 from __future__ import annotations
 
-import base64
 import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, NoReturn, Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,6 +59,11 @@ _WORK_REQUEST_STATUSES = frozenset(
 _PENDING_REQUEST_CONSTRAINT = (
     "uq_achi_task_work_request_pending_user"
 )
+
+# Transaction-scoped PostgreSQL lock used only while assigning a new public
+# task code. It makes TASK-001 numbering safe for concurrent creates.
+_TASK_NUMBER_LOCK = 681_246_019
+_TASK_NUMBER_RE = re.compile(r"^TASK-(\d+)$")
 
 _TASK_EVENT_TYPES = frozenset(
     {
@@ -146,20 +151,12 @@ def _canonical_uuid(value: str, *, detail: str) -> str:
         _unprocessable(detail)
 
 
-def _new_task_identity() -> tuple[str, str]:
-    """Return a UUID primary key and collision-resistant task number.
+def _task_number(position: int) -> str:
+    """Return the short human-facing task code."""
 
-    Base32 represents all 128 UUID bits in 26 characters. ``TASK-`` plus that
-    token fits the model's String(32) without using unsafe MAX + 1 numbering.
-    """
-
-    task_uuid = uuid.uuid4()
-    token = (
-        base64.b32encode(task_uuid.bytes)
-        .decode("ascii")
-        .rstrip("=")
-    )
-    return str(task_uuid), f"TASK-{token}"
+    if position < 1:
+        raise ValueError("Task number position must be positive")
+    return f"TASK-{position:03d}"
 
 
 def _json_details(details: dict[str, Any] | None) -> str:
@@ -718,6 +715,34 @@ class TaskService:
             limit=limit,
         )
 
+    async def _next_task_number(self) -> str:
+        """Reserve the next human-facing task code in this transaction.
+
+        Legacy UUID-style codes are deliberately ignored here. They are handled
+        by the separate one-time migration script, never by a GET request.
+        """
+
+        bind = self.session.get_bind()
+        if bind.dialect.name == "postgresql":
+            await self.session.execute(
+                text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                {"lock_key": _TASK_NUMBER_LOCK},
+            )
+
+        codes = (
+            await self.session.execute(
+                select(AchiTask.task_number).with_for_update()
+            )
+        ).scalars()
+
+        highest = 0
+        for code in codes:
+            match = _TASK_NUMBER_RE.fullmatch(code or "")
+            if match:
+                highest = max(highest, int(match.group(1)))
+
+        return _task_number(highest + 1)
+
     # ------------------------------------------------------------------
     # Audit and transaction helpers
     # ------------------------------------------------------------------
@@ -815,7 +840,8 @@ class TaskService:
             else None
         )
 
-        task_id, task_number = _new_task_identity()
+        task_id = str(uuid.uuid4())
+        task_number = await self._next_task_number()
         now = _now()
         initial_status = (
             "to_do" if assignee else "unassigned"
