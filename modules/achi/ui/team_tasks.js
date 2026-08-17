@@ -19,7 +19,7 @@
     in_progress: 'In Progress',
     blocked: 'Blocked',
     ready_for_review: 'Ready for Review',
-    completed: 'Completed',
+    completed: 'Done',
     cancelled: 'Cancelled',
   };
 
@@ -36,6 +36,7 @@
     'in-progress': ['in_progress'],
     blocked: ['blocked'],
     'ready-for-review': ['ready_for_review'],
+    done: ['completed'],
   };
 
   const state = {
@@ -315,7 +316,14 @@
     });
 
     const statuses = filters.status === 'active'
-      ? ['unassigned', 'to_do', 'in_progress', 'blocked', 'ready_for_review']
+      ? [
+        'unassigned',
+        'to_do',
+        'in_progress',
+        'blocked',
+        'ready_for_review',
+        'completed',
+      ]
       : filters.status
         ? [filters.status]
         : [];
@@ -443,28 +451,22 @@
 
     const shouldShow = (
       selectedStatus === ''
-      || selectedStatus === 'completed'
       || selectedStatus === 'cancelled'
     );
 
     section.hidden = !shouldShow;
     if (!shouldShow) return;
 
-    const terminalTasks = state.tasks.filter(task => (
-      task.status === 'completed' || task.status === 'cancelled'
-    ));
+    const terminalTasks = state.tasks.filter(
+      task => task.status === 'cancelled',
+    );
 
-    heading.textContent = selectedStatus === 'completed'
-      ? 'Completed tasks'
-      : selectedStatus === 'cancelled'
-        ? 'Cancelled tasks'
-        : 'Closed tasks';
-
+    heading.textContent = 'Cancelled tasks';
     count.textContent = String(terminalTasks.length);
     list.replaceChildren();
 
     if (!terminalTasks.length) {
-      list.append(emptyColumn('No matching closed tasks'));
+      list.append(emptyColumn('No matching cancelled tasks'));
       return;
     }
 
