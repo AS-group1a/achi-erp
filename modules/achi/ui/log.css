@@ -820,14 +820,61 @@
 .ctmenu button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600;color:#0f172a;text-align:left}
 .ctmenu button:hover{background:#f1f5f9}
 .ctmenu .cdot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
-/* Last Touch: date over a muted "· channel · N total" sub-line (photo #4). */
-.lt{display:flex;flex-direction:column;gap:1px;min-width:0}
-.lt-date{font-variant-numeric:tabular-nums;color:#334155;font-weight:600}
-.lt-sub{font-size:10.5px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+
+/* Last Touch — plain clickable date + communication underneath */
 .lt{
   position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:2px;
+  min-width:0;
 }
 
+/* Date looks like normal text, but stays clickable */
+.lt-date{
+  appearance:none;
+  -webkit-appearance:none;
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+
+  padding:0 !important;
+  margin:0 !important;
+
+  color:inherit;
+  font:inherit;
+  font-size:13px;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+/* Prevent button/input styling when hovering or clicking */
+.lt-date:hover,
+.lt-date:focus,
+.lt-date:active{
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+}
+
+/* show communication information underneath again */
+.lt-sub{
+  display:block;
+  font-size:10.5px;
+  color:#94a3b8;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+/* Hidden real date/time picker */
 .lt-picker-hidden{
   position:absolute !important;
   width:1px !important;

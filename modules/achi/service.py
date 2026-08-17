@@ -836,6 +836,9 @@ class ContactFileService:
                 tenant_id=user_id,
                 **site,
             )
+            # Assign the General Log # based on the selected/default stage
+            await self._assign_new_code(f)
+
             self.session.add(f)
             await self.session.flush()
 
