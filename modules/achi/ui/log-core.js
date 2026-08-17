@@ -756,7 +756,17 @@ const GL_STAGE_PIPELINE=GL_STAGE_ORDER.slice();
 const GL_STAGE_COLOR=Object.fromEntries(GL_STAGES.map(s=>[s.k,s.color]));
 // Rows from before the pipeline expansion carry a couple of retired keys.
 const GL_LEGACY_STAGE={lead:'enquiry',measurements:'takeoff'};
-const glStageKey=s=>{const k=GL_LEGACY_STAGE[s]||s||'enquiry';return GL_STAGE_BY_KEY[k]?k:'enquiry';};
+const glStageKey=s=>{
+  const raw=String(s||'').trim();
+
+  // ONLY missing stage defaults to Prospect
+  if(!raw) return 'prospect';
+
+  const k=GL_LEGACY_STAGE[raw]||raw;
+
+  // Keep any valid explicitly selected stage
+  return GL_STAGE_BY_KEY[k] ? k : 'prospect';
+};
 const glStageLabel=s=>{const k=glStageKey(s);return (GL_STAGE_BY_KEY[k]||{}).label||label(k);};
 // The bar is a fixed 6 segments filled to the stage's position in the pipeline,
 // so it stays compact whether there are 6 stages or 18. "cancelled" reads as a
@@ -777,7 +787,15 @@ const glCommColor=k=>GL_COMM_COLOR[k]||'#64748b';
 const glCommAbbr=k=>GL_COMM_ABBR[k]||String(k||'').slice(0,2).toUpperCase();
 const glCommPill=(k,n)=>{const c=glCommColor(k);return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14" title="${esc(k)}${n!=null?': '+n:''}">${esc(glCommAbbr(k))}${n!=null?' '+n:''}</span>`;};
 // Channels the "+" menu offers on the Communication cell (kept short on purpose).
-const GL_COMM_ADD=['Call','WhatsApp','Email','LinkedIn'];
+const GL_COMM_ADD=[
+  'Call',
+  'WhatsApp',
+  'Email',
+  'LinkedIn',
+  'Facebook',
+  'Instagram',
+  'X'
+];
 /* This log's own per-channel counters, seeded from the legacy single
    `communication` value the first time so old rows upgrade seamlessly. */
 function glCommTally(r){
@@ -1247,7 +1265,7 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
     const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${GENERAL_LOG&&r.log_code?esc(r.log_code):rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${GENERAL_LOG&&r.log_code?esc(String(r.log_code).replace(/^MT(?=-)/,'M/T')):rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 
@@ -2293,9 +2311,24 @@ function rxCollectNew(){
   const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
     street:v.street||null, maps_url:v.maps||null, site_location:v.location||null,
     site_number:v.no||null, site_building:v.bldg||null, site_floor:v.floor||null}:null;
-  return {person, site, subject:v.subject||'', status:v.status||'open', log_type:v.type||'inbound_call',
-    category:v.category||null, reference:v.reference||null, tags:(v.tags&&v.tags!==TAG_ADD)?v.tags:'', description:v.desc||'', updates:v.updates||'',
-    follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
+return {
+  person,
+  site,
+  subject:v.subject||'',
+  status:v.status||'open',
+  log_type:v.type||'inbound_call',
+
+  // Use selected stage. Only default to Prospect if none exists.
+  stage:v.stage || 'prospect',
+
+  category:v.category||null,
+  reference:v.reference||null,
+  tags:(v.tags&&v.tags!==TAG_ADD)?v.tags:'',
+  description:v.desc||'',
+  updates:v.updates||'',
+  follow_up_date:v.followup||null,
+  follow_up_notes:v.funotes||''
+};
 }
 
 function rxBusy(on){ const a=$('rx-save'),b=$('rx-cancel'); if(a)a.disabled=on; if(b)b.disabled=on; }

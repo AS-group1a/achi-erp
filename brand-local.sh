@@ -14,7 +14,40 @@ EMAIL="${EMAIL:-demo@openconstructionerp.com}"
 PASSWORD="${PASSWORD:-DemoPass1234!}"
 COMPANY_NAME="${COMPANY_NAME:-Achi Scaffolding ERP}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY="$HERE/.venv/bin/python"
+PY="$HERE/.venv/Scripts/python.exe"
+
+INDEX_HTML="$HERE/.venv/Lib/site-packages/app/_frontend_dist/index.html"
+
+if [ -f "$INDEX_HTML" ]; then
+  "$PY" - "$INDEX_HTML" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+html = path.read_text(encoding="utf-8")
+
+# Change browser tab / address-bar title
+html = re.sub(
+    r"<title>.*?</title>",
+    "<title>Arara</title>",
+    html,
+    count=1,
+    flags=re.DOTALL
+)
+
+# Change social/link preview title
+html = re.sub(
+    r'(<meta\s+property="og:title"\s+content=")[^"]*(")',
+    r'\1Arara\2',
+    html
+)
+
+path.write_text(html, encoding="utf-8")
+
+print("==> Homepage title changed to Arara")
+PY
+fi
 
 echo "==> log in"
 TOKEN=$(curl -fsS -X POST -H 'Content-Type: application/json' \
