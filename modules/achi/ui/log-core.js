@@ -811,6 +811,22 @@ function toLocalDateTimeValue(value){
        + `T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+function fmtLastTouchDateTime(value){
+  if(!value) return '—';
+
+  const d=new Date(value);
+  if(isNaN(d)) return String(value||'');
+
+  const p=n=>String(n).padStart(2,'0');
+
+  let hour=d.getHours();
+  const ampm=hour>=12?'PM':'AM';
+  hour=hour%12||12;
+
+  return `${p(d.getDate())} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()} `
+       + `${p(hour)}:${p(d.getMinutes())} ${ampm}`;
+}
+
 function glLastTouchCell(r){
   const when=r.occurred_at||r.created_at||r.last_touch_at;
 
@@ -821,17 +837,25 @@ function glLastTouchCell(r){
 
   const total=channels.reduce((s,k)=>s+t[k],0);
   const abbrs=channels.map(k=>glCommAbbr(k)).join(', ');
-  const sub=[abbrs,total?`${total} total`:''].filter(Boolean).join(' · ');
+  const sub=[abbrs,total?`${total} TOTAL`:''].filter(Boolean).join(' · ');
 
   return `
     <span class="lt">
+      <button
+        type="button"
+        class="lt-date lt-date-button"
+        data-last-touch-open
+        title="Change Last Touch date and time"
+      >${when?esc(fmtLastTouchDateTime(when)):'—'}</button>
+
       <input
         type="datetime-local"
-        class="lt-picker"
+        class="lt-picker-hidden"
         data-last-touch
         value="${esc(toLocalDateTimeValue(when))}"
-        aria-label="Last touch date and time"
+        aria-label="Last Touch date and time"
       >
+
       ${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}
     </span>
   `;
@@ -1288,6 +1312,64 @@ function render(){
   refreshSelectionButton();
   refreshDeleteButton();
 }
+
+/* Open the Last Touch calendar when its displayed date is clicked. */
+$('rows').addEventListener('click',e=>{
+  const button=e.target.closest('[data-last-touch-open]');
+  if(!button) return;
+
+  const cell=button.closest('td');
+  const picker=cell?.querySelector('input[data-last-touch]');
+  if(!picker) return;
+
+  try{
+    picker.showPicker();
+  }catch(_){
+    picker.click();
+  }
+});
+
+
+/* Save the selected Last Touch date + time. */
+$('rows').addEventListener('change',async e=>{
+  const input=e.target.closest('input[data-last-touch]');
+  if(!input) return;
+
+  const tr=input.closest('tr[data-log]');
+  if(!tr) return;
+
+  const logId=tr.dataset.log;
+  const row=ROWS.find(r=>String(r.id)===String(logId));
+  const previous=row?.occurred_at||'';
+
+  try{
+    const occurredAt=input.value
+      ? new Date(input.value).toISOString()
+      : null;
+
+    await api('/logs/'+logId,{
+      method:'PATCH',
+      body:JSON.stringify({
+        occurred_at:occurredAt
+      })
+    });
+
+    if(row) row.occurred_at=occurredAt;
+
+    const label=tr.querySelector('[data-last-touch-open]');
+    if(label){
+      label.textContent=occurredAt
+        ? fmtLastTouchDateTime(occurredAt)
+        : '—';
+    }
+
+    clearErr();
+
+  }catch(err){
+    input.value=toLocalDateTimeValue(previous);
+    fail(err.message||'Could not update Last Touch');
+  }
+});
 
 /* Save the General Log Last Touch date + time. */
 $('rows').addEventListener('change',async e=>{
