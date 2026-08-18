@@ -6,6 +6,19 @@
 (function(){
   let quillDesc = null;
 
+    const DELIVERABLE_OPTIONS = [
+    { key:'srv', label:'SURV' },
+    { key:'dwg', label:'DWG' },
+    { key:'mt',  label:'M/T' },
+    { key:'boq', label:'BOQ' },
+    { key:'cst', label:'CST' },
+    { key:'qte', label:'QTE' }
+  ];
+
+  // Temporary frontend state.
+  // Step 3 will persist these selections in the backend.
+  const attachmentDeliverables = new Map();
+
   /* ── helpers ─────────────────────────────────────────────────────────── */
   function fmtSize(n){
     return n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
@@ -32,17 +45,91 @@
   function currentLogId(){ return typeof rxRowId !== 'undefined' ? rxRowId : null; }
 
   /* ── file list rendering ──────────────────────────────────────────────── */
-  function renderFiles(files){
+
+    function deliverablePickerHTML(f){
+    const id = String(f.id);
+
+    if(!attachmentDeliverables.has(id)){
+      const existing = Array.isArray(f.deliverables)
+        ? f.deliverables
+        : [];
+
+      attachmentDeliverables.set(id, new Set(existing));
+    }
+
+    const selected = attachmentDeliverables.get(id);
+
+    const selectedLabels = DELIVERABLE_OPTIONS
+      .filter(o => selected.has(o.key))
+      .map(o => o.label);
+
+    const buttonText = selectedLabels.length
+      ? selectedLabels.join(', ')
+      : 'Classify file';
+
+    return `
+      <div class="rx-deliv-picker" data-att-id="${esc(id)}">
+
+        <button type="button"
+                class="rx-deliv-btn"
+                data-deliv-toggle>
+          <span>${esc(buttonText)}</span>
+          <span class="rx-deliv-arrow">⌄</span>
+        </button>
+
+        <div class="rx-deliv-menu">
+          ${DELIVERABLE_OPTIONS.map(o => `
+            <label class="rx-deliv-option">
+              <input
+                type="checkbox"
+                value="${esc(o.key)}"
+                data-deliv-option
+                ${selected.has(o.key) ? 'checked' : ''}
+              >
+              <span>${esc(o.label)}</span>
+            </label>
+          `).join('')}
+        </div>
+
+      </div>
+    `;
+  }
+
+    function renderFiles(files){
     const el = document.getElementById('rx-notes-files');
     if(!el) return;
+
     const sec = document.getElementById('rx-attach-section');
-    // Compact preview tiles in a horizontal strip; the whole Attachments section
-    // hides when there's nothing attached.
+
     el.innerHTML = '';
-    if(!files.length){ if(sec) sec.style.display='none'; return; }
-    if(sec) sec.style.display='';
-    const strip=document.createElement('div'); strip.className='att-strip';
-    files.forEach(f => strip.appendChild(attachmentTile(f, 'data-att-del')));
+
+    if(!files.length){
+      if(sec) sec.style.display = 'none';
+      return;
+    }
+
+    if(sec) sec.style.display = '';
+
+    const strip = document.createElement('div');
+    strip.className = 'att-strip';
+
+    files.forEach(f => {
+      const wrap = document.createElement('div');
+      wrap.className = 'rx-att-classified';
+
+      // Existing attachment preview
+      wrap.appendChild(
+        attachmentTile(f, 'data-att-del')
+      );
+
+      // New Deliverables selector
+      const pickerHolder = document.createElement('div');
+      pickerHolder.innerHTML = deliverablePickerHTML(f);
+      wrap.appendChild(pickerHolder.firstElementChild);
+
+      strip.appendChild(wrap);
+    });
+
     el.appendChild(strip);
   }
 
@@ -195,6 +282,71 @@
     /* Clicks on the file list: open or delete */
     if(filesEl){
       filesEl.addEventListener('click', e => {
+                const toggle = e.target.closest('[data-deliv-toggle]');
+
+        if(toggle){
+          e.preventDefault();
+          e.stopPropagation();
+
+          const picker = toggle.closest('.rx-deliv-picker');
+          const menu = picker.querySelector('.rx-deliv-menu');
+
+          // Close any other open Deliverables menu
+          document.querySelectorAll('.rx-deliv-menu.open').forEach(m => {
+            if(m !== menu) m.classList.remove('open');
+          });
+
+          menu.classList.toggle('open');
+          return;
+        }
+              filesEl.addEventListener('change', async e => {
+  const checkbox = e.target.closest('[data-deliv-option]');
+  if(!checkbox) return;
+
+  const picker = checkbox.closest('.rx-deliv-picker');
+  const id = picker.dataset.attId;
+
+  const selected = new Set(
+    [...picker.querySelectorAll('[data-deliv-option]:checked')]
+      .map(cb => cb.value)
+  );
+
+  const deliverables = [...selected];
+
+  // Update button immediately
+  const labels = DELIVERABLE_OPTIONS
+    .filter(o => selected.has(o.key))
+    .map(o => o.label);
+
+  const text = picker.querySelector('[data-deliv-toggle] span');
+
+  if(text){
+    text.textContent = labels.length
+      ? labels.join(', ')
+      : 'Classify file';
+  }
+
+  try{
+    // Save selected classifications to backend
+    await api('/attachments/' + id + '/deliverables', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        deliverables: deliverables
+      })
+    });
+
+    // Only keep frontend state after backend save succeeds
+    attachmentDeliverables.set(id, selected);
+
+  }catch(err){
+    alert('Could not save Deliverables: ' + (err.message || err));
+
+    // Reload attachment from backend to restore real saved state
+    await loadFiles();
+  }
+});
+
+
         const openLink = e.target.closest('[data-att-open]');
         if(openLink){ e.preventDefault();
           const id=openLink.dataset.attOpen, nm=openLink.getAttribute('title')||openLink.textContent||'';

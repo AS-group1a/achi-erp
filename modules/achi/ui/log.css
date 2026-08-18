@@ -911,3 +911,100 @@
   pointer-events:none !important;
   overflow:hidden !important;
 }
+
+/* Deliverables: show only classifications that apply to the log */
+.ldoc.selected-only{
+  color:var(--navy);
+  border-color:#dbe4f0;
+  background:#fff;
+  font-weight:600;
+}
+
+/* Attachment + Deliverables classification */
+.rx-att-classified{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:flex-start;
+}
+
+.rx-deliv-picker{
+  position:relative;
+  width:100%;
+}
+
+.rx-deliv-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+
+  border:1px solid #cdd8e8;
+  border-radius:6px;
+  background:#fff;
+
+  color:#284f9e;
+  font:inherit;
+  font-size:11px;
+  font-weight:700;
+
+  padding:6px 8px;
+  cursor:pointer;
+}
+
+.rx-deliv-btn:hover{
+  background:#f3f6fb;
+}
+
+.rx-deliv-arrow{
+  font-size:13px;
+}
+
+.rx-deliv-menu{
+  display:none;
+
+  position:absolute;
+  top:calc(100% + 4px);
+  left:0;
+
+  z-index:1500;
+
+  min-width:135px;
+
+  padding:6px;
+
+  border:1px solid #cdd8e8;
+  border-radius:8px;
+
+  background:#fff;
+
+  box-shadow:0 10px 30px rgba(15,23,42,.18);
+}
+
+.rx-deliv-menu.open{
+  display:block;
+}
+
+.rx-deliv-option{
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  padding:6px 8px;
+  border-radius:5px;
+
+  color:#1e3a7a;
+  font-size:11.5px;
+  font-weight:700;
+
+  cursor:pointer;
+}
+
+.rx-deliv-option:hover{
+  background:#f1f5f9;
+}
+
+.rx-deliv-option input{
+  margin:0;
+}

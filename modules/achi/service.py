@@ -690,6 +690,20 @@ class ContactFileService:
     async def get_attachment(self, attachment_id: str) -> LogAttachment | None:
         return await self.session.get(LogAttachment, attachment_id)
 
+    async def update_attachment_deliverables(
+        self,
+        att: LogAttachment,
+        deliverables: list[str],
+    ) -> LogAttachment:
+        """Save the selected General Log deliverable classifications."""
+
+        att.deliverables = ",".join(deliverables)
+
+        await self.session.commit()
+        await self.session.refresh(att)
+
+        return att
+
     async def read_attachment(self, att: LogAttachment) -> bytes:
         return await get_storage_backend().get(att.storage_key)
 
@@ -712,12 +726,55 @@ class ContactFileService:
         """Attachment count per log — one grouped query, not one per row."""
         if not log_ids:
             return {}
+
         q = (
             select(LogAttachment.log_id, func.count(LogAttachment.id))
             .where(LogAttachment.log_id.in_(log_ids))
             .group_by(LogAttachment.log_id)
         )
-        return {log_id: n for log_id, n in (await self.session.execute(q)).all()}
+
+        return {
+            log_id: n
+            for log_id, n in (await self.session.execute(q)).all()
+        }
+
+    async def attachment_deliverables(
+        self,
+        log_ids: list[str],
+    ) -> dict[str, set[str]]:
+        """Union of selected deliverables across each log's attachments."""
+
+        if not log_ids:
+            return {}
+
+        rows = (
+            await self.session.execute(
+                select(
+                    LogAttachment.log_id,
+                    LogAttachment.deliverables,
+                ).where(
+                    LogAttachment.log_id.in_(log_ids)
+                )
+            )
+        ).all()
+
+        result: dict[str, set[str]] = {}
+
+        for log_id, raw in rows:
+            if not raw:
+                continue
+
+            selected = {
+                item.strip().lower()
+                for item in raw.split(",")
+                if item.strip()
+            }
+
+            if selected:
+                result.setdefault(log_id, set()).update(selected)
+
+        return result
+
 
     async def doc_signals(self, file_ids: list[str]) -> tuple[set[str], set[str], set[str]]:
         """For the CRM "Docs" pills: which files have a survey / survey with
