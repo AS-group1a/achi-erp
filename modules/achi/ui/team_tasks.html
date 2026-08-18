@@ -549,8 +549,13 @@
           >
             TASK
           </p>
-          <h2 id="achi-task-detail-title">Task details</h2>
-          <p id="achi-task-detail-summary"></p>
+                    <h2 id="achi-task-detail-title">Task details</h2>
+          <p id="achi-task-detail-summary" hidden></p>
+
+          <div class="achi-task-detail-badges">
+            <span id="achi-task-detail-status"></span>
+            <span id="achi-task-detail-priority"></span>
+          </div>
         </div>
 
         <button
@@ -620,10 +625,58 @@
 
       <div class="achi-task-detail-layout">
         <section class="achi-task-detail-main">
-          <div class="achi-task-detail-badges">
-            <span id="achi-task-detail-status"></span>
-            <span id="achi-task-detail-priority"></span>
-          </div>
+                <div
+        class="achi-task-detail-actions"
+        id="achi-task-detail-actions"
+      >
+        <div class="achi-task-detail-actions-primary">
+          <button
+            class="achi-task-button achi-task-button-secondary"
+            type="button"
+            id="achi-task-detail-edit"
+          >
+            Edit
+          </button>
+
+          <button
+            class="achi-task-button achi-task-button-primary"
+            type="button"
+            id="achi-task-detail-approve"
+            hidden
+          >
+            Approve
+          </button>
+
+          <button
+            class="achi-task-button achi-task-button-secondary"
+            type="button"
+            id="achi-task-detail-return"
+            hidden
+          >
+            Return for changes
+          </button>
+
+          <button
+            class="achi-task-button achi-task-button-secondary"
+            type="button"
+            id="achi-task-detail-reopen"
+            hidden
+          >
+            Reopen
+          </button>
+        </div>
+
+        <div class="achi-task-detail-actions-danger">
+          <button
+            class="achi-task-button achi-task-button-danger"
+            type="button"
+            id="achi-task-detail-cancel"
+            hidden
+          >
+            Cancel task
+          </button>
+        </div>
+      </div>
 
           <section class="achi-task-detail-section">
             <h3>Description</h3>
@@ -659,15 +712,15 @@
               id="achi-task-comments-list"
             ></div>
 
-            <form id="achi-task-comment-form">
+            <form id="achi-task-comment-form" id="achi-task-comment-form">
               <label for="achi-task-comment-body">
-                Add a comment
+                Write a comment
               </label>
 
               <textarea
                 id="achi-task-comment-body"
                 maxlength="5000"
-                rows="3"
+                rows="5"
                 required
               ></textarea>
 
@@ -696,8 +749,9 @@
           </section>
         </section>
 
-        <aside class="achi-task-detail-sidebar">
-          <dl>
+          <aside class="achi-task-detail-sidebar">
+          <h3 class="achi-task-detail-sidebar-title">Task details</h3>
+          <dl class="achi-task-detail-list">
             <div>
               <dt>Assigned to</dt>
               <dd id="achi-task-detail-assignee">Unassigned</dd>
@@ -813,6 +867,6 @@
   ></div>
 
   <script src="/api/v1/achi/tasks/team_tasks.js?v=1"></script>
-  <script src="/api/v1/achi/ui/chrome.js?v=24"></script>
+  <script src="/api/v1/achi/ui/chrome.js?v=28"></script>
 </body>
 </html>

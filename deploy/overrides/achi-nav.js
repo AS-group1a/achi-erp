@@ -17,9 +17,6 @@
   // `icon` replaces the cloned link's SVG so the entry doesn't wear Project Files'
   // icon; ?v= busts the service-worker cache when a page changes.
   var ENTRIES = [
-    { id: 'achi-nav-general-log', label: 'General Log', route: '/general-log',
-      href: '/api/v1/achi/general-log/ui?v=1',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>' },
     { id: 'achi-nav-log', label: 'Log', route: '/call-log',
       href: '/api/v1/achi/ui?v=70',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
@@ -27,11 +24,9 @@
       href: '/api/v1/achi/tasks/ui?v=2',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' },
     { id: 'achi-nav-survey', label: 'Site Survey', route: '/site-survey',
-      href: '/api/v1/achi/surveys/table?v=2',
+      href: '/api/v1/achi/survey/ui?v=3',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' },
-    { id: 'achi-nav-quotes', label: 'Quotations', route: '/quotations',
-      href: '/api/v1/achi/quotations/ui?v=1',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h3"/></svg>' }
+
   ];
   var byRoute = function (r) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].route === r) return ENTRIES[i]; return null; };
   var byId = function (id) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].id === id) return ENTRIES[i]; return null; };
@@ -41,6 +36,7 @@
   var CONTACTS_ID = 'achi-nav-contacts';
   var CRM_ID = 'achi-nav-crm';
   var PROSPECTS_ID = 'achi-nav-prospects';
+  var SURVEY_ID = 'achi-nav-survey';
   var QUOTATION_ID = 'achi-nav-quotation';
   var TASKS_ID = 'achi-nav-team-tasks';
   var CONTACTS_ROUTE = '/contacts';
@@ -49,7 +45,7 @@
   var QUOTATION_ROUTE = '/quotation';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
-  var ORDER_KEY = 'achi_sidebar_module_order_v2';
+  var ORDER_KEY = 'achi_sidebar_module_order_v3';
   var dragged = null;
   var draggedAt = 0;
   var arranging = false;
@@ -240,11 +236,15 @@
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
   { id: PROSPECTS_ID, route: PROSPECTS_ROUTE, label: 'PROSP',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M17 11h5M19.5 8.5v5"/></svg>' },
-  { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
+  { id: SURVEY_ID, route: '/site-survey', label: 'Site Survey',
+  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' },
+    { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' },
-  { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotations',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' }
-];
+  { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotation',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' },
+  { id: TASKS_ID, route: '/team-tasks', label: 'Team Tasks',
+  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' }
+  ];
     var previous = logItem;
     specs.forEach(function (spec) {
       var link = document.getElementById(spec.id);
@@ -273,8 +273,11 @@
     // upstream routes and therefore the same Contacts and CRM data.
     moduleItems().forEach(function (item) {
       var link = directLink(item), href = link ? orderId(link) : '';
-      if (link && link.id !== CONTACTS_ID && link.id !== CRM_ID &&
-          (href === CONTACTS_ROUTE || href === CRM_ROUTE)) {
+      if (link &&
+    link.id !== CONTACTS_ID &&
+    link.id !== CRM_ID &&
+    link.id !== QUOTATION_ID &&
+    (href === CONTACTS_ROUTE || href === CRM_ROUTE || href === '/quotations')) {
         item.style.display = 'none';
         item.setAttribute('aria-hidden', 'true');
       }
@@ -519,22 +522,12 @@
   location.assign('/api/v1/achi/quotation/ui');
   return;
 }
-      // Non-admins use ACHI's standalone Contacts and CRM pages. Admins keep
-      // the canonical upstream destinations.
-      if (!isAdminUser()) {
-        location.assign(a.id === CONTACTS_ID
-          ? '/api/v1/achi/contact-info/ui'
-          : '/api/v1/achi/crm/ui');
+      if (a.id === CONTACTS_ID) {
+        location.assign('/api/v1/achi/contact-info/ui');
         return;
       }
-      // CRM opens ACHI's own enquiry table, not the upstream lead/qualified
-      // pipeline. CRM_ROUTE stays '/crm' so the icon-clone + duplicate-hiding
-      // logic above still matches the upstream entry.
-      if (a.id === CRM_ID) {
-        location.assign('/api/v1/achi/crm/ui');
-        return;
-      }
-      location.assign(a.id === CONTACTS_ID ? CONTACTS_ROUTE : CRM_ROUTE);
+
+      location.assign('/api/v1/achi/crm/ui');
       return;
     }
     var entry = byId(a.id) || byRoute(href);
@@ -646,8 +639,9 @@
         || link.id === CONTACTS_ID
         || link.id === CRM_ID
         || link.id === PROSPECTS_ID
+        || link.id === SURVEY_ID
         || link.id === QUOTATION_ID
-        || (link.id === TASKS_ID && canManageTeamTasks)
+        || (link.id === TASKS_ID)
       );      if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
         // the inline display and our marker, so lift both off the keepers.
@@ -741,15 +735,15 @@
     refreshTeamTasksAccess();
     wireSidebarHover();
 
-    var log = document.getElementById(ID);
-    var gen = document.getElementById('achi-nav-general-log');
-    var contacts = document.getElementById(CONTACTS_ID);
-    var crm = document.getElementById(CRM_ID);
-    var prospects = document.getElementById(PROSPECTS_ID);
-    var quotation = document.getElementById(QUOTATION_ID);
-    var tasks = document.getElementById(TASKS_ID);
+  var log = document.getElementById(ID);
+  var contacts = document.getElementById(CONTACTS_ID);
+  var prospects = document.getElementById(PROSPECTS_ID);
+  var survey = document.getElementById(SURVEY_ID);
+  var crm = document.getElementById(CRM_ID);
+  var quotation = document.getElementById(QUOTATION_ID);
+  var tasks = document.getElementById(TASKS_ID);
 
-    if (!(log && gen && contacts && prospects && crm && quotation && tasks)) {
+if (!(log && contacts && prospects && survey && crm && quotation && tasks)) {
       inject();
       ensureOverviewModules();
     }

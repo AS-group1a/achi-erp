@@ -9,6 +9,31 @@
   header .sp{flex:1}
   header .who{font-size:12px;opacity:.75}
   main{margin:0;padding:16px 18px 40px}
+  .achi-log-hero{
+  margin-bottom:22px;
+  padding:22px 26px;
+  background:linear-gradient(135deg,#111827,#1f2937);
+  border-radius:14px;
+  color:#fff;
+}
+.achi-log-hero__eyebrow{
+  margin-bottom:6px;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  opacity:.7;
+}
+.achi-log-hero__title{
+  margin:0;
+  font-size:28px;
+  font-weight:700;
+}
+.achi-log-hero__subtitle{
+  margin:7px 0 0;
+  font-size:14px;
+  opacity:.75;
+}
   .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none}
   .feedback{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;padding:72px 20px 20px;background:rgba(15,35,75,.24);backdrop-filter:blur(2px)}
   .feedback-box{width:min(430px,calc(100vw - 32px));overflow:hidden;border:1px solid #d8e3f3;border-top:4px solid var(--navy);border-radius:12px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.18),0 4px 14px rgba(15,23,42,.08)}

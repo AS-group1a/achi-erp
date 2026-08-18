@@ -567,14 +567,6 @@
 
     try {
       state.access = await request('/access/me');
-
-      if (!state.access.can_manage_team) {
-        setPageError(
-          'This page is for Administrators and Managers. Your account does not have permission to view the team board.',
-        );
-        return;
-      }
-
       await Promise.all([
         loadAssignees(),
         loadTasks(),
@@ -709,7 +701,7 @@
     });
   }
 
-  function renderHistory(events) {
+    function renderHistory(events) {
     const list = $('achi-task-history-list');
     list.replaceChildren();
 
@@ -724,21 +716,19 @@
       const title = el(
         'strong',
         '',
-        event.event_type.replace(/_/g, ' '),
+        HISTORY_EVENT_LABELS[event.event_type] ||
+          event.event_type.replace(/_/g, ' '),
       );
       const time = el('time', '', formatDate(event.created_at));
-      const detail = el(
-        'p',
-        '',
-        event.details ||
-          [event.from_status, event.to_status]
-            .filter(Boolean)
-            .map(status => STATUS_LABELS[status] || status)
-            .join(' → '),
-      );
 
       header.append(title, time);
-      item.append(header, detail);
+      item.append(header);
+
+      const detail = historyDetails(event);
+      if (detail) {
+        item.append(el('p', '', detail));
+      }
+
       list.append(item);
     });
   }
@@ -747,7 +737,7 @@
     const status = task.status;
     const isSupervisor = state.access && state.access.can_manage_team;
 
-    $('achi-task-detail-edit').hidden = !isSupervisor;
+    $('achi-task-detail-edit').hidden = false;
     $('achi-task-detail-approve').hidden =
       !isSupervisor || status !== 'ready_for_review';
     $('achi-task-detail-return').hidden =
@@ -756,6 +746,118 @@
       !isSupervisor || ['completed', 'cancelled'].includes(status);
     $('achi-task-detail-reopen').hidden =
       !isSupervisor || !['completed', 'cancelled'].includes(status);
+  }
+
+    const HISTORY_EVENT_LABELS = {
+    created: 'Task created',
+    assigned: 'Task assigned',
+    reassigned: 'Task reassigned',
+    unassigned: 'Task unassigned',
+    updated: 'Task updated',
+    started: 'Work started',
+    blocked: 'Task blocked',
+    resumed: 'Work resumed',
+    submitted: 'Submitted for review',
+    approved: 'Task approved',
+    returned: 'Returned for changes',
+    cancelled: 'Task cancelled',
+    reopened: 'Task reopened',
+    deleted: 'Task deleted',
+    comment_added: 'Comment added',
+  };
+
+  const HISTORY_FIELD_LABELS = {
+    title: 'title',
+    description: 'description',
+    priority: 'priority',
+    due_at: 'due date',
+    related_type: 'related record type',
+    related_id: 'related record ID',
+    related_label: 'related record label',
+    assigned_to_name: 'assignee',
+  };
+
+  function historyDetails(event) {
+    const raw = typeof event.details === 'string'
+      ? event.details.trim()
+      : '';
+
+    let details = null;
+
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          details = parsed;
+        }
+      } catch (error) {
+        return raw;
+      }
+    }
+
+    if (event.event_type === 'assigned' && details?.new_assignee_name) {
+      return `Assigned to ${details.new_assignee_name}.`;
+    }
+
+    if (event.event_type === 'reassigned' && details?.new_assignee_name) {
+      return `Reassigned to ${details.new_assignee_name}.`;
+    }
+
+    if (event.event_type === 'unassigned') {
+      return 'Assignment removed.';
+    }
+
+    if (event.event_type === 'updated' && Array.isArray(details?.changed_fields)) {
+      const fields = details.changed_fields
+        .map(field => HISTORY_FIELD_LABELS[field] || field.replace(/_/g, ' '))
+        .join(', ');
+      return fields ? `Updated ${fields}.` : '';
+    }
+
+    if (event.event_type === 'blocked') {
+      return 'A blocking reason was recorded.';
+    }
+
+    if (event.event_type === 'submitted') {
+      return details?.has_note
+        ? 'Submitted for review with a note.'
+        : 'Submitted for review.';
+    }
+
+    if (event.event_type === 'approved') {
+      return details?.has_note
+        ? 'Approved with a review note.'
+        : 'Approved.';
+    }
+
+    if (event.event_type === 'returned') {
+      return 'Returned for changes with feedback.';
+    }
+
+    if (event.event_type === 'cancelled') {
+      return 'Cancelled with a reason.';
+    }
+
+    if (event.event_type === 'reopened') {
+      return details?.has_note
+        ? 'Reopened with a note.'
+        : 'Reopened.';
+    }
+
+    if (event.event_type === 'comment_added') {
+      return 'A comment was added.';
+    }
+
+    if (event.from_status && event.to_status &&
+        event.from_status !== event.to_status) {
+      return `Moved from ${
+        STATUS_LABELS[event.from_status] || event.from_status
+      } to ${
+        STATUS_LABELS[event.to_status] || event.to_status
+      }.`;
+    }
+
+    return '';
   }
 
   function renderTaskDetail(task, comments, history) {

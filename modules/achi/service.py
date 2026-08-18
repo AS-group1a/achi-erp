@@ -29,63 +29,30 @@ _UNSAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 # stages not listed here ("other": drawing, boq, resources, costing, pricing,
 # negotiation, accepted, cancelled, on_hold) never assign or change a code — a
 # file parked in one of them keeps whatever code it last had (frozen).
-STAGE_CODE_BUCKETS: dict[str, str] = {
-    "prospect": "PROSP",
-    "outreach": "ENQ",
-    "follow_up": "ENQ",
-    "first_contact": "ENQ",
-    "second_follow_up": "ENQ",
-    "enquiry": "ENQ",
-    "site_survey": "SV",
-    "takeoff": "MT",
-    "quotation": "QUOT",
-}
-_CODE_RE = re.compile(r"^([A-Z]+)-?(\d+)$")
 
-LOG_CODE_ORDER = {
-    "PROSP": 0,
-    "ENQ": 1,
-    "SV": 2,
-    "MT": 3,
-    "QUOT": 4,
-}
+# Set once per process the first time the log feed is served, so the one-time
+# backfill of existing rows isn't re-attempted on every request.
+
+
+_NUMERIC_LOG_CODE_RE = re.compile(r"^[1-9]\d*$")
+
+# PostgreSQL transaction-scoped advisory lock for global Log-number allocation.
+# This prevents concurrent Log creation transactions from receiving the same
+# permanent number.
+_LOG_NUMBER_LOCK = 681_246_020
 
 
 def _log_code_sort_key(code: str | None) -> tuple[int, int, str]:
-    m = _CODE_RE.match(code or "")
-    if not m:
-        return (999, 999999, code or "")
+    """Sort permanent numeric Log IDs numerically and tolerate legacy codes."""
+    value = (code or "").strip()
 
-    prefix = m.group(1)
-    number = int(m.group(2))
+    if _NUMERIC_LOG_CODE_RE.fullmatch(value):
+        return (0, int(value), "")
 
-    return (
-        LOG_CODE_ORDER.get(prefix, 999),
-        number,
-        code or "",
-    )
-# Set once per process the first time the log feed is served, so the one-time
-# backfill of existing rows isn't re-attempted on every request.
-_backfill_attempted = False
+    # Legacy prefix-coded records remain readable until the explicit
+    # one-time renumbering migration.
+    return (1, 0, value)
 
-
-def _bucket_for_stage(stage: str | None) -> str | None:
-    """The code bucket a stage belongs to, or None for an 'other' stage."""
-    return STAGE_CODE_BUCKETS.get(stage or "")
-
-
-def _stages_for_bucket(bucket: str) -> list[str]:
-    return [s for s, b in STAGE_CODE_BUCKETS.items() if b == bucket]
-
-
-def _code_prefix(code: str | None) -> str | None:
-    m = _CODE_RE.match(code or "")
-    return m.group(1) if m else None
-
-
-def _code_number(code: str | None) -> int | None:
-    m = _CODE_RE.match(code or "")
-    return int(m.group(2)) if m else None
 
 
 def parse_comm_tally(raw: str | None) -> dict[str, int]:
@@ -334,7 +301,7 @@ class ContactFileService:
             tenant_id=user_id,
             **data.model_dump(exclude={"contact_id", "person"}),
         )
-        await self._assign_new_code(f)   # General Log "#" code, if the stage is tracked
+        await self._assign_new_code(f)   # permanent global General Log "#"
         self.session.add(f)
         await self.session.commit()   # the bridge never commits — that's ours to do
         await self.session.refresh(f)
@@ -362,120 +329,51 @@ class ContactFileService:
             return None
         return _display_name(await self.session.get(Contact, contact_id))
 
-    # ── General Log "#" code assignment ──────────────────────────────────────
-    async def _bucket_holders(self, bucket: str) -> list[ContactFile]:
-        """Every file that occupies a numbered slot in this bucket.
-
-        That's any file whose code already carries the bucket's prefix (live or
-        frozen), plus any file whose current stage maps to the bucket — the
-        union, so a fresh number never collides with a frozen one.
-        """
-        q = select(ContactFile).where(
-            or_(
-                ContactFile.log_code.like(f"{bucket}%"),
-                ContactFile.stage.in_(_stages_for_bucket(bucket)),
-            )
-        )
-        return list((await self.session.execute(q)).scalars().all())
+    # ── General Log permanent numeric "#" assignment ────────────────────────
 
     async def _assign_new_code(self, f: ContactFile) -> None:
-        """Give ``f`` the next free code in the bucket its stage maps to.
+        """Assign one permanent global numeric Log number.
 
-        Appends (max existing number + 1) so it never clashes with a frozen
-        holder. No-op when the stage is untracked.
+        Allocation is serialized with a PostgreSQL transaction-scoped advisory
+        lock so concurrent creates cannot receive the same number.
+
+        During the temporary migration period, legacy prefix-coded rows still
+        count as occupied records. This keeps newly-created numeric IDs above
+        the existing population so they do not need to change during the later
+        one-time renumbering.
         """
-        bucket = _bucket_for_stage(f.stage)
-        if not bucket:
-            return
-        nums = [
-            _code_number(h.log_code)
-            for h in await self._bucket_holders(bucket)
-            if h.id != f.id and _code_prefix(h.log_code) == bucket
+        await self.session.execute(
+            select(func.pg_advisory_xact_lock(_LOG_NUMBER_LOCK))
+        )
+
+        codes = list(
+            (
+                await self.session.execute(
+                    select(ContactFile.log_code)
+                )
+            ).scalars().all()
+        )
+
+        numeric_numbers = [
+            int(value.strip())
+            for value in codes
+            if isinstance(value, str)
+            and _NUMERIC_LOG_CODE_RE.fullmatch(value.strip())
         ]
-        nums = [n for n in nums if n]
-        f.log_code = f"{bucket}-{(max(nums) + 1) if nums else 1:04d}"
 
-    async def _renumber_bucket(self, bucket: str, *, exclude_id: str | None = None) -> None:
-        """Compact the live holders of a bucket to close a freed-up gap.
+        # While legacy prefix-coded rows still exist, the total ContactFile
+        # population reserves their future numeric slots. Once migration is
+        # complete, max_numeric keeps numbering monotonic even if gaps exist.
+        existing_count = len(codes)
+        max_numeric = max(numeric_numbers, default=0)
 
-        Frozen holders (a file parked in an 'other' stage but still carrying this
-        bucket's code) keep their number — the user asked that those never
-        change — so live rows are packed into the lowest numbers *around* them,
-        which also guarantees no two rows share a code.
-        """
-        holders = [
-            h for h in await self._bucket_holders(bucket)
-            if _code_prefix(h.log_code) == bucket and h.id != exclude_id
-        ]
-        reserved = {
-            _code_number(h.log_code)
-            for h in holders
-            if _bucket_for_stage(h.stage) != bucket and _code_number(h.log_code)
-        }
-        live = [h for h in holders if _bucket_for_stage(h.stage) == bucket]
-        live.sort(key=lambda h: _code_number(h.log_code) or 0)
-        n = 0
-        for h in live:
-            n += 1
-            while n in reserved:
-                n += 1
-            code = f"{bucket}-{n:04d}"
-            if h.log_code != code:
-                h.log_code = code
+        f.log_code = str(max(existing_count, max_numeric) + 1)
 
-    async def _apply_stage_code(self, f: ContactFile, old_stage: str | None) -> None:
-        """Re-code ``f`` (and heal siblings) after its stage changed.
-
-        - Into an 'other' stage → keep the frozen code, keep the slot held.
-        - Within the same bucket (e.g. outreach → enquiry) → code unchanged.
-        - Into a different tracked bucket → append a fresh code there, then
-          close the gap left behind in the old bucket.
-        """
-        new_bucket = _bucket_for_stage(f.stage)
-        old_bucket = _code_prefix(f.log_code)
-        if new_bucket is None or old_bucket == new_bucket:
-            return
-        await self._assign_new_code(f)   # f.log_code now carries new_bucket
-        if old_bucket:
-            await self._renumber_bucket(old_bucket, exclude_id=f.id)
-
-    async def backfill_codes(self) -> bool:
-        """One-time: code every un-coded file that sits in a tracked stage.
-
-        Ordered by creation time so the oldest file in each bucket is 001.
-        Idempotent — files already coded, or in an 'other' stage, are skipped.
-        """
-        files = list((await self.session.execute(
-            select(ContactFile).where(ContactFile.log_code.is_(None))
-        )).scalars().all())
-        by_bucket: dict[str, list[ContactFile]] = {}
-        for x in files:
-            b = _bucket_for_stage(x.stage)
-            if b:
-                by_bucket.setdefault(b, []).append(x)
-        if not by_bucket:
-            return False
-        for bucket, items in by_bucket.items():
-            items.sort(key=lambda x: (x.created_at or datetime.min.replace(tzinfo=timezone.utc), x.file_number))
-            existing = [
-                _code_number(h.log_code)
-                for h in await self._bucket_holders(bucket)
-                if _code_prefix(h.log_code) == bucket
-            ]
-            n = max([e for e in existing if e], default=0)
-            for x in items:
-                n += 1
-                x.log_code = f"{bucket}-{n:04d}"
-        await self.session.commit()
-        return True
 
     async def update(self, f: ContactFile, data: ContactFileUpdate) -> ContactFile:
         d = data.model_dump(exclude_unset=True)
-        old_stage = f.stage
         for k, v in d.items():
             setattr(f, k, v)
-        if "stage" in d and d["stage"] != old_stage:
-            await self._apply_stage_code(f, old_stage)
         await self.session.commit()
         await self.session.refresh(f)
         return f
@@ -899,9 +797,7 @@ class ContactFileService:
                 tenant_id=user_id,
                 **site,
             )
-            # Assign the General Log # based on the selected/default stage
             await self._assign_new_code(f)
-
             self.session.add(f)
             await self.session.flush()
 

@@ -879,6 +879,29 @@ body[data-achi-title="Team Tasks"] textarea:focus-visible {
   font-weight: 800;
 }
 
+.achi-task-dialog-header .achi-task-detail-badges {
+  margin: 12px 0 0;
+}
+
+.achi-task-dialog-header .achi-task-detail-badges > span {
+  min-height: 28px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.achi-task-detail-actions {
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff;
+}
+
+.achi-task-detail-actions-primary,
+.achi-task-detail-actions-danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .achi-task-blocked-section,
 .achi-task-review-section {
   padding: 13px;
@@ -1216,6 +1239,34 @@ body[data-achi-title="Team Tasks"] textarea:focus-visible {
   font-size: 13px;
 }
 
+.achi-task-detail-sidebar-title {
+  margin: 0 0 14px;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.achi-task-detail-sidebar .achi-task-detail-list {
+  border-top: 0;
+}
+
+.achi-task-detail-sidebar .achi-task-detail-list > div {
+  grid-template-columns: minmax(92px, .75fr) minmax(0, 1.25fr);
+  gap: 12px;
+  padding: 11px 0;
+}
+
+.achi-task-detail-sidebar .achi-task-detail-list dd {
+  text-align: left;
+  font-size: 13px;
+}
+
+
+.achi-task-detail-main .achi-task-comment-form textarea {
+  min-height: 132px;
+}
 .achi-task-terminal-results > header span {
   display: inline-flex;
   align-items: center;
@@ -1241,4 +1292,23 @@ body[data-achi-title="Team Tasks"] textarea:focus-visible {
 }
 .achi-task-column-done > header {
   border-top-color: #159a63;
+}
+
+.achi-task-detail-layout {
+  align-items: start;
+}
+
+.achi-task-detail-sidebar {
+  align-self: start;
+  margin: 18px 18px 18px 0;
+  padding: 18px;
+  border: 1px solid var(--achi-task-line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+@media (max-width: 760px) {
+  .achi-task-detail-sidebar {
+    margin: 0 16px 16px;
+  }
 }
