@@ -1266,7 +1266,20 @@ function draftCell(c,dp,st,rowNumber){
   if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
   // Frappe's CRM Log draft rows show the actual creation value as
   // DD/MM/YYYY HH:MM instead of the relative placeholder "now".
-  if(c.k==='when') return dateTimeHTML(new Date());
+  if(c.k==='when'){
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const hour = d.getHours();
+  const h = hour % 12 || 12;
+
+  const text =
+    `${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ` +
+    `${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`;
+
+  return `<span class="lt-date">${esc(text)}</span>`;
+  }
   if(c.k==='status') return `<input class="din pg-select-input draft-popup-select" id="${dp}-status" data-dp="${dp}" data-dk="status" data-select-value="${esc(st.status||'open')}" value="${esc(label(st.status||'open'))}" readonly>`;
   if(c.k==='owner') return `<span class="mt">you</span>`;
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');

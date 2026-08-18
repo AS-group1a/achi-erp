@@ -1125,9 +1125,6 @@ class ContactFileService:
         )
         rows = list((await self.session.execute(q)).all())
 
-        if not deleted:
-            rows.sort(key=lambda row: _log_code_sort_key(row[1].log_code))
-
         return rows
 
     async def log_stats(self) -> dict[str, int]:
