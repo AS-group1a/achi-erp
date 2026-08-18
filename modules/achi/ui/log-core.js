@@ -779,8 +779,21 @@ function glStageCell(r){
   return `<div class="lstage"><span class="lstage-top"><span class="lstage-dot" style="background:${color}"></span><span class="lstage-label" style="color:${color}">${esc(glStageLabel(k))}</span><svg class="lstage-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg></span><span class="lstage-bar">${segs}</span></div>`;
 }
 const GL_DOCS=[['srv','SURV'],['dwg','DWG'],['mt','M/T'],['boq','BOQ'],['cst','CST'],['qte','QTE']];
-function glDocsCell(r){const d=r.docs||{};return `<div class="ldocs">${GL_DOCS.map(([k,lb])=>`<span class="ldoc${d[k]?' on':''}">${lb}</span>`).join('')}</div>`;}
-const GL_COMM_COLOR={Call:'#2563eb',Phone:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',SMS:'#0891b2',Instagram:'#db2777',Facebook:'#1d4ed8',LinkedIn:'#0a66c2',X:'#0f172a',TikTok:'#0f172a',Other:'#64748b'};
+function glDocsCell(r){
+  const d=r.docs||{};
+
+  const selected=GL_DOCS.filter(([k])=>d[k]);
+
+  if(!selected.length){
+    return '<span class="mt">—</span>';
+  }
+
+  return `<div class="ldocs">${
+    selected
+      .map(([k,lb])=>`<span class="ldoc selected-only">${esc(lb)}</span>`)
+      .join('')
+  }</div>`;
+}const GL_COMM_COLOR={Call:'#2563eb',Phone:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',SMS:'#0891b2',Instagram:'#db2777',Facebook:'#1d4ed8',LinkedIn:'#0a66c2',X:'#0f172a',TikTok:'#0f172a',Other:'#64748b'};
 // Short two/three-letter tags for the Communication pills (photo #3).
 const GL_COMM_ABBR={Call:'PH',Phone:'PH',Email:'EM',WhatsApp:'WA','In-person':'IP',SMS:'SMS',Instagram:'IG',Facebook:'FB',LinkedIn:'LI',X:'X',TikTok:'TT',Other:'··'};
 const glCommColor=k=>GL_COMM_COLOR[k]||'#64748b';
@@ -1840,16 +1853,23 @@ function openExpandedRow(explicitId){
                 F('Floor',    IN('floor','GF',val('floor'))))
     +`</div>`;
   html+=`<div class="rx-notes">
-    <div class="rx-notes-head">
-      <h4>Quick notes — no time? dump everything here</h4>
-      ${isNew ? '' : `<button type="button" class="rx-notes-attach-btn" id="rx-notes-attach-btn">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M13.5 9.5v2a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2"/>
-          <polyline points="10.5 5.5 8 3 5.5 5.5"/>
-          <line x1="8" y1="3" x2="8" y2="10.5"/>
-        </svg>
-        Attach file</button>`}
-    </div>
+    <div class="rx-notes-head" id="rx-notes-head">
+  <h4>Quick notes — no time? dump everything here</h4>
+
+  <button type="button"
+          class="rx-notes-attach-btn"
+          id="rx-notes-attach-btn">
+    <svg viewBox="0 0 24 24"
+         fill="none"
+         stroke="currentColor"
+         stroke-width="2"
+         stroke-linecap="round"
+         stroke-linejoin="round">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+    </svg>
+    Attach file
+  </button>
+</div>
     <div class="rx-notes-subject-row">
       <input type="text" class="rx-notes-subject" id="rx-notes-subject" placeholder="Subject…" maxlength="200" autocomplete="off">
       ${SEL('notesubject',[...allNoteSubjects(),NOTE_SUBJECT_ADD],'',true,true)}

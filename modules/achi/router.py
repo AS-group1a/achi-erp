@@ -31,6 +31,7 @@ from . import access
 
 from .manifest import manifest as MANIFEST
 from .schemas import (
+    AttachmentDeliverablesUpdate,
     AttachmentOut,
     ContactFileCreate,
     ContactFileListOut,
@@ -1473,6 +1474,33 @@ async def open_in_takeoff(
     await session.commit()
     return {"url": _takeoff_url(kind, ext_id, pid), "project_id": pid, "kind": kind}
 
+@router.patch(
+    "/attachments/{attachment_id}/deliverables",
+    response_model=AttachmentOut,
+    summary="Classify an attachment by deliverable",
+)
+async def update_attachment_deliverables(
+    attachment_id: str,
+    data: AttachmentDeliverablesUpdate,
+    session: SessionDep,
+    _user_id: CurrentUserId,
+) -> AttachmentOut:
+    svc = ContactFileService(session)
+
+    att = await svc.get_attachment(attachment_id)
+
+    if att is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "Attachment not found"
+        )
+
+    att = await svc.update_attachment_deliverables(
+        att,
+        data.deliverables,
+    )
+
+    return AttachmentOut.model_validate(att)
 
 @router.delete(
     "/attachments/{attachment_id}",
@@ -1560,9 +1588,12 @@ async def list_logs(
     # index rather than unpack: list_logs' tuple width changes when a column is
     # added to its select (owner name was the last one), and a positional unpack
     # here breaks the endpoint when it does
-    counts = await svc.attachment_counts([r[0].id for r in rows])
-    # CRM "Docs" pills: which files have a survey / measurements / quotation.
-    survey_files, measured_files, quote_files = await svc.doc_signals([r[1].id for r in rows])
+    log_ids = [r[0].id for r in rows]
+
+    counts = await svc.attachment_counts(log_ids)
+
+    # Deliverables selected on this log's attached files.
+    attachment_docs = await svc.attachment_deliverables(log_ids)
     # General Log Communication pills + Last Touch: per-file channel breakdown.
     comm_summary = await svc.communication_summary([r[1].id for r in rows])
     # Addresses we've already emailed (any teammate, successfully sent) — one query,
@@ -1659,12 +1690,12 @@ async def list_logs(
                 assigned=f.assigned_to_user_id,
                 assigned_name=assigned_name,
                 docs={
-                    "srv": f.id in survey_files,
-                    "dwg": bool(log.has_drawing),
-                    "mt": f.id in measured_files,
-                    "boq": False,
-                    "cst": False,
-                    "qte": f.id in quote_files,
+                    "srv": "srv" in attachment_docs.get(log.id, set()),
+                    "dwg": "dwg" in attachment_docs.get(log.id, set()),
+                    "mt":  "mt"  in attachment_docs.get(log.id, set()),
+                    "boq": "boq" in attachment_docs.get(log.id, set()),
+                    "cst": "cst" in attachment_docs.get(log.id, set()),
+                    "qte": "qte" in attachment_docs.get(log.id, set()),
                 },
                 comm_counts=comm.get("counts") or None,
                 comm_total=comm.get("total") or 0,

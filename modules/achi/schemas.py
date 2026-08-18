@@ -25,7 +25,7 @@ STATUSES = ("open", "scheduled", "viewed", "cancelled", "done", "transferred")
 # editable instead of failing validation on their next save.
 LOG_TYPES = ("Prospect", "Lead", "Client", "Field", "Fleet", "Yard",
              "Invoice", "Balance", "General")
-
+DELIVERABLE_KEYS = ("srv", "dwg", "mt", "boq", "cst", "qte")
 
 class ModuleInfo(BaseModel):
     module: str
@@ -229,6 +229,28 @@ class FileLogUpdate(BaseModel):
     # the service from the payload, never trusted from the client.
     drawing: str | None = None
 
+class AttachmentDeliverablesUpdate(BaseModel):
+    """Deliverable classifications selected for one attached file."""
+
+    deliverables: list[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("deliverables")
+    @classmethod
+    def _validate_deliverables(cls, value: list[str]) -> list[str]:
+        clean = []
+
+        for item in value:
+            key = str(item).strip().lower()
+
+            if key not in DELIVERABLE_KEYS:
+                raise ValueError(
+                    f"deliverable must be one of {DELIVERABLE_KEYS}"
+                )
+
+            if key not in clean:
+                clean.append(key)
+
+        return clean
 
 class AttachmentOut(BaseModel):
     """One file attached to a log — what the popup's file list renders."""
@@ -240,7 +262,26 @@ class AttachmentOut(BaseModel):
     filename: str
     content_type: str
     size_bytes: int
+
+    # Stored in the DB as "srv,dwg,mt", returned to JS as ["srv","dwg","mt"].
+    deliverables: list[str] = Field(default_factory=list)
+
     created_at: datetime
+
+    @field_validator("deliverables", mode="before")
+    @classmethod
+    def _parse_deliverables(cls, value):
+        if not value:
+            return []
+
+        if isinstance(value, str):
+            return [
+                item.strip().lower()
+                for item in value.split(",")
+                if item.strip().lower() in DELIVERABLE_KEYS
+            ]
+
+        return value
 
 
 class FileLogOut(BaseModel):
