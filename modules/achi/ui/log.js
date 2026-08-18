@@ -1447,6 +1447,7 @@ function openCommAddMenu(btn){
   setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
 
+
 /* Optional page-level configuration for General Log-style workspaces.
 
    No page sets ACHI_LOG_FILTER in Step 1, so this returns /logs/ and preserves
@@ -1476,11 +1477,24 @@ function logListPath(){
   return query ? '/logs/?'+query : '/logs/';
 }
 
-async function load(){ try{
-  ROWS=await api(logListPath());
-  try{ sessionStorage.setItem(ROW_CACHE_KEY,JSON.stringify(ROWS)); }catch(_){}
-  stats(); render();
-}catch(e){ fail(e.message); } }
+async function load(){
+  try{
+    ROWS = await api(logListPath());
+
+    try{
+      sessionStorage.setItem(
+        ROW_CACHE_KEY,
+        JSON.stringify(ROWS)
+      );
+    }catch(_){}
+
+    await stats();
+    render();
+
+  }catch(e){
+    fail(e.message);
+  }
+}
 
 /* tabs = scroll positions */
 const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
