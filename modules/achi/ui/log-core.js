@@ -780,9 +780,42 @@ function glStageCell(r){
 }
 const GL_DOCS=[['srv','SURV'],['dwg','DWG'],['mt','M/T'],['boq','BOQ'],['cst','CST'],['qte','QTE']];
 function glDocsCell(r){
-  const d=r.docs||{};
+  const raw = Array.isArray(r.deliverables)
+    ? r.deliverables
+    : [];
 
-  const selected=GL_DOCS.filter(([k])=>d[k]);
+  let selected = raw.map(value => {
+    const name = String(value || '').trim();
+
+    if(!name) return null;
+
+    const fixed = GL_DOCS.find(
+      ([k]) => k.toLowerCase() === name.toLowerCase()
+    );
+
+    return fixed ? fixed[1] : name;
+  }).filter(Boolean);
+
+  // Fallback for older rows/API responses.
+  if(!selected.length){
+    const d = r.docs || {};
+
+    selected = GL_DOCS
+      .filter(([k]) => d[k])
+      .map(([, label]) => label);
+  }
+
+  // Remove duplicates without changing the displayed name.
+  const seen = new Set();
+
+  selected = selected.filter(name => {
+    const key = name.toLowerCase();
+
+    if(seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
 
   if(!selected.length){
     return '<span class="mt">—</span>';
@@ -790,25 +823,12 @@ function glDocsCell(r){
 
   return `<div class="ldocs">${
     selected
-      .map(([k,lb])=>`<span class="ldoc selected-only">${esc(lb)}</span>`)
+      .map(name =>
+        `<span class="ldoc selected-only">${esc(name)}</span>`
+      )
       .join('')
   }</div>`;
-}const GL_COMM_COLOR={Call:'#2563eb',Phone:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',SMS:'#0891b2',Instagram:'#db2777',Facebook:'#1d4ed8',LinkedIn:'#0a66c2',X:'#0f172a',TikTok:'#0f172a',Other:'#64748b'};
-// Short two/three-letter tags for the Communication pills (photo #3).
-const GL_COMM_ABBR={Call:'PH',Phone:'PH',Email:'EM',WhatsApp:'WA','In-person':'IP',SMS:'SMS',Instagram:'IG',Facebook:'FB',LinkedIn:'LI',X:'X',TikTok:'TT',Other:'··'};
-const glCommColor=k=>GL_COMM_COLOR[k]||'#64748b';
-const glCommAbbr=k=>GL_COMM_ABBR[k]||String(k||'').slice(0,2).toUpperCase();
-const glCommPill=(k,n)=>{const c=glCommColor(k);return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14" title="${esc(k)}${n!=null?': '+n:''}">${esc(glCommAbbr(k))}${n!=null?' '+n:''}</span>`;};
-// Channels the "+" menu offers on the Communication cell (kept short on purpose).
-const GL_COMM_ADD=[
-  'Call',
-  'WhatsApp',
-  'Email',
-  'LinkedIn',
-  'Facebook',
-  'Instagram',
-  'X'
-];
+}
 /* This log's own per-channel counters, seeded from the legacy single
    `communication` value the first time so old rows upgrade seamlessly. */
 function glCommTally(r){
@@ -1873,12 +1893,10 @@ function openExpandedRow(explicitId){
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',socialHandles,
     F('Reference',SEL('reference',[...allReferences(),REFERENCE_ADD],val('reference'),true)));
-  html+=g('rx-g3',
-    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
-    F('Log subject', SEL('subject',[...new Set([val('subject'),...allSubjects()].filter(Boolean)),SUBJECT_ADD],val('subject'),true)),
-    // One OR MORE tags — click to open a checkbox dropdown (the same picker the
-    // grid uses). Selections are stored comma-joined in this data-k="tags" input.
-    F('Tags',        `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
+  html+=g('rx-g2',
+  F('Log type', SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
+  // One OR MORE tags — click to open a checkbox dropdown.
+  F('Tags', `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
@@ -2333,7 +2351,6 @@ function rxExtrasChanged(r){
   let saved='[]'; try{ saved=JSON.stringify(JSON.parse(r.socials||'[]')); }catch(e){}
   return rxExtraCur('role')!==String(r.role||'')
     || rxExtraCur('company_type')!==String(r.company_type||'')
-    || rxExtraCur('subject')!==String(r.subject||'')
     || rxExtraCur('no')!==String(r.site_number||'')
     || rxExtraCur('bldg')!==String(r.site_building||'')
     || rxExtraCur('floor')!==String(r.site_floor||'')
@@ -2344,14 +2361,19 @@ async function rxSaveExtras(r){
     lead_role: rxExtraCur('role')||null,
     lead_company_type: rxExtraCur('company_type')||null,
     lead_socials: JSON.stringify(rxCollectSocials()),
-    subject: rxExtraCur('subject')||'',
     site_number: rxExtraCur('no')||null,
     site_building: rxExtraCur('bldg')||null,
     site_floor: rxExtraCur('floor')||null,
   };
   await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify(patch)});
-  Object.assign(r,{role:patch.lead_role,company_type:patch.lead_company_type,socials:patch.lead_socials,
-    subject:patch.subject,site_number:patch.site_number,site_building:patch.site_building,site_floor:patch.site_floor});
+  Object.assign(r,{
+  role:patch.lead_role,
+  company_type:patch.lead_company_type,
+  socials:patch.lead_socials,
+  site_number:patch.site_number,
+  site_building:patch.site_building,
+  site_floor:patch.site_floor
+});
 }
 function rxCollectNew(){
   const v={};
