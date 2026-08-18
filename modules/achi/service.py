@@ -1029,7 +1029,14 @@ class ContactFileService:
         )
         return row.scalar_one_or_none()
 
-    async def list_logs(self, *, limit: int = 200, deleted: bool = False) -> list[tuple]:
+    async def list_logs(
+    self,
+    *,
+    limit: int = 200,
+    deleted: bool = False,
+    stages: tuple[str, ...] = (),
+    log_type: str | None = None,
+) -> list[tuple]:
         """Log rows joined to their file — one query, not N+1.
 
         User is joined for the owner's name: the grid shows initials, and without
@@ -1051,6 +1058,8 @@ class ContactFileService:
             .outerjoin(User, ContactFile.owner_user_id == User.id)
             .outerjoin(assigned_user, ContactFile.assigned_to_user_id == assigned_user.id)
             .where(FileLog.deleted_at.is_not(None) if deleted else FileLog.deleted_at.is_(None))
+            .where(ContactFile.stage.in_(stages) if stages else True)
+            .where(FileLog.log_type == log_type if log_type else True)
             .order_by((FileLog.deleted_at if deleted else FileLog.created_at).desc())
             .limit(limit)
         )

@@ -154,6 +154,25 @@
      read by log-core.js (COLS + which columns freeze); everything else is shared. -->
 <script>
   window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
+  window.ACHI_LOG_FILTER = {
+  stages: [
+    'enquiry',
+    'site_survey',
+    'drawing',
+    'takeoff',
+    'boq',
+    'resources',
+    'costing',
+    'pricing',
+    'quotation',
+  ],
+};
+  window.ACHI_LOG_TAB_FIRST_KEYS = {
+  0: 'num',
+  1: 'mobile',
+  2: 'maps',
+  3: 'communication',
+};
   window.ACHI_FIXED_KEYS = [];   // no frozen columns
   window.ACHI_LOG_COLS = [
     {k:'num',          h:'#',              tab:null, w:92},

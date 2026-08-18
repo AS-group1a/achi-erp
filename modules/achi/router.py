@@ -46,6 +46,7 @@ from .schemas import (
     ModuleInfo,
     QuickLogCreate,
     QuickLogOut,
+    STAGES,
 )
 from .service import CONTACT_INFO_TAG, ContactFileService, parse_comm_tally
 from .quotation_router import quotation_router
@@ -193,6 +194,24 @@ def crm_ui() -> HTMLResponse:
         (_UI_DIR / "crm_general_log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+@router.get(
+    "/quotation/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="QUOTATION workspace UI",
+)
+def quotation_workspace_ui() -> HTMLResponse:
+    """Serve the General Log-style QUOTATION workspace.
+
+    It reads the same Log rows as the other workspaces. The page-level stage
+    filter limits its visible rows to quotation workflow stages.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "quotation_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
 
 
 @router.get(
@@ -1494,6 +1513,16 @@ async def list_logs(
     _user_id: CurrentUserId,
     limit: int = Query(default=200, ge=1, le=1000),
     deleted: bool = Query(default=False, description="Return soft-deleted logs (Deleted Logs view) instead of active ones"),
+    stages: str | None = Query(
+        default=None,
+        max_length=512,
+        description="Comma-separated Contact File stage keys",
+    ),
+    log_type: str | None = Query(
+        default=None,
+        max_length=64,
+        description="Exact File Log type",
+    ),
 ) -> list[LogRowOut]:
     from .models import AchiEmail
 
@@ -1507,7 +1536,27 @@ async def list_logs(
             await svc.backfill_codes()
         except Exception:
             logger.exception("achi: log_code backfill failed")
-    rows = await svc.list_logs(limit=limit, deleted=deleted)
+    requested_stages = tuple(
+        dict.fromkeys(
+            value.strip()
+            for value in (stages or "").split(",")
+            if value.strip()
+        )
+    )
+    invalid_stages = sorted(set(requested_stages).difference(STAGES))
+    if invalid_stages:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Unknown stage value(s): {', '.join(invalid_stages)}",
+        )
+
+    requested_log_type = (log_type or "").strip() or None
+    rows = await svc.list_logs(
+        limit=limit,
+        deleted=deleted,
+        stages=requested_stages,
+        log_type=requested_log_type,
+    )
     # index rather than unpack: list_logs' tuple width changes when a column is
     # added to its select (owner name was the last one), and a positional unpack
     # here breaks the endpoint when it does
