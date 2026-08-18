@@ -41,10 +41,12 @@
   var CONTACTS_ID = 'achi-nav-contacts';
   var CRM_ID = 'achi-nav-crm';
   var PROSPECTS_ID = 'achi-nav-prospects';
+  var QUOTATION_ID = 'achi-nav-quotation';
   var TASKS_ID = 'achi-nav-team-tasks';
   var CONTACTS_ROUTE = '/contacts';
   var CRM_ROUTE = '/crm';
   var PROSPECTS_ROUTE = '/prospects';
+  var QUOTATION_ROUTE = '/quotation';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
   var ORDER_KEY = 'achi_sidebar_module_order_v2';
@@ -222,7 +224,7 @@
     for (var i = 0; i < a.length; i++) {
       var el = a[i];
       if (el.id === CONTACTS_ID || el.id === CRM_ID ||
-          el.id === PROSPECTS_ID || el.id === ID) continue;
+          el.id === PROSPECTS_ID || el.id === QUOTATION_ID || el.id === ID) continue;
       var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
       if (href === route) { var li = el.closest('li'); if (li) return li; }
     }
@@ -234,13 +236,15 @@
     var logItem = log && log.closest('li');
     if (!logItem || !logItem.parentNode) return null;
     var specs = [
-      { id: CONTACTS_ID, route: CONTACTS_ROUTE, label: 'Contacts',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
-      { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' },
-      { id: PROSPECTS_ID, route: PROSPECTS_ROUTE, label: 'PROSP',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M17 11h5M19.5 8.5v5"/></svg>' }
-    ];
+  { id: CONTACTS_ID, route: CONTACTS_ROUTE, label: 'Contacts',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
+  { id: PROSPECTS_ID, route: PROSPECTS_ROUTE, label: 'PROSP',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M17 11h5M19.5 8.5v5"/></svg>' },
+  { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' },
+  { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotations',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' }
+];
     var previous = logItem;
     specs.forEach(function (spec) {
       var link = document.getElementById(spec.id);
@@ -502,7 +506,7 @@
     if (!a) return;
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('data-achi-route') || a.getAttribute('href') || '';
-    if (a.id === CONTACTS_ID || a.id === CRM_ID || a.id === PROSPECTS_ID) {
+    if (a.id === CONTACTS_ID || a.id === CRM_ID || a.id === PROSPECTS_ID || a.id === QUOTATION_ID) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
       achiNavigationPending = true;
@@ -510,6 +514,11 @@
         location.assign('/api/v1/achi/prospect/ui');
         return;
       }
+
+      if (a.id === QUOTATION_ID) {
+  location.assign('/api/v1/achi/quotation/ui');
+  return;
+}
       // Non-admins use ACHI's standalone Contacts and CRM pages. Admins keep
       // the canonical upstream destinations.
       if (!isAdminUser()) {
@@ -637,6 +646,7 @@
         || link.id === CONTACTS_ID
         || link.id === CRM_ID
         || link.id === PROSPECTS_ID
+        || link.id === QUOTATION_ID
         || (link.id === TASKS_ID && canManageTeamTasks)
       );      if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
@@ -736,9 +746,10 @@
     var contacts = document.getElementById(CONTACTS_ID);
     var crm = document.getElementById(CRM_ID);
     var prospects = document.getElementById(PROSPECTS_ID);
+    var quotation = document.getElementById(QUOTATION_ID);
     var tasks = document.getElementById(TASKS_ID);
 
-    if (!(log && gen && contacts && crm && prospects && tasks)) {
+    if (!(log && gen && contacts && prospects && crm && quotation && tasks)) {
       inject();
       ensureOverviewModules();
     }

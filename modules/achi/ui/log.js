@@ -1447,8 +1447,37 @@ function openCommAddMenu(btn){
   setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
 
+/* Optional page-level configuration for General Log-style workspaces.
+
+   No page sets ACHI_LOG_FILTER in Step 1, so this returns /logs/ and preserves
+   the current behaviour exactly. Later, PROSP, CRM, and QUOTATION can declare:
+
+   window.ACHI_LOG_FILTER = {
+     log_type: 'Prospect',
+     stages: ['prospect', 'outreach']
+   };
+
+   The backend will receive the filter values only after its filtering support is
+   deliberately added in later steps. */
+function logListPath(){
+  const raw=(typeof window!=='undefined') ? window.ACHI_LOG_FILTER : null;
+  if(!raw || typeof raw!=='object') return '/logs/';
+
+  const params=new URLSearchParams();
+  const logType=typeof raw.log_type==='string' ? raw.log_type.trim() : '';
+  const stages=Array.isArray(raw.stages)
+    ? raw.stages.filter(stage=>typeof stage==='string'&&stage.trim())
+    : [];
+
+  if(logType) params.set('log_type',logType);
+  if(stages.length) params.set('stages',stages.join(','));
+
+  const query=params.toString();
+  return query ? '/logs/?'+query : '/logs/';
+}
+
 async function load(){ try{
-  ROWS=await api('/logs/');
+  ROWS=await api(logListPath());
   try{ sessionStorage.setItem(ROW_CACHE_KEY,JSON.stringify(ROWS)); }catch(_){}
   stats(); render();
 }catch(e){ fail(e.message); } }
@@ -1461,8 +1490,27 @@ function moveInd(b){
   ind.style.width=b.offsetWidth+'px';
 }
 
+/* General Log-style pages show every column at once, so their HTML intentionally
+   has no per-tab column markers. This fallback gives the shared tab controls a
+   stable first column to scroll to without changing the table itself. */
+const GENERAL_LOG_TAB_FIRST_KEYS={
+  0:'num',
+  1:'mobile',
+  2:'maps',
+  3:'communication',
+};
+
 function firstThForTab(n){
-  return $('thead').querySelector(`th[data-tab="${n}"]`);
+  const header=$('thead');
+  if(!header) return null;
+
+  const explicit=header.querySelector(`th[data-tab="${n}"]`);
+  if(explicit) return explicit;
+
+  if(window.ACHI_GENERAL_LOG!==true) return null;
+
+  const key=GENERAL_LOG_TAB_FIRST_KEYS[n];
+  return key ? header.querySelector(`th[data-k="${key}"]`) : null;
 }
 
 function fixedColumnsRight(){
