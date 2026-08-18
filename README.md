@@ -6,7 +6,7 @@
 Deployment and branding for **Achi Scaffolding ERP**, built on OpenConstructionERP.
 
 ## The key decision: we do not fork
-
+## testing new content 
 OpenConstructionERP is installed **stock from PyPI at a pinned version**. Nothing upstream is
 modified. Everything ACHI-specific lives in this repo — 12 files.
 
@@ -14,7 +14,7 @@ modified. Everything ACHI-specific lives in this repo — 12 files.
 GitHub (this repo)  ->  branding + deploy config
 PyPI                ->  openconstructionerp==11.9.0  (stock, unmodified)
 ```
-
+this is a test
 Upstream ships ~2.9 releases/day from a single author who does not merge outside pull requests
 (README.md:1050). A fork would mean rebasing that forever with no way to contribute back.
 Instead we use two supported, declarative extension points:
