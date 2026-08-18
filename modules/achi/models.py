@@ -689,3 +689,7 @@ class AchiEmail(Base):
 
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+# Register the isolated Team Tasks models with OCE's metadata loader.
+# This import stays at the bottom to avoid affecting existing model definitions.
+from . import task_models as _task_models  # noqa: E402,F401

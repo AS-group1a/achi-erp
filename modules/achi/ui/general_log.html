@@ -155,9 +155,6 @@
 <script>
   window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
   window.ACHI_FIXED_KEYS = [];   // no frozen columns
-  // Column order requested for the General Log. The first column is the row
-  // number / select-all ("#"); the rest follow the agreed layout. Contact-detail
-  // columns (mobile/email/maps/location/role/ref) are intentionally not shown here.
   window.ACHI_LOG_COLS = [
     {k:'num',          h:'#',              tab:null, w:92},
     {k:'when',         h:'Date & Time',    tab:null, w:150},
@@ -167,6 +164,10 @@
     {k:'first',        h:'First',          tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
     {k:'last',         h:'Last',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
     {k:'company',      h:'Company',        tab:null, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+    {k:'owner',        h:'Owner',          tab:null, w:80},
+    {k:'mobile',       h:'Mobile',         tab:null, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+    {k:'email',        h:'Email',          tab:null, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
+    {k:'maps',         h:'Maps',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
     {k:'desc',         h:'description',    tab:null, w:300, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
     {k:'stage',        h:'Stage',          tab:null, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
     {k:'communication',h:'Communication',  tab:null, w:188},
@@ -185,6 +186,7 @@
 <script src="/api/v1/achi/ui/log.js?v=6"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=24"></script>
 <script src="/api/v1/achi/ui/comment.js?v=14"></script>
+<script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>
 <script src="/api/v1/achi/ui/log-notes.js?v=1"></script>
 <script src="/api/v1/achi/ui/log-deleted.js?v=1"></script>

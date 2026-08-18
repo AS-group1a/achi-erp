@@ -23,6 +23,9 @@
     { id: 'achi-nav-log', label: 'Log', route: '/call-log',
       href: '/api/v1/achi/ui?v=70',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' },
+    { id: 'achi-nav-team-tasks', label: 'Team Tasks', route: '/team-tasks',
+      href: '/api/v1/achi/tasks/ui?v=2',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' },
     { id: 'achi-nav-survey', label: 'Site Survey', route: '/site-survey',
       href: '/api/v1/achi/surveys/table?v=2',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' },
@@ -37,8 +40,13 @@
   var ID = 'achi-nav-log';
   var CONTACTS_ID = 'achi-nav-contacts';
   var CRM_ID = 'achi-nav-crm';
+  var PROSPECTS_ID = 'achi-nav-prospects';
+  var QUOTATION_ID = 'achi-nav-quotation';
+  var TASKS_ID = 'achi-nav-team-tasks';
   var CONTACTS_ROUTE = '/contacts';
   var CRM_ROUTE = '/crm';
+  var PROSPECTS_ROUTE = '/prospects';
+  var QUOTATION_ROUTE = '/quotation';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
   var ORDER_KEY = 'achi_sidebar_module_order_v2';
@@ -215,7 +223,8 @@
     var a = links();
     for (var i = 0; i < a.length; i++) {
       var el = a[i];
-      if (el.id === CONTACTS_ID || el.id === CRM_ID || el.id === ID) continue;
+      if (el.id === CONTACTS_ID || el.id === CRM_ID ||
+          el.id === PROSPECTS_ID || el.id === QUOTATION_ID || el.id === ID) continue;
       var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
       if (href === route) { var li = el.closest('li'); if (li) return li; }
     }
@@ -227,11 +236,15 @@
     var logItem = log && log.closest('li');
     if (!logItem || !logItem.parentNode) return null;
     var specs = [
-      { id: CONTACTS_ID, route: CONTACTS_ROUTE, label: 'Contacts',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
-      { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' }
-    ];
+  { id: CONTACTS_ID, route: CONTACTS_ROUTE, label: 'Contacts',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
+  { id: PROSPECTS_ID, route: PROSPECTS_ROUTE, label: 'PROSP',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M17 11h5M19.5 8.5v5"/></svg>' },
+  { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' },
+  { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotations',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' }
+];
     var previous = logItem;
     specs.forEach(function (spec) {
       var link = document.getElementById(spec.id);
@@ -493,10 +506,19 @@
     if (!a) return;
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('data-achi-route') || a.getAttribute('href') || '';
-    if (a.id === CONTACTS_ID || a.id === CRM_ID) {
+    if (a.id === CONTACTS_ID || a.id === CRM_ID || a.id === PROSPECTS_ID || a.id === QUOTATION_ID) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
       achiNavigationPending = true;
+      if (a.id === PROSPECTS_ID) {
+        location.assign('/api/v1/achi/prospect/ui');
+        return;
+      }
+
+      if (a.id === QUOTATION_ID) {
+  location.assign('/api/v1/achi/quotation/ui');
+  return;
+}
       // Non-admins use ACHI's standalone Contacts and CRM pages. Admins keep
       // the canonical upstream destinations.
       if (!isAdminUser()) {
@@ -571,6 +593,40 @@
     } catch (e) { return null; }
   }
   function isAdminUser() { return tokenRole() === 'admin'; }
+  var taskAccessCheckedFor = null;
+  var canManageTeamTasks = false;
+
+  function refreshTeamTasksAccess() {
+    var tok = authToken();
+
+    if (!tok) {
+      taskAccessCheckedFor = null;
+      canManageTeamTasks = false;
+      return;
+    }
+
+    if (taskAccessCheckedFor === tok) return;
+
+    taskAccessCheckedFor = tok;
+    canManageTeamTasks = isAdminUser();
+
+    fetch('/api/v1/achi/tasks/access/me', {
+      headers: { Authorization: 'Bearer ' + tok }
+    })
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (access) {
+        if (taskAccessCheckedFor !== tok) return;
+        canManageTeamTasks = Boolean(access && access.can_manage_team);
+        applyRoleSidebarFilter();
+      })
+      .catch(function () {
+        if (taskAccessCheckedFor !== tok) return;
+        canManageTeamTasks = isAdminUser();
+        applyRoleSidebarFilter();
+      });
+  }
   function applyRoleSidebarFilter() {
     if (isAdminUser() || !authToken()) {
       // Restore anything a previous non-admin login hid: on a shared machine
@@ -585,8 +641,14 @@
     }
     moduleItems().forEach(function (item) {
       var link = directLink(item);
-      var keep = link && (link.id === ID || link.id === CONTACTS_ID || link.id === CRM_ID);
-      if (keep) {
+      var keep = link && (
+        link.id === ID
+        || link.id === CONTACTS_ID
+        || link.id === CRM_ID
+        || link.id === PROSPECTS_ID
+        || link.id === QUOTATION_ID
+        || (link.id === TASKS_ID && canManageTeamTasks)
+      );      if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
         // the inline display and our marker, so lift both off the keepers.
         if (item.getAttribute(ROLE_HIDDEN)) {
@@ -676,20 +738,32 @@
   // This check is effectively free once the requested sequence is in place.
   window.setInterval(function () {
     enforceAccessLimit();   // catches login (token appears) and SPA navigations
+    refreshTeamTasksAccess();
     wireSidebarHover();
-    var log = document.getElementById(ID), gen = document.getElementById('achi-nav-general-log');
+
+    var log = document.getElementById(ID);
+    var gen = document.getElementById('achi-nav-general-log');
     var contacts = document.getElementById(CONTACTS_ID);
     var crm = document.getElementById(CRM_ID);
-    if (!(log && gen && contacts && crm)) {
+    var prospects = document.getElementById(PROSPECTS_ID);
+    var quotation = document.getElementById(QUOTATION_ID);
+    var tasks = document.getElementById(TASKS_ID);
+
+    if (!(log && gen && contacts && prospects && crm && quotation && tasks)) {
       inject();
       ensureOverviewModules();
     }
-    // Reasserted every tick, not just on injection: React rebuilds sidebar rows
-    // during navigation and a rebuilt row comes back without our display:none.
+
+    // Reasserted every tick because React can rebuild sidebar rows.
     applyRoleSidebarFilter();
   }, 1000);
   // wireSidebarHover() owns the native sidebar; redirectIfOurRoute() hands ACHI
   // routes to their standalone pages and shared second sidebar.
-  function boot() { wireSidebarHover(); inject(); applyRoleSidebarFilter(); redirectIfOurRoute(); }
-  if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
+  function boot() {
+    wireSidebarHover();
+    inject();
+    refreshTeamTasksAccess();
+    applyRoleSidebarFilter();
+    redirectIfOurRoute();
+  }  if (document.readyState !== 'loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();

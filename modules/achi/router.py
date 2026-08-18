@@ -47,6 +47,7 @@ from .schemas import (
     ModuleInfo,
     QuickLogCreate,
     QuickLogOut,
+    STAGES,
 )
 from .service import CONTACT_INFO_TAG, ContactFileService, parse_comm_tally
 from .quotation_router import quotation_router
@@ -55,6 +56,7 @@ from .geo_router import geo_router
 from .chat_router import chat_router
 from .comment_router import comment_router
 from .mail_router import mail_router
+from .task_router import task_router
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,7 @@ router.include_router(geo_router)
 router.include_router(chat_router)
 router.include_router(comment_router)
 router.include_router(mail_router)
+router.include_router(task_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
@@ -144,6 +147,24 @@ def general_log_ui() -> HTMLResponse:
 
 
 @router.get(
+    "/prospect/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="PROSP UI",
+)
+def prospect_ui() -> HTMLResponse:
+    """Serve the General Log-style PROSP page.
+
+    This first version intentionally shares the General Log data and behaviour.
+    Prospect-only filtering will be added later after the workflow is approved.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "prospect.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/contact-info/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
@@ -165,12 +186,33 @@ def contact_info_ui() -> HTMLResponse:
     summary="ACHI CRM UI",
 )
 def crm_ui() -> HTMLResponse:
-    """Serve ACHI's CRM workspace over the official OCE CRM API."""
+    """Serve the General Log-style CRM page.
 
+    This first version intentionally shares the General Log data and behaviour.
+    CRM-specific filtering will be added later after the workflow is approved.
+    """
     return HTMLResponse(
-        (_UI_DIR / "crm.html").read_text(encoding="utf-8"),
+        (_UI_DIR / "crm_general_log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+@router.get(
+    "/quotation/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="QUOTATION workspace UI",
+)
+def quotation_workspace_ui() -> HTMLResponse:
+    """Serve the General Log-style QUOTATION workspace.
+
+    It reads the same Log rows as the other workspaces. The page-level stage
+    filter limits its visible rows to quotation workflow stages.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "quotation_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
 
 
 @router.get(
@@ -617,6 +659,20 @@ def ui_comment_js() -> PlainTextResponse:
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+
+@router.get(
+    "/ui/task_drawer.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Employee My Tasks tab for the ACHI comment drawer",
+)
+def ui_task_drawer_js() -> PlainTextResponse:
+    """Serve the isolated Employee My Tasks drawer script."""
+    return PlainTextResponse(
+        (_UI_DIR / "task_drawer.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 @router.get(
     "/ui/model-viewer.js",
@@ -1494,6 +1550,16 @@ async def list_logs(
     _user_id: CurrentUserId,
     limit: int = Query(default=200, ge=1, le=1000),
     deleted: bool = Query(default=False, description="Return soft-deleted logs (Deleted Logs view) instead of active ones"),
+    stages: str | None = Query(
+        default=None,
+        max_length=512,
+        description="Comma-separated Contact File stage keys",
+    ),
+    log_type: str | None = Query(
+        default=None,
+        max_length=64,
+        description="Exact File Log type",
+    ),
 ) -> list[LogRowOut]:
     from .models import AchiEmail
 
@@ -1507,7 +1573,27 @@ async def list_logs(
             await svc.backfill_codes()
         except Exception:
             logger.exception("achi: log_code backfill failed")
-    rows = await svc.list_logs(limit=limit, deleted=deleted)
+    requested_stages = tuple(
+        dict.fromkeys(
+            value.strip()
+            for value in (stages or "").split(",")
+            if value.strip()
+        )
+    )
+    invalid_stages = sorted(set(requested_stages).difference(STAGES))
+    if invalid_stages:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Unknown stage value(s): {', '.join(invalid_stages)}",
+        )
+
+    requested_log_type = (log_type or "").strip() or None
+    rows = await svc.list_logs(
+        limit=limit,
+        deleted=deleted,
+        stages=requested_stages,
+        log_type=requested_log_type,
+    )
     # index rather than unpack: list_logs' tuple width changes when a column is
     # added to its select (owner name was the last one), and a positional unpack
     # here breaks the endpoint when it does
