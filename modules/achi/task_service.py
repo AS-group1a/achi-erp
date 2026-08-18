@@ -50,7 +50,6 @@ from .task_schemas import (
 
 
 _MANAGER_ROLES = frozenset({"admin", "manager"})
-_WRITER_ROLES = frozenset({"admin", "manager", "editor"})
 _TERMINAL_STATUSES = frozenset({"completed", "cancelled"})
 _WORK_REQUEST_STATUSES = frozenset(
     {"pending", "acknowledged", "cancelled"}
@@ -100,8 +99,8 @@ class TaskActor:
 
     @property
     def can_write(self) -> bool:
-        return self.role in _WRITER_ROLES
-
+        """Every active authenticated ACHI user can collaborate in Team Tasks."""
+        return True
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -328,8 +327,7 @@ class TaskService:
             _forbidden("This account has read-only task access")
 
     async def _assignee(self, user_id: str) -> TaskActor:
-        """Resolve an active user who is allowed to progress tasks."""
-
+        """Resolve an active authenticated user for task assignment."""
         try:
             user_pk = uuid.UUID(str(user_id))
         except (TypeError, ValueError, AttributeError):
@@ -342,17 +340,13 @@ class TaskService:
                 select(User).where(
                     User.id == user_pk,
                     User.is_active.is_(True),
-                    func.lower(User.role).in_(
-                        sorted(_WRITER_ROLES)
-                    ),
                 )
             )
         ).scalar_one_or_none()
 
         if user is None:
             _unprocessable(
-                "Assignee was not found, is inactive, "
-                "or cannot progress tasks"
+                "Assignee was not found, is inactive"
             )
 
         return TaskActor(
@@ -388,17 +382,8 @@ class TaskService:
     ) -> AchiTask:
         conditions: list[Any] = [AchiTask.id == task_id]
 
-        if not actor.is_manager:
-            conditions.extend(
-                (
-                    AchiTask.assigned_to_user_id == actor.id,
-                    AchiTask.is_deleted.is_(False),
-                )
-            )
-        elif not include_deleted:
-            conditions.append(
-                AchiTask.is_deleted.is_(False)
-            )
+        if not include_deleted:
+            conditions.append(AchiTask.is_deleted.is_(False))
 
         statement = select(AchiTask).where(*conditions)
 
@@ -667,8 +652,7 @@ class TaskService:
         offset: int = 0,
         limit: int = 100,
     ) -> TaskListOut:
-        actor = await self._actor(actor_id)
-        self._require_manager(actor)
+        await self._actor(actor_id)
 
         if assigned_to_user_id and unassigned_only:
             _unprocessable(
@@ -828,7 +812,6 @@ class TaskService:
         data: TaskCreateIn,
     ) -> AchiTask:
         actor = await self._actor(actor_id)
-        self._require_manager(actor)
 
         values = data.model_dump()
         requested_assignee = values.pop(
@@ -970,9 +953,10 @@ class TaskService:
         data: TaskUpdateIn,
     ) -> AchiTask:
         actor = await self._actor(actor_id)
-        task = await self._manager_task_for_update(
+        task = await self._visible_task(
             actor,
             task_id,
+            for_update=True,
         )
 
         # This is essential. Without exclude_unset, a title-only patch would
@@ -1458,7 +1442,7 @@ class TaskService:
         return task
 
     # ------------------------------------------------------------------
-    # Comments and manager-only history
+    # Comments and collaborative task history
     # ------------------------------------------------------------------
 
     async def list_comments(
@@ -1526,12 +1510,10 @@ class TaskService:
         task_id: str,
     ) -> list[AchiTaskEvent]:
         actor = await self._actor(actor_id)
-        self._require_manager(actor)
 
         task = await self._visible_task(
             actor,
             task_id,
-            include_deleted=True,
         )
 
         return list(
@@ -1559,17 +1541,13 @@ class TaskService:
         self,
         actor_id: str,
     ) -> list[TaskAssigneeOut]:
-        actor = await self._actor(actor_id)
-        self._require_manager(actor)
+        await self._actor(actor_id)
 
         users = (
             await self.session.execute(
                 select(User)
                 .where(
                     User.is_active.is_(True),
-                    func.lower(User.role).in_(
-                        sorted(_WRITER_ROLES)
-                    ),
                 )
                 .order_by(User.full_name, User.id)
             )
@@ -1747,9 +1725,7 @@ class TaskService:
         offset: int = 0,
         limit: int = 100,
     ) -> WorkRequestListOut:
-        actor = await self._actor(actor_id)
-        self._require_manager(actor)
-
+        await self._actor(actor_id)
         statuses = _normalise_choices(
             request_status,
             allowed=tuple(_WORK_REQUEST_STATUSES),
@@ -1787,8 +1763,6 @@ class TaskService:
         request_id: str,
     ) -> AchiTaskWorkRequest:
         actor = await self._actor(actor_id)
-        self._require_manager(actor)
-
         row = (
             await self.session.execute(
                 select(AchiTaskWorkRequest)

@@ -249,7 +249,6 @@ async def list_my_tasks(
 @task_router.get(
     "/team",
     response_model=TaskListOut,
-    dependencies=[Depends(RequireRole("manager"))],
     summary="Supervisor team task board",
 )
 async def list_team_tasks(
@@ -298,7 +297,6 @@ async def list_team_tasks(
 @task_router.get(
     "/assignees",
     response_model=list[TaskAssigneeOut],
-    dependencies=[Depends(RequireRole("manager"))],
     summary="Sanitized active-user task directory",
 )
 async def list_task_assignees(
@@ -353,7 +351,6 @@ async def list_my_work_requests(
 @task_router.get(
     "/work-requests/team",
     response_model=WorkRequestListOut,
-    dependencies=[Depends(RequireRole("manager"))],
     summary="Supervisor work-request queue",
 )
 async def list_team_work_requests(
@@ -383,7 +380,6 @@ async def list_team_work_requests(
 @task_router.post(
     "/work-requests/{request_id}/acknowledge",
     response_model=WorkRequestOut,
-    dependencies=[Depends(RequireRole("manager"))],
     summary="Acknowledge a pending work request",
 )
 async def acknowledge_work_request(
@@ -424,7 +420,6 @@ async def cancel_my_work_request(
     "",
     response_model=TaskOut,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(RequireRole("manager"))],
     summary="Create and optionally assign a task",
 )
 async def create_task(
@@ -464,7 +459,6 @@ async def get_task(
 @task_router.patch(
     "/{task_id}",
     response_model=TaskOut,
-    dependencies=[Depends(RequireRole("manager"))],
     summary="Edit task metadata or assignment",
 )
 async def update_task(
@@ -648,7 +642,6 @@ async def add_task_comment(
 @task_router.get(
     "/{task_id}/history",
     response_model=list[TaskEventOut],
-    dependencies=[Depends(RequireRole("manager"))],
     summary="Full manager-only task audit history",
 )
 async def list_task_history(

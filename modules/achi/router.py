@@ -124,7 +124,7 @@ def ui() -> HTMLResponse:
     routes below. Serving the shell to an anonymous browser leaks nothing.
     """
     return HTMLResponse(
-        (_UI_DIR / "log.html").read_text(encoding="utf-8"),
+        (_UI_DIR / "general_log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -1529,13 +1529,7 @@ async def list_logs(
     svc = ContactFileService(session)
     # One-time per process: give any pre-existing / uncoded file its General Log
     # "#" code. Idempotent and cheap once done, so guarded by a module flag.
-    from . import service as _svc
-    if not _svc._backfill_attempted:
-        _svc._backfill_attempted = True
-        try:
-            await svc.backfill_codes()
-        except Exception:
-            logger.exception("achi: log_code backfill failed")
+
     requested_stages = tuple(
         dict.fromkeys(
             value.strip()

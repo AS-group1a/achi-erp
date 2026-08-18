@@ -34,6 +34,37 @@ function getRefreshToken(){
 let TOKEN=getToken();   // reassigned by refreshToken() when the access token expires
 const API='/api/v1/achi';
 const $=id=>document.getElementById(id);
+/* Shared dark ACHI hero for General Log-style workspaces.
+   The page title comes from each page's existing data-achi-title attribute. */
+(function addAchiLogHero(){
+  if(window.ACHI_GENERAL_LOG !== true) return;
+
+  const main=document.querySelector('main');
+  if(!main || document.getElementById('achi-log-hero')) return;
+
+  const title=(document.body.dataset.achiTitle || 'Log').trim();
+  const hero=document.createElement('section');
+  hero.id='achi-log-hero';
+  hero.className='achi-log-hero';
+
+  const eyebrow=document.createElement('div');
+  eyebrow.className='achi-log-hero__eyebrow';
+  eyebrow.textContent='ACHI SCAFFOLDING';
+
+  const heading=document.createElement('h1');
+  heading.className='achi-log-hero__title';
+  heading.textContent=title;
+
+  const subtitle=document.createElement('p');
+  subtitle.className='achi-log-hero__subtitle';
+  subtitle.textContent='Manage prospects, customer calls, follow-ups and quotations in one place.';
+
+  hero.append(eyebrow, heading, subtitle);
+
+  const kpis=main.querySelector('.kpis');
+  if(kpis) main.insertBefore(hero, kpis);
+  else main.appendChild(hero);
+})();
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* Quick notes is a Quill editor now, so `description` can hold formatting HTML.
    Render it SAFELY: allow only Quill's formatting tags, strip every attribute,
@@ -751,8 +782,17 @@ const GL_STAGES=[
 ];
 const GL_STAGE_BY_KEY=Object.fromEntries(GL_STAGES.map(s=>[s.k,s]));
 const GL_STAGE_ORDER=GL_STAGES.map(s=>s.k);
-// Keys the stage dropdown offers, in order (all of them).
-const GL_STAGE_PIPELINE=GL_STAGE_ORDER.slice();
+/* A General Log-style workspace can declare ACHI_LOG_FILTER.stages before this
+   script loads. Standard Log and General Log declare nothing, so they keep the
+   complete pipeline. Invalid configuration is ignored safely. */
+const GL_STAGE_PIPELINE=(()=>{
+  const raw=(typeof window!=='undefined') ? window.ACHI_LOG_FILTER : null;
+  const configured=raw && Array.isArray(raw.stages) ? raw.stages : [];
+  const allowed=configured.filter(
+    stage=>typeof stage==='string' && GL_STAGE_BY_KEY[stage]
+  );
+  return allowed.length ? Array.from(new Set(allowed)) : GL_STAGE_ORDER.slice();
+})();
 const GL_STAGE_COLOR=Object.fromEntries(GL_STAGES.map(s=>[s.k,s.color]));
 // Rows from before the pipeline expansion carry a couple of retired keys.
 const GL_LEGACY_STAGE={lead:'enquiry',measurements:'takeoff'};
@@ -977,6 +1017,7 @@ const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&wi
   {k:'owner',  h:'Owner',          tab:0, w:80},
   {k:'type',   h:'Log Type',       tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
   {k:'category',h:'Category',      tab:0, w:170, draft:'select', edit:{kind:'category',target:'log',field:'category',val:r=>r.category||''}},
+  {k:'stage',  h:'Stage',          tab:0, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
   {k:'mobile', h:'Mobile',         tab:1, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
   {k:'email',  h:'Email',          tab:1, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
   {k:'maps',   h:'Maps',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
@@ -984,6 +1025,8 @@ const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&wi
   {k:'district',h:'District',      tab:2, w:120, draft:'text', edit:{kind:'district',target:'file',field:'district',val:r=>r.district||''}},
   {k:'city',   h:'City',           tab:2, w:120, draft:'text', edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
   {k:'street', h:'Street',         tab:2, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
+  {k:'communication',h:'Communication', tab:3, w:188},
+  {k:'last_touch',h:'Last Touch',  tab:3, w:200},
   {k:'updates',h:'Updates',        tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
   {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
   {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
