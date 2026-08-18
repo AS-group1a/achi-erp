@@ -26,8 +26,8 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 # 1. venv on Python 3.12
-[ -x .venv/Scripts/python.exe ] || uv venv --python 3.12
-PY=.venv/Scripts/python.exe
+[ -x .venv/bin/python ] || uv venv --python 3.12
+PY=.venv/bin/python
 
 # 2. install stock OCE if missing
 if ! "$PY" -c 'import app' >/dev/null 2>&1; then
@@ -141,5 +141,5 @@ echo "  Login: demo@openconstructionerp.com / DemoPass1234!"
 echo "  Call Log page: http://localhost:$PORT/api/v1/achi/ui"
 echo "  Stop: Ctrl+C"
 echo "================================================================"
-exec env HOME="$HOME" .venv/Scripts/openconstructionerp.exe serve \
+exec env HOME="$HOME" .venv/bin/openconstructionerp serve \
   --host 127.0.0.1 --port "$PORT" --data-dir "$RUNTIME_DIR"
