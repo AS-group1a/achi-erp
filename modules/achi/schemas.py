@@ -25,7 +25,7 @@ STATUSES = ("open", "scheduled", "viewed", "cancelled", "done", "transferred")
 # editable instead of failing validation on their next save.
 LOG_TYPES = ("Prospect", "Lead", "Client", "Field", "Fleet", "Yard",
              "Invoice", "Balance", "General")
-
+DELIVERABLE_KEYS = ("srv", "dwg", "mt", "boq", "cst", "qte")
 
 class ModuleInfo(BaseModel):
     module: str
@@ -229,6 +229,43 @@ class FileLogUpdate(BaseModel):
     # the service from the payload, never trusted from the client.
     drawing: str | None = None
 
+class AttachmentDeliverablesUpdate(BaseModel):
+    """Deliverable classifications selected for one attached file."""
+
+    deliverables: list[str] = Field(default_factory=list, max_length=12)
+
+    @field_validator("deliverables")
+    @classmethod
+    def _validate_deliverables(cls, value: list[str]) -> list[str]:
+        clean = []
+        seen = set()
+
+        for item in value:
+            name = str(item).strip()
+
+            if not name:
+                continue
+
+            if len(name) > 32:
+                raise ValueError(
+                    "deliverable classification must be 32 characters or fewer"
+                )
+
+            # Commas are reserved because classifications are stored
+            # as one comma-separated string in the database.
+            if "," in name:
+                raise ValueError(
+                    "deliverable classification cannot contain commas"
+                )
+
+            # Prevent duplicates while preserving how the user typed the name.
+            lookup = name.lower()
+
+            if lookup not in seen:
+                seen.add(lookup)
+                clean.append(name)
+
+        return clean
 
 class AttachmentOut(BaseModel):
     """One file attached to a log — what the popup's file list renders."""
@@ -240,7 +277,26 @@ class AttachmentOut(BaseModel):
     filename: str
     content_type: str
     size_bytes: int
+
+    # Stored in the DB as "srv,dwg,mt", returned to JS as ["srv","dwg","mt"].
+    deliverables: list[str] = Field(default_factory=list)
+
     created_at: datetime
+
+    @field_validator("deliverables", mode="before")
+    @classmethod
+    def _parse_deliverables(cls, value):
+        if not value:
+            return []
+
+        if isinstance(value, str):
+            return [
+                item.strip()
+                for item in value.split(",")
+                if item.strip()
+            ]
+
+        return value
 
 
 class FileLogOut(BaseModel):
@@ -425,6 +481,7 @@ class LogRowOut(BaseModel):
     # boq, cst, qte. Computed from real signals (surveys, drawings, quotations);
     # boq/cst have no data source yet and stay False.
     docs: dict[str, bool] | None = None
+    deliverables: list[str] = Field(default_factory=list)
     communication: str | None = None   # General Log "Communication" channel (legacy single value)
     comm_tally: dict[str, int] | None = None   # this log's per-channel counters, e.g. {"WhatsApp": 2}
     # General Log Communication pills + Last Touch: how this file's logs split by

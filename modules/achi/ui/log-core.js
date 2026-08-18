@@ -501,7 +501,7 @@ const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter
    values are the ones the team uses; DISTRICTS/CITIES are Lebanon-specific
    because that is where the sites are. */
 const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
-      LOG_STATES=['OPEN','TRANSFERED','ONGOING','DONE','CANCELLED'],
+      LOG_STATES=['OPEN','SCHEDULED','VIEWED','CANCELLED','DONE','TRANSFERRED'],
       COPY_TARGETS=['Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
@@ -796,7 +796,17 @@ const GL_STAGE_PIPELINE=(()=>{
 const GL_STAGE_COLOR=Object.fromEntries(GL_STAGES.map(s=>[s.k,s.color]));
 // Rows from before the pipeline expansion carry a couple of retired keys.
 const GL_LEGACY_STAGE={lead:'enquiry',measurements:'takeoff'};
-const glStageKey=s=>{const k=GL_LEGACY_STAGE[s]||s||'enquiry';return GL_STAGE_BY_KEY[k]?k:'enquiry';};
+const glStageKey=s=>{
+  const raw=String(s||'').trim();
+
+  // ONLY missing stage defaults to Prospect
+  if(!raw) return 'prospect';
+
+  const k=GL_LEGACY_STAGE[raw]||raw;
+
+  // Keep any valid explicitly selected stage
+  return GL_STAGE_BY_KEY[k] ? k : 'prospect';
+};
 const glStageLabel=s=>{const k=glStageKey(s);return (GL_STAGE_BY_KEY[k]||{}).label||label(k);};
 // The bar is a fixed 6 segments filled to the stage's position in the pipeline,
 // so it stays compact whether there are 6 stages or 18. "cancelled" reads as a
@@ -809,15 +819,56 @@ function glStageCell(r){
   return `<div class="lstage"><span class="lstage-top"><span class="lstage-dot" style="background:${color}"></span><span class="lstage-label" style="color:${color}">${esc(glStageLabel(k))}</span><svg class="lstage-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg></span><span class="lstage-bar">${segs}</span></div>`;
 }
 const GL_DOCS=[['srv','SURV'],['dwg','DWG'],['mt','M/T'],['boq','BOQ'],['cst','CST'],['qte','QTE']];
-function glDocsCell(r){const d=r.docs||{};return `<div class="ldocs">${GL_DOCS.map(([k,lb])=>`<span class="ldoc${d[k]?' on':''}">${lb}</span>`).join('')}</div>`;}
-const GL_COMM_COLOR={Call:'#2563eb',Phone:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',SMS:'#0891b2',Instagram:'#db2777',Facebook:'#1d4ed8',LinkedIn:'#0a66c2',X:'#0f172a',TikTok:'#0f172a',Other:'#64748b'};
-// Short two/three-letter tags for the Communication pills (photo #3).
-const GL_COMM_ABBR={Call:'PH',Phone:'PH',Email:'EM',WhatsApp:'WA','In-person':'IP',SMS:'SMS',Instagram:'IG',Facebook:'FB',LinkedIn:'LI',X:'X',TikTok:'TT',Other:'··'};
-const glCommColor=k=>GL_COMM_COLOR[k]||'#64748b';
-const glCommAbbr=k=>GL_COMM_ABBR[k]||String(k||'').slice(0,2).toUpperCase();
-const glCommPill=(k,n)=>{const c=glCommColor(k);return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14" title="${esc(k)}${n!=null?': '+n:''}">${esc(glCommAbbr(k))}${n!=null?' '+n:''}</span>`;};
-// Channels the "+" menu offers on the Communication cell (kept short on purpose).
-const GL_COMM_ADD=['Call','WhatsApp','Email','LinkedIn'];
+function glDocsCell(r){
+  const raw = Array.isArray(r.deliverables)
+    ? r.deliverables
+    : [];
+
+  let selected = raw.map(value => {
+    const name = String(value || '').trim();
+
+    if(!name) return null;
+
+    const fixed = GL_DOCS.find(
+      ([k]) => k.toLowerCase() === name.toLowerCase()
+    );
+
+    return fixed ? fixed[1] : name;
+  }).filter(Boolean);
+
+  // Fallback for older rows/API responses.
+  if(!selected.length){
+    const d = r.docs || {};
+
+    selected = GL_DOCS
+      .filter(([k]) => d[k])
+      .map(([, label]) => label);
+  }
+
+  // Remove duplicates without changing the displayed name.
+  const seen = new Set();
+
+  selected = selected.filter(name => {
+    const key = name.toLowerCase();
+
+    if(seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+
+  if(!selected.length){
+    return '<span class="mt">—</span>';
+  }
+
+  return `<div class="ldocs">${
+    selected
+      .map(name =>
+        `<span class="ldoc selected-only">${esc(name)}</span>`
+      )
+      .join('')
+  }</div>`;
+}
 /* This log's own per-channel counters, seeded from the legacy single
    `communication` value the first time so old rows upgrade seamlessly. */
 function glCommTally(r){
@@ -851,6 +902,22 @@ function toLocalDateTimeValue(value){
        + `T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+function fmtLastTouchDateTime(value){
+  if(!value) return '—';
+
+  const d=new Date(value);
+  if(isNaN(d)) return String(value||'');
+
+  const p=n=>String(n).padStart(2,'0');
+
+  let hour=d.getHours();
+  const ampm=hour>=12?'PM':'AM';
+  hour=hour%12||12;
+
+  return `${p(d.getDate())} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()} `
+       + `${p(hour)}:${p(d.getMinutes())} ${ampm}`;
+}
+
 function glLastTouchCell(r){
   const when=r.occurred_at||r.created_at||r.last_touch_at;
 
@@ -861,17 +928,25 @@ function glLastTouchCell(r){
 
   const total=channels.reduce((s,k)=>s+t[k],0);
   const abbrs=channels.map(k=>glCommAbbr(k)).join(', ');
-  const sub=[abbrs,total?`${total} total`:''].filter(Boolean).join(' · ');
+  const sub=[abbrs,total?`${total} TOTAL`:''].filter(Boolean).join(' · ');
 
   return `
     <span class="lt">
+      <button
+        type="button"
+        class="lt-date lt-date-button"
+        data-last-touch-open
+        title="Change Last Touch date and time"
+      >${when?esc(fmtLastTouchDateTime(when)):'—'}</button>
+
       <input
         type="datetime-local"
-        class="lt-picker"
+        class="lt-picker-hidden"
         data-last-touch
         value="${esc(toLocalDateTimeValue(when))}"
-        aria-label="Last touch date and time"
+        aria-label="Last Touch date and time"
       >
+
       ${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}
     </span>
   `;
@@ -1047,8 +1122,25 @@ function isOverdueFollowup(r){
 }
 function cellHTML(c,r,i){switch(c.k){
   case 'num': return `<span class="rn">${GENERAL_LOG&&r&&r.log_code?esc(r.log_code):i+1}</span>`;
-  case 'when': return dateTimeHTML(r.occurred_at||r.created_at);
-  case 'status': return badge(r.status);
+  case 'when': {
+  const when = r.occurred_at || r.created_at;
+  if(!when) return '<span class="mt">—</span>';
+
+  const d = new Date(when);
+  if(isNaN(d)) return esc(when);
+
+  const p = n => String(n).padStart(2,'0');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const hour = d.getHours();
+  const h = hour % 12 || 12;
+
+  const text =
+    `${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ` +
+    `${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`;
+
+  return `<span class="lt-date">${esc(text)}</span>`;
+}  case 'status': return badge(r.status);
   case 'prefix': return dash(r.prefix);
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
@@ -1122,10 +1214,19 @@ const selectedRows=new Set();
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
 let selected=new Set();             // selected log ids
 
-function stats(){ const now=new Date();
-  const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
-  $('k-total').textContent=ROWS.length; $('k-open').textContent=ROWS.filter(r=>r.status==='open').length;
-  $('k-month').textContent=m; $('k-done').textContent=ROWS.filter(r=>r.status==='done').length; }
+async function stats(){
+  try{
+    const s = await api('/logs/stats');
+
+    $('k-total').textContent = s.total ?? 0;
+    $('k-open').textContent = s.open ?? 0;
+    $('k-month').textContent = s.this_month ?? 0;
+    $('k-done').textContent = s.done ?? 0;
+
+  }catch(e){
+    console.warn('Could not load log stats', e);
+  }
+}
 /* ── column widths (ported from tabbed_grid.js _wireColResize) ─────────────
  * Widths are per-column and remembered per browser, so someone who widens
  * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
@@ -1228,7 +1329,20 @@ function draftCell(c,dp,st,rowNumber){
   if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
   // Frappe's CRM Log draft rows show the actual creation value as
   // DD/MM/YYYY HH:MM instead of the relative placeholder "now".
-  if(c.k==='when') return dateTimeHTML(new Date());
+  if(c.k==='when'){
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const hour = d.getHours();
+  const h = hour % 12 || 12;
+
+  const text =
+    `${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ` +
+    `${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`;
+
+  return `<span class="lt-date">${esc(text)}</span>`;
+  }
   if(c.k==='status') return `<input class="din pg-select-input draft-popup-select" id="${dp}-status" data-dp="${dp}" data-dk="status" data-select-value="${esc(st.status||'open')}" value="${esc(label(st.status||'open'))}" readonly>`;
   if(c.k==='owner') return `<span class="mt">you</span>`;
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
@@ -1266,7 +1380,7 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
     const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${GENERAL_LOG&&r.log_code?esc(r.log_code):rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${GENERAL_LOG&&r.log_code?esc(String(r.log_code).replace(/^MT(?=-)/,'M/T')):rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 
@@ -1331,6 +1445,64 @@ function render(){
   refreshSelectionButton();
   refreshDeleteButton();
 }
+
+/* Open the Last Touch calendar when its displayed date is clicked. */
+$('rows').addEventListener('click',e=>{
+  const button=e.target.closest('[data-last-touch-open]');
+  if(!button) return;
+
+  const cell=button.closest('td');
+  const picker=cell?.querySelector('input[data-last-touch]');
+  if(!picker) return;
+
+  try{
+    picker.showPicker();
+  }catch(_){
+    picker.click();
+  }
+});
+
+
+/* Save the selected Last Touch date + time. */
+$('rows').addEventListener('change',async e=>{
+  const input=e.target.closest('input[data-last-touch]');
+  if(!input) return;
+
+  const tr=input.closest('tr[data-log]');
+  if(!tr) return;
+
+  const logId=tr.dataset.log;
+  const row=ROWS.find(r=>String(r.id)===String(logId));
+  const previous=row?.occurred_at||'';
+
+  try{
+    const occurredAt=input.value
+      ? new Date(input.value).toISOString()
+      : null;
+
+    await api('/logs/'+logId,{
+      method:'PATCH',
+      body:JSON.stringify({
+        occurred_at:occurredAt
+      })
+    });
+
+    if(row) row.occurred_at=occurredAt;
+
+    const label=tr.querySelector('[data-last-touch-open]');
+    if(label){
+      label.textContent=occurredAt
+        ? fmtLastTouchDateTime(occurredAt)
+        : '—';
+    }
+
+    clearErr();
+
+  }catch(err){
+    input.value=toLocalDateTimeValue(previous);
+    fail(err.message||'Could not update Last Touch');
+  }
+});
 
 /* Save the General Log Last Touch date + time. */
 $('rows').addEventListener('change',async e=>{
@@ -1764,12 +1936,10 @@ function openExpandedRow(explicitId){
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',socialHandles,
     F('Reference',SEL('reference',[...allReferences(),REFERENCE_ADD],val('reference'),true)));
-  html+=g('rx-g3',
-    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
-    F('Log subject', SEL('subject',[...new Set([val('subject'),...allSubjects()].filter(Boolean)),SUBJECT_ADD],val('subject'),true)),
-    // One OR MORE tags — click to open a checkbox dropdown (the same picker the
-    // grid uses). Selections are stored comma-joined in this data-k="tags" input.
-    F('Tags',        `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
+  html+=g('rx-g2',
+  F('Log type', SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
+  // One OR MORE tags — click to open a checkbox dropdown.
+  F('Tags', `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
@@ -1783,16 +1953,23 @@ function openExpandedRow(explicitId){
                 F('Floor',    IN('floor','GF',val('floor'))))
     +`</div>`;
   html+=`<div class="rx-notes">
-    <div class="rx-notes-head">
-      <h4>Quick notes — no time? dump everything here</h4>
-      ${isNew ? '' : `<button type="button" class="rx-notes-attach-btn" id="rx-notes-attach-btn">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M13.5 9.5v2a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2"/>
-          <polyline points="10.5 5.5 8 3 5.5 5.5"/>
-          <line x1="8" y1="3" x2="8" y2="10.5"/>
-        </svg>
-        Attach file</button>`}
-    </div>
+    <div class="rx-notes-head" id="rx-notes-head">
+  <h4>Quick notes — no time? dump everything here</h4>
+
+  <button type="button"
+          class="rx-notes-attach-btn"
+          id="rx-notes-attach-btn">
+    <svg viewBox="0 0 24 24"
+         fill="none"
+         stroke="currentColor"
+         stroke-width="2"
+         stroke-linecap="round"
+         stroke-linejoin="round">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+    </svg>
+    Attach file
+  </button>
+</div>
     <div class="rx-notes-subject-row">
       <input type="text" class="rx-notes-subject" id="rx-notes-subject" placeholder="Subject…" maxlength="200" autocomplete="off">
       ${SEL('notesubject',[...allNoteSubjects(),NOTE_SUBJECT_ADD],'',true,true)}
@@ -2217,7 +2394,6 @@ function rxExtrasChanged(r){
   let saved='[]'; try{ saved=JSON.stringify(JSON.parse(r.socials||'[]')); }catch(e){}
   return rxExtraCur('role')!==String(r.role||'')
     || rxExtraCur('company_type')!==String(r.company_type||'')
-    || rxExtraCur('subject')!==String(r.subject||'')
     || rxExtraCur('no')!==String(r.site_number||'')
     || rxExtraCur('bldg')!==String(r.site_building||'')
     || rxExtraCur('floor')!==String(r.site_floor||'')
@@ -2228,14 +2404,19 @@ async function rxSaveExtras(r){
     lead_role: rxExtraCur('role')||null,
     lead_company_type: rxExtraCur('company_type')||null,
     lead_socials: JSON.stringify(rxCollectSocials()),
-    subject: rxExtraCur('subject')||'',
     site_number: rxExtraCur('no')||null,
     site_building: rxExtraCur('bldg')||null,
     site_floor: rxExtraCur('floor')||null,
   };
   await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify(patch)});
-  Object.assign(r,{role:patch.lead_role,company_type:patch.lead_company_type,socials:patch.lead_socials,
-    subject:patch.subject,site_number:patch.site_number,site_building:patch.site_building,site_floor:patch.site_floor});
+  Object.assign(r,{
+  role:patch.lead_role,
+  company_type:patch.lead_company_type,
+  socials:patch.lead_socials,
+  site_number:patch.site_number,
+  site_building:patch.site_building,
+  site_floor:patch.site_floor
+});
 }
 function rxCollectNew(){
   const v={};
@@ -2254,9 +2435,24 @@ function rxCollectNew(){
   const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
     street:v.street||null, maps_url:v.maps||null, site_location:v.location||null,
     site_number:v.no||null, site_building:v.bldg||null, site_floor:v.floor||null}:null;
-  return {person, site, subject:v.subject||'', status:v.status||'open', log_type:v.type||'inbound_call',
-    category:v.category||null, reference:v.reference||null, tags:(v.tags&&v.tags!==TAG_ADD)?v.tags:'', description:v.desc||'', updates:v.updates||'',
-    follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
+return {
+  person,
+  site,
+  subject:v.subject||'',
+  status:(rxStateValue||'OPEN').toLowerCase(),
+  log_type:v.type||'inbound_call',
+
+  // Use selected stage. Only default to Prospect if none exists.
+  stage:v.stage || 'prospect',
+
+  category:v.category||null,
+  reference:v.reference||null,
+  tags:(v.tags&&v.tags!==TAG_ADD)?v.tags:'',
+  description:v.desc||'',
+  updates:v.updates||'',
+  follow_up_date:v.followup||null,
+  follow_up_notes:v.funotes||''
+};
 }
 
 function rxBusy(on){ const a=$('rx-save'),b=$('rx-cancel'); if(a)a.disabled=on; if(b)b.disabled=on; }

@@ -203,10 +203,35 @@
   .rx-state-btn .rx-state-arrow{width:11px;height:11px;margin-left:auto;opacity:.7;transition:transform .15s}
   .rx-state-btn[aria-expanded="true"] .rx-state-arrow{transform:rotate(180deg)}
   .rx-state-mark{--rx-state-glow:rgba(134,239,172,.58);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:#22c55e;color:#fff;font-size:11px;font-weight:900;line-height:1}
-  .rx-state-mark.transfered{--rx-state-glow:rgba(147,197,253,.58);background:#3b82f6}
-  .rx-state-mark.ongoing{--rx-state-glow:rgba(254,240,138,.62);background:#facc15}
-  .rx-state-mark.done{--rx-state-glow:rgba(252,165,165,.58);width:auto;height:auto;border-radius:0;background:transparent;color:#ef4444;font-size:15px}
-  .rx-state-mark.cancelled{--rx-state-glow:rgba(203,213,225,.62);background:#a7b1c1}
+  .rx-state-mark.scheduled{
+  --rx-state-glow:rgba(167,139,250,.58);
+  background:#7c3aed;
+}
+
+.rx-state-mark.viewed{
+  --rx-state-glow:rgba(34,211,238,.58);
+  background:#0891b2;
+}
+
+.rx-state-mark.cancelled{
+  --rx-state-glow:rgba(203,213,225,.62);
+  background:#a7b1c1;
+}
+
+.rx-state-mark.done{
+  --rx-state-glow:rgba(252,165,165,.58);
+  width:auto;
+  height:auto;
+  border-radius:0;
+  background:transparent;
+  color:#ef4444;
+  font-size:15px;
+}
+
+.rx-state-mark.transferred{
+  --rx-state-glow:rgba(251,191,36,.58);
+  background:#d97706;
+}
   .rx-state-btn .rx-state-mark{transform-origin:center;animation:rx-state-pulse 1.8s ease-in-out infinite}
   @keyframes rx-state-pulse{
     0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 transparent)}
@@ -845,7 +870,203 @@
 .ctmenu button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600;color:#0f172a;text-align:left}
 .ctmenu button:hover{background:#f1f5f9}
 .ctmenu .cdot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
-/* Last Touch: date over a muted "· channel · N total" sub-line (photo #4). */
-.lt{display:flex;flex-direction:column;gap:1px;min-width:0}
-.lt-date{font-variant-numeric:tabular-nums;color:#334155;font-weight:600}
-.lt-sub{font-size:10.5px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+
+/* Last Touch — plain clickable date + communication underneath */
+.lt{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:2px;
+  min-width:0;
+}
+
+/* Date looks like normal text, but stays clickable */
+.lt-date{
+  appearance:none;
+  -webkit-appearance:none;
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+
+  padding:0 !important;
+  margin:0 !important;
+
+  color:inherit;
+  font:inherit;
+  font-size:13px;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+/* Prevent button/input styling when hovering or clicking */
+.lt-date:hover,
+.lt-date:focus,
+.lt-date:active{
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+}
+
+/* show communication information underneath again */
+.lt-sub{
+  display:block;
+  font-size:10.5px;
+  color:#94a3b8;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+/* Hidden real date/time picker */
+.lt-picker-hidden{
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+  overflow:hidden !important;
+}
+
+/* Deliverables: show only classifications that apply to the log */
+.ldoc.selected-only{
+  color:var(--navy);
+  border-color:#dbe4f0;
+  background:#fff;
+  font-weight:600;
+}
+
+/* Attachment + Deliverables classification */
+.rx-att-classified{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:flex-start;
+}
+
+.rx-deliv-picker{
+  position:relative;
+  width:100%;
+}
+
+.rx-deliv-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+
+  border:1px solid #cdd8e8;
+  border-radius:6px;
+  background:#fff;
+
+  color:#284f9e;
+  font:inherit;
+  font-size:11px;
+  font-weight:700;
+
+  padding:6px 8px;
+  cursor:pointer;
+}
+
+.rx-deliv-btn:hover{
+  background:#f3f6fb;
+}
+
+.rx-deliv-arrow{
+  font-size:13px;
+}
+
+.rx-deliv-menu{
+  display:none;
+
+  position:absolute;
+  top:calc(100% + 4px);
+  left:0;
+
+  z-index:1500;
+
+  min-width:135px;
+
+  padding:6px;
+
+  border:1px solid #cdd8e8;
+  border-radius:8px;
+
+  background:#fff;
+
+  box-shadow:0 10px 30px rgba(15,23,42,.18);
+}
+
+.rx-deliv-menu.open{
+  display:block;
+}
+
+.rx-deliv-option{
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  padding:6px 8px;
+  border-radius:5px;
+
+  color:#1e3a7a;
+  font-size:11.5px;
+  font-weight:700;
+
+  cursor:pointer;
+}
+
+.rx-deliv-option:hover{
+  background:#f1f5f9;
+}
+
+.rx-deliv-option input{
+  margin:0;
+}
+
+/* Deliverables — Add new classification */
+.rx-deliv-add-wrap{
+  margin-top:4px;
+  padding-top:4px;
+  border-top:1px solid #dbe4f0;
+}
+
+.rx-deliv-add{
+  appearance:none;
+  -webkit-appearance:none;
+
+  width:100%;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+
+  padding:7px 8px;
+
+  color:#1e3a7a;
+  font:inherit;
+  font-size:11.5px;
+  font-weight:700;
+  text-align:left;
+
+  cursor:pointer;
+}
+
+.rx-deliv-add:hover{
+  background:#f3f6fb;
+}
+
+.rx-deliv-add:focus,
+.rx-deliv-add:active{
+  outline:none;
+  box-shadow:none;
+}

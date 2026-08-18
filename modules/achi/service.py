@@ -588,6 +588,20 @@ class ContactFileService:
     async def get_attachment(self, attachment_id: str) -> LogAttachment | None:
         return await self.session.get(LogAttachment, attachment_id)
 
+    async def update_attachment_deliverables(
+        self,
+        att: LogAttachment,
+        deliverables: list[str],
+    ) -> LogAttachment:
+        """Save the selected General Log deliverable classifications."""
+
+        att.deliverables = ",".join(deliverables)
+
+        await self.session.commit()
+        await self.session.refresh(att)
+
+        return att
+
     async def read_attachment(self, att: LogAttachment) -> bytes:
         return await get_storage_backend().get(att.storage_key)
 
@@ -610,12 +624,61 @@ class ContactFileService:
         """Attachment count per log — one grouped query, not one per row."""
         if not log_ids:
             return {}
+
         q = (
             select(LogAttachment.log_id, func.count(LogAttachment.id))
             .where(LogAttachment.log_id.in_(log_ids))
             .group_by(LogAttachment.log_id)
         )
-        return {log_id: n for log_id, n in (await self.session.execute(q)).all()}
+
+        return {
+            log_id: n
+            for log_id, n in (await self.session.execute(q)).all()
+        }
+
+    async def attachment_deliverables(
+        self,
+        log_ids: list[str],
+    ) -> dict[str, list[str]]:
+        """Union of selected deliverables across each log's attachments."""
+
+        if not log_ids:
+            return {}
+
+        rows = (
+            await self.session.execute(
+                select(
+                    LogAttachment.log_id,
+                    LogAttachment.deliverables,
+                ).where(
+                    LogAttachment.log_id.in_(log_ids)
+                )
+            )
+        ).all()
+
+        result: dict[str, list[str]] = {}
+
+        for log_id, raw in rows:
+            if not raw:
+                continue
+
+            bucket = result.setdefault(log_id, [])
+            seen = {item.lower() for item in bucket}
+
+            for item in raw.split(","):
+                name = item.strip()
+
+                if not name:
+                    continue
+
+                key = name.lower()
+
+                if key not in seen:
+                    seen.add(key)
+                    bucket.append(name)
+
+        return result
+
 
     async def doc_signals(self, file_ids: list[str]) -> tuple[set[str], set[str], set[str]]:
         """For the CRM "Docs" pills: which files have a survey / survey with
@@ -964,10 +1027,84 @@ class ContactFileService:
         )
         rows = list((await self.session.execute(q)).all())
 
-        if not deleted:
-            rows.sort(key=lambda row: _log_code_sort_key(row[1].log_code))
-
         return rows
+
+    async def log_stats(self) -> dict[str, int]:
+        """Dashboard KPI totals across all active General Log entries."""
+
+        now = datetime.now(timezone.utc)
+        month_start = datetime(
+            now.year,
+            now.month,
+            1,
+            tzinfo=timezone.utc,
+        )
+
+        if now.month == 12:
+            next_month = datetime(
+                now.year + 1,
+                1,
+                1,
+                tzinfo=timezone.utc,
+            )
+        else:
+            next_month = datetime(
+                now.year,
+                now.month + 1,
+                1,
+                tzinfo=timezone.utc,
+            )
+
+        base = (
+            FileLog.deleted_at.is_(None)
+        )
+
+        total = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .where(base)
+            )
+        ).scalar_one()
+
+        open_count = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .join(ContactFile, FileLog.file_id == ContactFile.id)
+                .where(
+                    base,
+                    ContactFile.status == "open",
+                )
+            )
+        ).scalar_one()
+
+        done_count = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .join(ContactFile, FileLog.file_id == ContactFile.id)
+                .where(
+                    base,
+                    ContactFile.status == "done",
+                )
+            )
+        ).scalar_one()
+
+        this_month = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .where(
+                    base,
+                    FileLog.created_at >= month_start,
+                    FileLog.created_at < next_month,
+                )
+            )
+        ).scalar_one()
+
+        return {
+            "total": total,
+            "open": open_count,
+            "this_month": this_month,
+            "done": done_count,
+        }
 
     # ── cross-module links ────────────────────────────────────────────────
     async def contact_links(self, contact_id: str) -> dict:
