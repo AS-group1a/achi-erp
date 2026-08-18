@@ -470,7 +470,7 @@ const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter
    values are the ones the team uses; DISTRICTS/CITIES are Lebanon-specific
    because that is where the sites are. */
 const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
-      LOG_STATES=['OPEN','TRANSFERED','ONGOING','DONE','CANCELLED'],
+      LOG_STATES=['OPEN','SCHEDULED','VIEWED','CANCELLED','DONE','TRANSFERRED'],
       COPY_TARGETS=['Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
@@ -2315,7 +2315,7 @@ return {
   person,
   site,
   subject:v.subject||'',
-  status:v.status||'open',
+  status:(rxStateValue||'OPEN').toLowerCase(),
   log_type:v.type||'inbound_call',
 
   // Use selected stage. Only default to Prospect if none exists.
