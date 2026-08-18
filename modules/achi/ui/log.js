@@ -1446,23 +1446,11 @@ function openCommAddMenu(btn){
   commMenuEl=menu;
   setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
-
-
-/* Optional page-level configuration for General Log-style workspaces.
-
-   No page sets ACHI_LOG_FILTER in Step 1, so this returns /logs/ and preserves
-   the current behaviour exactly. Later, PROSP, CRM, and QUOTATION can declare:
-
-   window.ACHI_LOG_FILTER = {
-     log_type: 'Prospect',
-     stages: ['prospect', 'outreach']
-   };
-
-   The backend will receive the filter values only after its filtering support is
-   deliberately added in later steps. */
-function logListPath(){
+/* General Log-style workspaces can declare ACHI_LOG_FILTER before this script.
+   The same query-string format is shared by both the table and KPI requests. */
+function logFilteredPath(basePath){
   const raw=(typeof window!=='undefined') ? window.ACHI_LOG_FILTER : null;
-  if(!raw || typeof raw!=='object') return '/logs/';
+  if(!raw || typeof raw!=='object') return basePath;
 
   const params=new URLSearchParams();
   const logType=typeof raw.log_type==='string' ? raw.log_type.trim() : '';
@@ -1474,7 +1462,15 @@ function logListPath(){
   if(stages.length) params.set('stages',stages.join(','));
 
   const query=params.toString();
-  return query ? '/logs/?'+query : '/logs/';
+  return query ? basePath+'?'+query : basePath;
+}
+
+function logListPath(){
+  return logFilteredPath('/logs/');
+}
+
+function logStatsPath(){
+  return logFilteredPath('/logs/stats');
 }
 
 async function load(){

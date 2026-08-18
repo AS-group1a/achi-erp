@@ -1541,8 +1541,36 @@ async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentU
 async def log_stats(
     session: SessionDep,
     _user_id: CurrentUserId,
+    stages: str | None = Query(
+        default=None,
+        max_length=512,
+        description="Comma-separated Contact File stage keys",
+    ),
+    log_type: str | None = Query(
+        default=None,
+        max_length=64,
+        description="Exact File Log type",
+    ),
 ) -> dict[str, int]:
-    return await ContactFileService(session).log_stats()
+    requested_stages = tuple(
+        dict.fromkeys(
+            value.strip()
+            for value in (stages or "").split(",")
+            if value.strip()
+        )
+    )
+    invalid_stages = sorted(set(requested_stages).difference(STAGES))
+    if invalid_stages:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Unknown stage value(s): {', '.join(invalid_stages)}",
+        )
+
+    requested_log_type = (log_type or "").strip() or None
+    return await ContactFileService(session).log_stats(
+        stages=requested_stages,
+        log_type=requested_log_type,
+    )
 
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
 async def list_logs(

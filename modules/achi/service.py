@@ -1029,9 +1029,17 @@ class ContactFileService:
 
         return rows
 
-    async def log_stats(self) -> dict[str, int]:
-        """Dashboard KPI totals across all active General Log entries."""
+    async def log_stats(
+        self,
+        *,
+        stages: tuple[str, ...] = (),
+        log_type: str | None = None,
+    ) -> dict[str, int]:
+        """Dashboard KPI totals for active General Log entries.
 
+        Optional filters match ``list_logs()`` exactly, so each workspace's
+        cards describe the same records as its table.
+        """
         now = datetime.now(timezone.utc)
         month_start = datetime(
             now.year,
@@ -1056,13 +1064,16 @@ class ContactFileService:
             )
 
         base = (
-            FileLog.deleted_at.is_(None)
+            FileLog.deleted_at.is_(None),
+            ContactFile.stage.in_(stages) if stages else True,
+            FileLog.log_type == log_type if log_type else True,
         )
 
         total = (
             await self.session.execute(
                 select(func.count(FileLog.id))
-                .where(base)
+                .join(ContactFile, FileLog.file_id == ContactFile.id)
+                .where(*base)
             )
         ).scalar_one()
 
@@ -1071,7 +1082,7 @@ class ContactFileService:
                 select(func.count(FileLog.id))
                 .join(ContactFile, FileLog.file_id == ContactFile.id)
                 .where(
-                    base,
+                    *base,
                     ContactFile.status == "open",
                 )
             )
@@ -1082,7 +1093,7 @@ class ContactFileService:
                 select(func.count(FileLog.id))
                 .join(ContactFile, FileLog.file_id == ContactFile.id)
                 .where(
-                    base,
+                    *base,
                     ContactFile.status == "done",
                 )
             )
@@ -1091,8 +1102,9 @@ class ContactFileService:
         this_month = (
             await self.session.execute(
                 select(func.count(FileLog.id))
+                .join(ContactFile, FileLog.file_id == ContactFile.id)
                 .where(
-                    base,
+                    *base,
                     FileLog.created_at >= month_start,
                     FileLog.created_at < next_month,
                 )
