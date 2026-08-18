@@ -45,7 +45,7 @@ deploy/overrides/         tier-3 CSS theme overrides                        (see
 
 **`modules/achi/` is where the team works.** The loader discovers modules on the filesystem,
 so our code is a first-class module with its own router, tables and business logic — and
-upstream stays stock. Verified live on 11.9.0: router mounted at `/api/v1/achi`, table created
+upstream stays stock. Verified live on 11.9.0: router mounted at `/api/v1/achi`, table created.
 
 ## Deploy
 
