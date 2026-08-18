@@ -1659,6 +1659,11 @@ async def list_logs(
             phones = [{"label": "Mobile", "number": mobile}]
         if not emails and email:
             emails = [{"label": "Primary", "address": email}]
+        log_deliverables = attachment_docs.get(log.id, [])
+        deliverable_keys = {
+            str(item).lower()
+            for item in log_deliverables
+        }
         out.append(
             LogRowOut(
                 id=log.id,
@@ -1698,6 +1703,7 @@ async def list_logs(
                 owner_name=owner_name,
                 assigned=f.assigned_to_user_id,
                 assigned_name=assigned_name,
+                deliverables=log_deliverables,
                 docs={
                     "srv": "srv" in attachment_docs.get(log.id, set()),
                     "dwg": "dwg" in attachment_docs.get(log.id, set()),

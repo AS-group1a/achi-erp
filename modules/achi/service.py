@@ -741,7 +741,7 @@ class ContactFileService:
     async def attachment_deliverables(
         self,
         log_ids: list[str],
-    ) -> dict[str, set[str]]:
+    ) -> dict[str, list[str]]:
         """Union of selected deliverables across each log's attachments."""
 
         if not log_ids:
@@ -758,20 +758,26 @@ class ContactFileService:
             )
         ).all()
 
-        result: dict[str, set[str]] = {}
+        result: dict[str, list[str]] = {}
 
         for log_id, raw in rows:
             if not raw:
                 continue
 
-            selected = {
-                item.strip().lower()
-                for item in raw.split(",")
-                if item.strip()
-            }
+            bucket = result.setdefault(log_id, [])
+            seen = {item.lower() for item in bucket}
 
-            if selected:
-                result.setdefault(log_id, set()).update(selected)
+            for item in raw.split(","):
+                name = item.strip()
+
+                if not name:
+                    continue
+
+                key = name.lower()
+
+                if key not in seen:
+                    seen.add(key)
+                    bucket.append(name)
 
         return result
 

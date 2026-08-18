@@ -232,23 +232,38 @@ class FileLogUpdate(BaseModel):
 class AttachmentDeliverablesUpdate(BaseModel):
     """Deliverable classifications selected for one attached file."""
 
-    deliverables: list[str] = Field(default_factory=list, max_length=6)
+    deliverables: list[str] = Field(default_factory=list, max_length=12)
 
     @field_validator("deliverables")
     @classmethod
     def _validate_deliverables(cls, value: list[str]) -> list[str]:
         clean = []
+        seen = set()
 
         for item in value:
-            key = str(item).strip().lower()
+            name = str(item).strip()
 
-            if key not in DELIVERABLE_KEYS:
+            if not name:
+                continue
+
+            if len(name) > 32:
                 raise ValueError(
-                    f"deliverable must be one of {DELIVERABLE_KEYS}"
+                    "deliverable classification must be 32 characters or fewer"
                 )
 
-            if key not in clean:
-                clean.append(key)
+            # Commas are reserved because classifications are stored
+            # as one comma-separated string in the database.
+            if "," in name:
+                raise ValueError(
+                    "deliverable classification cannot contain commas"
+                )
+
+            # Prevent duplicates while preserving how the user typed the name.
+            lookup = name.lower()
+
+            if lookup not in seen:
+                seen.add(lookup)
+                clean.append(name)
 
         return clean
 
@@ -276,9 +291,9 @@ class AttachmentOut(BaseModel):
 
         if isinstance(value, str):
             return [
-                item.strip().lower()
+                item.strip()
                 for item in value.split(",")
-                if item.strip().lower() in DELIVERABLE_KEYS
+                if item.strip()
             ]
 
         return value
@@ -466,6 +481,7 @@ class LogRowOut(BaseModel):
     # boq, cst, qte. Computed from real signals (surveys, drawings, quotations);
     # boq/cst have no data source yet and stay False.
     docs: dict[str, bool] | None = None
+    deliverables: list[str] = Field(default_factory=list)
     communication: str | None = None   # General Log "Communication" channel (legacy single value)
     comm_tally: dict[str, int] | None = None   # this log's per-channel counters, e.g. {"WhatsApp": 2}
     # General Log Communication pills + Last Touch: how this file's logs split by
