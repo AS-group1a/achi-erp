@@ -1,4 +1,4 @@
-# Instructions for AI agents
+# Instructions for AI agents.
 
 **Read `CONTRIBUTING.md` before changing anything.** It is the source of truth. This file only
 restates the rules most often broken.
@@ -9,12 +9,12 @@ restates the rules most often broken.
    task appears to require it, you are on the wrong tier — say so instead of doing it.
    Everything ACHI needs is done from outside the package. See the four tiers in CONTRIBUTING.md.
 2. **Do not trust the vendor's documentation.** Three documented claims are false in 11.9.0:
-   `primary_color` theming, `--data-dir` honouring, and "you enable only the parts you need".
+   `primary_color` theming, `--data-dir` honouring, and "you enable only the parts you need"
    Read the source and cite `file:line`.
 3. **Distinguish verified from inferred.** "The CSS is served" ≠ "the page looks right". A 200 is
    not proof of appearance. If you cannot open a browser, say so rather than claiming success.
 4. **Namespace our tables `achi_*`** and never declare `updated_at` (`Base` adds it).
-5. **Pin `OCE_VERSION`.** Never `latest`. Version numbers here carry no compatibility signal.
+5. **Pin `OCE_VERSION`.** Never `latest`. Version numbers here carry no compatibility signal
 6. **Snapshot the database before any upgrade.** Schema is `create_all` + additive auto-heal:
    no drops, no type changes, no rollback.
 
