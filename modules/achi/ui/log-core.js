@@ -1227,7 +1227,10 @@ let selected=new Set();             // selected log ids
 
 async function stats(){
   try{
-    const s = await api('/logs/stats');
+    const path=typeof logStatsPath==='function'
+    ? logStatsPath()
+    : '/logs/stats';
+    const s = await api(path);
 
     $('k-total').textContent = s.total ?? 0;
     $('k-open').textContent = s.open ?? 0;
