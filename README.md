@@ -34,7 +34,7 @@ Upgrading OCE = bump `OCE_VERSION` in `.env`, rebuild. No rebase. No conflicts.
 > The fork at `ararahxhq-hue/OpenConstructionERP` plays **no part** in this deployment and can
 > be retired. It carries only a devcontainer commit; the branding lives here.
 
-## Layout
+## Layout.
 
 ```
 modules/achi/             ACHI's own code — the erp_next_custom equivalent  (see modules/README.md)
