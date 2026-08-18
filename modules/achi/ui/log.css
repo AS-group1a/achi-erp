@@ -178,10 +178,35 @@
   .rx-state-btn .rx-state-arrow{width:11px;height:11px;margin-left:auto;opacity:.7;transition:transform .15s}
   .rx-state-btn[aria-expanded="true"] .rx-state-arrow{transform:rotate(180deg)}
   .rx-state-mark{--rx-state-glow:rgba(134,239,172,.58);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:#22c55e;color:#fff;font-size:11px;font-weight:900;line-height:1}
-  .rx-state-mark.transfered{--rx-state-glow:rgba(147,197,253,.58);background:#3b82f6}
-  .rx-state-mark.ongoing{--rx-state-glow:rgba(254,240,138,.62);background:#facc15}
-  .rx-state-mark.done{--rx-state-glow:rgba(252,165,165,.58);width:auto;height:auto;border-radius:0;background:transparent;color:#ef4444;font-size:15px}
-  .rx-state-mark.cancelled{--rx-state-glow:rgba(203,213,225,.62);background:#a7b1c1}
+  .rx-state-mark.scheduled{
+  --rx-state-glow:rgba(167,139,250,.58);
+  background:#7c3aed;
+}
+
+.rx-state-mark.viewed{
+  --rx-state-glow:rgba(34,211,238,.58);
+  background:#0891b2;
+}
+
+.rx-state-mark.cancelled{
+  --rx-state-glow:rgba(203,213,225,.62);
+  background:#a7b1c1;
+}
+
+.rx-state-mark.done{
+  --rx-state-glow:rgba(252,165,165,.58);
+  width:auto;
+  height:auto;
+  border-radius:0;
+  background:transparent;
+  color:#ef4444;
+  font-size:15px;
+}
+
+.rx-state-mark.transferred{
+  --rx-state-glow:rgba(251,191,36,.58);
+  background:#d97706;
+}
   .rx-state-btn .rx-state-mark{transform-origin:center;animation:rx-state-pulse 1.8s ease-in-out infinite}
   @keyframes rx-state-pulse{
     0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 transparent)}
