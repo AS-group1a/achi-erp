@@ -1478,6 +1478,15 @@ async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentU
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
     return links
 
+@router.get(
+    "/logs/stats",
+    summary="General Log dashboard totals",
+)
+async def log_stats(
+    session: SessionDep,
+    _user_id: CurrentUserId,
+) -> dict[str, int]:
+    return await ContactFileService(session).log_stats()
 
 @router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
 async def list_logs(

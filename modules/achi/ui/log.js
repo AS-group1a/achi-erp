@@ -1447,11 +1447,24 @@ function openCommAddMenu(btn){
   setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
 
-async function load(){ try{
-  ROWS=await api('/logs/');
-  try{ sessionStorage.setItem(ROW_CACHE_KEY,JSON.stringify(ROWS)); }catch(_){}
-  stats(); render();
-}catch(e){ fail(e.message); } }
+async function load(){
+  try{
+    ROWS = await api('/logs/');
+
+    try{
+      sessionStorage.setItem(
+        ROW_CACHE_KEY,
+        JSON.stringify(ROWS)
+      );
+    }catch(_){}
+
+    await stats();
+    render();
+
+  }catch(e){
+    fail(e.message);
+  }
+}
 
 /* tabs = scroll positions */
 const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');

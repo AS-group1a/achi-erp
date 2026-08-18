@@ -1121,6 +1121,83 @@ class ContactFileService:
 
         return rows
 
+    async def log_stats(self) -> dict[str, int]:
+        """Dashboard KPI totals across all active General Log entries."""
+
+        now = datetime.now(timezone.utc)
+        month_start = datetime(
+            now.year,
+            now.month,
+            1,
+            tzinfo=timezone.utc,
+        )
+
+        if now.month == 12:
+            next_month = datetime(
+                now.year + 1,
+                1,
+                1,
+                tzinfo=timezone.utc,
+            )
+        else:
+            next_month = datetime(
+                now.year,
+                now.month + 1,
+                1,
+                tzinfo=timezone.utc,
+            )
+
+        base = (
+            FileLog.deleted_at.is_(None)
+        )
+
+        total = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .where(base)
+            )
+        ).scalar_one()
+
+        open_count = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .join(ContactFile, FileLog.file_id == ContactFile.id)
+                .where(
+                    base,
+                    ContactFile.status == "open",
+                )
+            )
+        ).scalar_one()
+
+        done_count = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .join(ContactFile, FileLog.file_id == ContactFile.id)
+                .where(
+                    base,
+                    ContactFile.status == "done",
+                )
+            )
+        ).scalar_one()
+
+        this_month = (
+            await self.session.execute(
+                select(func.count(FileLog.id))
+                .where(
+                    base,
+                    FileLog.created_at >= month_start,
+                    FileLog.created_at < next_month,
+                )
+            )
+        ).scalar_one()
+
+        return {
+            "total": total,
+            "open": open_count,
+            "this_month": this_month,
+            "done": done_count,
+        }
+
     # ── cross-module links ────────────────────────────────────────────────
     async def contact_links(self, contact_id: str) -> dict:
         """Everything attached to one contact, across ACHI and upstream CRM.

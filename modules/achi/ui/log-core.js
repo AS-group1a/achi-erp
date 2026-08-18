@@ -1059,8 +1059,25 @@ function isOverdueFollowup(r){
 }
 function cellHTML(c,r,i){switch(c.k){
   case 'num': return `<span class="rn">${GENERAL_LOG&&r&&r.log_code?esc(r.log_code):i+1}</span>`;
-  case 'when': return dateTimeHTML(r.occurred_at||r.created_at);
-  case 'status': return badge(r.status);
+  case 'when': {
+  const when = r.occurred_at || r.created_at;
+  if(!when) return '<span class="mt">—</span>';
+
+  const d = new Date(when);
+  if(isNaN(d)) return esc(when);
+
+  const p = n => String(n).padStart(2,'0');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const hour = d.getHours();
+  const h = hour % 12 || 12;
+
+  const text =
+    `${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ` +
+    `${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`;
+
+  return `<span class="lt-date">${esc(text)}</span>`;
+}  case 'status': return badge(r.status);
   case 'prefix': return dash(r.prefix);
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
@@ -1134,10 +1151,19 @@ const selectedRows=new Set();
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
 let selected=new Set();             // selected log ids
 
-function stats(){ const now=new Date();
-  const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
-  $('k-total').textContent=ROWS.length; $('k-open').textContent=ROWS.filter(r=>r.status==='open').length;
-  $('k-month').textContent=m; $('k-done').textContent=ROWS.filter(r=>r.status==='done').length; }
+async function stats(){
+  try{
+    const s = await api('/logs/stats');
+
+    $('k-total').textContent = s.total ?? 0;
+    $('k-open').textContent = s.open ?? 0;
+    $('k-month').textContent = s.this_month ?? 0;
+    $('k-done').textContent = s.done ?? 0;
+
+  }catch(e){
+    console.warn('Could not load log stats', e);
+  }
+}
 /* ── column widths (ported from tabbed_grid.js _wireColResize) ─────────────
  * Widths are per-column and remembered per browser, so someone who widens
  * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
