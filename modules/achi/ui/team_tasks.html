@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Tasks | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=14">
+  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=17">
 </head>
 
 <body data-achi-title="Team Tasks">
@@ -150,7 +150,10 @@
             </select>
           </label>
 
-          <label for="achi-task-filter-status">
+          <label
+            class="achi-task-status-filter"
+            for="achi-task-filter-status"
+          >
             <span class="achi-task-sr-only">Filter by status</span>
             <select id="achi-task-filter-status">
               <option value="active">Board tasks</option>
@@ -862,7 +865,7 @@
     hidden
   ></div>
 
-  <script src="/api/v1/achi/tasks/team_tasks.js?v=8"></script>
+  <script src="/api/v1/achi/tasks/team_tasks.js?v=11"></script>
   <script src="/api/v1/achi/ui/chrome.js?v=28"></script>
 </body>
 </html>

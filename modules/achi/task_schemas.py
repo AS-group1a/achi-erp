@@ -239,6 +239,12 @@ class TaskProgressIn(StrictInput):
         return self
 
 
+class TaskBoardMoveIn(StrictInput):
+    """One validated, auditable Kanban move from the shared board."""
+
+    target_status: TaskStatus
+
+
 class TaskCommentCreateIn(StrictInput):
     body: str = Field(min_length=1, max_length=5_000)
 
