@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Tasks | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=1">
+  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=2">
 </head>
 
 <body data-achi-title="Team Tasks">
@@ -190,10 +190,16 @@
           </span>
         </form>
 
+        <p class="achi-task-board-hint" id="achi-task-board-hint">
+          Drag cards to highlighted columns to change stage. Available moves
+          follow the task workflow.
+        </p>
+
         <div
           class="achi-task-board"
           id="achi-task-board"
           aria-label="Team task board"
+          aria-describedby="achi-task-board-hint"
         >
           <section
             class="achi-task-column achi-task-column-unassigned"
@@ -866,7 +872,7 @@
     hidden
   ></div>
 
-  <script src="/api/v1/achi/tasks/team_tasks.js?v=1"></script>
+  <script src="/api/v1/achi/tasks/team_tasks.js?v=2"></script>
   <script src="/api/v1/achi/ui/chrome.js?v=28"></script>
 </body>
 </html>

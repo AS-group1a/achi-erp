@@ -52,6 +52,12 @@
     dialogTrigger: null,
     searchTimer: null,
     toastTimer: null,
+    dragTaskId: null,
+    dragAllowedStatuses: [],
+    movingTaskId: null,
+    suppressCardClickUntil: 0,
+    actionOpenTaskAfterSave: true,
+    actionTargetStatus: null,
   };
 
   function isJwt(value) {
@@ -377,12 +383,105 @@
     return el('p', 'achi-task-empty-state', message);
   }
 
+  function taskMoveTransitions(task) {
+    const transitions = {};
+    const access = state.access || {};
+    const ownsTask = task.assigned_to_user_id === access.user_id;
+
+    if (access.can_progress_tasks && ownsTask) {
+      if (task.status === 'to_do') {
+        transitions.in_progress = {
+          path: `/${task.id}/progress`,
+          method: 'PATCH',
+          body: { action: 'start' },
+        };
+        transitions.blocked = { dialog: 'block' };
+      } else if (task.status === 'in_progress') {
+        transitions.blocked = { dialog: 'block' };
+        transitions.ready_for_review = {
+          path: `/${task.id}/progress`,
+          method: 'PATCH',
+          body: { action: 'submit', note: '' },
+        };
+      } else if (task.status === 'blocked') {
+        transitions.in_progress = {
+          path: `/${task.id}/progress`,
+          method: 'PATCH',
+          body: { action: 'resume' },
+        };
+      }
+    }
+
+    if (access.can_manage_team) {
+      if (task.status === 'ready_for_review') {
+        transitions.in_progress = { dialog: 'return' };
+        transitions.completed = {
+          path: `/${task.id}/approve`,
+          method: 'POST',
+          body: { note: '' },
+        };
+      } else if (task.status === 'completed') {
+        const reopenedStatus = task.assigned_to_user_id
+          ? 'to_do'
+          : 'unassigned';
+        transitions[reopenedStatus] = { dialog: 'reopen' };
+      }
+    }
+
+    return transitions;
+  }
+
+  function replaceTask(updatedTask) {
+    const index = state.tasks.findIndex(task => task.id === updatedTask.id);
+    if (index !== -1) state.tasks[index] = updatedTask;
+  }
+
+  function applyMovedTask(updatedTask) {
+    const filters = activeFilters();
+    const outsideStatusFilter = (
+      filters.status
+      && filters.status !== 'active'
+      && filters.status !== updatedTask.status
+    );
+    const outsideOverdueFilter = (
+      filters.overdue
+      && !isOverdue(updatedTask)
+    );
+
+    if (outsideStatusFilter || outsideOverdueFilter) {
+      state.tasks = state.tasks.filter(task => task.id !== updatedTask.id);
+      state.total = Math.max(0, state.total - 1);
+      return;
+    }
+
+    replaceTask(updatedTask);
+  }
+
   function taskCard(task) {
     const button = el('button', 'achi-task-card');
+    const targetStatuses = Object.keys(taskMoveTransitions(task));
     button.type = 'button';
     button.dataset.achiTaskId = task.id;
+    button.dataset.achiTaskStatus = task.status;
     button.setAttribute('role', 'listitem');
-    button.setAttribute('aria-label', `Open ${task.task_number}: ${task.title}`);
+    button.setAttribute(
+      'aria-label',
+      `${targetStatuses.length ? 'Drag to move or open' : 'Open'} ` +
+        `${task.task_number}: ${task.title}`,
+    );
+
+    if (targetStatuses.length && state.movingTaskId !== task.id) {
+      button.draggable = true;
+      button.classList.add('is-draggable');
+      button.title = `Drag to ${targetStatuses
+        .map(status => STATUS_LABELS[status] || status)
+        .join(' or ')}`;
+    }
+
+    if (state.movingTaskId === task.id) {
+      button.classList.add('is-moving');
+      button.setAttribute('aria-busy', 'true');
+    }
 
     const header = el('div', 'achi-task-card-header');
     header.append(el('span', 'achi-task-card-number', task.task_number));
@@ -515,6 +614,165 @@
 
     renderTerminalResults();
     renderMetrics();
+  }
+
+  function boardColumns() {
+    return Array.from(
+      $('achi-task-board').querySelectorAll('[data-achi-task-status]'),
+    );
+  }
+
+  function clearDragPresentation() {
+    $('achi-task-board').classList.remove('is-dragging-task');
+
+    boardColumns().forEach(column => {
+      column.classList.remove(
+        'is-drop-allowed',
+        'is-drop-target',
+        'is-drop-disabled',
+      );
+      column.removeAttribute('aria-dropeffect');
+    });
+
+    $('achi-task-board')
+      .querySelectorAll('.achi-task-card.is-dragging')
+      .forEach(card => {
+        card.classList.remove('is-dragging');
+        card.removeAttribute('aria-grabbed');
+      });
+  }
+
+  function resetDragState() {
+    clearDragPresentation();
+    state.dragTaskId = null;
+    state.dragAllowedStatuses = [];
+  }
+
+  function handleBoardDragStart(event) {
+    const card = event.target.closest('[data-achi-task-id]');
+    if (!card || state.movingTaskId) return;
+
+    const task = state.tasks.find(item => item.id === card.dataset.achiTaskId);
+    const allowedStatuses = task
+      ? Object.keys(taskMoveTransitions(task))
+      : [];
+
+    if (!task || !allowedStatuses.length) {
+      event.preventDefault();
+      return;
+    }
+
+    state.dragTaskId = task.id;
+    state.dragAllowedStatuses = allowedStatuses;
+    state.suppressCardClickUntil = Date.now() + 400;
+
+    card.classList.add('is-dragging');
+    card.setAttribute('aria-grabbed', 'true');
+    $('achi-task-board').classList.add('is-dragging-task');
+
+    boardColumns().forEach(column => {
+      const allowed = allowedStatuses.includes(column.dataset.achiTaskStatus);
+      column.classList.toggle('is-drop-allowed', allowed);
+      column.classList.toggle('is-drop-disabled', !allowed);
+      if (allowed) column.setAttribute('aria-dropeffect', 'move');
+    });
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', task.id);
+    }
+  }
+
+  function handleBoardDragOver(event) {
+    const column = event.target.closest('[data-achi-task-status]');
+    if (!column || !state.dragTaskId) return;
+
+    const allowed = state.dragAllowedStatuses.includes(
+      column.dataset.achiTaskStatus,
+    );
+    if (!allowed) return;
+
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+
+    boardColumns().forEach(item => {
+      item.classList.toggle('is-drop-target', item === column);
+    });
+  }
+
+  function handleBoardDragLeave(event) {
+    const column = event.target.closest('[data-achi-task-status]');
+    if (!column || column.contains(event.relatedTarget)) return;
+    column.classList.remove('is-drop-target');
+  }
+
+  async function performTaskMove(task, targetStatus, transition, card) {
+    if (!transition || state.movingTaskId) return;
+
+    if (transition.dialog) {
+      openAction(transition.dialog, card, {
+        taskId: task.id,
+        openTaskAfterSave: false,
+        targetStatus,
+      });
+      return;
+    }
+
+    state.movingTaskId = task.id;
+    if (card) {
+      card.classList.add('is-moving');
+      card.setAttribute('aria-busy', 'true');
+    }
+
+    try {
+      const updatedTask = await request(transition.path, {
+        method: transition.method,
+        body: transition.body,
+      });
+
+      state.movingTaskId = null;
+      applyMovedTask(updatedTask);
+      renderBoard();
+      showToast(
+        `${updatedTask.task_number} moved to ` +
+          `${STATUS_LABELS[updatedTask.status] || updatedTask.status}.`,
+        'success',
+      );
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      if (state.movingTaskId === task.id) state.movingTaskId = null;
+      if (card) {
+        card.classList.remove('is-moving');
+        card.removeAttribute('aria-busy');
+      }
+    }
+  }
+
+  function handleBoardDrop(event) {
+    const column = event.target.closest('[data-achi-task-status]');
+    const task = state.tasks.find(item => item.id === state.dragTaskId);
+    const targetStatus = column && column.dataset.achiTaskStatus;
+
+    if (
+      !column ||
+      !task ||
+      !state.dragAllowedStatuses.includes(targetStatus)
+    ) {
+      resetDragState();
+      return;
+    }
+
+    event.preventDefault();
+
+    const card = $('achi-task-board').querySelector(
+      `[data-achi-task-id="${task.id}"]`,
+    );
+    const transition = taskMoveTransitions(task)[targetStatus];
+
+    state.suppressCardClickUntil = Date.now() + 400;
+    resetDragState();
+    performTaskMove(task, targetStatus, transition, card);
   }
 
   async function loadTasks() {
@@ -978,17 +1236,32 @@
         field: 'note',
         button: 'Reopen task',
       },
+      block: {
+        heading: 'Block task',
+        description: 'Explain what is preventing this task from progressing.',
+        label: 'Blocking reason',
+        placeholder: 'What is blocking this task?',
+        required: true,
+        endpoint: 'progress',
+        method: 'PATCH',
+        field: 'reason',
+        button: 'Block task',
+        body: note => ({ action: 'block', reason: note }),
+      },
     };
 
     return configs[name] || null;
   }
 
-  function openAction(name, trigger) {
+  function openAction(name, trigger, options = {}) {
     const config = actionConfig(name);
-    if (!config || !state.currentTaskId) return;
+    const taskId = options.taskId || state.currentTaskId;
+    if (!config || !taskId) return;
 
     state.actionName = name;
-    state.actionTaskId = state.currentTaskId;
+    state.actionTaskId = taskId;
+    state.actionOpenTaskAfterSave = options.openTaskAfterSave !== false;
+    state.actionTargetStatus = options.targetStatus || null;
 
     $('achi-task-action-heading').textContent = config.heading;
     $('achi-task-action-description').textContent = config.description;
@@ -1033,18 +1306,25 @@
       const task = await request(
         `/${state.actionTaskId}/${config.endpoint}`,
         {
-          method: 'POST',
-          body: { [config.field]: note },
+          method: config.method || 'POST',
+          body: config.body
+            ? config.body(note)
+            : { [config.field]: note },
         },
       );
 
       closeDialog($('achi-task-action-dialog'));
-      showToast(`${task.task_number} updated.`, 'success');
+      showToast(
+        state.actionTargetStatus
+          ? `${task.task_number} moved to ` +
+            `${STATUS_LABELS[task.status] || task.status}.`
+          : `${task.task_number} updated.`,
+        'success',
+      );
 
-      await Promise.all([
-        loadTasks(),
-        openTask(task.id),
-      ]);
+      const refreshes = [loadTasks()];
+      if (state.actionOpenTaskAfterSave) refreshes.push(openTask(task.id));
+      await Promise.all(refreshes);
     } catch (error) {
       errorNode.textContent = error.message;
     } finally {
@@ -1236,10 +1516,17 @@
     });
 
     $('achi-task-board').addEventListener('click', event => {
+      if (Date.now() < state.suppressCardClickUntil) return;
       const card = event.target.closest('[data-achi-task-id]');
       if (!card) return;
       openTask(card.dataset.achiTaskId, card);
     });
+
+    $('achi-task-board').addEventListener('dragstart', handleBoardDragStart);
+    $('achi-task-board').addEventListener('dragover', handleBoardDragOver);
+    $('achi-task-board').addEventListener('dragleave', handleBoardDragLeave);
+    $('achi-task-board').addEventListener('drop', handleBoardDrop);
+    $('achi-task-board').addEventListener('dragend', resetDragState);
 
     $('achi-task-terminal-list').addEventListener('click', event => {
       const card = event.target.closest('[data-achi-task-id]');
