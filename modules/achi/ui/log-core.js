@@ -594,80 +594,9 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
   }
   const CITY_ADD='__add_city__';
   let customCities={};
-
-  const cityKey=(c,d)=>
-    String(c||'')+'|'+String(d||'');
-
-  const mergedCities=(c,d)=>[
-    ...new Set([
-      ...(citiesFor(c,d)||[]),
-      ...(customCities[cityKey(c,d)]||[])
-    ])
-  ];
-
-
-  /* All cities for a country.
-    Used when the user has NOT selected a district yet. */
-  const allCitiesForCountry=c=>{
-    if(!c) return [];
-
-    const out=[];
-    const seen=new Set();
-
-    districtsMerged(c).forEach(d=>{
-      mergedCities(c,d).forEach(city=>{
-        const name=String(city||'').trim();
-        const key=name.toLowerCase();
-
-        if(name && !seen.has(key)){
-          seen.add(key);
-          out.push(name);
-        }
-      });
-    });
-
-    return out;
-  };
-
-
-  /* If district exists -> only show cities in that district.
-    If district is blank -> show ALL cities in the country. */
-  const cityOptions=(c,d)=>{
-    if(!c) return [];
-
-    if(d){
-      return [
-        ...mergedCities(c,d),
-        CITY_ADD
-      ];
-    }
-
-    return allCitiesForCountry(c);
-  };
-
-
-  /* Find which district a city belongs to.
-    Only return a district when there is one clear match. */
-  const districtForCity=(country,city)=>{
-    if(!country || !city) return '';
-
-    const wanted=String(city)
-      .trim()
-      .toLowerCase();
-
-    const matches=districtsMerged(country).filter(district=>
-      mergedCities(country,district).some(
-        existing=>
-          String(existing)
-            .trim()
-            .toLowerCase()===wanted
-      )
-    );
-
-    return matches.length===1
-      ? matches[0]
-      : '';
-  };
+  const cityKey=(c,d)=>String(c||'')+'|'+String(d||'');
+  const mergedCities=(c,d)=>[...new Set([...(citiesFor(c,d)||[]),...(customCities[cityKey(c,d)]||[])])];
+  const cityOptions=(c,d)=>(c&&d)?[...mergedCities(c,d),CITY_ADD]:[];
   async function loadCustomCities(){
     try{ const rows=await api('/geo/cities'); customCities={};
       for(const r of rows){ const k=cityKey(r.country,r.district); (customCities[k]=customCities[k]||[]).push(r.city); }
@@ -694,36 +623,10 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      a site-info select's options when the level above changes, refresh its
      enhanced button label. The menu reads <option>s on open, so this suffices. */
   const rxFillSelect=(id,list,selected)=>{
-    const sel=$('rx-'+id);
-    if(!sel) return;
-
-    sel.innerHTML=['',...(list||[])].map(o=>
-      `<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${
-        esc(
-          o===CITY_ADD
-            ? '+ Add City'
-            : o===DISTRICT_ADD
-              ? '+ Add District'
-              : (o||'—')
-        )
-      }</option>`
-    ).join('');
-
+    const sel=$('rx-'+id); if(!sel) return;
+    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':o===DISTRICT_ADD?'+ Add District':(o||'—'))}</option>`).join('');
     sel.value=selected||'';
-
-    if(sel.dataset.rxEnhanced && sel._rxButton){
-      sel._rxButton.querySelector('span').textContent=
-        rxSelectLabel(sel);
-    }
-
-    // Keep the editable visible field synchronized.
-    const input=$('rx-body')?.querySelector(
-      `[data-geo-input="${id}"]`
-    );
-
-    if(input){
-      input.value=selected||'';
-    }
+    if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
   };
       /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
       const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
@@ -977,53 +880,6 @@ function glDocsCell(r){
       .join('')
   }</div>`;
 }
-
-const GL_COMM_COLOR={
-  Call:'#2563eb',
-  Phone:'#2563eb',
-  Email:'#7c3aed',
-  WhatsApp:'#16a34a',
-  'In-person':'#ea580c',
-  SMS:'#0891b2',
-  Instagram:'#db2777',
-  Facebook:'#1d4ed8',
-  LinkedIn:'#0a66c2',
-  X:'#0f172a',
-  TikTok:'#0f172a',
-  Other:'#64748b'
-};
-
-const GL_COMM_ABBR={
-  Call:'PH',
-  Phone:'PH',
-  Email:'EM',
-  WhatsApp:'WA',
-  'In-person':'IP',
-  SMS:'SMS',
-  Instagram:'IG',
-  Facebook:'FB',
-  LinkedIn:'LI',
-  X:'X',
-  TikTok:'TT',
-  Other:'--'
-};
-
-const glCommColor=k=>
-  GL_COMM_COLOR[k] || '#64748b';
-
-const glCommAbbr=k=>
-  GL_COMM_ABBR[k] ||
-  String(k||'').slice(0,2).toUpperCase();
-
-const GL_COMM_ADD=[
-  'Call',
-  'WhatsApp',
-  'Email',
-  'LinkedIn',
-  'Facebook',
-  'Instagram',
-  'X'
-];
 /* This log's own per-channel counters, seeded from the legacy single
    `communication` value the first time so old rows upgrade seamlessly. */
 function glCommTally(r){
@@ -1957,10 +1813,7 @@ function openRxSelect(select,button){
   // For the Quick-notes subject combobox the trigger is a slim chevron, but the
   // menu should drop down across the whole field — so anchor it to the framed
   // row when the button lives inside one; every other select anchors to itself.
-  const r=(
-    button.closest('.rx-notes-subject-row,.rx-geo-combo')
-    || button
-  ).getBoundingClientRect();
+  const r=(button.closest('.rx-notes-subject-row')||button).getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
   rxSelectMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-width-8))+'px';
@@ -1992,225 +1845,6 @@ function enhanceRxSelects(){
   $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
   $('rx').querySelectorAll('select.rx-native-select').forEach(enhanceRxSelect);
 }
-function wireGeoManualInputs(){
-  const body=$('rx-body');
-  if(!body) return;
-
-  const inputFor=k=>
-    body.querySelector(`[data-geo-input="${k}"]`);
-
-  const selectFor=k=>$('rx-'+k);
-
-
-  const syncInputToSelect=k=>{
-    const input=inputFor(k);
-    const select=selectFor(k);
-
-    if(!input || !select) return;
-
-    const typed=input.value.trim();
-
-    if(!typed){
-      select.value='';
-      return;
-    }
-
-    let option=[...select.options].find(
-      o=>o.value.toLowerCase()===typed.toLowerCase()
-    );
-
-    // Manually typed value isn't in the dropdown yet.
-    if(!option){
-      option=new Option(typed,typed);
-
-      const command=[...select.options].find(
-        o=>String(o.value).startsWith('__add_')
-      );
-
-      if(command){
-        select.add(option,command.index);
-      }else{
-        select.add(option);
-      }
-    }
-
-    select.value=option.value;
-
-    if(select._rxButton){
-      select._rxButton.querySelector('span').textContent=
-        option.value;
-    }
-  };
-
-
-  const refreshDependents=k=>{
-    const country=
-      inputFor('country')?.value.trim() || '';
-
-    const district=
-      inputFor('district')?.value.trim() || '';
-
-    const currentCity=
-      inputFor('city')?.value.trim() || '';
-
-
-    if(k==='country'){
-
-      rxFillSelect(
-        'district',
-        districtOptions(country),
-        ''
-      );
-
-      // District is blank, so show ALL cities
-      // belonging to the selected country.
-      rxFillSelect(
-        'city',
-        cityOptions(country,''),
-        ''
-      );
-    }
-
-
-    if(k==='district'){
-
-      let options=
-        cityOptions(country,district);
-
-      // If the user typed the City FIRST and it is custom,
-      // don't erase it when District is chosen afterwards.
-      if(
-        currentCity &&
-        !options.some(
-          city=>
-            String(city).toLowerCase()===
-            currentCity.toLowerCase()
-        )
-      ){
-        const commands=options.filter(
-          value=>
-            String(value).startsWith('__add_')
-        );
-
-        const normal=options.filter(
-          value=>
-            !String(value).startsWith('__add_')
-        );
-
-        options=[
-          currentCity,
-          ...normal,
-          ...commands
-        ];
-      }
-
-      rxFillSelect(
-        'city',
-        options,
-        currentCity
-      );
-    }
-  };
-
-  const syncDistrictFromCity=()=>{
-
-    const country=
-      inputFor('country')?.value.trim() || '';
-
-    const city=
-      inputFor('city')?.value.trim() || '';
-
-    if(!country || !city) return;
-
-
-    const district=
-      districtForCity(country,city);
-
-    // Unknown city or city exists in multiple districts:
-    // don't guess.
-    if(!district) return;
-
-
-    // Automatically select the correct District.
-    rxFillSelect(
-      'district',
-      districtOptions(country),
-      district
-    );
-
-
-    // Get the canonical city spelling from that district.
-    const canonicalCity=
-      mergedCities(country,district).find(
-        existing=>
-          String(existing)
-            .trim()
-            .toLowerCase()===
-          city.toLowerCase()
-      ) || city;
-
-
-    // Now that District is known, narrow the City dropdown
-    // to that district while keeping the chosen city.
-    rxFillSelect(
-      'city',
-      cityOptions(country,district),
-      canonicalCity
-    );
-  };
-
-
-  ['country','district','city'].forEach(k=>{
-
-    const input=inputFor(k);
-    const select=selectFor(k);
-
-    if(!input || !select) return;
-
-
-    /* User TYPES directly into the box */
-    input.addEventListener('change',()=>{
-      syncInputToSelect(k);
-
-      if(k==='city'){
-        syncDistrictFromCity();
-      }else{
-        refreshDependents(k);
-      }
-    });
-
-
-    input.addEventListener('keydown',e=>{
-      if(e.key==='Enter'){
-        e.preventDefault();
-        input.blur();
-      }
-    });
-
-
-    /* User chooses from the dropdown */
-    select.addEventListener('change',()=>{
-
-      if(
-        select.value===DISTRICT_ADD ||
-        select.value===CITY_ADD
-      ){
-        return;
-      }
-
-      input.value=select.value;
-
-      if(k==='city'){
-        syncDistrictFromCity();
-      }else{
-        refreshDependents(k);
-      }
-    });
-
-  });
-}
-
-
 /* Push a quick-pick into the free-text Quick-notes Subject. The 'input' event is
    what the Quill mount wired to syncHidden(), so this also updates the saved
    description. Defined here so the rx-body change handler can call it. */
@@ -2289,37 +1923,9 @@ function openExpandedRow(explicitId){
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
-  const GEOSEL=(k,list,v,placeholder)=>{
-    const values=[...(list||[])];
-
-    if(v && !values.includes(v)){
-      values.unshift(v);
-    }
-
-    return `
-      <div class="rx-geo-combo">
-
-        <input
-          type="text"
-          class="rx-in rx-geo-input"
-          data-k="${k}"
-          data-geo-input="${k}"
-          value="${esc(v||'')}"
-          placeholder="${esc(placeholder)}"
-          autocomplete="off"
-        >
-
-        ${SEL(k,values,v,true,true)}
-
-      </div>
-    `;
-  };
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
   const DIRECT={role:'role',company_type:'company_type',subject:'subject',no:'site_number',bldg:'site_building',floor:'site_floor'};
   const val=k=>{ if(k==='reference') return src.reference||''; if(DIRECT[k]) return src[DIRECT[k]]||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
-  const siteCountry  = isNew ? 'Lebanon' : val('country');
-  const siteDistrict = val('district');
-  const siteCity     = val('city');
 
   let html='';
   html+=g('rx-g4',
@@ -2352,35 +1958,9 @@ function openExpandedRow(explicitId){
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3',
-        F(
-          'Country',
-          GEOSEL(
-            'country',
-            COUNTRY_NAMES,
-            siteCountry,
-            'type country...'
-          )
-        ),
-        F(
-          'District',
-          GEOSEL(
-            'district',
-            districtOptions(siteCountry),
-            siteDistrict,
-            'type district...'
-          )
-        ),
-        F(
-          'City',
-          GEOSEL(
-            'city',
-            cityOptions(siteCountry,siteDistrict),
-            siteCity,
-            'type city...'
-          )
-        )
-    )
+    +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,val('country'),true)),
+                F('District', SEL('district',districtOptions(val('country')),val('district'),true)),
+                F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12',val('no'))),
                 F('Building', IN('bldg','Bldg',val('bldg'))),
@@ -2480,7 +2060,6 @@ function openExpandedRow(explicitId){
   },0);
   $('rx-body').innerHTML=html;
   enhanceRxSelects();
-  wireGeoManualInputs();
   rxRenumberPersons();                 // label any pre-existing "Contact N" cards
   $('rx').hidden=false;
 
