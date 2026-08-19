@@ -33,11 +33,14 @@ from modules.achi.task_models import (
 )
 from modules.achi.task_router import task_router
 from modules.achi.task_schemas import (
+    TASK_TYPES,
     TaskApproveIn,
     TaskCancelIn,
     TaskCommentCreateIn,
     TaskCreateIn,
+    TaskDeleteIn,
     TaskListOut,
+    TaskOut,
     TaskProgressIn,
     TaskReopenIn,
     TaskReturnIn,
@@ -73,6 +76,7 @@ def make_task(
     task_id: str = TASK_ID,
     status: str = "to_do",
     assigned_to: str | None = EDITOR_ID,
+    task_type: str = "task",
     deleted: bool = False,
 ) -> AchiTask:
     now = datetime.now(timezone.utc)
@@ -100,6 +104,7 @@ def make_task(
         description="Task description",
         status=status,
         priority="normal",
+        task_type=task_type,
         assigned_to_user_id=assigned_to,
         assigned_to_name="Assigned User" if assigned_to else "",
         assigned_at=now if assigned_to else None,
@@ -458,6 +463,38 @@ class SchemaContractTests(unittest.TestCase):
         self.assert_invalid(TaskUpdateIn, {})
         self.assert_invalid(TaskUpdateIn, {"title": None})
         self.assert_invalid(TaskUpdateIn, {"priority": None})
+        self.assert_invalid(TaskUpdateIn, {"task_type": None})
+
+    def test_task_type_contract(self) -> None:
+        self.assertEqual(
+            TASK_TYPES,
+            ("task", "feature", "issue", "bug", "chore"),
+        )
+        self.assertEqual(
+            TaskCreateIn(title="Task").task_type,
+            "task",
+        )
+
+        for task_type in TASK_TYPES:
+            with self.subTest(task_type=task_type):
+                self.assertEqual(
+                    TaskCreateIn(
+                        title="Task",
+                        task_type=task_type,
+                    ).task_type,
+                    task_type,
+                )
+                self.assertEqual(
+                    TaskUpdateIn(task_type=task_type).task_type,
+                    task_type,
+                )
+
+        for invalid in ("incident", "BUG", ""):
+            with self.subTest(invalid=invalid):
+                self.assert_invalid(
+                    TaskCreateIn,
+                    {"title": "Task", "task_type": invalid},
+                )
 
     def test_create_related_reference_validation(self) -> None:
         self.assert_invalid(
@@ -815,6 +852,36 @@ class OwnershipAndLifecycleTests(
 class ManagerLifecycleTests(
     unittest.IsolatedAsyncioTestCase
 ):
+    async def test_admin_can_review_and_approve_ready_task(
+        self,
+    ) -> None:
+        task = make_task(status="ready_for_review")
+        session = FakeSession()
+        service = MemoryTaskService(session, [task])
+
+        await RequireRole("manager")(
+            {"sub": ADMIN_ID, "role": "admin"}
+        )
+
+        access = await service.get_access(ADMIN_ID)
+        self.assertTrue(access.can_manage_team)
+
+        await service.approve_task(
+            ADMIN_ID,
+            task.id,
+            TaskApproveIn(note="Reviewed by admin"),
+        )
+
+        self.assertEqual(task.status, "completed")
+        self.assertEqual(
+            task.completed_by_user_id,
+            ADMIN_ID,
+        )
+        self.assertEqual(
+            task.completed_by_name,
+            "Admin User",
+        )
+
     async def test_manager_approves_ready_task(self) -> None:
         task = make_task(status="ready_for_review")
         session = FakeSession()
@@ -978,16 +1045,82 @@ class ManagerLifecycleTests(
         )
         self.assertEqual(session.commit_calls, 0)
 
+    async def test_editor_cannot_cancel(self) -> None:
+        task = make_task(status="in_progress")
+        session = FakeSession()
+        service = MemoryTaskService(session, [task])
+
+        with self.assertRaises(HTTPException) as denial:
+            await service.cancel_task(
+                EDITOR_ID,
+                task.id,
+                TaskCancelIn(reason="Not authorized"),
+            )
+
+        self.assertEqual(denial.exception.status_code, 403)
+        self.assertEqual(task.status, "in_progress")
+        self.assertEqual(session.commit_calls, 0)
+
+    async def test_editor_cannot_delete(self) -> None:
+        task = make_task(status="in_progress")
+        session = FakeSession()
+        service = MemoryTaskService(session, [task])
+
+        with self.assertRaises(HTTPException) as denial:
+            await service.soft_delete_task(
+                EDITOR_ID,
+                task.id,
+                TaskDeleteIn(reason="Not authorized"),
+            )
+
+        self.assertEqual(denial.exception.status_code, 403)
+        self.assertIsNone(task.deleted_at)
+        self.assertEqual(session.commit_calls, 0)
+
 
 class PatchInvariantTests(
     unittest.IsolatedAsyncioTestCase
 ):
+    async def test_editor_can_edit_task_metadata(
+        self,
+    ) -> None:
+        task = make_task(assigned_to=EDITOR_ID)
+        session = FakeSession()
+        service = MemoryTaskService(session, [task])
+
+        updated = await service.update_task(
+            EDITOR_ID,
+            task.id,
+            TaskUpdateIn(task_type="issue"),
+        )
+
+        self.assertEqual(updated.task_type, "issue")
+        self.assertEqual(session.commit_calls, 1)
+
+    async def test_create_task_persists_explicit_type(
+        self,
+    ) -> None:
+        session = FakeSession()
+        service = MemoryTaskService(session, [])
+
+        created = await service.create_task(
+            MANAGER_ID,
+            TaskCreateIn(
+                title="Add type support",
+                task_type="feature",
+            ),
+        )
+
+        self.assertEqual(created.task_type, "feature")
+        self.assertEqual(session.commit_calls, 1)
+
     async def test_title_patch_preserves_other_fields(
         self,
     ) -> None:
         task = make_task()
         original_assignee = task.assigned_to_user_id
         original_due = task.due_at
+        original_task_type = task.task_type
         original_relation = (
             task.related_type,
             task.related_id,
@@ -1014,6 +1147,7 @@ class PatchInvariantTests(
             original_assignee,
         )
         self.assertEqual(task.due_at, original_due)
+        self.assertEqual(task.task_type, original_task_type)
         self.assertEqual(
             (
                 task.related_type,
@@ -1021,6 +1155,30 @@ class PatchInvariantTests(
                 task.related_label,
             ),
             original_relation,
+        )
+
+    async def test_task_type_patch_is_persisted_and_audited(
+        self,
+    ) -> None:
+        task = make_task(task_type="task")
+        session = FakeSession()
+        service = MemoryTaskService(session, [task])
+
+        updated = await service.update_task(
+            MANAGER_ID,
+            task.id,
+            TaskUpdateIn(task_type="bug"),
+        )
+
+        self.assertEqual(updated.task_type, "bug")
+        self.assertEqual(
+            TaskOut.model_validate(updated).task_type,
+            "bug",
+        )
+        self.assertEqual(session.commit_calls, 1)
+        self.assertIn(
+            '"task_type"',
+            added_events(session)[-1].details,
         )
 
     async def test_clearing_reference_clears_all(
@@ -1458,8 +1616,6 @@ class RouterMetadataTests(unittest.TestCase):
                 "/tasks/work-requests/"
                 "{request_id}/acknowledge",
             ),
-            ("POST", "/tasks"),
-            ("PATCH", "/tasks/{task_id}"),
             (
                 "POST",
                 "/tasks/{task_id}/approve",

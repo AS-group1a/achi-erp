@@ -30,6 +30,14 @@ TASK_PRIORITIES = (
     "urgent",
 )
 
+TASK_TYPES = (
+    "task",
+    "feature",
+    "issue",
+    "bug",
+    "chore",
+)
+
 TaskStatus = Literal[
     "unassigned",
     "to_do",
@@ -45,6 +53,14 @@ TaskPriority = Literal[
     "normal",
     "high",
     "urgent",
+]
+
+TaskType = Literal[
+    "task",
+    "feature",
+    "issue",
+    "bug",
+    "chore",
 ]
 
 TaskProgressAction = Literal[
@@ -91,6 +107,7 @@ class TaskCreateIn(StrictInput):
         max_length=36,
     )
     priority: TaskPriority = "normal"
+    task_type: TaskType = "task"
     due_at: datetime | None = None
 
     related_type: str | None = Field(default=None, min_length=1, max_length=32)
@@ -137,6 +154,7 @@ class TaskUpdateIn(StrictInput):
         max_length=36,
     )
     priority: TaskPriority | None = None
+    task_type: TaskType | None = None
     due_at: datetime | None = None
 
     related_type: str | None = Field(default=None, min_length=1, max_length=32)
@@ -158,7 +176,13 @@ class TaskUpdateIn(StrictInput):
         if not self.model_fields_set:
             raise ValueError("provide at least one field to update")
 
-        non_nullable = ("title", "description", "priority", "related_label")
+        non_nullable = (
+            "title",
+            "description",
+            "priority",
+            "task_type",
+            "related_label",
+        )
         for field_name in non_nullable:
             if (
                 field_name in self.model_fields_set
@@ -236,6 +260,7 @@ class TaskOut(OrmOutput):
     description: str
     status: TaskStatus
     priority: TaskPriority
+    task_type: TaskType
 
     assigned_to_user_id: str | None
     assigned_to_name: str
