@@ -1045,3 +1045,43 @@
   outline:none;
   box-shadow:none;
 }
+
+/* Country / District / City editable dropdowns */
+.rx-geo-combo{
+  position:relative;
+  width:100%;
+}
+
+.rx-geo-combo .rx-geo-input{
+  width:100%;
+  padding-right:38px;
+}
+
+/* Turn the enhanced select into only the dropdown arrow */
+.rx-geo-combo .rx-select-btn{
+  position:absolute;
+  right:0;
+  top:0;
+
+  width:36px;
+  min-width:36px;
+  height:100%;
+
+  padding:0;
+  border:0;
+  background:transparent;
+  border-radius:0 7px 7px 0;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+}
+
+.rx-geo-combo .rx-select-btn span{
+  display:none;
+}
+
+.rx-geo-combo .rx-select-btn:hover{
+  background:rgba(40,79,158,.06);
+}
