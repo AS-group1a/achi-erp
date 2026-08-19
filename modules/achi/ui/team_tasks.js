@@ -30,6 +30,14 @@
     urgent: 'Urgent',
   };
 
+  const TASK_TYPE_LABELS = {
+    task: 'Task',
+    feature: 'Feature',
+    issue: 'Issue',
+    bug: 'Bug',
+    chore: 'Chore',
+  };
+
   const COLUMN_STATUSES = {
     unassigned: ['unassigned'],
     'to-do': ['to_do'],
@@ -47,6 +55,7 @@
     offset: 0,
     requestVersion: 0,
     currentTaskId: null,
+    currentTask: null,
     actionTaskId: null,
     actionName: null,
     dialogTrigger: null,
@@ -431,6 +440,39 @@
     return transitions;
   }
 
+  function formatCategory(value) {
+    if (!value) return '';
+
+    return value
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, letter => letter.toUpperCase());
+  }
+
+  function renderDetailStatusControl(task) {
+    const select = $('achi-task-detail-status-control');
+    const transitions = taskMoveTransitions(task);
+    const targetStatuses = Object.keys(transitions);
+
+    select.replaceChildren(
+      new Option(
+        STATUS_LABELS[task.status] || task.status,
+        task.status,
+        true,
+        true,
+      ),
+    );
+
+    targetStatuses.forEach(status => {
+      select.add(new Option(STATUS_LABELS[status] || status, status));
+    });
+
+    select.value = task.status;
+    select.disabled = targetStatuses.length === 0;
+    select.title = targetStatuses.length
+      ? 'Change task status'
+      : 'No status changes are currently available';
+  }
+
   function replaceTask(updatedTask) {
     const index = state.tasks.findIndex(task => task.id === updatedTask.id);
     if (index !== -1) state.tasks[index] = updatedTask;
@@ -505,6 +547,16 @@
         'span',
         `achi-task-priority-pill achi-task-priority-${task.priority}`,
         PRIORITY_LABELS[task.priority] || task.priority,
+      ),
+    );
+
+    badges.append(
+      el(
+        'span',
+        'achi-task-type-pill',
+        TASK_TYPE_LABELS[task.task_type] ||
+          formatCategory(task.task_type) ||
+          'Task',
       ),
     );
 
@@ -749,6 +801,90 @@
     }
   }
 
+  async function handleDetailStatusChange(event) {
+    const select = event.currentTarget;
+    const task = state.currentTask;
+    const targetStatus = select.value;
+    const transition = task
+      ? taskMoveTransitions(task)[targetStatus]
+      : null;
+
+    if (!task || !transition) {
+      if (task) renderDetailStatusControl(task);
+      return;
+    }
+
+    if (transition.dialog) {
+      select.value = task.status;
+      openAction(transition.dialog, select, {
+        taskId: task.id,
+        openTaskAfterSave: true,
+        targetStatus,
+      });
+      return;
+    }
+
+    select.disabled = true;
+
+    try {
+      const updatedTask = await request(transition.path, {
+        method: transition.method,
+        body: transition.body,
+      });
+
+      applyMovedTask(updatedTask);
+      state.currentTask = updatedTask;
+      renderBoard();
+      renderDetailStatusControl(updatedTask);
+      showToast(
+        `${updatedTask.task_number} moved to ` +
+          `${STATUS_LABELS[updatedTask.status] || updatedTask.status}.`,
+        'success',
+      );
+      await openTask(updatedTask.id, select);
+    } catch (error) {
+      renderDetailStatusControl(task);
+      showToast(error.message, 'error');
+    }
+  }
+
+  async function handleDetailTypeChange(event) {
+    const select = event.currentTarget;
+    const task = state.currentTask;
+
+    if (!task) return;
+
+    const previousType = task.task_type || 'task';
+    const taskType = select.value;
+
+    if (taskType === previousType) return;
+
+    select.disabled = true;
+
+    try {
+      const updatedTask = await request(`/${task.id}`, {
+        method: 'PATCH',
+        body: { task_type: taskType },
+      });
+
+      replaceTask(updatedTask);
+      state.currentTask = updatedTask;
+      renderBoard();
+      showToast(
+        `${updatedTask.task_number} changed to ${
+          TASK_TYPE_LABELS[updatedTask.task_type] || updatedTask.task_type
+        }.`,
+        'success',
+      );
+      await openTask(updatedTask.id, select);
+    } catch (error) {
+      select.value = previousType;
+      showToast(error.message, 'error');
+    } finally {
+      select.disabled = false;
+    }
+  }
+
   function handleBoardDrop(event) {
     const column = event.target.closest('[data-achi-task-status]');
     const task = state.tasks.find(item => item.id === state.dragTaskId);
@@ -809,9 +945,9 @@
   }
 
   async function loadWorkRequestCount() {
+    const badge = $('achi-task-work-request-count');
     const response = await request('/work-requests/team?status=pending&limit=1');
     const total = response.total || 0;
-    const badge = $('achi-task-work-request-count');
 
     badge.textContent = String(total);
     badge.hidden = total === 0;
@@ -842,6 +978,7 @@
   function resetEditor() {
     $('achi-task-editor-form').reset();
     $('achi-task-editor-id').value = '';
+    $('achi-task-editor-type').value = 'task';
     $('achi-task-editor-heading').textContent = 'New task';
     $('achi-task-editor-save').textContent = 'Save task';
     $('achi-task-editor-error').textContent = '';
@@ -856,6 +993,7 @@
     $('achi-task-editor-description').value = task.description || '';
     $('achi-task-editor-assignee').value = task.assigned_to_user_id || '';
     $('achi-task-editor-priority').value = task.priority || 'normal';
+    $('achi-task-editor-type').value = task.task_type || 'task';
     $('achi-task-editor-due').value = dateForInput(task.due_at);
     $('achi-task-editor-related-type').value = task.related_type || '';
     $('achi-task-editor-related-id').value = task.related_id || '';
@@ -886,6 +1024,7 @@
       description,
       assigned_to_user_id: assignee,
       priority: $('achi-task-editor-priority').value,
+      task_type: $('achi-task-editor-type').value,
       due_at: dateFromInput($('achi-task-editor-due').value),
       related_type: relatedType || null,
       related_id: relatedId || null,
@@ -959,38 +1098,6 @@
     });
   }
 
-    function renderHistory(events) {
-    const list = $('achi-task-history-list');
-    list.replaceChildren();
-
-    if (!events.length) {
-      list.append(emptyColumn('No history yet.'));
-      return;
-    }
-
-    events.forEach(event => {
-      const item = el('article', 'achi-task-history-item');
-      const header = el('header');
-      const title = el(
-        'strong',
-        '',
-        HISTORY_EVENT_LABELS[event.event_type] ||
-          event.event_type.replace(/_/g, ' '),
-      );
-      const time = el('time', '', formatDate(event.created_at));
-
-      header.append(title, time);
-      item.append(header);
-
-      const detail = historyDetails(event);
-      if (detail) {
-        item.append(el('p', '', detail));
-      }
-
-      list.append(item);
-    });
-  }
-
   function configureDetailActions(task) {
     const status = task.status;
     const isSupervisor = state.access && state.access.can_manage_team;
@@ -1006,120 +1113,9 @@
       !isSupervisor || !['completed', 'cancelled'].includes(status);
   }
 
-    const HISTORY_EVENT_LABELS = {
-    created: 'Task created',
-    assigned: 'Task assigned',
-    reassigned: 'Task reassigned',
-    unassigned: 'Task unassigned',
-    updated: 'Task updated',
-    started: 'Work started',
-    blocked: 'Task blocked',
-    resumed: 'Work resumed',
-    submitted: 'Submitted for review',
-    approved: 'Task approved',
-    returned: 'Returned for changes',
-    cancelled: 'Task cancelled',
-    reopened: 'Task reopened',
-    deleted: 'Task deleted',
-    comment_added: 'Comment added',
-  };
-
-  const HISTORY_FIELD_LABELS = {
-    title: 'title',
-    description: 'description',
-    priority: 'priority',
-    due_at: 'due date',
-    related_type: 'related record type',
-    related_id: 'related record ID',
-    related_label: 'related record label',
-    assigned_to_name: 'assignee',
-  };
-
-  function historyDetails(event) {
-    const raw = typeof event.details === 'string'
-      ? event.details.trim()
-      : '';
-
-    let details = null;
-
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          details = parsed;
-        }
-      } catch (error) {
-        return raw;
-      }
-    }
-
-    if (event.event_type === 'assigned' && details?.new_assignee_name) {
-      return `Assigned to ${details.new_assignee_name}.`;
-    }
-
-    if (event.event_type === 'reassigned' && details?.new_assignee_name) {
-      return `Reassigned to ${details.new_assignee_name}.`;
-    }
-
-    if (event.event_type === 'unassigned') {
-      return 'Assignment removed.';
-    }
-
-    if (event.event_type === 'updated' && Array.isArray(details?.changed_fields)) {
-      const fields = details.changed_fields
-        .map(field => HISTORY_FIELD_LABELS[field] || field.replace(/_/g, ' '))
-        .join(', ');
-      return fields ? `Updated ${fields}.` : '';
-    }
-
-    if (event.event_type === 'blocked') {
-      return 'A blocking reason was recorded.';
-    }
-
-    if (event.event_type === 'submitted') {
-      return details?.has_note
-        ? 'Submitted for review with a note.'
-        : 'Submitted for review.';
-    }
-
-    if (event.event_type === 'approved') {
-      return details?.has_note
-        ? 'Approved with a review note.'
-        : 'Approved.';
-    }
-
-    if (event.event_type === 'returned') {
-      return 'Returned for changes with feedback.';
-    }
-
-    if (event.event_type === 'cancelled') {
-      return 'Cancelled with a reason.';
-    }
-
-    if (event.event_type === 'reopened') {
-      return details?.has_note
-        ? 'Reopened with a note.'
-        : 'Reopened.';
-    }
-
-    if (event.event_type === 'comment_added') {
-      return 'A comment was added.';
-    }
-
-    if (event.from_status && event.to_status &&
-        event.from_status !== event.to_status) {
-      return `Moved from ${
-        STATUS_LABELS[event.from_status] || event.from_status
-      } to ${
-        STATUS_LABELS[event.to_status] || event.to_status
-      }.`;
-    }
-
-    return '';
-  }
-
-  function renderTaskDetail(task, comments, history) {
+  function renderTaskDetail(task, comments) {
     state.currentTaskId = task.id;
+    state.currentTask = task;
 
     $('achi-task-detail-number').textContent = task.task_number;
     $('achi-task-detail-title').textContent = task.title;
@@ -1128,11 +1124,16 @@
         PRIORITY_LABELS[task.priority] || task.priority
       }`;
 
-    setText('achi-task-detail-status', STATUS_LABELS[task.status] || task.status);
+    renderDetailStatusControl(task);
     setText(
       'achi-task-detail-priority',
       PRIORITY_LABELS[task.priority] || task.priority,
     );
+
+    $('achi-task-detail-type-control').value =
+      TASK_TYPE_LABELS[task.task_type]
+        ? task.task_type
+        : 'task';
 
     $('achi-task-detail-description').textContent =
       task.description || 'No description provided.';
@@ -1150,10 +1151,12 @@
       'achi-task-detail-assignee',
       task.assigned_to_name || 'Unassigned',
     );
+
     setText(
       'achi-task-detail-due',
       task.due_at ? formatDate(task.due_at) : 'No due date',
     );
+
     setText(
       'achi-task-detail-related',
       task.related_label ||
@@ -1161,29 +1164,24 @@
           ? `${task.related_type}: ${task.related_id}`
           : 'None'),
     );
+
     setText('achi-task-detail-created-by', task.created_by_name);
     setText('achi-task-detail-created-at', formatDate(task.created_at));
     setText('achi-task-detail-updated-at', formatDate(task.updated_at));
-    setText(
-      'achi-task-detail-completed-by',
-      task.completed_by_name || '—',
-    );
 
     $('achi-task-detail-error').textContent = '';
     renderComments(comments);
-    renderHistory(history);
     configureDetailActions(task);
   }
 
   async function openTask(taskId, trigger) {
     try {
-      const [task, comments, history] = await Promise.all([
+      const [task, comments] = await Promise.all([
         request(`/${taskId}`),
         request(`/${taskId}/comments`),
-        request(`/${taskId}/history`),
       ]);
 
-      renderTaskDetail(task, comments, history);
+      renderTaskDetail(task, comments);
       showDialog(
         $('achi-task-detail-dialog'),
         trigger,
@@ -1534,10 +1532,15 @@
       openTask(card.dataset.achiTaskId, card);
     });
 
-    $('achi-task-detail-close').addEventListener(
-      'click',
-      () => closeDialog($('achi-task-detail-dialog')),
-    );
+    [
+      'achi-task-detail-close',
+      'achi-task-detail-footer-close',
+    ].forEach(id => {
+      $(id).addEventListener(
+        'click',
+        () => closeDialog($('achi-task-detail-dialog')),
+      );
+    });
 
     $('achi-task-detail-edit').addEventListener('click', async event => {
       if (!state.currentTaskId) return;
@@ -1554,6 +1557,16 @@
         showToast(error.message, 'error');
       }
     });
+
+    $('achi-task-detail-status-control').addEventListener(
+      'change',
+      handleDetailStatusChange,
+    );
+
+    $('achi-task-detail-type-control').addEventListener(
+      'change',
+      handleDetailTypeChange,
+    );
 
     ['approve', 'return', 'cancel', 'reopen'].forEach(name => {
       $(`achi-task-detail-${name}`).addEventListener('click', event => {

@@ -1068,6 +1068,7 @@ class TaskService:
             "title",
             "description",
             "priority",
+            "task_type",
             "due_at",
         ):
             if field_name not in values:

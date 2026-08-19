@@ -63,6 +63,14 @@ class AchiTask(Base):
         server_default="normal",
     )
 
+    # task | feature | issue | bug | chore
+    task_type: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="task",
+        server_default="task",
+    )
+
     # User IDs intentionally have no hard foreign keys to the upstream User
     # table. The stored names preserve readable history after a user is renamed
     # or deactivated.
