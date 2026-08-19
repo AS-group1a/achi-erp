@@ -1122,6 +1122,233 @@ const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 // The General Log sets this so shared cells (e.g. Follow-up) can render its
 // variant without changing how the standard Log page looks.
 const GENERAL_LOG=(typeof window!=='undefined'&&window.ACHI_GENERAL_LOG===true);
+/* User-selected column filters. These are separate from ACHI_LOG_FILTER:
+   the latter defines an immutable workspace scope; these only narrow it. */
+const LOG_COLUMN_FILTER_SPECS=Object.freeze({
+  num:           {kind:'text',     param:'number'},
+  when:          {kind:'date',     from:'when_from',to:'when_to'},
+  status:        {kind:'multi',    param:'status'},
+  prefix:        {kind:'multi',    param:'prefix'},
+  first:         {kind:'text',     param:'first'},
+  last:          {kind:'text',     param:'last'},
+  company:       {kind:'text',     param:'company'},
+  owner:         {kind:'multi',    param:'owner',unassigned:'unassigned'},
+  mobile:        {kind:'text',     param:'mobile'},
+  email:         {kind:'text',     param:'email'},
+  maps:          {kind:'presence', param:'has_map'},
+  desc:          {kind:'text',     param:'description'},
+  type:          {kind:'multi',    param:'type'},
+  stage:         {kind:'multi',    param:'stage'},
+  communication: {kind:'multi',    param:'communication',mode:'communication_mode'},
+  last_touch:    {kind:'date',     from:'last_touch_from',to:'last_touch_to'},
+  deliverables:  {kind:'multi',    param:'deliverable',mode:'deliverable_mode'},
+  tags:          {kind:'multi',    param:'tag',mode:'tag_mode'},
+  updates:       {kind:'text',     param:'updates'},
+  followup:      {kind:'date',     from:'follow_up_from',to:'follow_up_to',state:'follow_up_state'},
+  country:       {kind:'multi',    param:'country'},
+  district:      {kind:'multi',    param:'district'},
+  city:          {kind:'multi',    param:'city'},
+  street:        {kind:'text',     param:'street'},
+});
+
+const LOG_COLUMN_KEYS=new Set(COLS.map(column=>column.k));
+const LOG_COLUMN_FILTERS=Object.create(null);
+const LOG_FILTER_STORAGE_KEY=
+  `achi_log_column_filters_v1:${location.pathname}`;
+
+function logFilterValues(raw){
+  const source=Array.isArray(raw)
+    ? raw
+    : raw==null
+      ? []
+      : [raw];
+
+  const values=[];
+  const seen=new Set();
+
+  for(const item of source){
+    const value=String(item||'').trim();
+    const fingerprint=value.toLocaleLowerCase();
+
+    if(!value||seen.has(fingerprint)) continue;
+
+    seen.add(fingerprint);
+    values.push(value);
+  }
+
+  return values;
+}
+
+function normaliseLogColumnFilter(key,raw){
+  const spec=LOG_COLUMN_FILTER_SPECS[key];
+
+  if(!spec||!LOG_COLUMN_KEYS.has(key)) return null;
+
+  if(spec.kind==='text'){
+    const value=String(
+      raw&&typeof raw==='object'&&'value' in raw
+        ? raw.value
+        : raw||''
+    ).trim();
+
+    return value?{value}:null;
+  }
+
+  if(spec.kind==='multi'){
+    const values=logFilterValues(
+      raw&&typeof raw==='object'&&'values' in raw
+        ? raw.values
+        : raw
+    );
+    const unassigned=Boolean(
+      raw&&typeof raw==='object'&&raw.unassigned
+    );
+
+    if(!values.length&&!unassigned) return null;
+
+    return {
+      values,
+      unassigned,
+      mode:
+        raw&&typeof raw==='object'&&raw.mode==='all'
+          ? 'all'
+          : 'any',
+    };
+  }
+
+  if(spec.kind==='presence'){
+    const value=
+      raw&&typeof raw==='object'&&'value' in raw
+        ? raw.value
+        : raw;
+
+    if(value!==true&&value!==false) return null;
+
+    return {value};
+  }
+
+  if(spec.kind==='date'){
+    const from=String(raw&&raw.from||'').trim();
+    const to=String(raw&&raw.to||'').trim();
+    const state=String(raw&&raw.state||'').trim();
+
+    if(!from&&!to&&!state) return null;
+
+    return {from,to,state};
+  }
+
+  return null;
+}
+
+function persistLogColumnFilters(){
+  try{
+    sessionStorage.setItem(
+      LOG_FILTER_STORAGE_KEY,
+      JSON.stringify(LOG_COLUMN_FILTERS),
+    );
+  }catch(_){}
+}
+
+function setLogColumnFilter(key,raw,{persist=true}={}){
+  const state=normaliseLogColumnFilter(key,raw);
+
+  if(state) LOG_COLUMN_FILTERS[key]=state;
+  else delete LOG_COLUMN_FILTERS[key];
+
+  if(persist) persistLogColumnFilters();
+}
+
+function clearLogColumnFilter(key){
+  delete LOG_COLUMN_FILTERS[key];
+  persistLogColumnFilters();
+}
+
+function clearAllLogColumnFilters(){
+  Object.keys(LOG_COLUMN_FILTERS).forEach(
+    key=>delete LOG_COLUMN_FILTERS[key],
+  );
+  persistLogColumnFilters();
+}
+
+function hasLogColumnFilter(key){
+  return Boolean(LOG_COLUMN_FILTERS[key]);
+}
+
+function restoreLogColumnFilters(){
+  try{
+    const saved=JSON.parse(
+      sessionStorage.getItem(LOG_FILTER_STORAGE_KEY)||'{}',
+    );
+
+    if(!saved||typeof saved!=='object') return;
+
+    Object.entries(saved).forEach(([key,value])=>{
+      setLogColumnFilter(key,value,{persist:false});
+    });
+  }catch(_){}
+}
+
+function logFilterDateTime(value,endOfDay=false){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))) return '';
+
+  const time=endOfDay?'T23:59:59.999':'T00:00:00';
+  const date=new Date(`${value}${time}`);
+
+  return isNaN(date)?'':date.toISOString();
+}
+
+function logLocalToday(){
+  const date=new Date();
+  const pad=value=>String(value).padStart(2,'0');
+
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+}
+
+function appendLogColumnFilterParams(params){
+  for(const [key,state] of Object.entries(LOG_COLUMN_FILTERS)){
+    const spec=LOG_COLUMN_FILTER_SPECS[key];
+
+    if(!spec||!state) continue;
+
+    if(spec.kind==='text'){
+      params.set(spec.param,state.value);
+      continue;
+    }
+
+    if(spec.kind==='multi'){
+      state.values.forEach(value=>params.append(spec.param,value));
+
+      if(spec.unassigned&&state.unassigned){
+        params.set(spec.unassigned,'true');
+      }
+
+      if(spec.mode&&state.mode==='all'){
+        params.set(spec.mode,'all');
+      }
+
+      continue;
+    }
+
+    if(spec.kind==='presence'){
+      params.set(spec.param,String(state.value));
+      continue;
+    }
+
+    if(spec.kind==='date'){
+      const from=logFilterDateTime(state.from);
+      const to=logFilterDateTime(state.to,true);
+
+      if(spec.from&&from) params.set(spec.from,from);
+      if(spec.to&&to) params.set(spec.to,to);
+      if(spec.state&&state.state){
+        params.set(spec.state,state.state);
+        params.set('today',logLocalToday());
+      }
+    }
+  }
+}
+
+restoreLogColumnFilters();
 // A follow-up date is overdue once it's in the past and the file isn't closed.
 function isOverdueFollowup(r){
   if(!r||!r.follow_up_date) return false;
@@ -1205,8 +1432,8 @@ function cellHTML(c,r,i){switch(c.k){
   case 'deliverables': return glDocsCell(r);
 }}
 
-const ROW_CACHE_KEY='achi_log_rows_v1';
-let ROWS=[], openOnly=false, activeTab=0;
+const ROW_CACHE_KEY=
+  `achi_log_rows_v2:${window.location.pathname}`;let ROWS=[], openOnly=false, activeTab=0;
 // Deleted Logs filter. When on, the grid renders `deletedRows` (soft-deleted
 // logs fetched separately) instead of ROWS, read-only, for restore / permanent
 // delete. Kept distinct from ROWS so KPIs and the active list stay correct.
@@ -1293,8 +1520,21 @@ function buildHead(){
     const sel=c.k==='num'
       ? ` class="${colClass(c,`${c.cls||''} num-head`)}" role="button" tabindex="0" aria-pressed="false" title="Select or unselect all rows"`
       : ` class="${colClass(c,c.cls||'')}"`;
+    const filterButton=LOG_COLUMN_FILTER_SPECS[c.k]
+      ? `<button type="button" class="log-col-filter-btn${
+          hasLogColumnFilter(c.k)?' is-active':''
+        }" data-log-filter-key="${c.k}" aria-label="Filter ${esc(c.h)}"
+          title="Filter ${esc(c.h)}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 3h12L9.4 8.1v3.7l-2.8 1.4V8.1z"/>
+          </svg>
+        </button>`
+      : '';
     return `<th data-tab="${c.tab??''}" data-k="${c.k}"${sel} style="${fixedStyle(c)}">`
-      +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
+    +`<span class="log-col-head-label">${c.h}</span>`
+    +filterButton
+    +`</span><span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
+    +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
   }).join('');
 }
 /* Pointer events rather than mouse, so this works on the tablet a surveyor
@@ -1444,11 +1684,11 @@ function toggleRowSelection(tr,force){
 }
 
 function render(){
-  const q=$('q').value.trim().toLowerCase();
-  // In the Deleted Logs filter the grid shows deletedRows (read-only) and never
-  // the draft rows or the Open filter — those only make sense for active logs.
-  let rows=deletedView?deletedRows:(openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
-  if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category,r.tags].some(v=>String(v||'').toLowerCase().includes(q)));
+  // Text search is handled by the API, together with column filters, so results
+  // are correct even when matching rows are outside the currently loaded set.
+  let rows=deletedView
+    ? deletedRows
+    : (openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
   let rowNumber=1;
   const body=[
     deletedView?'':draftRowHTML('d',topDraft,true,rowNumber++),
