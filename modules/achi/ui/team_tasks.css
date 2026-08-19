@@ -847,7 +847,17 @@ body[data-achi-title="Team Tasks"] textarea:focus-visible {
 }
 
 .achi-task-detail-dialog {
-  width: min(1100px, calc(100vw - 30px));
+  position: fixed;
+  inset: 0;
+  width: min(920px, calc(100vw - 32px));
+  max-width: 920px;
+  height: min(820px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid var(--achi-task-line);
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(23, 32, 51, .25);
 }
 
 .achi-task-detail-actions {
@@ -1355,5 +1365,301 @@ body[data-achi-title="Team Tasks"] textarea:focus-visible {
 @media (max-width: 760px) {
   .achi-task-detail-sidebar {
     margin: 0 16px 16px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Task detail modal
+   -------------------------------------------------------------------------- */
+
+body[data-achi-title="Team Tasks"]:has(.achi-task-detail-dialog[open]) {
+  overflow: hidden;
+}
+
+.achi-task-detail-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(920px, calc(100vw - 32px));
+  max-width: 920px;
+  height: min(820px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid var(--achi-task-line);
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(23, 32, 51, .25);
+}
+
+.achi-task-detail-dialog::backdrop {
+  background: rgba(15, 23, 42, .42);
+  backdrop-filter: blur(1px);
+}
+
+.achi-task-detail-dialog[open] {
+  animation: achi-task-modal-enter .18s ease-out;
+}
+
+.achi-task-detail-dialog .achi-task-dialog-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.achi-task-detail-dialog .achi-task-dialog-header {
+  order: 1;
+  flex: 0 0 auto;
+  padding: 22px 24px 18px;
+  background: #fff;
+}
+
+.achi-task-detail-dialog .achi-task-dialog-header > div {
+  min-width: 0;
+}
+
+.achi-task-detail-dialog .achi-task-dialog-header h2 {
+  max-width: 620px;
+  overflow-wrap: anywhere;
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.achi-task-detail-dialog .achi-task-dialog-header .achi-task-icon-button {
+  width: 38px;
+  min-height: 38px;
+  border-radius: 8px;
+  color: #475467;
+}
+
+.achi-task-detail-dialog .achi-task-dialog-header .achi-task-icon-button:hover {
+  background: var(--achi-task-surface-alt);
+  color: var(--achi-task-ink);
+}
+
+.achi-task-detail-dialog .achi-task-detail-badges {
+  margin: 12px 0 0;
+}
+
+.achi-task-detail-dialog #achi-task-detail-error {
+  order: 2;
+  flex: 0 0 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 24px;
+  border-bottom: 1px solid #fecaca;
+  background: #fff1f2;
+}
+
+.achi-task-detail-dialog #achi-task-detail-error:empty {
+  display: none;
+}
+
+.achi-task-detail-dialog .achi-task-detail-layout {
+  order: 3;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.achi-task-detail-dialog .achi-task-detail-sidebar {
+  order: 1;
+  align-self: stretch;
+  margin: 0;
+  padding: 20px 24px;
+  border: 0;
+  border-bottom: 1px solid var(--achi-task-line);
+  border-radius: 0;
+  background: #f8fafc;
+}
+
+.achi-task-detail-sidebar-title {
+  margin: 0 0 13px;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.achi-task-detail-dialog .achi-task-detail-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  margin: 0;
+  border: 0;
+}
+
+.achi-task-detail-dialog .achi-task-detail-list > div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid #e5eaf1;
+}
+
+.achi-task-detail-dialog .achi-task-detail-list dt {
+  font-size: 11px;
+}
+
+.achi-task-detail-dialog .achi-task-detail-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.achi-task-detail-dialog .achi-task-detail-main {
+  order: 2;
+  min-width: 0;
+  padding: 0 24px 28px;
+}
+
+.achi-task-detail-dialog .achi-task-detail-section {
+  margin: 0;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--achi-task-line);
+}
+
+.achi-task-detail-dialog .achi-task-detail-section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.achi-task-detail-dialog .achi-task-detail-section h3 {
+  margin-bottom: 12px;
+}
+
+.achi-task-detail-dialog .achi-task-detail-section > p {
+  max-width: 68ch;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.achi-task-detail-dialog .achi-task-blocked-section,
+.achi-task-detail-dialog .achi-task-review-section {
+  margin-top: 20px;
+  padding: 15px;
+  border-bottom: 1px solid var(--achi-task-line);
+}
+
+.achi-task-detail-dialog .achi-task-comments-list {
+  margin-bottom: 16px;
+}
+
+.achi-task-detail-dialog .achi-task-comment {
+  padding: 13px 0;
+}
+
+.achi-task-detail-dialog .achi-task-comment-form {
+  display: flex;
+  flex-direction: column;
+  padding-top: 16px;
+}
+
+.achi-task-detail-dialog .achi-task-comment-form textarea {
+  width: 100%;
+  min-height: 108px;
+  padding: 11px 12px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.achi-task-detail-dialog .achi-task-comment-actions {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.achi-task-detail-dialog .achi-task-history-list {
+  margin-bottom: 0;
+}
+
+.achi-task-detail-dialog > .achi-task-dialog-shell >
+.achi-task-detail-actions {
+  order: 4;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--achi-task-line);
+  border-bottom: 0;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 -8px 24px rgba(23, 32, 51, .06);
+}
+
+.achi-task-detail-dialog .achi-task-detail-actions-primary {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+@keyframes achi-task-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .achi-task-detail-dialog {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+
+  .achi-task-detail-dialog .achi-task-dialog-header,
+  .achi-task-detail-dialog .achi-task-detail-sidebar,
+  .achi-task-detail-dialog .achi-task-detail-main,
+  .achi-task-detail-dialog > .achi-task-dialog-shell >
+  .achi-task-detail-actions {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .achi-task-detail-dialog .achi-task-detail-list {
+    grid-template-columns: 1fr;
+  }
+
+  .achi-task-detail-dialog > .achi-task-dialog-shell >
+  .achi-task-detail-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .achi-task-detail-dialog .achi-task-detail-actions-primary,
+  .achi-task-detail-dialog .achi-task-detail-actions-danger {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .achi-task-detail-dialog .achi-task-detail-actions-primary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .achi-task-detail-dialog .achi-task-detail-actions-danger {
+    order: 2;
+  }
+
+  .achi-task-detail-dialog .achi-task-detail-actions-danger .achi-task-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .achi-task-detail-dialog[open] {
+    animation: none;
   }
 }

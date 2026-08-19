@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Tasks | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=2">
+  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=5">
 </head>
 
 <body data-achi-title="Team Tasks">
@@ -575,66 +575,22 @@
       </header>
 
       <div
-        class="achi-task-detail-actions"
-        id="achi-task-detail-actions"
-      >
-        <button
-          class="achi-task-button achi-task-button-secondary"
-          type="button"
-          id="achi-task-detail-edit"
-        >
-          Edit
-        </button>
+         class="achi-task-detail-actions"
+         id="achi-task-detail-actions"
+        aria-label="Task actions"
+       >
 
-        <button
-          class="achi-task-button achi-task-button-primary"
-          type="button"
-          id="achi-task-detail-approve"
-          hidden
-        >
-          Approve
-        </button>
+<div class="achi-task-detail-actions-danger">
+          <button
+            class="achi-task-button achi-task-button-danger"
+            type="button"
+            id="achi-task-detail-cancel"
+            hidden
+          >
+            Cancel task
+          </button>
+        </div>
 
-        <button
-          class="achi-task-button achi-task-button-secondary"
-          type="button"
-          id="achi-task-detail-return"
-          hidden
-        >
-          Return for changes
-        </button>
-
-        <button
-          class="achi-task-button achi-task-button-danger"
-          type="button"
-          id="achi-task-detail-cancel"
-          hidden
-        >
-          Cancel task
-        </button>
-
-        <button
-          class="achi-task-button achi-task-button-secondary"
-          type="button"
-          id="achi-task-detail-reopen"
-          hidden
-        >
-          Reopen
-        </button>
-      </div>
-
-      <p
-        class="achi-task-form-error"
-        id="achi-task-detail-error"
-        role="alert"
-      ></p>
-
-      <div class="achi-task-detail-layout">
-        <section class="achi-task-detail-main">
-                <div
-        class="achi-task-detail-actions"
-        id="achi-task-detail-actions"
-      >
         <div class="achi-task-detail-actions-primary">
           <button
             class="achi-task-button achi-task-button-secondary"
@@ -642,15 +598,6 @@
             id="achi-task-detail-edit"
           >
             Edit
-          </button>
-
-          <button
-            class="achi-task-button achi-task-button-primary"
-            type="button"
-            id="achi-task-detail-approve"
-            hidden
-          >
-            Approve
           </button>
 
           <button
@@ -670,20 +617,27 @@
           >
             Reopen
           </button>
-        </div>
 
-        <div class="achi-task-detail-actions-danger">
           <button
-            class="achi-task-button achi-task-button-danger"
+            class="achi-task-button achi-task-button-primary"
             type="button"
-            id="achi-task-detail-cancel"
+            id="achi-task-detail-approve"
             hidden
           >
-            Cancel task
+            Approve
           </button>
         </div>
+
       </div>
 
+      <p
+        class="achi-task-form-error"
+        id="achi-task-detail-error"
+        role="alert"
+      ></p>
+
+      <div class="achi-task-detail-layout">
+        <section class="achi-task-detail-main">
           <section class="achi-task-detail-section">
             <h3>Description</h3>
             <p id="achi-task-detail-description"></p>
@@ -718,7 +672,7 @@
               id="achi-task-comments-list"
             ></div>
 
-            <form id="achi-task-comment-form" id="achi-task-comment-form">
+            <form id="achi-task-comment-form">
               <label for="achi-task-comment-body">
                 Write a comment
               </label>
@@ -726,7 +680,7 @@
               <textarea
                 id="achi-task-comment-body"
                 maxlength="5000"
-                rows="5"
+                rows="3"
                 required
               ></textarea>
 
@@ -736,13 +690,15 @@
                 role="alert"
               ></p>
 
-              <button
-                class="achi-task-button achi-task-button-primary"
-                type="submit"
-                id="achi-task-comment-submit"
-              >
-                Add comment
-              </button>
+               <div class="achi-task-comment-actions">
+                <button
+                  class="achi-task-button achi-task-button-primary"
+                  type="submit"
+                  id="achi-task-comment-submit"
+                >
+                  Add comment
+                </button>
+              </div>
             </form>
           </section>
 
@@ -756,7 +712,7 @@
         </section>
 
           <aside class="achi-task-detail-sidebar">
-          <h3 class="achi-task-detail-sidebar-title">Task details</h3>
+          <h3 class="achi-task-detail-sidebar-title">Properties</h3>
           <dl class="achi-task-detail-list">
             <div>
               <dt>Assigned to</dt>
