@@ -19,9 +19,16 @@
     [...selectedRows].filter(k => String(k).startsWith('log:')).map(k => String(k).slice(4));
 
   async function fetchDeleted(){
-    try{ deletedRows = await api('/logs/?deleted=true'); }
+    try{deletedRows = await api(
+        logFilteredPath('/logs/?deleted=true'),
+      ); }
     catch(e){ deletedRows = []; fail(e.message); }
   }
+
+    window.reloadDeletedLogs = async function(){
+    await fetchDeleted();
+    render();
+  };
 
   async function enter(){
     deletedView = true;

@@ -6,6 +6,7 @@ import asyncio
 import logging
 import re
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import quote, urlparse
 
 import httpx
@@ -41,13 +42,14 @@ from .schemas import (
     ContactPatch,
     FileConvertRequest,
     FileLogCreate,
+    LogFilterParams,
+    LogListParams,
     FileLogOut,
     FileLogUpdate,
     LogRowOut,
     ModuleInfo,
     QuickLogCreate,
     QuickLogOut,
-    STAGES,
 )
 from .service import CONTACT_INFO_TAG, ContactFileService, parse_comm_tally
 from .quotation_router import quotation_router
@@ -1541,84 +1543,26 @@ async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentU
 async def log_stats(
     session: SessionDep,
     _user_id: CurrentUserId,
-    stages: str | None = Query(
-        default=None,
-        max_length=512,
-        description="Comma-separated Contact File stage keys",
-    ),
-    log_type: str | None = Query(
-        default=None,
-        max_length=64,
-        description="Exact File Log type",
-    ),
+    filters: Annotated[LogFilterParams, Query()],
 ) -> dict[str, int]:
-    requested_stages = tuple(
-        dict.fromkeys(
-            value.strip()
-            for value in (stages or "").split(",")
-            if value.strip()
-        )
-    )
-    invalid_stages = sorted(set(requested_stages).difference(STAGES))
-    if invalid_stages:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Unknown stage value(s): {', '.join(invalid_stages)}",
-        )
-
-    requested_log_type = (log_type or "").strip() or None
     return await ContactFileService(session).log_stats(
-        stages=requested_stages,
-        log_type=requested_log_type,
+        filters=filters,
     )
 
-@router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
+@router.get(
+    "/logs/",
+    response_model=list[LogRowOut],
+    summary="All logs, newest first",
+)
 async def list_logs(
     session: SessionDep,
     _user_id: CurrentUserId,
-    limit: int = Query(default=200, ge=1, le=1000),
-    deleted: bool = Query(default=False, description="Return soft-deleted logs (Deleted Logs view) instead of active ones"),
-    stages: str | None = Query(
-        default=None,
-        max_length=512,
-        description="Comma-separated Contact File stage keys",
-    ),
-    log_type: str | None = Query(
-        default=None,
-        max_length=64,
-        description="Exact File Log type",
-    ),
+    params: Annotated[LogListParams, Query()],
 ) -> list[LogRowOut]:
     from .models import AchiEmail
 
     svc = ContactFileService(session)
-    # One-time per process: give any pre-existing / uncoded file its General Log
-    # "#" code. Idempotent and cheap once done, so guarded by a module flag.
-
-    requested_stages = tuple(
-        dict.fromkeys(
-            value.strip()
-            for value in (stages or "").split(",")
-            if value.strip()
-        )
-    )
-    invalid_stages = sorted(set(requested_stages).difference(STAGES))
-    if invalid_stages:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Unknown stage value(s): {', '.join(invalid_stages)}",
-        )
-
-    requested_log_type = (log_type or "").strip() or None
-    rows = await svc.list_logs(
-        limit=limit,
-        deleted=deleted,
-        stages=requested_stages,
-        log_type=requested_log_type,
-    )
-    # index rather than unpack: list_logs' tuple width changes when a column is
-    # added to its select (owner name was the last one), and a positional unpack
-    # here breaks the endpoint when it does
+    rows = await svc.list_logs(params=params)
     log_ids = [r[0].id for r in rows]
 
     counts = await svc.attachment_counts(log_ids)
@@ -1649,9 +1593,13 @@ async def list_logs(
             mobile = contact.primary_phone
             email = contact.primary_email
             # prefix (Mr/Ms/…) is stashed in the contact's module bucket by the bridge
-            for v in (contact.custom_properties or {}).values():
-                if isinstance(v, dict) and v.get("prefix"):
-                    prefix = v["prefix"]
+            properties = contact.custom_properties or {}
+
+            for bucket_key in ("achi", _CONTACT_INFO_TAG):
+                bucket = properties.get(bucket_key)
+
+                if isinstance(bucket, dict) and bucket.get("prefix"):
+                    prefix = bucket["prefix"]
                     break
         first = first or f.lead_first_name
         last = last or f.lead_last_name
