@@ -231,9 +231,60 @@ function fillRxFromContact(c){
   set('last',c.last_name);
   set('company',c.company_name);
   set('email',c.primary_email);
-  set('country',address.country||address.country_name||c.country_code);
-  set('district',address.district||address.state);
-  set('city',address.city);
+  const geoCountry=
+  address.country ||
+  address.country_name ||
+  c.country_code ||
+  '';
+
+  const geoDistrict=
+    address.district ||
+    address.state ||
+    '';
+
+  const geoCity=
+    address.city ||
+    '';
+
+  if(geoCountry){
+    rxFillGeocoded(
+      'country',
+      COUNTRY_NAMES,
+      geoCountry
+    );
+
+    const country=
+      $('rx-country')?.value ||
+      geoCountry;
+
+    if(geoDistrict){
+      rxFillGeocoded(
+        'district',
+        districtOptions(country),
+        geoDistrict
+      );
+
+      const district=
+        $('rx-district')?.value ||
+        geoDistrict;
+
+      if(geoCity){
+        rxFillGeocoded(
+          'city',
+          cityOptions(country,district),
+          geoCity
+        );
+      }
+
+    }else if(geoCity){
+
+      rxFillGeocoded(
+        'city',
+        cityOptions(country,''),
+        geoCity
+      );
+    }
+  }
   set('street',address.street||address.address_line_1);
   const mobile=body.querySelector('[data-k="mobile"]');
   if(mobile){
@@ -660,20 +711,22 @@ $('rx-body').addEventListener('change',e=>{
     }else el.value=allSocials().includes(previous)?previous:'IG';
     enhanceRxSelect(el);
   }
-  /* Site-info cascade: District follows Country, City follows District. Choosing
-     a country repopulates its districts and clears the city; choosing a district
-     repopulates its cities. A country not in GEO leaves both empty (no data to
-     match), which is the honest state until that country's lists exist. */
-  if(el.dataset.rxSelect==='country'){
-    rxFillSelect('district',districtOptions(el.value),'');
-    rxFillSelect('city',null,'');
+  /* Custom District / City commands.
+   Normal Country/District/City cascading is handled by
+   wireGeoManualInputs() in log-core.js. */
+  if(
+    el.dataset.rxSelect==='district' &&
+    el.value===DISTRICT_ADD
+  ){
+    addDistrictAndSelect(el);
   }
-  if(el.dataset.rxSelect==='district'&&el.value===DISTRICT_ADD){ addDistrictAndSelect(el); }
-  else if(el.dataset.rxSelect==='district'){
-    const country=$('rx-country')&&$('rx-country').value;
-    rxFillSelect('city',cityOptions(country,el.value),'');
+
+  if(
+    el.dataset.rxSelect==='city' &&
+    el.value===CITY_ADD
+  ){
+    addCityAndSelect(el);
   }
-  if(el.dataset.rxSelect==='city'&&el.value===CITY_ADD){ addCityAndSelect(el); }
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();

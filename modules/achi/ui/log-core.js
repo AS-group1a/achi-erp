@@ -819,17 +819,7 @@ function glStageCell(r){
   return `<div class="lstage"><span class="lstage-top"><span class="lstage-dot" style="background:${color}"></span><span class="lstage-label" style="color:${color}">${esc(glStageLabel(k))}</span><svg class="lstage-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg></span><span class="lstage-bar">${segs}</span></div>`;
 }
 const GL_DOCS=[['srv','SURV'],['dwg','DWG'],['mt','M/T'],['boq','BOQ'],['cst','CST'],['qte','QTE']];
-function glDocsCell(r){const d=r.docs||{};return `<div class="ldocs">${GL_DOCS.map(([k,lb])=>`<span class="ldoc${d[k]?' on':''}">${lb}</span>`).join('')}</div>`;}
-const GL_COMM_COLOR={Call:'#2563eb',Phone:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',SMS:'#0891b2',Instagram:'#db2777',Facebook:'#1d4ed8',LinkedIn:'#0a66c2',X:'#0f172a',TikTok:'#0f172a',Other:'#64748b'};
-// Short two/three-letter tags for the Communication pills (photo #3).
-const GL_COMM_ABBR={Call:'PH',Phone:'PH',Email:'EM',WhatsApp:'WA','In-person':'IP',SMS:'SMS',Instagram:'IG',Facebook:'FB',LinkedIn:'LI',X:'X',TikTok:'TT',Other:'··'};
-function glCommColor(k){
-  return GL_COMM_COLOR[k] || '#64748b';
-}
-const glCommAbbr=k=>GL_COMM_ABBR[k]||String(k||'').slice(0,2).toUpperCase();
-const glCommPill=(k,n)=>{const c=glCommColor(k);return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14" title="${esc(k)}${n!=null?': '+n:''}">${esc(glCommAbbr(k))}${n!=null?' '+n:''}</span>`;};
-// Channels the "+" menu offers on the Communication cell (kept short on purpose).
-const GL_COMM_ADD=['Call','WhatsApp','Email','LinkedIn'];
+
 function glDocsCell(r){
   const raw = Array.isArray(r.deliverables)
     ? r.deliverables
@@ -1845,6 +1835,227 @@ function enhanceRxSelects(){
   $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
   $('rx').querySelectorAll('select.rx-native-select').forEach(enhanceRxSelect);
 }
+function wireGeoManualInputs(){
+  const body=$('rx-body');
+  if(!body) return;
+
+  const inputFor=k=>
+    body.querySelector(`[data-geo-input="${k}"]`);
+
+  const selectFor=k=>$('rx-'+k);
+
+
+  const syncInputToSelect=k=>{
+    const input=inputFor(k);
+    const select=selectFor(k);
+
+    if(!input || !select) return;
+
+    const typed=input.value.trim();
+
+    if(!typed){
+      select.value='';
+      return;
+    }
+
+    let option=[...select.options].find(
+      o=>o.value.toLowerCase()===typed.toLowerCase()
+    );
+
+    // Manually typed value isn't in the dropdown yet.
+    if(!option){
+      option=new Option(typed,typed);
+
+      const command=[...select.options].find(
+        o=>String(o.value).startsWith('__add_')
+      );
+
+      if(command){
+        select.add(option,command.index);
+      }else{
+        select.add(option);
+      }
+    }
+
+    select.value=option.value;
+
+    // Normalize the visible typed value to the real dropdown value.
+    input.value=option.value;
+
+    if(select._rxButton){
+      select._rxButton.querySelector('span').textContent=
+        option.value;
+    }
+  };
+
+
+  const refreshDependents=k=>{
+    const country=
+      inputFor('country')?.value.trim() || '';
+
+    const district=
+      inputFor('district')?.value.trim() || '';
+
+    const currentCity=
+      inputFor('city')?.value.trim() || '';
+
+
+    if(k==='country'){
+
+      rxFillSelect(
+        'district',
+        districtOptions(country),
+        ''
+      );
+
+      // District is blank, so show ALL cities
+      // belonging to the selected country.
+      rxFillSelect(
+        'city',
+        cityOptions(country,''),
+        ''
+      );
+    }
+
+
+    if(k==='district'){
+
+      let options=
+        cityOptions(country,district);
+
+      // If the user typed the City FIRST and it is custom,
+      // don't erase it when District is chosen afterwards.
+      if(
+        currentCity &&
+        !options.some(
+          city=>
+            String(city).toLowerCase()===
+            currentCity.toLowerCase()
+        )
+      ){
+        const commands=options.filter(
+          value=>
+            String(value).startsWith('__add_')
+        );
+
+        const normal=options.filter(
+          value=>
+            !String(value).startsWith('__add_')
+        );
+
+        options=[
+          currentCity,
+          ...normal,
+          ...commands
+        ];
+      }
+
+      rxFillSelect(
+        'city',
+        options,
+        currentCity
+      );
+    }
+  };
+
+  const syncDistrictFromCity=()=>{
+
+    const country=
+      inputFor('country')?.value.trim() || '';
+
+    const city=
+      inputFor('city')?.value.trim() || '';
+
+    if(!country || !city) return;
+
+
+    const district=
+      districtForCity(country,city);
+
+    // Unknown city or city exists in multiple districts:
+    // don't guess.
+    if(!district) return;
+
+
+    // Automatically select the correct District.
+    rxFillSelect(
+      'district',
+      districtOptions(country),
+      district
+    );
+
+
+    // Get the canonical city spelling from that district.
+    const canonicalCity=
+      mergedCities(country,district).find(
+        existing=>
+          String(existing)
+            .trim()
+            .toLowerCase()===
+          city.toLowerCase()
+      ) || city;
+
+
+    // Now that District is known, narrow the City dropdown
+    // to that district while keeping the chosen city.
+    rxFillSelect(
+      'city',
+      cityOptions(country,district),
+      canonicalCity
+    );
+  };
+
+
+  ['country','district','city'].forEach(k=>{
+
+    const input=inputFor(k);
+    const select=selectFor(k);
+
+    if(!input || !select) return;
+
+
+    /* User TYPES directly into the box */
+    input.addEventListener('change',()=>{
+      syncInputToSelect(k);
+
+      if(k==='city'){
+        syncDistrictFromCity();
+      }else{
+        refreshDependents(k);
+      }
+    });
+
+
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        input.blur();
+      }
+    });
+
+
+    /* User chooses from the dropdown */
+    select.addEventListener('change',()=>{
+
+      if(
+        select.value===DISTRICT_ADD ||
+        select.value===CITY_ADD
+      ){
+        return;
+      }
+
+      input.value=select.value;
+
+      if(k==='city'){
+        syncDistrictFromCity();
+      }else{
+        refreshDependents(k);
+      }
+    });
+
+  });
+}
+
 /* Push a quick-pick into the free-text Quick-notes Subject. The 'input' event is
    what the Quill mount wired to syncHidden(), so this also updates the saved
    description. Defined here so the rx-body change handler can call it. */
