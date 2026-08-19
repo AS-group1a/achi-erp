@@ -47,6 +47,14 @@
     done: ['completed'],
   };
 
+  const BOARD_MOVE_TARGETS = {
+    to_do: ['in_progress', 'blocked'],
+    in_progress: ['to_do', 'blocked', 'ready_for_review'],
+    blocked: ['in_progress'],
+    ready_for_review: ['in_progress'],
+    completed: ['ready_for_review', 'in_progress'],
+  };
+
   const state = {
     access: null,
     assignees: [],
@@ -440,6 +448,27 @@
     return transitions;
   }
 
+  function taskBoardTransitions(task) {
+    return (BOARD_MOVE_TARGETS[task.status] || []).reduce(
+      (transitions, targetStatus) => {
+        transitions[targetStatus] = {
+          path: `/${task.id}/board-status`,
+          method: 'PATCH',
+          body: { target_status: targetStatus },
+        };
+        return transitions;
+      },
+      {},
+    );
+  }
+
+  function taskDetailTransitions(task) {
+    return {
+      ...taskBoardTransitions(task),
+      ...taskMoveTransitions(task),
+    };
+  }
+
   function formatCategory(value) {
     if (!value) return '';
 
@@ -450,7 +479,7 @@
 
   function renderDetailStatusControl(task) {
     const select = $('achi-task-detail-status-control');
-    const transitions = taskMoveTransitions(task);
+    const transitions = taskDetailTransitions(task);
     const targetStatuses = Object.keys(transitions);
 
     select.replaceChildren(
@@ -501,7 +530,7 @@
 
   function taskCard(task) {
     const button = el('button', 'achi-task-card');
-    const targetStatuses = Object.keys(taskMoveTransitions(task));
+    const targetStatuses = Object.keys(taskBoardTransitions(task));
     button.type = 'button';
     button.dataset.achiTaskId = task.id;
     button.dataset.achiTaskStatus = task.status;
@@ -562,11 +591,22 @@
 
     footer.append(badges);
 
-    const meta = el(
-      'div',
-      'achi-task-card-meta',
-      task.assigned_to_name || 'Unassigned',
-    );
+    const initials = (task.assigned_to_name || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0].toUpperCase())
+      .join('');
+    const meta = el('div', 'achi-task-card-meta');
+
+    if (initials) {
+      const avatar = el('span', 'achi-task-card-avatar', initials);
+      avatar.title = task.assigned_to_name;
+      meta.append(avatar);
+    } else {
+      meta.append(el('span', 'achi-task-card-unassigned', '—'));
+    }
 
     footer.append(meta);
     button.append(header, title, description, footer);
@@ -706,7 +746,7 @@
 
     const task = state.tasks.find(item => item.id === card.dataset.achiTaskId);
     const allowedStatuses = task
-      ? Object.keys(taskMoveTransitions(task))
+      ? Object.keys(taskBoardTransitions(task))
       : [];
 
     if (!task || !allowedStatuses.length) {
@@ -806,7 +846,7 @@
     const task = state.currentTask;
     const targetStatus = select.value;
     const transition = task
-      ? taskMoveTransitions(task)[targetStatus]
+      ? taskDetailTransitions(task)[targetStatus]
       : null;
 
     if (!task || !transition) {
@@ -904,7 +944,7 @@
     const card = $('achi-task-board').querySelector(
       `[data-achi-task-id="${task.id}"]`,
     );
-    const transition = taskMoveTransitions(task)[targetStatus];
+    const transition = taskBoardTransitions(task)[targetStatus];
 
     state.suppressCardClickUntil = Date.now() + 400;
     resetDragState();

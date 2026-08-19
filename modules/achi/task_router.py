@@ -19,6 +19,7 @@ from app.dependencies import CurrentUserId, RequireRole, SessionDep
 from .task_schemas import (
     TaskAccessOut,
     TaskApproveIn,
+    TaskBoardMoveIn,
     TaskAssigneeOut,
     TaskCancelIn,
     TaskCommentCreateIn,
@@ -490,6 +491,25 @@ async def progress_task(
         user_id,
         str(task_id),
         data,
+    )
+    return TaskOut.model_validate(task)
+
+
+@task_router.patch(
+    "/{task_id}/board-status",
+    response_model=TaskOut,
+    summary="Move a task between permitted Team Tasks board stages",
+)
+async def move_task_on_board(
+    task_id: UUID,
+    data: TaskBoardMoveIn,
+    session: SessionDep,
+    user_id: CurrentUserId,
+) -> TaskOut:
+    task = await TaskService(session).move_task_on_board(
+        user_id,
+        str(task_id),
+        data.target_status,
     )
     return TaskOut.model_validate(task)
 

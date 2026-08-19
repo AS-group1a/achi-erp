@@ -80,6 +80,7 @@ _TASK_EVENT_TYPES = frozenset(
         "cancelled",
         "reopened",
         "deleted",
+        "board_moved",
         "comment_added",
     }
 )
@@ -1225,6 +1226,79 @@ class TaskService:
             details=details,
         )
 
+        await self._commit_and_refresh(task)
+        return task
+
+    async def move_task_on_board(
+        self,
+        actor_id: str,
+        task_id: str,
+        target_status: str,
+    ) -> AchiTask:
+        """Move a shared-board task through a permitted adjacent stage.
+
+        This intentionally does not grant any supervisor action: approval,
+        cancellation, deletion, and the noted Return/Reopen workflows remain
+        on their existing manager-only endpoints.
+        """
+        actor = await self._actor(actor_id)
+        task = await self._visible_task(
+            actor,
+            task_id,
+            for_update=True,
+        )
+        self._require_writer(actor)
+
+        allowed = {
+            "to_do": {"in_progress", "blocked"},
+            "in_progress": {
+                "to_do",
+                "blocked",
+                "ready_for_review",
+            },
+            "blocked": {"in_progress"},
+            "ready_for_review": {"in_progress"},
+            "completed": {"ready_for_review", "in_progress"},
+        }
+        previous = task.status
+
+        if target_status not in allowed.get(previous, set()):
+            _conflict(
+                f"Cannot move a task from status '{previous}' "
+                f"to '{target_status}'"
+            )
+
+        now = _now()
+
+        if target_status == "to_do":
+            self._reset_lifecycle(task)
+        elif target_status == "in_progress":
+            task.started_at = task.started_at or now
+            task.blocked_at = None
+            task.blocked_reason = ""
+            task.submitted_at = None
+            task.review_note = ""
+            task.completed_at = None
+            task.completed_by_user_id = None
+            task.completed_by_name = ""
+        elif target_status == "blocked":
+            task.started_at = task.started_at or now
+            task.blocked_at = now
+            task.blocked_reason = ""
+        elif target_status == "ready_for_review":
+            task.completed_at = None
+            task.completed_by_user_id = None
+            task.completed_by_name = ""
+
+        task.status = target_status
+        self._add_event(
+            task,
+            actor,
+            "board_moved",
+            from_status=previous,
+            to_status=target_status,
+            details={"source": "kanban_board"},
+        )
         await self._commit_and_refresh(task)
         return task
 

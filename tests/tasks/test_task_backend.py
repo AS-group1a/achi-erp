@@ -35,6 +35,7 @@ from modules.achi.task_router import task_router
 from modules.achi.task_schemas import (
     TASK_TYPES,
     TaskApproveIn,
+    TaskBoardMoveIn,
     TaskCancelIn,
     TaskCommentCreateIn,
     TaskCreateIn,
@@ -437,6 +438,12 @@ class SchemaContractTests(unittest.TestCase):
         self.assertEqual(
             valid.note,
             "Ready for checking",
+        )
+
+    def test_board_move_rejects_unknown_status(self) -> None:
+        self.assert_invalid(
+            TaskBoardMoveIn,
+            {"target_status": "not-a-stage"},
         )
 
     def test_patch_distinguishes_omitted_fields_from_null(
@@ -1045,6 +1052,63 @@ class ManagerLifecycleTests(
         )
         self.assertEqual(session.commit_calls, 0)
 
+    async def test_board_move_allows_valid_reverse_stages(self) -> None:
+        task = make_task(status="in_progress")
+        session = FakeSession()
+        service = MemoryTaskService(session, [task])
+
+        await service.move_task_on_board(
+            EDITOR_ID,
+            task.id,
+            "to_do",
+        )
+
+        self.assertEqual(task.status, "to_do")
+        self.assertEqual(
+            added_events(session)[-1].event_type,
+            "board_moved",
+        )
+
+        task.status = "ready_for_review"
+        await service.move_task_on_board(
+            EDITOR_ID,
+            task.id,
+            "in_progress",
+        )
+        self.assertEqual(task.status, "in_progress")
+
+        task.status = "completed"
+        await service.move_task_on_board(
+            EDITOR_ID,
+            task.id,
+            "ready_for_review",
+        )
+        self.assertEqual(task.status, "ready_for_review")
+
+        task.status = "completed"
+        await service.move_task_on_board(
+            EDITOR_ID,
+            task.id,
+            "in_progress",
+        )
+        self.assertEqual(task.status, "in_progress")
+
+    async def test_board_move_rejects_invalid_stage_jump(self) -> None:
+        task = make_task(status="to_do")
+        session = FakeSession()
+        service = MemoryTaskService(session, [task])
+
+        with self.assertRaises(HTTPException) as conflict:
+            await service.move_task_on_board(
+                EDITOR_ID,
+                task.id,
+                "completed",
+            )
+
+        self.assertEqual(conflict.exception.status_code, 409)
+        self.assertEqual(task.status, "to_do")
+        self.assertEqual(session.commit_calls, 0)
+
     async def test_editor_cannot_cancel(self) -> None:
         task = make_task(status="in_progress")
         session = FakeSession()
@@ -1547,6 +1611,10 @@ class RouterMetadataTests(unittest.TestCase):
             (
                 "PATCH",
                 "/tasks/{task_id}/progress",
+            ),
+            (
+                "PATCH",
+                "/tasks/{task_id}/board-status",
             ),
             (
                 "POST",
