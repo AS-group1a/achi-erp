@@ -4,8 +4,17 @@ import json
 from datetime import date, datetime
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
-
+from typing import Literal
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 # No "client" stage: becoming a client isn't a file state, it's the file
 # converting into a project.
 # The General Log offers the full sales pipeline (18 stages). The original six
@@ -431,6 +440,224 @@ class QuickLogOut(BaseModel):
     # Set when a company was named alongside a person — it gets its own contact.
     company_contact_id: str | None = None
 
+
+class LogFilterParams(BaseModel):
+    """Validated filters shared by every General Log-style workspace."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+    q: str | None = Field(default=None, max_length=512)
+    number: str | None = Field(default=None, max_length=32)
+
+    when_from: AwareDatetime | None = None
+    when_to: AwareDatetime | None = None
+
+    status: list[str] = Field(
+        default_factory=list,
+        max_length=len(STATUSES),
+    )
+    stages: list[str] = Field(
+        default_factory=list,
+        max_length=len(STAGES),
+    )
+
+    stage: list[str] = Field(
+        default_factory=list,
+        max_length=len(STAGES),
+    )
+
+    prefix: list[str] = Field(default_factory=list, max_length=32)
+    owner: list[str] = Field(default_factory=list, max_length=50)
+    log_type: list[str] = Field(default_factory=list, max_length=50)
+    type: list[str] = Field(default_factory=list, max_length=50)
+    communication: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+    )
+    deliverable: list[str] = Field(
+        default_factory=list,
+        max_length=12,
+    )
+    tag: list[str] = Field(default_factory=list, max_length=50)
+    country: list[str] = Field(default_factory=list, max_length=50)
+    district: list[str] = Field(default_factory=list, max_length=50)
+    city: list[str] = Field(default_factory=list, max_length=50)
+
+    first: str | None = Field(default=None, max_length=128)
+    last: str | None = Field(default=None, max_length=128)
+    company: str | None = Field(default=None, max_length=255)
+    mobile: str | None = Field(default=None, max_length=50)
+    email: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=512)
+    updates: str | None = Field(default=None, max_length=512)
+    street: str | None = Field(default=None, max_length=255)
+
+    unassigned: bool = False
+    has_map: bool | None = None
+    has_attachment: bool | None = None
+    has_drawing: bool | None = None
+
+    email_state: Literal[
+        "sent",
+        "not_sent",
+        "missing",
+    ] | None = None
+
+    communication_mode: Literal["any", "all"] = "any"
+    deliverable_mode: Literal["any", "all"] = "any"
+    tag_mode: Literal["any", "all"] = "any"
+
+    last_touch_from: AwareDatetime | None = None
+    last_touch_to: AwareDatetime | None = None
+
+    follow_up_from: date | None = None
+    follow_up_to: date | None = None
+    today: date | None = None
+    follow_up_state: Literal[
+        "overdue",
+        "scheduled",
+        "missing",
+    ] | None = None
+
+    @field_validator(
+        "status",
+        "stages",
+        "stage",
+        "prefix",
+        "owner",
+        "log_type",
+        "type",
+        "communication",
+        "deliverable",
+        "tag",
+        "country",
+        "district",
+        "city",
+        mode="before",
+    )
+    @classmethod
+    def _normalise_multi_values(
+        cls,
+        value,
+        info: ValidationInfo,
+    ) -> list[str]:
+        if value is None:
+            return []
+
+        raw_values = (
+            value
+            if isinstance(value, (list, tuple, set))
+            else [value]
+        )
+
+        values: list[str] = []
+        seen: set[str] = set()
+
+        for raw in raw_values:
+            if raw is None:
+                continue
+
+            # Preserve compatibility with the existing:
+            # ?stages=enquiry,quotation
+            parts = (
+                str(raw).split(",")
+                if info.field_name in {"stages","stage"}
+                else [str(raw)]
+            )
+
+            for part in parts:
+                item = part.strip()
+
+                if not item:
+                    continue
+
+                key = item.casefold()
+
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                values.append(item)
+
+        return values
+
+    @field_validator("stages","stage")
+    @classmethod
+    def _validate_stages(cls, value: list[str]) -> list[str]:
+        invalid = sorted(set(value).difference(STAGES))
+
+        if invalid:
+            raise ValueError(
+                f"unknown stage value(s): {', '.join(invalid)}"
+            )
+
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def _validate_statuses(cls, value: list[str]) -> list[str]:
+        invalid = sorted(set(value).difference(STATUSES))
+
+        if invalid:
+            raise ValueError(
+                f"unknown status value(s): {', '.join(invalid)}"
+            )
+
+        return value
+
+    @model_validator(mode="after")
+    def _validate_filter_values(self):
+        item_limits = (
+            ("status", 32),
+            ("stages", 32),
+            ("stage", 32),
+            ("prefix", 16),
+            ("owner", 64),
+            ("log_type", 64),
+            ("type", 64),
+            ("communication", 32),
+            ("deliverable", 32),
+            ("tag", 64),
+            ("country", 64),
+            ("district", 128),
+            ("city", 128),
+        )
+
+        for field_name, maximum in item_limits:
+            for value in getattr(self, field_name):
+                if len(value) > maximum:
+                    raise ValueError(
+                        f"{field_name} values must be "
+                        f"{maximum} characters or fewer"
+                    )
+
+        ranges = (
+            ("when_from", "when_to"),
+            ("last_touch_from", "last_touch_to"),
+            ("follow_up_from", "follow_up_to"),
+        )
+
+        for start_name, end_name in ranges:
+            start = getattr(self, start_name)
+            end = getattr(self, end_name)
+
+            if start is not None and end is not None and start > end:
+                raise ValueError(
+                    f"{start_name} must be before or equal to {end_name}"
+                )
+
+        return self
+
+
+class LogListParams(LogFilterParams):
+    """Log filters plus list pagination and deleted-row selection."""
+
+    limit: int = Field(default=200, ge=1, le=1000)
+    offset: int = Field(default=0, ge=0)
+    deleted: bool = False
 
 class LogRowOut(BaseModel):
     """A row in the log table — flat, joined, no client-side assembly.

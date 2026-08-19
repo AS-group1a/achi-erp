@@ -700,12 +700,488 @@ $('rx-body').addEventListener('dblclick',e=>{
 });
 /* Select-all lives on the # header. Ignore clicks that land on the resize grip,
    or dragging a column edge would also flip the whole selection. */
-$('thead').addEventListener('click',e=>{
+let logFilterPopover=null;
+
+function logFilterOptionList(key){
+  const found=new Map();
+  const add=(value,labelText=value)=>{
+    value=String(value||'').trim();
+    if(!value) return;
+
+    const fingerprint=value.toLocaleLowerCase();
+
+    if(!found.has(fingerprint)){
+      found.set(fingerprint,{
+        value,
+        label:String(labelText||value),
+      });
+    }
+  };
+
+  const state=LOG_COLUMN_FILTERS[key];
+
+  if(key==='status'){
+    STATUSES.forEach(value=>add(value,label(value)));
+  }else if(key==='prefix'){
+    allPrefixes().forEach(value=>add(value));
+  }else if(key==='type'){
+    allTypes().forEach(value=>add(value));
+    ROWS.forEach(row=>add(row.log_type));
+  }else if(key==='stage'){
+    GL_STAGE_PIPELINE.forEach(value=>add(value,glStageLabel(value)));
+  }else if(key==='communication'){
+    Object.keys(GL_COMM_COLOR).forEach(value=>add(value));
+
+    ROWS.forEach(row=>{
+      Object.keys(glCommTally(row)).forEach(value=>add(value));
+    });
+  }else if(key==='deliverables'){
+    GL_DOCS.forEach(([value,labelText])=>add(value,labelText));
+
+    ROWS.forEach(row=>{
+      (Array.isArray(row.deliverables)?row.deliverables:[])
+        .forEach(value=>add(value));
+    });
+  }else if(key==='tags'){
+    allTags().forEach(value=>add(value));
+  }else if(key==='owner'){
+    ROWS.forEach(row=>{
+      if(row.owner){
+        add(row.owner,row.owner_name||row.owner);
+      }
+    });
+  }else if(['country','district','city'].includes(key)){
+    const field=key;
+
+    ROWS.forEach(row=>add(row[field]));
+  }
+
+  (state?.values||[]).forEach(value=>add(value));
+
+  return [...found.values()].sort((left,right)=>
+    left.label.localeCompare(right.label),
+  );
+}
+
+function syncLogColumnFilterTriggers(){
+  document
+    .querySelectorAll('[data-log-filter-key]')
+    .forEach(button=>{
+      const active=hasLogColumnFilter(
+        button.dataset.logFilterKey,
+      );
+
+      button.classList.toggle('is-active',active);
+      button.setAttribute(
+        'aria-pressed',
+        String(active),
+      );
+    });
+}
+
+function closeLogColumnFilter(){
+  if(!logFilterPopover) return;
+
+  logFilterPopover.remove();
+  logFilterPopover=null;
+  document.removeEventListener(
+    'mousedown',
+    closeLogColumnFilterOutside,
+    true,
+  );
+}
+
+function closeLogColumnFilterOutside(event){
+  if(
+    logFilterPopover
+    &&!logFilterPopover.contains(event.target)
+    &&!event.target.closest('[data-log-filter-key]')
+  ){
+    closeLogColumnFilter();
+  }
+}
+
+function positionLogColumnFilter(button){
+  if(!logFilterPopover) return;
+
+  const rect=button.getBoundingClientRect();
+  const gap=8;
+  const width=logFilterPopover.offsetWidth;
+  const height=logFilterPopover.offsetHeight;
+
+  const left=Math.max(
+    gap,
+    Math.min(
+      rect.left,
+      window.innerWidth-width-gap,
+    ),
+  );
+
+  const below=rect.bottom+gap;
+  const top=below+height<=window.innerHeight-gap
+    ? below
+    : Math.max(gap,rect.top-height-gap);
+
+  logFilterPopover.style.left=`${left}px`;
+  logFilterPopover.style.top=`${top}px`;
+}
+
+function logColumnFilterContent(key){
+  const spec=LOG_COLUMN_FILTER_SPECS[key];
+  const state=LOG_COLUMN_FILTERS[key]||{};
+  const title=COLS.find(column=>column.k===key)?.h||key;
+
+  if(spec.kind==='text'){
+    return `
+      <label class="log-filter-label" for="log-filter-text">
+        Contains
+      </label>
+      <input
+        id="log-filter-text"
+        class="log-filter-text"
+        data-log-filter-text
+        value="${esc(state.value||'')}"
+        placeholder="Search ${esc(title)}"
+        autocomplete="off"
+      >
+    `;
+  }
+
+  if(spec.kind==='presence'){
+    const value=state.value;
+
+    return `
+      <label class="log-filter-label" for="log-filter-presence">
+        Show
+      </label>
+      <select
+        id="log-filter-presence"
+        class="log-filter-select"
+        data-log-filter-presence
+      >
+        <option value="">Any value</option>
+        <option value="true"${value===true?' selected':''}>
+          Has map
+        </option>
+        <option value="false"${value===false?' selected':''}>
+          No map
+        </option>
+      </select>
+    `;
+  }
+
+  if(spec.kind==='date'){
+    const stateChoices=key==='followup'
+      ? `
+        <label class="log-filter-label" for="log-filter-state">
+          Follow-up state
+        </label>
+        <select
+          id="log-filter-state"
+          class="log-filter-select"
+          data-log-filter-state
+        >
+          <option value="">Any date</option>
+          <option value="overdue"${
+            state.state==='overdue'?' selected':''
+          }>Overdue</option>
+          <option value="scheduled"${
+            state.state==='scheduled'?' selected':''
+          }>Scheduled</option>
+          <option value="missing"${
+            state.state==='missing'?' selected':''
+          }>No date</option>
+        </select>
+      `
+      : '';
+
+    return `
+      <div class="log-filter-date-grid">
+        <label class="log-filter-label">
+          From
+          <input
+            type="date"
+            class="log-filter-date"
+            data-log-filter-from
+            value="${esc(state.from||'')}"
+          >
+        </label>
+        <label class="log-filter-label">
+          To
+          <input
+            type="date"
+            class="log-filter-date"
+            data-log-filter-to
+            value="${esc(state.to||'')}"
+          >
+        </label>
+      </div>
+      ${stateChoices}
+    `;
+  }
+
+  const selected=new Set(
+    (state.values||[]).map(value=>
+      String(value).toLocaleLowerCase(),
+    ),
+  );
+  const options=logFilterOptionList(key);
+
+  const unassigned=spec.unassigned
+    ? `
+      <label class="log-filter-option">
+        <input
+          type="checkbox"
+          data-log-filter-unassigned
+          ${state.unassigned?'checked':''}
+        >
+        <span>Unassigned</span>
+      </label>
+    `
+    : '';
+
+  const mode=spec.mode
+    ? `
+      <label class="log-filter-label" for="log-filter-mode">
+        Match
+      </label>
+      <select
+        id="log-filter-mode"
+        class="log-filter-select"
+        data-log-filter-mode
+      >
+        <option value="any"${
+          state.mode!=='all'?' selected':''
+        }>Any selected value</option>
+        <option value="all"${
+          state.mode==='all'?' selected':''
+        }>All selected values</option>
+      </select>
+    `
+    : '';
+
+  return `
+    ${mode}
+    ${unassigned}
+    <div class="log-filter-options">
+      ${
+        options.length
+          ? options.map(option=>`
+              <label class="log-filter-option">
+                <input
+                  type="checkbox"
+                  data-log-filter-option
+                  data-log-filter-value="${esc(option.value)}"
+                  ${
+                    selected.has(
+                      option.value.toLocaleLowerCase(),
+                    )?'checked':''
+                  }
+                >
+                <span>${esc(option.label)}</span>
+              </label>
+            `).join('')
+          : '<p class="log-filter-empty">No values in loaded rows.</p>'
+      }
+    </div>
+  `;
+}
+
+function readLogColumnFilter(key){
+  const spec=LOG_COLUMN_FILTER_SPECS[key];
+
+  if(spec.kind==='text'){
+    return {
+      value:
+        logFilterPopover
+          ?.querySelector('[data-log-filter-text]')
+          ?.value||'',
+    };
+  }
+
+  if(spec.kind==='presence'){
+    const value=logFilterPopover
+      ?.querySelector('[data-log-filter-presence]')
+      ?.value;
+
+    return {
+      value:value==='true'
+        ? true
+        : value==='false'
+          ? false
+          : null,
+    };
+  }
+
+  if(spec.kind==='date'){
+    return {
+      from:
+        logFilterPopover
+          ?.querySelector('[data-log-filter-from]')
+          ?.value||'',
+      to:
+        logFilterPopover
+          ?.querySelector('[data-log-filter-to]')
+          ?.value||'',
+      state:
+        logFilterPopover
+          ?.querySelector('[data-log-filter-state]')
+          ?.value||'',
+    };
+  }
+
+  return {
+    values:[
+      ...logFilterPopover.querySelectorAll(
+        '[data-log-filter-option]:checked',
+      ),
+    ].map(input=>input.dataset.logFilterValue),
+    unassigned:Boolean(
+      logFilterPopover.querySelector(
+        '[data-log-filter-unassigned]',
+      )?.checked,
+    ),
+    mode:
+      logFilterPopover
+        .querySelector('[data-log-filter-mode]')
+        ?.value||'any',
+  };
+}
+
+async function applyLogColumnFilter(key){
+  setLogColumnFilter(key,readLogColumnFilter(key));
+  selectedRows.clear();
+  refreshSelectionButton();
+  refreshDeleteButton();
+  syncLogColumnFilterTriggers();
+  closeLogColumnFilter();
+
+  if(
+    deletedView
+    &&typeof window.reloadDeletedLogs==='function'
+  ){
+    await window.reloadDeletedLogs();
+    return;
+  }
+
+  await load();
+}
+
+async function clearLogColumnFilterFromPopover(key){
+  clearLogColumnFilter(key);
+  selectedRows.clear();
+  refreshSelectionButton();
+  refreshDeleteButton();
+  syncLogColumnFilterTriggers();
+  closeLogColumnFilter();
+
+  if(
+    deletedView
+    &&typeof window.reloadDeletedLogs==='function'
+  ){
+    await window.reloadDeletedLogs();
+    return;
+  }
+
+  await load();
+}
+
+function openLogColumnFilter(button){
+  const key=button.dataset.logFilterKey;
+
+  if(
+    !key
+    ||!LOG_COLUMN_FILTER_SPECS[key]
+  ){
+    return;
+  }
+
+  if(
+    logFilterPopover
+    &&logFilterPopover.dataset.logFilterKey===key
+  ){
+    closeLogColumnFilter();
+    return;
+  }
+
+  closeLogColumnFilter();
+
+  const title=COLS.find(column=>column.k===key)?.h||key;
+  const popover=document.createElement('section');
+
+  popover.className='log-filter-popover';
+  popover.dataset.logFilterKey=key;
+  popover.innerHTML=`
+    <header class="log-filter-header">
+      <strong>Filter ${esc(title)}</strong>
+      <button
+        type="button"
+        class="log-filter-close"
+        data-log-filter-close
+        aria-label="Close filter"
+      >×</button>
+    </header>
+    <div class="log-filter-body">
+      ${logColumnFilterContent(key)}
+    </div>
+    <footer class="log-filter-footer">
+      <button
+        type="button"
+        class="log-filter-clear"
+        data-log-filter-clear
+      >Clear</button>
+      <button
+        type="button"
+        class="log-filter-apply"
+        data-log-filter-apply
+      >Apply</button>
+    </footer>
+  `;
+
+  document.body.appendChild(popover);
+  logFilterPopover=popover;
+  positionLogColumnFilter(button);
+
+  popover.addEventListener('click',async event=>{
+    if(event.target.closest('[data-log-filter-close]')){
+      closeLogColumnFilter();
+      return;
+    }
+
+    if(event.target.closest('[data-log-filter-clear]')){
+      await clearLogColumnFilterFromPopover(key);
+      return;
+    }
+
+    if(event.target.closest('[data-log-filter-apply]')){
+      await applyLogColumnFilter(key);
+    }
+  });
+
+  setTimeout(()=>{
+    document.addEventListener(
+      'mousedown',
+      closeLogColumnFilterOutside,
+      true,
+    );
+  },0);
+}
+   $('thead').addEventListener('click',e=>{
+  const filterButton=e.target.closest('[data-log-filter-key]');
+
+  if(filterButton){
+    e.preventDefault();
+    e.stopPropagation();
+    openLogColumnFilter(filterButton);
+    return;
+  }
+
   if(e.target.closest('.rz')) return;
   if(e.target.closest('th[data-k="num"]')) toggleSelectAll();
 });
 $('thead').addEventListener('keydown',e=>{
   if(e.key!=='Enter'&&e.key!==' ') return;
+  if(e.target.closest('[data-log-filter-key]')) return;
   if(!e.target.closest('th[data-k="num"]')) return;
   e.preventDefault(); toggleSelectAll();
 });
@@ -1449,22 +1925,43 @@ function openCommAddMenu(btn){
 /* General Log-style workspaces can declare ACHI_LOG_FILTER before this script.
    The same query-string format is shared by both the table and KPI requests. */
 function logFilteredPath(basePath){
-  const raw=(typeof window!=='undefined') ? window.ACHI_LOG_FILTER : null;
-  if(!raw || typeof raw!=='object') return basePath;
+  const separator=basePath.indexOf('?');
+  const path=separator===-1
+    ? basePath
+    : basePath.slice(0,separator);
+  const params=new URLSearchParams(
+    separator===-1
+      ? ''
+      : basePath.slice(separator+1),
+  );
 
-  const params=new URLSearchParams();
-  const logType=typeof raw.log_type==='string' ? raw.log_type.trim() : '';
-  const stages=Array.isArray(raw.stages)
-    ? raw.stages.filter(stage=>typeof stage==='string'&&stage.trim())
+  const scope=
+    typeof window!=='undefined'
+    &&window.ACHI_LOG_FILTER
+    &&typeof window.ACHI_LOG_FILTER==='object'
+      ? window.ACHI_LOG_FILTER
+      : {};
+
+  const logType=typeof scope.log_type==='string'
+    ? scope.log_type.trim()
+    : '';
+  const stages=Array.isArray(scope.stages)
+    ? scope.stages.filter(
+        stage=>typeof stage==='string'&&stage.trim(),
+      )
     : [];
 
   if(logType) params.set('log_type',logType);
   if(stages.length) params.set('stages',stages.join(','));
+  const queryText=$('q')?.value.trim()||'';
+
+  if(queryText) params.set('q',queryText);
+  appendLogColumnFilterParams(params);
 
   const query=params.toString();
-  return query ? basePath+'?'+query : basePath;
-}
 
+  return query?`${path}?${query}`:path;
+}
 function logListPath(){
   return logFilteredPath('/logs/');
 }
@@ -1600,7 +2097,47 @@ let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('s
 $('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
 window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
 $('k-open-card').onclick=()=>{ openOnly=!openOnly; $('k-open-card').classList.toggle('on',openOnly); render(); };
-$('q').oninput=render;
+let logSearchTimer=null;
+
+$('q').oninput=()=>{
+  clearTimeout(logSearchTimer);
+
+  logSearchTimer=setTimeout(async()=>{
+    if(
+      deletedView
+      &&typeof window.reloadDeletedLogs==='function'
+    ){
+      await window.reloadDeletedLogs();
+      return;
+    }
+
+    await load();
+  },250);
+};
+
+$('btn-clear-filters').onclick=async()=>{
+  clearTimeout(logSearchTimer);
+  clearAllLogColumnFilters();
+
+  $('q').value='';
+  openOnly=false;
+  $('k-open-card').classList.remove('on');
+
+  selectedRows.clear();
+  refreshSelectionButton();
+  refreshDeleteButton();
+  syncLogColumnFilterTriggers();
+
+  if(
+    deletedView
+    &&typeof window.reloadDeletedLogs==='function'
+  ){
+    await window.reloadDeletedLogs();
+    return;
+  }
+
+  await load();
+};
 
 /* bottom drag strip resizes table height (persisted) */
 (function(){

@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · Achi Scaffolding ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=7">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=9">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <body data-achi-title="Log">
@@ -49,6 +49,13 @@
       </div>
       <div class="nav-right">
         <input class="search" id="q" placeholder="Search name, file, city, text…">
+        <button
+  class="log-clear-filters"
+  id="btn-clear-filters"
+  type="button"
+>
+  Clear filters
+</button>
       </div>
     </div>
     <div class="tscroll" id="touter">
@@ -182,8 +189,9 @@
     {k:'street',       h:'Street',         tab:null, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
   ];
 </script>
-<script src="/api/v1/achi/ui/log-core.js?v=11"></script>
-<script src="/api/v1/achi/ui/log.js?v=7"></script>
+
+<script src="/api/v1/achi/ui/log-core.js?v=12"></script>
+<script src="/api/v1/achi/ui/log.js?v=9"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=28"></script>
 <script src="/api/v1/achi/ui/comment.js?v=14"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
