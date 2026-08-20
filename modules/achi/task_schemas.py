@@ -335,6 +335,17 @@ class TaskCommentOut(OrmOutput):
     created_at: datetime
     updated_at: datetime
 
+class TaskAttachmentOut(OrmOutput):
+    """Safe task-attachment metadata; never exposes the storage key."""
+
+    id: str
+    task_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    uploaded_by: str | None
+    created_at: datetime
+    updated_at: datetime
 
 class TaskEventOut(OrmOutput):
     """Full audit history. The router will expose this to supervisors only."""

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Tasks | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=17">
+  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=18">
 </head>
 
 <body data-achi-title="Team Tasks">
@@ -529,6 +529,46 @@
         </div>
 
         <p
+  class="achi-task-form-error"
+  id="achi-task-editor-error"
+        <section
+  class="achi-task-editor-attachments"
+  aria-labelledby="achi-task-editor-attachments-heading"
+>
+  <div class="achi-task-section-heading">
+    <h3 id="achi-task-editor-attachments-heading">Attachments</h3>
+    <span id="achi-task-editor-attachments-count">0</span>
+  </div>
+
+  <input
+    id="achi-task-editor-attachments-input"
+    type="file"
+    multiple
+    accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx"
+    hidden
+  >
+
+  <label
+    class="achi-task-attachment-dropzone"
+    id="achi-task-editor-attachments-dropzone"
+    for="achi-task-editor-attachments-input"
+  >
+    <strong>Drag files here or browse</strong>
+    <span>PNG, JPG, WEBP, PDF, Word or Excel · up to 25 MB each</span>
+  </label>
+
+  <div
+    class="achi-task-pending-attachments"
+    id="achi-task-editor-pending-attachments"
+  ></div>
+
+  <p
+    class="achi-task-form-error"
+    id="achi-task-editor-attachments-error"
+    role="alert"
+  ></p>
+</section>
+        <p
           class="achi-task-form-error"
           id="achi-task-editor-error"
           role="alert"
@@ -668,9 +708,24 @@
         </section>
 
         <section
+  class="achi-task-detail-section achi-task-detail-attachments"
+  aria-labelledby="achi-task-detail-attachments-heading"
+>
+  <div class="achi-task-section-heading">
+    <h3 id="achi-task-detail-attachments-heading">Attachments</h3>
+    <span id="achi-task-detail-attachments-count">0</span>
+  </div>
+
+  <div
+    class="achi-task-detail-attachments-list"
+    id="achi-task-detail-attachments-list"
+  ></div>
+</section>
+
+        <section
           class="achi-task-detail-section achi-task-blocked-section"
           id="achi-task-detail-blocked-section"
-          hidden
+          class="achi-task-visually-hidden"
         >
           <h3>Blocked reason</h3>
           <p id="achi-task-detail-blocked-reason"></p>
@@ -865,7 +920,7 @@
     hidden
   ></div>
 
-  <script src="/api/v1/achi/tasks/team_tasks.js?v=11"></script>
+  <script src="/api/v1/achi/tasks/team_tasks.js?v=12"></script>
   <script src="/api/v1/achi/ui/chrome.js?v=28"></script>
 </body>
 </html>

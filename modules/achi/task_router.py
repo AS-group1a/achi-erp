@@ -10,17 +10,37 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Annotated
+from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import HTMLResponse, PlainTextResponse
-from app.dependencies import CurrentUserId, RequireRole, SessionDep
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
+from fastapi.responses import (
+    HTMLResponse,
+    PlainTextResponse,
+    Response,
+)
+from app.dependencies import (
+    CurrentUserId,
+    RequireRole,
+    SessionDep,
+    SettingsDep,
+)
 
 from .task_schemas import (
     TaskAccessOut,
     TaskApproveIn,
     TaskBoardMoveIn,
     TaskAssigneeOut,
+    TaskAttachmentOut,
     TaskCancelIn,
     TaskCommentCreateIn,
     TaskCommentOut,
@@ -47,6 +67,47 @@ task_router = APIRouter(prefix="/tasks")
 
 _UI_DIR = Path(__file__).parent / "ui"
 
+# Task attachments are intentionally stricter than generic Log files. The main
+# use case is screenshots and documents; executable or active-content formats
+# are never accepted.
+_TASK_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024
+
+_TASK_ATTACHMENT_TYPE_BY_EXTENSION = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": (
+        "application/vnd.openxmlformats-officedocument."
+        "wordprocessingml.document"
+    ),
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": (
+        "application/vnd.openxmlformats-officedocument."
+        "spreadsheetml.sheet"
+    ),
+}
+
+
+def _task_attachment_content_type(filename: str) -> str:
+    """Return the server-controlled media type for an allowed filename."""
+
+    extension = Path(filename or "").suffix.lower()
+    content_type = _TASK_ATTACHMENT_TYPE_BY_EXTENSION.get(extension)
+
+    if content_type is None:
+        allowed = ", ".join(
+            suffix.lstrip(".").upper()
+            for suffix in _TASK_ATTACHMENT_TYPE_BY_EXTENSION
+        )
+        raise HTTPException(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            f"Unsupported file type. Allowed: {allowed}",
+        )
+
+    return content_type
 
 @task_router.get(
     "/ui",
@@ -613,6 +674,137 @@ async def soft_delete_task(
     )
     return TaskOut.model_validate(task)
 
+
+# ---------------------------------------------------------------------------
+# Task attachments
+# ---------------------------------------------------------------------------
+
+
+@task_router.get(
+    "/{task_id}/attachments",
+    response_model=list[TaskAttachmentOut],
+    summary="List files attached to one Team Task",
+)
+async def list_task_attachments(
+    task_id: UUID,
+    session: SessionDep,
+    user_id: CurrentUserId,
+) -> list[TaskAttachmentOut]:
+    rows = await TaskService(session).list_attachments(
+        user_id,
+        str(task_id),
+    )
+    return [
+        TaskAttachmentOut.model_validate(row)
+        for row in rows
+    ]
+
+
+@task_router.post(
+    "/{task_id}/attachments",
+    response_model=TaskAttachmentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Attach a safe file to one Team Task",
+)
+async def add_task_attachment(
+    task_id: UUID,
+    session: SessionDep,
+    user_id: CurrentUserId,
+    file: UploadFile = File(...),
+) -> TaskAttachmentOut:
+    filename = file.filename or "file"
+    content_type = _task_attachment_content_type(filename)
+
+    # Stream and count actual bytes. The browser's Content-Length and MIME type
+    # are never trusted for the size or type decision.
+    chunks: list[bytes] = []
+    total = 0
+
+    while True:
+        chunk = await file.read(1024 * 1024)
+
+        if not chunk:
+            break
+
+        total += len(chunk)
+
+        if total > _TASK_ATTACHMENT_MAX_BYTES:
+            raise HTTPException(
+                status.HTTP_413_CONTENT_TOO_LARGE,
+                "Task attachments must be 25 MB or smaller",
+            )
+
+        chunks.append(chunk)
+
+    content = b"".join(chunks)
+
+    if not content:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Empty files cannot be attached",
+        )
+
+    attachment = await TaskService(session).add_attachment(
+        user_id,
+        str(task_id),
+        filename=filename,
+        content_type=content_type,
+        content=content,
+    )
+    return TaskAttachmentOut.model_validate(attachment)
+
+
+@task_router.get(
+    "/attachments/{attachment_id}/download",
+    include_in_schema=False,
+    summary="Open or download one Team Task attachment",
+)
+async def download_task_attachment(
+    attachment_id: str,
+    session: SessionDep,
+    user_id: CurrentUserId,
+) -> Response:
+    service = TaskService(session)
+    attachment = await service.get_attachment(
+        user_id,
+        attachment_id,
+    )
+
+    try:
+        content = await service.read_attachment(attachment)
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "Task attachment bytes are missing",
+        ) from error
+
+    return Response(
+        content,
+        media_type=attachment.content_type,
+        headers={
+            "Content-Disposition": (
+                "inline; filename*=UTF-8''"
+                f"{quote(attachment.filename, safe='')}"
+            ),
+        },
+    )
+
+
+@task_router.delete(
+    "/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove one Team Task attachment",
+)
+async def delete_task_attachment(
+    attachment_id: str,
+    session: SessionDep,
+    user_id: CurrentUserId,
+) -> Response:
+    await TaskService(session).delete_attachment(
+        user_id,
+        attachment_id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # ---------------------------------------------------------------------------
 # Task comments and manager-only audit history
