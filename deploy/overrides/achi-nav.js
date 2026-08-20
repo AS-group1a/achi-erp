@@ -38,11 +38,15 @@
   var PROSPECTS_ID = 'achi-nav-prospects';
   var SURVEY_ID = 'achi-nav-survey';
   var QUOTATION_ID = 'achi-nav-quotation';
+  var BOQ_ID = 'achi-nav-boq';
+  var MT_ID = 'achi-nav-mt';
   var TASKS_ID = 'achi-nav-team-tasks';
   var CONTACTS_ROUTE = '/contacts';
   var CRM_ROUTE = '/crm';
   var PROSPECTS_ROUTE = '/prospects';
   var QUOTATION_ROUTE = '/quotation';
+  var BOQ_ROUTE = '/boq';
+  var MT_ROUTE = '/mt';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
   var ORDER_KEY = 'achi_sidebar_module_order_v3';
@@ -219,8 +223,15 @@
     var a = links();
     for (var i = 0; i < a.length; i++) {
       var el = a[i];
-      if (el.id === CONTACTS_ID || el.id === CRM_ID ||
-          el.id === PROSPECTS_ID || el.id === QUOTATION_ID || el.id === ID) continue;
+      if (
+        el.id === CONTACTS_ID ||
+        el.id === CRM_ID ||
+        el.id === PROSPECTS_ID ||
+        el.id === QUOTATION_ID ||
+        el.id === BOQ_ID ||
+        el.id === MT_ID ||
+        el.id === ID
+      ) continue;
       var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
       if (href === route) { var li = el.closest('li'); if (li) return li; }
     }
@@ -242,6 +253,10 @@
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' },
   { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotation',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' },
+  { id: BOQ_ID, route: BOQ_ROUTE, label: 'BOQ',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>' },
+  { id: MT_ID, route: MT_ROUTE, label: 'M/T',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/></svg>' },
   { id: TASKS_ID, route: '/team-tasks', label: 'Team Tasks',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' }
   ];
@@ -509,8 +524,15 @@
     if (!a) return;
     if (Date.now() - draggedAt < 250) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var href = a.getAttribute('data-achi-route') || a.getAttribute('href') || '';
-    if (a.id === CONTACTS_ID || a.id === CRM_ID || a.id === PROSPECTS_ID || a.id === QUOTATION_ID) {
-      e.preventDefault(); e.stopImmediatePropagation();
+    if (
+      a.id === CONTACTS_ID ||
+      a.id === CRM_ID ||
+      a.id === PROSPECTS_ID ||
+      a.id === QUOTATION_ID ||
+      a.id === BOQ_ID ||
+      a.id === MT_ID
+    ) {
+    e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
       achiNavigationPending = true;
       if (a.id === PROSPECTS_ID) {
@@ -519,9 +541,18 @@
       }
 
       if (a.id === QUOTATION_ID) {
-  location.assign('/api/v1/achi/quotation/ui');
-  return;
-}
+        location.assign('/api/v1/achi/quotation/ui');
+        return;
+      }
+
+      if (a.id === BOQ_ID) {
+        location.assign('/api/v1/achi/boq/ui');
+        return;
+      }
+      if (a.id === MT_ID) {
+        location.assign('/api/v1/achi/mt/ui');
+        return;
+      }
       if (a.id === CONTACTS_ID) {
         location.assign('/api/v1/achi/contact-info/ui');
         return;
@@ -641,6 +672,8 @@
         || link.id === PROSPECTS_ID
         || link.id === SURVEY_ID
         || link.id === QUOTATION_ID
+        || link.id === BOQ_ID
+        || link.id === MT_ID
         || (link.id === TASKS_ID)
       );      if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
@@ -741,9 +774,11 @@
   var survey = document.getElementById(SURVEY_ID);
   var crm = document.getElementById(CRM_ID);
   var quotation = document.getElementById(QUOTATION_ID);
+  var boq = document.getElementById(BOQ_ID);
+  var mt = document.getElementById(MT_ID);
   var tasks = document.getElementById(TASKS_ID);
 
-if (!(log && contacts && prospects && survey && crm && quotation && tasks)) {
+if (!(log && contacts && prospects && survey && crm && quotation && boq && mt && tasks)) {
       inject();
       ensureOverviewModules();
     }

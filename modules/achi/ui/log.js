@@ -313,6 +313,22 @@ function draftMobile(st){
   return `${st.dial||DEFAULT_DIAL} ${num}`.trim();
 }
 function validDraftMobile(st){ return validMobile(draftMobile(st)); }
+function workspaceDefaultStage(){
+  const scope =
+    typeof window !== 'undefined' &&
+    window.ACHI_LOG_FILTER &&
+    typeof window.ACHI_LOG_FILTER === 'object'
+      ? window.ACHI_LOG_FILTER
+      : {};
+
+  const stages = Array.isArray(scope.stages)
+    ? scope.stages.filter(
+        stage => typeof stage === 'string' && stage.trim(),
+      )
+    : [];
+
+  return stages.length === 1 ? stages[0] : null;
+}
 function draftPayload(st){
   const first=(st.first||'').trim(),last=(st.last||'').trim(),company=(st.company||'').trim();
   const isCo=!!company&&!first&&!last;
@@ -320,9 +336,10 @@ function draftPayload(st){
   const person=isCo?{is_company:true,company_name:company,mobile:mob,email:st.email||null}
     :{is_company:false,prefix:st.prefix||null,first_name:first||null,last_name:last||null,company_name:company||null,mobile:mob,email:st.email||null};
   const hasSite=st.country||st.district||st.city||st.street||st.maps||st.location;
+    const stage = st.stage || workspaceDefaultStage();
   return {person,site:hasSite?{country:st.country||'Lebanon',district:st.district||null,city:st.city||null,street:st.street||null,maps_url:st.maps||null,site_location:st.location||null}:null,
-    status:st.status||'open',log_type:st.type||'inbound_call',category:st.category||null,tags:st.tags||'',description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
-}
+    status:st.status||'open',log_type:st.type||'inbound_call',stage:stage||undefined,category:st.category||null,tags:st.tags||'',description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
+  }
 const committing=new Set();
 /* A row is saveable the moment it has an identity: a first name or a company.
    Everything else on the row is optional and can be filled in afterwards. */

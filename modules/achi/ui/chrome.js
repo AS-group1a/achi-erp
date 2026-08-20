@@ -38,6 +38,8 @@ var LINKS = [
   { label: 'Site Survey', href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
   { label: 'CRM', href: '/api/v1/achi/crm/ui', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
   { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
+  { label: 'BOQ', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
+  { label: 'M/T', href: '/api/v1/achi/mt/ui', icon: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/>' },
   { label: 'Team Tasks', href: '/api/v1/achi/tasks/ui', icon: '<path d="M3 4h18v16H3z"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/>' }
 ];
 
