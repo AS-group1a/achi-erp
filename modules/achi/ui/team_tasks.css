@@ -2414,3 +2414,121 @@ textarea::placeholder {
     justify-content: flex-start;
   }
 }
+
+.achi-task-view-switcher {
+  display: inline-flex;
+  gap: 3px;
+  margin: 14px 15px 0;
+  padding: 3px;
+  border: 1px solid var(--achi-task-line);
+  border-radius: 8px;
+  background: var(--achi-task-surface-alt);
+}
+
+.achi-task-view-button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--achi-task-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.achi-task-view-button.is-active {
+  background: var(--achi-task-surface);
+  box-shadow: 0 1px 2px rgba(23, 32, 51, .12);
+  color: var(--achi-task-brand);
+}
+
+.achi-task-table-view {
+  overflow: hidden;
+  background: var(--achi-task-surface);
+}
+
+.achi-task-table-scroll {
+  overflow: auto;
+}
+
+.achi-task-table {
+  width: 100%;
+  min-width: 1360px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.achi-task-table th,
+.achi-task-table td {
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--achi-task-line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.achi-task-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--achi-task-surface-alt);
+  color: var(--achi-task-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.achi-task-table th button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.achi-task-table th button:hover {
+  color: var(--achi-task-brand);
+}
+
+.achi-task-table tbody tr {
+  cursor: pointer;
+}
+
+.achi-task-table tbody tr:hover,
+.achi-task-table tbody tr:focus-visible {
+  background: var(--achi-task-brand-soft);
+  outline: 0;
+}
+
+.achi-task-table td:first-child {
+  color: var(--achi-task-brand);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.achi-task-table td:nth-child(2) {
+  min-width: 180px;
+  color: var(--achi-task-ink);
+  font-weight: 700;
+}
+
+.achi-task-table-description {
+  max-width: 270px;
+  overflow: hidden;
+  color: var(--achi-task-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.achi-task-table-empty {
+  margin: 0;
+  padding: 34px;
+  color: var(--achi-task-soft);
+  font-size: 13px;
+  text-align: center;
+}

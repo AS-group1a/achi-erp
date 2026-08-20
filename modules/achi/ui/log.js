@@ -980,6 +980,13 @@ function logColumnFilterContent(key){
   return `
     ${mode}
     ${unassigned}
+    <input
+      type="search"
+      class="log-filter-option-search"
+      data-log-filter-option-search
+      placeholder="Search ${esc(title)}"
+      autocomplete="off"
+    >
     <div class="log-filter-options">
       ${
         options.length
@@ -1001,6 +1008,9 @@ function logColumnFilterContent(key){
           : '<p class="log-filter-empty">No values in loaded rows.</p>'
       }
     </div>
+    <p class="log-filter-no-results" data-log-filter-no-results hidden>
+      No matching options.
+    </p>
   `;
 }
 
@@ -1158,6 +1168,34 @@ function openLogColumnFilter(button){
   document.body.appendChild(popover);
   logFilterPopover=popover;
   positionLogColumnFilter(button);
+
+  const optionSearch=popover.querySelector(
+    '[data-log-filter-option-search]',
+  );
+
+  if(optionSearch){
+    const noResults=popover.querySelector(
+      '[data-log-filter-no-results]',
+    );
+    const filterOptions=()=>{
+      const term=optionSearch.value.trim().toLocaleLowerCase();
+      let visible=0;
+
+      popover.querySelectorAll('.log-filter-option').forEach(option=>{
+        const matches=!term||option.textContent
+          .toLocaleLowerCase()
+          .includes(term);
+
+        option.hidden=!matches;
+        if(matches) visible+=1;
+      });
+
+      if(noResults) noResults.hidden=visible>0;
+    };
+
+    optionSearch.addEventListener('input',filterOptions);
+    optionSearch.focus();
+  }
 
   popover.addEventListener('click',async event=>{
     if(event.target.closest('[data-log-filter-close]')){
