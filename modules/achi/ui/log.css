@@ -282,6 +282,48 @@
   .rx-select-btn:hover,.rx-select-btn[aria-expanded="true"]{border-color:var(--navy);outline:none}
   .rx-select-btn svg{width:12px;height:12px;flex:0 0 auto;color:#1e3f85;transition:transform .15s}
   .rx-select-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+  /* Country / District / City editable combos.
+   The text input is the visible value; the enhanced select contributes only
+   the dropdown arrow, so both controls read visually as one field. */
+  .rx-geo-combo{
+    position:relative;
+    width:100%;
+  }
+
+  .rx-geo-input{
+    padding-right:42px;
+  }
+
+  .rx-geo-combo .rx-select-btn{
+    position:absolute;
+    top:0;
+    right:0;
+    width:38px;
+    min-width:38px;
+    height:38px;
+    padding:0;
+    gap:0;
+    justify-content:center;
+    border:0;
+    border-left:1px solid #d7dde8;
+    border-radius:0 7px 7px 0;
+    background:transparent;
+  }
+
+  .rx-geo-combo .rx-select-btn span{
+    display:none;
+  }
+
+  .rx-geo-combo .rx-select-btn:hover,
+  .rx-geo-combo .rx-select-btn[aria-expanded="true"]{
+    background:rgba(40,79,158,.06);
+    border-left-color:#b9c7db;
+  }
+
+  .rx-geo-combo:focus-within .rx-geo-input{
+    border-color:var(--navy);
+    box-shadow:0 0 0 3px rgba(40,79,158,.12);
+  }
   .rx-select-menu{position:fixed;z-index:2147482750;min-width:150px;max-height:220px;overflow-y:auto;padding:0;background:#fff;border:1.5px solid #1e3f85;border-radius:10px;box-shadow:0 8px 24px rgba(30,63,133,.16)}
   .rx-select-menu[hidden]{display:none}
   .rx-select-option{display:block;width:100%;padding:7px 13px;border:0;border-radius:0;background:#fff;color:#1e3f85;font:inherit;font-size:12.5px;font-weight:400;text-align:left;white-space:nowrap;cursor:pointer}

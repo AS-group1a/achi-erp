@@ -231,9 +231,29 @@ function fillRxFromContact(c){
   set('last',c.last_name);
   set('company',c.company_name);
   set('email',c.primary_email);
-  set('country',address.country||address.country_name||c.country_code);
-  set('district',address.district||address.state);
-  set('city',address.city);
+  const contactCountry=rxSetGeoValue(
+  'country',
+  COUNTRY_NAMES,
+  address.country||address.country_name||c.country_code||''
+  );
+
+  const contactDistrict=rxSetGeoValue(
+    'district',
+    districtOptions(contactCountry),
+    address.district||address.state||''
+  );
+
+  rxSetGeoValue(
+    'city',
+    cityOptions(contactCountry,contactDistrict),
+    address.city||''
+  );
+
+  /* A contact may have Country + City but no District. Apply the normal
+    City -> unique District rule in that case too. */
+  if(!contactDistrict && address.city){
+    syncDistrictFromCity();
+  }
   set('street',address.street||address.address_line_1);
   const mobile=body.querySelector('[data-k="mobile"]');
   if(mobile){
@@ -660,20 +680,26 @@ $('rx-body').addEventListener('change',e=>{
     }else el.value=allSocials().includes(previous)?previous:'IG';
     enhanceRxSelect(el);
   }
-  /* Site-info cascade: District follows Country, City follows District. Choosing
-     a country repopulates its districts and clears the city; choosing a district
-     repopulates its cities. A country not in GEO leaves both empty (no data to
-     match), which is the honest state until that country's lists exist. */
+/* Country / District / City editable-combo behavior.
+   The shared helpers in log-core.js keep the visible text input and underlying
+   select synchronized, normalize known values, and handle City -> District. */
   if(el.dataset.rxSelect==='country'){
-    rxFillSelect('district',districtOptions(el.value),'');
-    rxFillSelect('city',null,'');
+    rxApplyCountryValue(el.value);
   }
-  if(el.dataset.rxSelect==='district'&&el.value===DISTRICT_ADD){ addDistrictAndSelect(el); }
+
+  if(el.dataset.rxSelect==='district'&&el.value===DISTRICT_ADD){
+    addDistrictAndSelect(el);
+  }
   else if(el.dataset.rxSelect==='district'){
-    const country=$('rx-country')&&$('rx-country').value;
-    rxFillSelect('city',cityOptions(country,el.value),'');
+    rxApplyDistrictValue(el.value);
   }
-  if(el.dataset.rxSelect==='city'&&el.value===CITY_ADD){ addCityAndSelect(el); }
+
+  if(el.dataset.rxSelect==='city'&&el.value===CITY_ADD){
+    addCityAndSelect(el);
+  }
+  else if(el.dataset.rxSelect==='city'){
+    rxApplyCityValue(el.value);
+  }
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
