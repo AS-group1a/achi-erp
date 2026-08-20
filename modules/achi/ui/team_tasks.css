@@ -2244,3 +2244,173 @@ textarea::placeholder {
     animation: none;
   }
 }
+
+/* Task attachments */
+
+.achi-task-editor-attachments {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--achi-task-line);
+}
+
+.achi-task-editor-attachments .achi-task-section-heading {
+  justify-content: flex-start;
+}
+
+.achi-task-editor-attachments .achi-task-section-heading span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
+  min-height: 23px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--achi-task-surface-alt);
+  color: var(--achi-task-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.achi-task-attachment-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 112px;
+  padding: 18px;
+  border: 1px dashed var(--achi-task-line-strong);
+  border-radius: 9px;
+  background: #fafcff;
+  color: #475467;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .16s ease, background .16s ease;
+}
+
+.achi-task-attachment-dropzone:hover,
+.achi-task-attachment-dropzone.is-dragover {
+  border-color: var(--achi-task-brand);
+  background: var(--achi-task-brand-soft);
+}
+
+.achi-task-attachment-dropzone strong {
+  color: #344054;
+  font-size: 13px;
+}
+
+.achi-task-attachment-dropzone span {
+  margin-top: 5px;
+  color: var(--achi-task-soft);
+  font-size: 11px;
+}
+
+.achi-task-pending-attachments,
+.achi-task-detail-attachments-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.achi-task-pending-attachment,
+.achi-task-detail-attachment {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--achi-task-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.achi-task-attachment-preview,
+.achi-task-attachment-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--achi-task-surface-alt);
+  color: var(--achi-task-brand);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.achi-task-attachment-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.achi-task-attachment-meta {
+  min-width: 0;
+}
+
+.achi-task-attachment-name {
+  overflow: hidden;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.achi-task-attachment-info {
+  margin-top: 3px;
+  color: var(--achi-task-soft);
+  font-size: 11px;
+}
+
+.achi-task-attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.achi-task-attachment-action {
+  padding: 5px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--achi-task-brand);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.achi-task-attachment-action:hover {
+  text-decoration: underline;
+}
+
+.achi-task-attachment-action-danger {
+  color: var(--achi-task-danger);
+}
+
+.achi-task-detail-attachments {
+  padding-top: 0 !important;
+}
+
+.achi-task-detail-attachments:has(.achi-task-empty-state) {
+  padding-bottom: 20px !important;
+}
+
+@media (max-width: 520px) {
+  .achi-task-pending-attachment,
+  .achi-task-detail-attachment {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .achi-task-attachment-preview,
+  .achi-task-attachment-file-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .achi-task-attachment-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}

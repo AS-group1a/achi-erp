@@ -55,6 +55,19 @@
     completed: ['ready_for_review', 'in_progress'],
   };
 
+  const TASK_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+  const TASK_ATTACHMENT_ALLOWED_EXTENSIONS = new Set([
+    'png',
+    'jpg',
+    'jpeg',
+    'webp',
+    'pdf',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+  ]);
+
   const state = {
     access: null,
     assignees: [],
@@ -75,6 +88,8 @@
     suppressCardClickUntil: 0,
     actionOpenTaskAfterSave: true,
     actionTargetStatus: null,
+    pendingAttachments: [],
+    currentAttachments: [],
   };
 
   function isJwt(value) {
@@ -166,7 +181,11 @@
 
     const init = { ...options, headers };
 
-    if (init.body && typeof init.body !== 'string') {
+    if (
+      init.body &&
+      typeof init.body !== 'string' &&
+      !(init.body instanceof FormData)
+    ) {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(init.body);
     }
@@ -1001,6 +1020,7 @@
 
     try {
       state.access = await request('/access/me');
+      $('achi-task-new-button').hidden = !state.access.can_comment;
       await Promise.all([
         loadAssignees(),
         loadTasks(),
@@ -1015,6 +1035,97 @@
     }
   }
 
+  function attachmentExtension(filename) {
+    const parts = String(filename || '').toLowerCase().split('.');
+    return parts.length > 1 ? parts.pop() : '';
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function attachmentKind(file) {
+    const extension = attachmentExtension(file.name);
+
+    if ((file.type || file.content_type || '').startsWith('image/')) {
+      return 'IMG';
+    }    if (extension === 'pdf') return 'PDF';
+    if (['doc', 'docx'].includes(extension)) return 'DOC';
+    if (['xls', 'xlsx'].includes(extension)) return 'XLS';
+
+    return 'FILE';
+  }
+
+  function renderPendingAttachments() {
+    const list = $('achi-task-editor-pending-attachments');
+    const count = $('achi-task-editor-attachments-count');
+
+    list.replaceChildren();
+    count.textContent = String(state.pendingAttachments.length);
+
+    state.pendingAttachments.forEach((file, index) => {
+      const row = el('article', 'achi-task-pending-attachment');
+      const icon = el(
+        'span',
+        'achi-task-attachment-file-icon',
+        attachmentKind(file),
+      );
+      const meta = el('div', 'achi-task-attachment-meta');
+      const name = el('p', 'achi-task-attachment-name', file.name);
+      const info = el(
+        'p',
+        'achi-task-attachment-info',
+        formatFileSize(file.size),
+      );
+      const actions = el('div', 'achi-task-attachment-actions');
+      const remove = el(
+        'button',
+        'achi-task-attachment-action achi-task-attachment-action-danger',
+        'Remove',
+      );
+
+      remove.type = 'button';
+      remove.dataset.pendingAttachmentIndex = String(index);
+
+      meta.append(name, info);
+      actions.append(remove);
+      row.append(icon, meta, actions);
+      list.append(row);
+    });
+  }
+
+  function addPendingAttachments(files) {
+    const errorNode = $('achi-task-editor-attachments-error');
+    const accepted = [];
+    const rejected = [];
+
+    Array.from(files).forEach(file => {
+      const extension = attachmentExtension(file.name);
+
+      if (!TASK_ATTACHMENT_ALLOWED_EXTENSIONS.has(extension)) {
+        rejected.push(`${file.name}: unsupported file type`);
+        return;
+      }
+
+      if (file.size === 0) {
+        rejected.push(`${file.name}: file is empty`);
+        return;
+      }
+
+      if (file.size > TASK_ATTACHMENT_MAX_BYTES) {
+        rejected.push(`${file.name}: exceeds the 25 MB limit`);
+        return;
+      }
+
+      accepted.push(file);
+    });
+
+    state.pendingAttachments.push(...accepted);
+    errorNode.textContent = rejected.join('. ');
+    renderPendingAttachments();
+  }
+
   function resetEditor() {
     $('achi-task-editor-form').reset();
     $('achi-task-editor-id').value = '';
@@ -1022,6 +1133,10 @@
     $('achi-task-editor-heading').textContent = 'New task';
     $('achi-task-editor-save').textContent = 'Save task';
     $('achi-task-editor-error').textContent = '';
+    state.pendingAttachments = [];
+    $('achi-task-editor-attachments-input').value = '';
+    $('achi-task-editor-attachments-error').textContent = '';
+    renderPendingAttachments();
   }
 
   function editTask(task) {
@@ -1039,6 +1154,10 @@
     $('achi-task-editor-related-id').value = task.related_id || '';
     $('achi-task-editor-related-label').value = task.related_label || '';
     $('achi-task-editor-error').textContent = '';
+    state.pendingAttachments = [];
+    $('achi-task-editor-attachments-input').value = '';
+    $('achi-task-editor-attachments-error').textContent = '';
+    renderPendingAttachments();
   }
 
   function editorPayload(isEdit) {
@@ -1078,33 +1197,96 @@
     return payload;
   }
 
+  async function uploadPendingAttachments(taskId) {
+    const pending = [...state.pendingAttachments];
+    const failed = [];
+    let lastError = null;
+
+    for (const file of pending) {
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+
+      try {
+        await request(`/${taskId}/attachments`, {
+          method: 'POST',
+          body: formData,
+        });
+      } catch (error) {
+        failed.push(file);
+        lastError = error;
+      }
+    }
+
+    state.pendingAttachments = failed;
+    renderPendingAttachments();
+
+    if (failed.length) {
+      const label = failed.length === 1 ? 'attachment' : 'attachments';
+      const detail = lastError ? ` ${lastError.message}` : '';
+
+      throw new Error(
+        `${failed.length} ${label} could not be uploaded.${detail}`,
+      );
+    }
+
+    return pending.length;
+  }
+
   async function saveEditor(event) {
     event.preventDefault();
 
     const id = $('achi-task-editor-id').value;
     const saveButton = $('achi-task-editor-save');
     const errorNode = $('achi-task-editor-error');
+    let savedTask = null;
 
     errorNode.textContent = '';
+    $('achi-task-editor-attachments-error').textContent = '';
 
     try {
       const payload = editorPayload(Boolean(id));
       setButtonBusy(saveButton, true, id ? 'Saving…' : 'Creating…');
 
-      const task = id
+      savedTask = id
         ? await request(`/${id}`, { method: 'PATCH', body: payload })
         : await request('', { method: 'POST', body: payload });
 
+      /*
+       * If an upload fails after a new task is created, retries must PATCH
+       * this task rather than creating a duplicate.
+       */
+      if (!id) {
+        $('achi-task-editor-id').value = savedTask.id;
+        $('achi-task-editor-heading').textContent =
+          `Edit ${savedTask.task_number}`;
+        $('achi-task-editor-save').textContent = 'Save changes';
+      }
+
+      const uploadedCount = await uploadPendingAttachments(savedTask.id);
+
       closeDialog($('achi-task-editor-dialog'));
-      showToast(`${task.task_number} saved.`, 'success');
+
+      const attachmentText = uploadedCount
+        ? ` ${uploadedCount} attachment${uploadedCount === 1 ? '' : 's'} uploaded.`
+        : '';
+
+      showToast(`${savedTask.task_number} saved.${attachmentText}`, 'success');
       await loadTasks();
 
-      if (state.currentTaskId === task.id &&
-          $('achi-task-detail-dialog').open) {
-        await openTask(task.id);
+      if (
+        state.currentTaskId === savedTask.id &&
+        $('achi-task-detail-dialog').open
+      ) {
+        await openTask(savedTask.id);
       }
     } catch (error) {
-      errorNode.textContent = error.message;
+      if (savedTask) {
+        await loadTasks();
+        errorNode.textContent =
+          `Task saved, but ${error.message} Save again to retry the remaining files.`;
+      } else {
+        errorNode.textContent = error.message;
+      }
     } finally {
       setButtonBusy(saveButton, false);
     }
@@ -1112,6 +1294,128 @@
 
   function setText(id, value) {
     $(id).textContent = value || '—';
+  }
+
+  function renderAttachments(attachments) {
+    const list = $('achi-task-detail-attachments-list');
+
+    state.currentAttachments = attachments;
+    list.replaceChildren();
+    $('achi-task-detail-attachments-count').textContent =
+      String(attachments.length);
+
+    if (!attachments.length) {
+      list.append(emptyColumn('No attachments yet.'));
+      return;
+    }
+
+    attachments.forEach(attachment => {
+      const row = el('article', 'achi-task-detail-attachment');
+      const icon = el(
+        'span',
+        'achi-task-attachment-file-icon',
+        attachmentKind(attachment),
+      );
+      const meta = el('div', 'achi-task-attachment-meta');
+      const name = el(
+        'p',
+        'achi-task-attachment-name',
+        attachment.filename,
+      );
+      const uploader = attachment.uploaded_by || 'Unknown user';
+      const info = el(
+        'p',
+        'achi-task-attachment-info',
+        `${formatFileSize(attachment.size_bytes)} · ${uploader} · ${
+          formatDate(attachment.created_at)
+        }`,
+      );
+      const actions = el('div', 'achi-task-attachment-actions');
+
+      const canDelete = Boolean(state.access?.can_comment);
+
+      ['Open', 'Download', ...(canDelete ? ['Delete'] : [])].forEach(action => {
+        const button = el(
+          'button',
+          action === 'Delete'
+            ? 'achi-task-attachment-action achi-task-attachment-action-danger'
+            : 'achi-task-attachment-action',
+          action,
+        );
+
+        button.type = 'button';
+        button.dataset.attachmentAction = action.toLowerCase();
+        button.dataset.attachmentId = attachment.id;
+        actions.append(button);
+      });
+
+      meta.append(name, info);
+      row.append(icon, meta, actions);
+      list.append(row);
+    });
+  }
+
+  async function fetchAttachmentBlob(attachmentId) {
+    const token = getAccessToken();
+
+    if (!token) {
+      throw new Error(
+        'Your session is missing or expired. Reload the page and sign in again.',
+      );
+    }
+
+    const response = await fetch(
+      `${API}/attachments/${attachmentId}/download`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(
+        errorMessage(body, `Attachment download failed (${response.status}).`),
+      );
+    }
+
+    return response.blob();
+  }
+
+  async function downloadAttachment(attachment) {
+    const blob = await fetchAttachmentBlob(attachment.id);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = attachment.filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function openAttachment(attachment) {
+    const preview = window.open('', '_blank');
+
+    try {
+      const blob = await fetchAttachmentBlob(attachment.id);
+      const url = URL.createObjectURL(blob);
+
+      if (!preview) {
+        await downloadAttachment(attachment);
+        return;
+      }
+
+      preview.opener = null;
+      preview.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      if (preview) preview.close();
+      throw error;
+    }
   }
 
   function renderComments(comments) {
@@ -1142,7 +1446,7 @@
     const status = task.status;
     const isSupervisor = state.access && state.access.can_manage_team;
 
-    $('achi-task-detail-edit').hidden = false;
+    $('achi-task-detail-edit').hidden = !state.access?.can_comment;
     $('achi-task-detail-approve').hidden =
       !isSupervisor || status !== 'ready_for_review';
     $('achi-task-detail-return').hidden =
@@ -1153,7 +1457,7 @@
       !isSupervisor || !['completed', 'cancelled'].includes(status);
   }
 
-  function renderTaskDetail(task, comments) {
+  function renderTaskDetail(task, comments,attachments) {
     state.currentTaskId = task.id;
     state.currentTask = task;
 
@@ -1210,18 +1514,21 @@
     setText('achi-task-detail-updated-at', formatDate(task.updated_at));
 
     $('achi-task-detail-error').textContent = '';
+    $('achi-task-comment-form').hidden = !state.access?.can_comment;
+    renderAttachments(attachments);
     renderComments(comments);
     configureDetailActions(task);
   }
 
   async function openTask(taskId, trigger) {
     try {
-      const [task, comments] = await Promise.all([
+      const [task, comments, attachments] = await Promise.all([
         request(`/${taskId}`),
         request(`/${taskId}/comments`),
+        request(`/${taskId}/attachments`),
       ]);
 
-      renderTaskDetail(task, comments);
+      renderTaskDetail(task, comments, attachments);
       showDialog(
         $('achi-task-detail-dialog'),
         trigger,
@@ -1508,6 +1815,94 @@
     });
 
     $('achi-task-editor-form').addEventListener('submit', saveEditor);
+    const attachmentInput = $('achi-task-editor-attachments-input');
+    const attachmentDropzone = $('achi-task-editor-attachments-dropzone');
+    const pendingAttachments = $('achi-task-editor-pending-attachments');
+
+    attachmentInput.addEventListener('change', event => {
+      addPendingAttachments(event.target.files);
+      event.target.value = '';
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      attachmentDropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        attachmentDropzone.classList.add('is-dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      attachmentDropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        attachmentDropzone.classList.remove('is-dragover');
+      });
+    });
+
+    attachmentDropzone.addEventListener('drop', event => {
+      addPendingAttachments(event.dataTransfer.files);
+    });
+
+    pendingAttachments.addEventListener('click', event => {
+      const removeButton = event.target.closest(
+        '[data-pending-attachment-index]',
+      );
+
+      if (!removeButton) return;
+
+      const index = Number(removeButton.dataset.pendingAttachmentIndex);
+
+      if (!Number.isInteger(index)) return;
+
+      state.pendingAttachments.splice(index, 1);
+      $('achi-task-editor-attachments-error').textContent = '';
+      renderPendingAttachments();
+    });
+
+    $('achi-task-detail-attachments-list').addEventListener('click', async event => {
+      const button = event.target.closest('[data-attachment-action]');
+
+      if (!button) return;
+
+      const attachment = state.currentAttachments.find(
+        item => item.id === button.dataset.attachmentId,
+      );
+
+      if (!attachment) return;
+
+      try {
+        if (button.dataset.attachmentAction === 'open') {
+          await openAttachment(attachment);
+          return;
+        }
+
+        if (button.dataset.attachmentAction === 'download') {
+          await downloadAttachment(attachment);
+          return;
+        }
+
+        if (button.dataset.attachmentAction === 'delete') {
+          const confirmed = window.confirm(
+            `Delete "${attachment.filename}" from this task?`,
+          );
+
+          if (!confirmed) return;
+
+          button.disabled = true;
+          await request(`/attachments/${attachment.id}`, {
+            method: 'DELETE',
+          });
+
+          showToast('Attachment deleted.', 'success');
+          await openTask(state.currentTaskId);
+        }
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+
     $('achi-task-editor-close').addEventListener(
       'click',
       () => closeDialog($('achi-task-editor-dialog')),

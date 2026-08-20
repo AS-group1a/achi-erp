@@ -8,6 +8,7 @@ in the same database transaction.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import uuid
 from dataclasses import dataclass
@@ -19,10 +20,12 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.storage import get_storage_backend
 from app.modules.users.models import User
 
 from .task_models import (
     AchiTask,
+    AchiTaskAttachment,
     AchiTaskComment,
     AchiTaskEvent,
     AchiTaskWorkRequest,
@@ -59,6 +62,21 @@ _PENDING_REQUEST_CONSTRAINT = (
     "uq_achi_task_work_request_pending_user"
 )
 
+logger = logging.getLogger(__name__)
+
+_UNSAFE_ATTACHMENT_NAME = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _safe_attachment_filename(name: str) -> str:
+    """Return an inert filename segment for a task attachment storage key."""
+
+    cleaned = _UNSAFE_ATTACHMENT_NAME.sub(
+        "_",
+        (name or "").strip(),
+    ).strip("._")
+
+    return (cleaned or "file")[:120]
+
 # Transaction-scoped PostgreSQL lock used only while assigning a new public
 # task code. It makes TASK-001 numbering safe for concurrent creates.
 _TASK_NUMBER_LOCK = 681_246_019
@@ -82,6 +100,8 @@ _TASK_EVENT_TYPES = frozenset(
         "deleted",
         "board_moved",
         "comment_added",
+        "attachment_added",
+        "attachment_deleted",
     }
 )
 
@@ -100,8 +120,8 @@ class TaskActor:
 
     @property
     def can_write(self) -> bool:
-        """Every active authenticated ACHI user can collaborate in Team Tasks."""
-        return True
+        """Editors and supervisors may modify Team Tasks; viewers are read-only."""
+        return self.role in {"admin", "manager", "editor"}
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -1515,6 +1535,164 @@ class TaskService:
 
         await self._commit_and_refresh(task)
         return task
+
+    # ------------------------------------------------------------------
+    # Task attachments
+    # ------------------------------------------------------------------
+
+    async def list_attachments(
+        self,
+        actor_id: str,
+        task_id: str,
+    ) -> list[AchiTaskAttachment]:
+        actor = await self._actor(actor_id)
+        await self._visible_task(actor, task_id)
+
+        rows = await self.session.execute(
+            select(AchiTaskAttachment)
+            .where(AchiTaskAttachment.task_id == task_id)
+            .order_by(
+                AchiTaskAttachment.created_at,
+                AchiTaskAttachment.id,
+            )
+        )
+        return list(rows.scalars().all())
+
+    async def add_attachment(
+        self,
+        actor_id: str,
+        task_id: str,
+        *,
+        filename: str,
+        content_type: str,
+        content: bytes,
+    ) -> AchiTaskAttachment:
+        actor = await self._actor(actor_id)
+        task = await self._visible_task(
+            actor,
+            task_id,
+            for_update=True,
+        )
+        self._require_writer(actor)
+
+        attachment = AchiTaskAttachment(
+            task_id=task.id,
+            filename=(filename or "file")[:255],
+            content_type=(
+                content_type or "application/octet-stream"
+            )[:128],
+            size_bytes=len(content),
+            storage_key="",
+            uploaded_by=actor.id,
+        )
+        attachment.storage_key = (
+            f"achi/tasks/{task.id}/{attachment.id}/"
+            f"{_safe_attachment_filename(attachment.filename)}"
+        )
+
+        # Store the blob first. A failed storage write therefore cannot leave
+        # a visible database row pointing at bytes that do not exist.
+        storage = get_storage_backend()
+        await storage.put(attachment.storage_key, content)
+
+        try:
+            self.session.add(attachment)
+            self._add_event(
+                task,
+                actor,
+                "attachment_added",
+                from_status=task.status,
+                to_status=task.status,
+                details={
+                    "attachment_id": attachment.id,
+                    "filename": attachment.filename,
+                    "size_bytes": attachment.size_bytes,
+                },
+            )
+            await self._commit_and_refresh(attachment)
+        except Exception:
+            try:
+                await storage.delete(attachment.storage_key)
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "ACHI: could not clean up task attachment blob %s",
+                    attachment.storage_key,
+                    exc_info=True,
+                )
+            raise
+
+        return attachment
+
+    async def get_attachment(
+        self,
+        actor_id: str,
+        attachment_id: str,
+    ) -> AchiTaskAttachment:
+        actor = await self._actor(actor_id)
+        attachment = await self.session.get(
+            AchiTaskAttachment,
+            attachment_id,
+        )
+
+        if attachment is None:
+            _not_found("Task attachment not found")
+
+        await self._visible_task(actor, attachment.task_id)
+        return attachment
+
+    async def read_attachment(
+        self,
+        attachment: AchiTaskAttachment,
+    ) -> bytes:
+        return await get_storage_backend().get(
+            attachment.storage_key,
+        )
+
+    async def delete_attachment(
+        self,
+        actor_id: str,
+        attachment_id: str,
+    ) -> None:
+        actor = await self._actor(actor_id)
+        attachment = await self.session.get(
+            AchiTaskAttachment,
+            attachment_id,
+        )
+
+        if attachment is None:
+            _not_found("Task attachment not found")
+
+        task = await self._visible_task(
+            actor,
+            attachment.task_id,
+            for_update=True,
+        )
+        self._require_writer(actor)
+
+        key = attachment.storage_key
+        await self.session.delete(attachment)
+        self._add_event(
+            task,
+            actor,
+            "attachment_deleted",
+            from_status=task.status,
+            to_status=task.status,
+            details={
+                "attachment_id": attachment.id,
+                "filename": attachment.filename,
+                "size_bytes": attachment.size_bytes,
+            },
+        )
+        await self._commit_and_refresh()
+
+        try:
+            await get_storage_backend().delete(key)
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "ACHI: could not delete task attachment blob %s",
+                key,
+                exc_info=True,
+            )
 
     # ------------------------------------------------------------------
     # Comments and collaborative task history

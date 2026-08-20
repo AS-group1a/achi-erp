@@ -192,7 +192,61 @@ class AchiTask(Base):
         cascade="all, delete-orphan",
         lazy="raise",
     )
+    
+    attachments: Mapped[list["AchiTaskAttachment"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    
 
+class AchiTaskAttachment(Base):
+    """A file owned by a Team Task; bytes live in the shared storage backend."""
+
+    __tablename__ = "achi_task_attachment"
+    __table_args__ = (
+        Index("ix_achi_task_attachment_task_created", "task_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    task_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("achi_task.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        default="application/octet-stream",
+        server_default="application/octet-stream",
+    )
+    size_bytes: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    storage_key: Mapped[str] = mapped_column(
+        String(512),
+        nullable=False,
+    )
+    uploaded_by: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+        nullable=False,
+    )
+
+    task: Mapped["AchiTask"] = relationship(
+        back_populates="attachments",
+    )
 
 class AchiTaskComment(Base):
     """A discussion message belonging only to a task."""
