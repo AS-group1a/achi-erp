@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Site Survey · Achi Scaffolding ERP</title>
+<title>Site Visit · Achi Scaffolding ERP</title>
 <style>
   /* ACHI palette, same as the call log. The survey is filled in on a phone while
      standing on the site, so the layout is a single readable column of steps with
@@ -94,7 +94,7 @@
   .has-drawing{background:#eaf1ff!important;border-color:var(--navy)!important;color:var(--navy)!important}
 </style>
 </head>
-<body data-achi-title="Site Survey">
+<body data-achi-title="Site Visit">
 <div class="nav">
   <span class="sp"></span>
   <input class="search" id="q" placeholder="Search site, name, number…">
@@ -450,8 +450,8 @@ if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, 
    over to this form without the user hunting for it in the list. */
 else load(new URLSearchParams(location.search).get('id')||undefined);
 </script>
-<script src="/api/v1/achi/ui/chrome.js?v=32"></script>
-<script src="/api/v1/achi/ui/comment.js?v=14"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=33"></script>
+<script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 </body>
 </html>

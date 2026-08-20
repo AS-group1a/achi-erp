@@ -502,7 +502,7 @@ const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter
    because that is where the sites are. */
 const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       LOG_STATES=['OPEN','SCHEDULED','VIEWED','CANCELLED','DONE','TRANSFERRED'],
-      COPY_TARGETS=['Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
+      COPY_TARGETS=['Log only','Site Visit','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
                 'Off-hire','Adaptation','Inspection','Complaint','Invoice'],
@@ -767,7 +767,7 @@ const GL_STAGES=[
   {k:'first_contact',    label:'First Contact', color:'#7c3aed'},
   {k:'second_follow_up', label:'2nd Follow-up', color:'#0d9488'},
   {k:'enquiry',          label:'Enquiry',       color:'#2563eb'},
-  {k:'site_survey',      label:'Site Survey',   color:'#0891b2'},
+  {k:'site_survey',      label:'Site Visit',    color:'#0891b2'},
   {k:'drawing',          label:'Drawing',       color:'#0ea5e9'},
   {k:'takeoff',          label:'Takeoff',       color:'#0284c7'},
   {k:'boq',              label:'BOQ',           color:'#7c3aed'},
@@ -1950,7 +1950,7 @@ function rxNameHTML(src){
 function rxBadgesHTML(r){
   const b=[];
   if(r.company_contact_id) b.push('Company contact');
-  if(r.has_drawing) b.push('Linked: Site Survey');
+  if(r.has_drawing) b.push('Linked: Site Visit');
   if(r.attachment_count>0) b.push(`${r.attachment_count} attachment${r.attachment_count>1?'s':''}`);
   if(!b.length) return '';
   return `<div class="rx-badges">${b.map(x=>`<span class="rx-badge">${esc(x)}</span>`).join('')}</div>`;

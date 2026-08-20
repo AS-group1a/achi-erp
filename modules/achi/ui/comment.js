@@ -133,7 +133,7 @@
     ['/project', 'Projects'], ['/lead', 'Leads'], ['/crm', 'CRM'], ['/contact', 'Contacts'],
     ['/finance', 'Finance'], ['/invoic', 'Invoices'], ['/estimat', 'Estimating'],
     ['/quotation', 'Quotations'], ['/tender', 'Tenders'], ['/procure', 'Procurement'],
-    ['/survey', 'Site Survey'], ['/file', 'Project Files'], ['/schedule', 'Schedule'],
+    ['/survey', 'Site Visit'], ['/file', 'Project Files'], ['/schedule', 'Schedule'],
     ['/setting', 'Settings']
   ];
   function pageLabel() {
