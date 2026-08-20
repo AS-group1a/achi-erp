@@ -93,6 +93,7 @@
     view: 'board',
     tableSort: { key: 'updated_at', direction: 'desc' },
   };
+  let refreshPromise = null;
 
   function isJwt(value) {
     return typeof value === 'string' &&
@@ -155,6 +156,70 @@
     }
   }
 
+  function getRefreshToken() {
+    try {
+      const direct = localStorage.getItem('oe_refresh_token') ||
+        sessionStorage.getItem('oe_refresh_token');
+
+      if (isJwt(direct) && jwtPayload(direct)?.type === 'refresh') {
+        return direct;
+      }
+
+      for (const storage of [localStorage, sessionStorage]) {
+        for (let index = 0; index < storage.length; index += 1) {
+          const value = storage.getItem(storage.key(index));
+          if (!value || value[0] !== '{') continue;
+
+          try {
+            const parsed = JSON.parse(value);
+            const candidates = [
+              parsed.refresh_token,
+              parsed.state && parsed.state.refresh_token,
+            ];
+            const refreshToken = candidates.find(candidate =>
+              isJwt(candidate) && jwtPayload(candidate)?.type === 'refresh',
+            );
+
+            if (refreshToken) return refreshToken;
+          } catch (_error) {
+            /* Ignore unrelated browser storage. */
+          }
+        }
+      }
+    } catch (_error) {
+      return null;
+    }
+
+    return null;
+  }
+
+  async function refreshAccessToken() {
+    if (refreshPromise) return refreshPromise;
+
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+
+    refreshPromise = fetch('/api/v1/users/auth/refresh/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+      .then(response => (response.ok ? response.json() : null))
+      .then(payload => {
+        if (!payload || !payload.access_token) return false;
+
+        localStorage.setItem('oe_access_token', payload.access_token);
+        if (payload.refresh_token) {
+          localStorage.setItem('oe_refresh_token', payload.refresh_token);
+        }
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => { refreshPromise = null; });
+
+    return refreshPromise;
+  }
+
   function errorMessage(body, fallback) {
     if (Array.isArray(body && body.detail)) {
       return body.detail
@@ -165,10 +230,14 @@
     return (body && body.detail) || fallback;
   }
 
-  async function request(path, options = {}) {
+  async function request(path, options = {}, retried = false) {
     const token = getAccessToken();
 
     if (!token) {
+      if (!retried && await refreshAccessToken()) {
+        return request(path, options, true);
+      }
+
       const error = new Error(
         'Your session is missing or expired. Open the main app, sign in, then reload this page.',
       );
@@ -193,6 +262,10 @@
     }
 
     const response = await fetch(`${API}${path}`, init);
+
+    if (response.status === 401 && !retried && await refreshAccessToken()) {
+      return request(path, options, true);
+    }
 
     if (response.status === 204) return null;
 
