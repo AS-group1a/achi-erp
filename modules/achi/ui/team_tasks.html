@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Tasks | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=18">
+  <link rel="stylesheet" href="/api/v1/achi/tasks/team_tasks.css?v=19">
 </head>
 
 <body data-achi-title="Team Tasks">
@@ -113,6 +113,33 @@
       </section>
 
       <section class="achi-task-workspace">
+        <div
+          class="achi-task-view-switcher"
+          role="tablist"
+          aria-label="Team Tasks view"
+        >
+          <button
+            class="achi-task-view-button is-active"
+            type="button"
+            id="achi-task-view-board"
+            role="tab"
+            aria-selected="true"
+            aria-controls="achi-task-board-view"
+          >
+            Board
+          </button>
+          <button
+            class="achi-task-view-button"
+            type="button"
+            id="achi-task-view-table"
+            role="tab"
+            aria-selected="false"
+            aria-controls="achi-task-table-view"
+          >
+            Table
+          </button>
+        </div>
+
         <form
           class="achi-task-filter-bar"
           id="achi-task-filter-form"
@@ -193,17 +220,18 @@
           </span>
         </form>
 
-        <p class="achi-task-board-hint" id="achi-task-board-hint">
-          Drag cards to highlighted columns to change stage. Available moves
-          follow the task workflow.
-        </p>
+        <div id="achi-task-board-view" role="tabpanel">
+          <p class="achi-task-board-hint" id="achi-task-board-hint">
+            Drag cards to highlighted columns to change stage. Available moves
+            follow the task workflow.
+          </p>
 
-        <div
-          class="achi-task-board"
-          id="achi-task-board"
-          aria-label="Team task board"
-          aria-describedby="achi-task-board-hint"
-        >
+          <div
+            class="achi-task-board"
+            id="achi-task-board"
+            aria-label="Team task board"
+            aria-describedby="achi-task-board-hint"
+          >
           <section
             class="achi-task-column achi-task-column-unassigned"
             id="achi-task-column-unassigned"
@@ -299,22 +327,56 @@
               role="list"
             ></div>
           </section>
+          </div>
+
+          <section
+            class="achi-task-terminal-results"
+            id="achi-task-terminal-results"
+            hidden
+          >
+            <header>
+              <h2 id="achi-task-terminal-heading">Cancelled tasks</h2>
+              <span id="achi-task-terminal-count">0</span>
+            </header>
+            <div
+              class="achi-task-terminal-list"
+              id="achi-task-terminal-list"
+              role="list"
+            ></div>
+          </section>
         </div>
 
-                <section
-          class="achi-task-terminal-results"
-          id="achi-task-terminal-results"
+        <section
+          class="achi-task-table-view"
+          id="achi-task-table-view"
+          role="tabpanel"
+          aria-label="Team task backlog"
           hidden
         >
-          <header>
-            <h2 id="achi-task-terminal-heading">Cancelled tasks</h2>
-            <span id="achi-task-terminal-count">0</span>
-          </header>
-          <div
-            class="achi-task-terminal-list"
-            id="achi-task-terminal-list"
-            role="list"
-          ></div>
+          <div class="achi-task-table-scroll">
+            <table class="achi-task-table">
+              <thead>
+                <tr>
+                  <th scope="col"><button type="button" data-achi-task-sort="task_number">Task number</button></th>
+                  <th scope="col"><button type="button" data-achi-task-sort="title">Title</button></th>
+                  <th scope="col">Description</th>
+                  <th scope="col"><button type="button" data-achi-task-sort="status">Status</button></th>
+                  <th scope="col"><button type="button" data-achi-task-sort="priority">Priority</button></th>
+                  <th scope="col">Type</th>
+                  <th scope="col"><button type="button" data-achi-task-sort="assigned_to_name">Assigned to</button></th>
+                  <th scope="col"><button type="button" data-achi-task-sort="due_at">Due date</button></th>
+                  <th scope="col">Created by</th>
+                  <th scope="col"><button type="button" data-achi-task-sort="created_at">Created</button></th>
+                  <th scope="col"><button type="button" data-achi-task-sort="updated_at">Last updated</button></th>
+                  <th scope="col">Related record</th>
+                </tr>
+              </thead>
+              <tbody id="achi-task-table-body"></tbody>
+            </table>
+          </div>
+          <p class="achi-task-table-empty" id="achi-task-table-empty" hidden>
+            No matching tasks.
+          </p>
         </section>
 
         <footer class="achi-task-pagination">

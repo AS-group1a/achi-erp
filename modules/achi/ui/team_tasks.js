@@ -90,6 +90,8 @@
     actionTargetStatus: null,
     pendingAttachments: [],
     currentAttachments: [],
+    view: 'board',
+    tableSort: { key: 'updated_at', direction: 'desc' },
   };
 
   function isJwt(value) {
@@ -357,18 +359,22 @@
       limit: String(PAGE_SIZE),
     });
 
-    const statuses = filters.status === 'active'
-      ? [
-        'unassigned',
-        'to_do',
-        'in_progress',
-        'blocked',
-        'ready_for_review',
-        'completed',
-      ]
-      : filters.status
-        ? [filters.status]
+    let statuses = [];
+
+    if (filters.status === 'active') {
+      statuses = state.view === 'board'
+        ? [
+          'unassigned',
+          'to_do',
+          'in_progress',
+          'blocked',
+          'ready_for_review',
+          'completed',
+        ]
         : [];
+    } else if (filters.status) {
+      statuses = [filters.status];
+    }
 
     statuses.forEach(status => params.append('status', status));
 
@@ -725,6 +731,81 @@
 
     renderTerminalResults();
     renderMetrics();
+    renderTable();
+  }
+
+  function comparableTaskValue(task, key) {
+    const value = task[key];
+
+    if (key === 'due_at' || key === 'created_at' || key === 'updated_at') {
+      return value ? new Date(value).getTime() : 0;
+    }
+
+    return String(value || '').toLocaleLowerCase();
+  }
+
+  function renderTable() {
+    const body = $('achi-task-table-body');
+    const empty = $('achi-task-table-empty');
+    const { key, direction } = state.tableSort;
+    const directionFactor = direction === 'asc' ? 1 : -1;
+    const tasks = [...state.tasks].sort((left, right) => {
+      const leftValue = comparableTaskValue(left, key);
+      const rightValue = comparableTaskValue(right, key);
+
+      if (leftValue < rightValue) return -1 * directionFactor;
+      if (leftValue > rightValue) return directionFactor;
+      return 0;
+    });
+
+    body.replaceChildren();
+    empty.hidden = tasks.length > 0;
+
+    tasks.forEach(task => {
+      const row = el('tr');
+      row.dataset.achiTaskId = task.id;
+      row.tabIndex = 0;
+
+      const cells = [
+        task.task_number,
+        task.title,
+        task.description || '—',
+        STATUS_LABELS[task.status] || task.status,
+        PRIORITY_LABELS[task.priority] || task.priority,
+        TASK_TYPE_LABELS[task.task_type] || task.task_type || 'Task',
+        task.assigned_to_name || 'Unassigned',
+        formatDate(task.due_at),
+        task.created_by_name || '—',
+        formatDate(task.created_at),
+        formatDate(task.updated_at),
+        task.related_label || '—',
+      ];
+
+      cells.forEach((value, index) => {
+        const cell = el('td', index === 2 ? 'achi-task-table-description' : '', value);
+        row.append(cell);
+      });
+
+      body.append(row);
+    });
+  }
+
+  function setTaskView(view) {
+    if (!['board', 'table'].includes(view) || state.view === view) return;
+
+    state.view = view;
+    const isBoard = view === 'board';
+    $('achi-task-view-board').classList.toggle('is-active', isBoard);
+    $('achi-task-view-board').setAttribute('aria-selected', String(isBoard));
+    $('achi-task-view-table').classList.toggle('is-active', !isBoard);
+    $('achi-task-view-table').setAttribute('aria-selected', String(!isBoard));
+    $('achi-task-board-view').hidden = !isBoard;
+    $('achi-task-table-view').hidden = isBoard;
+    $('achi-task-filter-status').options[0].text = isBoard
+      ? 'Board tasks'
+      : 'All statuses';
+    state.offset = 0;
+    loadTasks();
   }
 
   function boardColumns() {
@@ -1936,6 +2017,40 @@
       $('achi-task-filter-form').reset();
       state.offset = 0;
       loadTasks();
+    });
+
+    $('achi-task-view-board').addEventListener('click', () => {
+      setTaskView('board');
+    });
+    $('achi-task-view-table').addEventListener('click', () => {
+      setTaskView('table');
+    });
+
+    document.querySelectorAll('[data-achi-task-sort]').forEach(button => {
+      button.addEventListener('click', () => {
+        const key = button.dataset.achiTaskSort;
+
+        state.tableSort = {
+          key,
+          direction: state.tableSort.key === key && state.tableSort.direction === 'asc'
+            ? 'desc'
+            : 'asc',
+        };
+        renderTable();
+      });
+    });
+
+    const openTableTask = event => {
+      const row = event.target.closest('[data-achi-task-id]');
+      if (!row) return;
+      openTask(row.dataset.achiTaskId, row);
+    };
+
+    $('achi-task-table-body').addEventListener('click', openTableTask);
+    $('achi-task-table-body').addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      openTableTask(event);
     });
 
     $('achi-task-page-previous').addEventListener('click', () => {

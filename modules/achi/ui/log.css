@@ -591,7 +591,8 @@
   }
   .log-filter-text,
   .log-filter-select,
-  .log-filter-date{
+  .log-filter-date,
+  .log-filter-option-search{
     width:100%;
     height:34px;
     border:1px solid #cdd9e9;
@@ -605,7 +606,8 @@
   }
   .log-filter-text:focus,
   .log-filter-select:focus,
-  .log-filter-date:focus{
+  .log-filter-date:focus,
+  .log-filter-option-search:focus{
     border-color:var(--navy);
     box-shadow:0 0 0 3px rgba(40,79,158,.13);
   }
@@ -620,6 +622,9 @@
     max-height:230px;
     overflow:auto;
     padding-right:2px;
+  }
+  .log-filter-option-search{
+    margin:0 0 8px;
   }
   .log-filter-option{
     display:flex;
@@ -644,6 +649,11 @@
     white-space:nowrap;
   }
   .log-filter-empty{
+    color:#8a8f98;
+    font-size:12px;
+  }
+  .log-filter-no-results{
+    margin:8px 0 0;
     color:#8a8f98;
     font-size:12px;
   }
