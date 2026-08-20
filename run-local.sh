@@ -50,7 +50,7 @@ cp deploy/overrides/achi-nav.js  "$DIST/achi-nav.js"
 import re, sys
 p = sys.argv[1]
 html = orig = open(p, encoding="utf-8").read()
-NAV_V = "76"
+NAV_V = "78"
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css?v=11">',
     '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,

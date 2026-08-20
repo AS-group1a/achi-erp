@@ -215,7 +215,40 @@ def quotation_workspace_ui() -> HTMLResponse:
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+@router.get(
+    "/boq/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="BOQ workspace UI",
+)
+def boq_workspace_ui() -> HTMLResponse:
+    """Serve the General Log-style BOQ workspace.
 
+    This follows CRM, PROSP, and Quotation: the page uses shared Log data and
+    behavior, initially filtered to records in the BOQ stage.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "boq_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/mt/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="M/T workspace UI",
+)
+def mt_workspace_ui() -> HTMLResponse:
+    """Serve the General Log-style Materials and Tools workspace.
+
+    It follows the other stage workspaces and initially shows records in the
+    resources workflow stage.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "mt_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 @router.get(
     "/crm/crm.css",

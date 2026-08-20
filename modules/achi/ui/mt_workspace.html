@@ -1,14 +1,14 @@
 <!doctype html>
-<!-- PROSP page: company-wide log view (see commit "create a new page called general-log") -->
+<!-- General Log page: company-wide log view (see commit "create a new page called general-log") -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PROSP · Achi Scaffolding ERP</title>
+<title>M/T  · Achi Scaffolding ERP</title>
 <link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=9">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
-<body data-achi-title="PROSP">
+<body data-achi-title="M/T">
 <main>
   <div class="err" id="err"></div>
 
@@ -157,22 +157,15 @@
 <!-- the canvas drawing tool behind the popup's Drawing button; served by our own router -->
 <script src="/api/v1/achi/ui/drawing.js?v=2"></script>
 <script src="/api/v1/achi/ui/log-mail.js?v=1"></script>
-<!-- PROSP = the Log page with a different column set. These globals are
+<!-- General Log = the Log page with a different column set. These globals are
      read by log-core.js (COLS + which columns freeze); everything else is shared. -->
 <script>
   window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
-  window.ACHI_LOG_FILTER = {
-  log_type: 'Prospect',
-  stages: [
-    'prospect',
-    'outreach',
-    'follow_up',
-    'first_contact',
-    'second_follow_up',
-    'enquiry',
-  ],
+window.ACHI_LOG_FILTER = {
+  stages: ['resources'],
 };
-  window.ACHI_LOG_TAB_FIRST_KEYS = {
+
+window.ACHI_LOG_TAB_FIRST_KEYS = {
   0: 'num',
   1: 'mobile',
   2: 'maps',
@@ -213,7 +206,6 @@
     {k:'street',       h:'Street',         tab:null, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
   ];
 </script>
-
 <script src="/api/v1/achi/ui/log-core.js?v=12"></script>
 <script src="/api/v1/achi/ui/log.js?v=10"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=30"></script>
