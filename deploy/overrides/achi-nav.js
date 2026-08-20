@@ -798,6 +798,10 @@ if (!(log && contacts && prospects && survey && crm && quotation && boq && mt &&
   function boot() {
     wireSidebarHover();
     inject();
+    // Put every ACHI workspace in its canonical order on first load.  The
+    // interval below remains as a recovery path when React rebuilds the
+    // sidebar, but navigation must not depend on waiting for that tick.
+    ensureOverviewModules();
     refreshTeamTasksAccess();
     applyRoleSidebarFilter();
     redirectIfOurRoute();
