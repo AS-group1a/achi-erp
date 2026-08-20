@@ -262,6 +262,8 @@ var LINKS = [
         href === '/api/v1/achi/survey/ui' ||
         href === '/api/v1/achi/crm/ui' ||
         href === '/api/v1/achi/quotation/ui' ||
+        href === '/api/v1/achi/boq/ui' ||
+        href === '/api/v1/achi/mt/ui' ||
         href === '/api/v1/achi/tasks/ui';
       if (!alwaysVisible) links[i].style.display = 'none';
     }
