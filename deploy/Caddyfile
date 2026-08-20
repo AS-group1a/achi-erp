@@ -38,7 +38,7 @@
 	}
 
 replace {
-"</head>" `<link rel="stylesheet" href="/achi-theme.css?v=11"><script src="/achi-nav.js?v=103" defer></script><script src="/api/v1/achi/ui/comment.js?v=9" defer></script><script src="/api/v1/achi/ui/task_drawer.js?v=1" defer></script></head>`
+"</head>" `<link rel="stylesheet" href="/achi-theme.css?v=11"><script src="/achi-nav.js?v=104" defer></script><script src="/api/v1/achi/ui/comment.js?v=9" defer></script><script src="/api/v1/achi/ui/task_drawer.js?v=1" defer></script></head>`
 }
 
 	# Upstream documents three hard proxy requirements (deploy/docker/README.md):

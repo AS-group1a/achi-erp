@@ -336,7 +336,7 @@ function draftPayload(st){
   const person=isCo?{is_company:true,company_name:company,mobile:mob,email:st.email||null}
     :{is_company:false,prefix:st.prefix||null,first_name:first||null,last_name:last||null,company_name:company||null,mobile:mob,email:st.email||null};
   const hasSite=st.country||st.district||st.city||st.street||st.maps||st.location;
-    const stage = st.stage || workspaceDefaultStage();
+  const stage = st.stage || workspaceDefaultStage();
   return {person,site:hasSite?{country:st.country||'Lebanon',district:st.district||null,city:st.city||null,street:st.street||null,maps_url:st.maps||null,site_location:st.location||null}:null,
     status:st.status||'open',log_type:st.type||'inbound_call',stage:stage||undefined,category:st.category||null,tags:st.tags||'',description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
   }
