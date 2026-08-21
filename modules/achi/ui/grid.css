@@ -111,7 +111,7 @@
      with it — so a transparent th let scrolling rows show straight through the
      column titles. z-index sits above tbody td.pg-f (3) so no body cell, sticky
      or not, can paint over the header. */
-  thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:left;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
+  thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:center;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
   /* Expand Row — the whole row as one vertical page. Sits next to Add Row and
      appears only with a selection, because there is nothing to expand without
      one. Same pill shape as its neighbours. */
@@ -237,7 +237,7 @@
   .rz:hover,.rz.rz-active{background:rgba(255,255,255,.28)}
   body.col-resizing{cursor:col-resize!important;user-select:none}
   body.col-resizing *{cursor:col-resize!important}
-  tbody td{height:46px;padding:0 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;position:relative}
+  tbody td{height:46px;padding:0 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;position:relative;text-align:center}
   tbody td.wide{max-width:340px}
   tbody tr.data:nth-child(even) td{background:#f8faff}
   tbody tr.data:hover td{background:#eef4fd}
@@ -313,7 +313,7 @@
   td.ed:hover{box-shadow:inset 0 0 0 1.5px #bfdbfe}
   td.sel{cursor:pointer}
   /* inline editor never grows the cell: fills it exactly */
-  .cellinput{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:2px solid #2563eb;border-radius:4px;padding:2px 5px;outline:none;background:#fff;display:block}
+  .cellinput{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:2px solid #2563eb;border-radius:4px;padding:2px 5px;outline:none;background:#fff;display:block;text-align:center}
   select.cellinput{padding:2px 3px}
   .pg-select-input{cursor:pointer;padding:0 8px;animation:pg-select-in .14s cubic-bezier(.2,0,.2,1) both}
   @keyframes pg-select-in{from{opacity:0;transform:scaleY(.6) scaleX(.97);box-shadow:none}to{opacity:1;transform:none;box-shadow:0 4px 20px rgba(37,99,235,.18)}}

@@ -190,7 +190,7 @@
      with it — so a transparent th let scrolling rows show straight through the
      column titles. z-index sits above tbody td.pg-f (3) so no body cell, sticky
      or not, can paint over the header. */
-  thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:left;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
+  thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:rgba(255,255,255,.70);font-size:10px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-align:center;padding:0 14px;height:40px;border-bottom:0;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap}
   /* Expand Row — the whole row as one vertical page. Sits next to Add Row and
      appears only with a selection, because there is nothing to expand without
      one. Same pill shape as its neighbours. */
@@ -690,7 +690,7 @@
   }
   body.col-resizing{cursor:col-resize!important;user-select:none}
   body.col-resizing *{cursor:col-resize!important}
-  tbody td{height:46px;padding:0 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;position:relative}
+  tbody td{height:46px;padding:0 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;position:relative;text-align:center}
   tbody td.wide{max-width:340px}
   tbody tr.data:nth-child(even) td{background:#f8faff}
   tbody tr.data:hover td{background:#eef4fd}
@@ -698,6 +698,9 @@
   .pg-f{position:sticky;z-index:1}
   tbody td.pg-f{background:#fff;z-index:3;pointer-events:auto}
   tbody tr.data:nth-child(even) td.pg-f{background:#f8faff}
+  /* Sticky cells set their own background, so repeat the row-hover colour for
+     them; otherwise the frozen business-code column appears not to hover. */
+  tbody tr.data:hover td.pg-f{background:#eef4fd}
   /* Above thead th (6) so the frozen columns' titles win at the top-left corner,
      where the sticky row and sticky column cross. */
   thead th.pg-f{z-index:7;background:var(--navy)}
@@ -710,12 +713,21 @@
   tbody tr.selectable-row.row-selected td{background:#dbeafe!important}
   tbody tr.selectable-row.row-selected:hover td{background:#bfdbfe!important}
   tbody tr.selectable-row.row-selected .rn{background:var(--navy);color:#fff}
-  /* General Log: the "#" cell holds a stage code (e.g. PROSP039), not a 1–2
-     digit number. Let the pill grow to fit the text (so the hover/selected
-     fill wraps the whole code instead of a 24px blob it overflows), left-align
-     it, and give the column some left breathing room. Scoped by the body's
-     title so the plain Log page keeps its round number badge. */
-  body[data-achi-title="General Log"] tbody tr.selectable-row td.num{padding:0 6px 0 12px;text-align:left}
+  /* Business-code workspaces use readable text, not the plain Log's numeric
+     badge. Keep this stable on hover so it never becomes a cropped blue pill. */
+  tbody tr.selectable-row td.business-code-cell{padding:0 8px;text-align:center}
+  .rn.rn-code,
+  tbody tr.selectable-row:hover .rn.rn-code,
+  tbody tr.selectable-row.row-selected .rn.rn-code{
+    display:inline-block;width:auto;min-width:0;height:auto;padding:0;border:0;border-radius:0;
+    background:transparent;color:var(--navy);white-space:nowrap;overflow:visible;
+    text-overflow:clip;letter-spacing:.02em;font-size:11px}
+  tbody tr.selectable-row:hover .rn.rn-code{
+    color:#1d4ed8;text-decoration:underline;text-decoration-thickness:1px;
+    text-underline-offset:3px}
+  /* General Log retains its permanent-code display and its existing text-only
+     treatment; the workspace code styling above is intentionally separate. */
+  body[data-achi-title="General Log"] tbody tr.selectable-row td.num{padding:0 6px;text-align:center}
   body[data-achi-title="General Log"] .rn,
   body[data-achi-title="General Log"] tbody tr.selectable-row:hover .rn,
   body[data-achi-title="General Log"] tbody tr.selectable-row.row-selected .rn{
@@ -786,7 +798,7 @@
   td.ed:hover{box-shadow:inset 0 0 0 1.5px #bfdbfe}
   td.sel{cursor:pointer}
   /* inline editor never grows the cell: fills it exactly */
-  .cellinput{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:2px solid #2563eb;border-radius:4px;padding:2px 5px;outline:none;background:#fff;display:block}
+  .cellinput{box-sizing:border-box;width:100%;height:30px;min-width:0;font:inherit;font-size:12.5px;border:2px solid #2563eb;border-radius:4px;padding:2px 5px;outline:none;background:#fff;display:block;text-align:center}
   select.cellinput{padding:2px 3px}
   .pg-select-input{cursor:pointer;padding:0 8px;animation:pg-select-in .14s cubic-bezier(.2,0,.2,1) both}
   @keyframes pg-select-in{from{opacity:0;transform:scaleY(.6) scaleX(.97);box-shadow:none}to{opacity:1;transform:none;box-shadow:0 4px 20px rgba(37,99,235,.18)}}

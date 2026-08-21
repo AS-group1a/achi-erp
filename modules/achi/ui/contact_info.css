@@ -569,7 +569,7 @@ textarea:focus-visible {
 .contacts-table td {
   padding: 11px 13px;
   border-bottom: 1px solid var(--line-soft);
-  text-align: left;
+  text-align: center;
   vertical-align: middle;
 }
 

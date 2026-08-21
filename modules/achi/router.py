@@ -177,7 +177,7 @@ def site_visit_workspace_ui() -> HTMLResponse:
     ).replace(
         "  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants",
         """  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
-  window.ACHI_BUSINESS_CODE_CONTEXT = 'site_visit';
+  window.ACHI_BUSINESS_CODE = 'SV';
   window.ACHI_LOG_FILTER = {
     create: {origin: 'crm', stage: 'site_survey'},
     stages: ['site_survey'],
