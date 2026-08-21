@@ -1155,7 +1155,11 @@ function formatBusinessCode(r,rowNumber){
   const stage=String(r.stage||'').trim();
   const prefix=BUSINESS_CODE_CONTEXT==='quotation'
     ?'QUOT'
-    :BUSINESS_CODE_PREFIXES[stage];
+    :BUSINESS_CODE_CONTEXT==='boq'&&stage==='boq'
+      ?'BOQ'
+    :BUSINESS_CODE_CONTEXT==='mt'&&stage==='takeoff'
+      ?'MT'
+      :BUSINESS_CODE_PREFIXES[stage];
   return prefix?`${prefix}-${code}`:code;
 }
 /* User-selected column filters. These are separate from ACHI_LOG_FILTER:
