@@ -578,45 +578,173 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
     }catch(e){/* predefined GEO districts still work */}
   }
   async function addDistrictAndSelect(sel){
-    const country=$('rx-country')&&$('rx-country').value;
-    if(!country){ rxFillSelect('district',districtOptions(country),''); return; }
-    const name=(window.prompt('New district for '+country+' (max 128 characters):')||'').trim();
-    if(!name){ rxFillSelect('district',districtOptions(country),''); return; }
-    if(name.length>128){ fail('District must be 128 characters or fewer.'); rxFillSelect('district',districtOptions(country),''); return; }
+    const country=rxGeoCurrent('country');
+    const previousDistrict=rxGeoCurrent('district');
+    const currentCity=rxGeoCurrent('city');
+
+    if(!country){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+      return;
+    }
+
+    const name=(
+      window.prompt(
+        'New district for '+country+' (max 128 characters):'
+      )||''
+    ).trim();
+
+    if(!name){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+      return;
+    }
+
+    if(name.length>128){
+      fail('District must be 128 characters or fewer.');
+
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+
+      return;
+    }
+
     try{
-      const saved=await api('/geo/districts',{method:'POST',body:JSON.stringify({country,district:name})});
-      const list=customDistricts[country]=customDistricts[country]||[];
-      if(!list.includes(saved.district)&&!(districtsFor(country)||[]).includes(saved.district)) list.push(saved.district);
-      rxFillSelect('district',districtOptions(country),saved.district);
-      rxFillSelect('city',cityOptions(country,saved.district),'');
+      const saved=await api(
+        '/geo/districts',
+        {
+          method:'POST',
+          body:JSON.stringify({
+            country,
+            district:name
+          })
+        }
+      );
+
+      const list=
+        customDistricts[country]=
+        customDistricts[country]||[];
+
+      if(
+        !list.includes(saved.district) &&
+        !(districtsFor(country)||[]).includes(saved.district)
+      ){
+        list.push(saved.district);
+      }
+
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        saved.district
+      );
+
+      rxRebuildCityForDistrict(
+        country,
+        saved.district,
+        currentCity
+      );
+
       clearErr();
-    }catch(e){ fail(e.message); rxFillSelect('district',districtOptions(country),''); }
+
+    }catch(e){
+      fail(e.message);
+
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+
+      rxRebuildCityForDistrict(
+        country,
+        previousDistrict,
+        currentCity
+      );
+    }
   }
   const CITY_ADD='__add_city__';
   let customCities={};
+
   const cityKey=(c,d)=>String(c||'')+'|'+String(d||'');
-  const mergedCities=(c,d)=>[...new Set([...(citiesFor(c,d)||[]),...(customCities[cityKey(c,d)]||[])])];
-  const cityOptions=(c,d)=>(c&&d)?[...mergedCities(c,d),CITY_ADD]:[];
-  const cityOptionsForCountry=c=>{
+
+  const mergedCities=(c,d)=>[
+    ...new Set([
+      ...(citiesFor(c,d)||[]),
+      ...(customCities[cityKey(c,d)]||[])
+    ])
+  ];
+
+  /* All known cities for a country, regardless of district.
+    Includes both predefined GEO cities and backend-added custom cities. */
+  const allCitiesForCountry=c=>{
     if(!c) return [];
-    const predefined=Object.values(GEO[c]||{}).flat();
-    const saved=Object.entries(customCities)
-      .filter(([key])=>key.startsWith(`${c}|`))
-      .flatMap(([,cities])=>cities);
-    return [...new Set([...predefined,...saved]),CITY_ADD];
+
+    const values=[];
+
+    for(const district of districtsMerged(c)){
+      values.push(...mergedCities(c,district));
+    }
+
+    const prefix=String(c)+'|';
+
+    for(const [key,cities] of Object.entries(customCities)){
+      if(key.startsWith(prefix)){
+        values.push(...cities);
+      }
+    }
+
+    return [...new Set(values)];
   };
-  const districtForCity=(country,city)=>{
-    const wanted=String(city||'').trim().toLocaleLowerCase();
-    if(!country||!wanted) return null;
+
+  /* Return a district only when the city has exactly one matching district.
+    If the city is unknown, or exists in multiple districts, return blank. */
+  const districtForCity=(c,city)=>{
+    if(!c||!city) return '';
+
+    const wanted=rxGeoNorm(city);
     const matches=[];
-    Object.entries(GEO[country]||{}).forEach(([district,cities])=>{
-      if(cities.some(value=>value.toLocaleLowerCase()===wanted)) matches.push(district);
-    });
-    Object.entries(customCities).forEach(([key,cities])=>{
-      const [savedCountry,district]=key.split('|');
-      if(savedCountry===country&&cities.some(value=>value.toLocaleLowerCase()===wanted)) matches.push(district);
-    });
-    return matches.length===1?matches[0]:null;
+
+    const districts=[
+      ...new Set([
+        ...districtsMerged(c),
+        ...Object.keys(customCities)
+          .filter(key=>key.startsWith(String(c)+'|'))
+          .map(key=>key.slice(String(c).length+1))
+      ])
+    ];
+
+    for(const district of districts){
+      const found=mergedCities(c,district)
+        .some(value=>rxGeoNorm(value)===wanted);
+
+      if(found) matches.push(district);
+    }
+
+    return matches.length===1 ? matches[0] : '';
+  };
+
+  /* With a district: show that district's cities plus "+ Add City".
+    Without a district: show every known city for the selected country. */
+  const cityOptions=(c,d)=>{
+    if(!c) return [];
+
+    if(d){
+      return [
+        ...mergedCities(c,d),
+        CITY_ADD
+      ];
+    }
+
+    return allCitiesForCountry(c);
   };
   async function loadCustomCities(){
     try{ const rows=await api('/geo/cities'); customCities={};
@@ -627,33 +755,350 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      the change handler calls it fire-and-forget. On failure the select falls
      back to the current options with nothing chosen. */
   async function addCityAndSelect(sel){
-    const country=$('rx-country')&&$('rx-country').value, district=$('rx-district')&&$('rx-district').value;
+    const country=rxGeoCurrent('country');
+    const district=rxGeoCurrent('district');
+    const previousCity=rxGeoCurrent('city');
+
     if(!country||!district){
-      fail('Select or add a district before adding a city.');
-      rxFillSelect('city',cityOptionsForCountry(country),'');
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
       return;
     }
-    const name=(window.prompt('New city for '+district+' (max 128 characters):')||'').trim();
-    if(!name){ rxFillSelect('city',cityOptions(country,district),''); return; }
-    if(name.length>128){ fail('City must be 128 characters or fewer.'); rxFillSelect('city',cityOptions(country,district),''); return; }
+
+    const name=(
+      window.prompt(
+        'New city for '+district+' (max 128 characters):'
+      )||''
+    ).trim();
+
+    if(!name){
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
+      return;
+    }
+
+    if(name.length>128){
+      fail('City must be 128 characters or fewer.');
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
+
+      return;
+    }
+
     try{
-      const saved=await api('/geo/cities',{method:'POST',body:JSON.stringify({country,district,city:name})});
-      const k=cityKey(country,district), list=customCities[k]=customCities[k]||[];
-      if(!list.includes(saved.city)&&!(citiesFor(country,district)||[]).includes(saved.city)) list.push(saved.city);
-      rxFillSelect('city',cityOptions(country,district),saved.city);
+      const saved=await api(
+        '/geo/cities',
+        {
+          method:'POST',
+          body:JSON.stringify({
+            country,
+            district,
+            city:name
+          })
+        }
+      );
+
+      const k=cityKey(country,district);
+      const list=
+        customCities[k]=
+        customCities[k]||[];
+
+      if(
+        !list.includes(saved.city) &&
+        !(citiesFor(country,district)||[]).includes(saved.city)
+      ){
+        list.push(saved.city);
+      }
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        saved.city
+      );
+
       clearErr();
-    }catch(e){ fail(e.message); rxFillSelect('city',cityOptions(country,district),''); }
+
+    }catch(e){
+      fail(e.message);
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
+    }
   }
   /* Module-scope so the change handler (also module-scope) can call it: rebuild
      a site-info select's options when the level above changes, refresh its
      enhanced button label. The menu reads <option>s on open, so this suffices. */
   const rxFillSelect=(id,list,selected)=>{
     const sel=$('rx-'+id); if(!sel) return;
-    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':o===DISTRICT_ADD?'+ Add District':(o||'—'))}</option>`).join('');
-    sel.value=selected||'';
-    if(sel._rxLocationSync) sel._rxLocationSync();
-    else if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+
+    const chosen=String(selected||'');
+    const values=[...new Set(list||[])];
+
+    /* Keep a manually typed/custom value selectable even when it is not part of
+      the predefined/backend list. Insert it before "+ Add ..." commands. */
+    if(chosen && !values.includes(chosen)){
+      const commandIndex=values.findIndex(value=>String(value).startsWith('__add_'));
+
+      if(commandIndex>=0) values.splice(commandIndex,0,chosen);
+      else values.push(chosen);
+    }
+
+    sel.innerHTML=['',...values].map(o=>
+      `<option value="${esc(o)}"${o===chosen?' selected':''}>${
+        esc(
+          o===CITY_ADD?'+ Add City':
+          o===DISTRICT_ADD?'+ Add District':
+          (o||'—')
+        )
+      }</option>`
+    ).join('');
+
+    sel.value=chosen;
+
+    /* Country/District/City have a visible text input sitting over this select.
+      Whenever code changes the underlying select, keep that visible value synced. */
+    const input=document.querySelector(`[data-geo-input="${id}"]`);
+    if(input) input.value=chosen;
+
+    if(sel.dataset.rxEnhanced&&sel._rxButton){
+      sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+    }
   };
+
+  function rxGeoInput(id){
+    return document.querySelector(`[data-geo-input="${id}"]`);
+  }
+
+  function rxGeoCurrent(id){
+    const input=rxGeoInput(id);
+    if(input) return input.value.trim();
+
+    const sel=$('rx-'+id);
+    return sel ? String(sel.value||'').trim() : '';
+  }
+
+  /* Normalize against an existing option when possible:
+      lebanon -> Lebanon
+      jounieh -> Jounieh
+    Unknown/custom values remain untouched. */
+  function rxSetGeoValue(id,list,value){
+    const raw=String(value||'').trim();
+    const options=[...(list||[])];
+
+    const commands=options.filter(option=>
+      String(option).startsWith('__add_')
+    );
+
+    const normalOptions=options.filter(option=>
+      !String(option).startsWith('__add_')
+    );
+
+    const chosen=raw
+      ? rxGeoChoice(raw,normalOptions)
+      : '';
+
+    rxFillSelect(id,[...normalOptions,...commands],chosen);
+
+    const input=rxGeoInput(id);
+    if(input) input.dataset.geoCommitted=chosen;
+
+    return chosen;
+  }
+
+  function rxCityKnownForCountry(country,city){
+    if(!country||!city) return false;
+
+    const wanted=rxGeoNorm(city);
+
+    return allCitiesForCountry(country)
+      .some(value=>rxGeoNorm(value)===wanted);
+  }
+
+  /* When District changes, narrow the City dropdown.
+
+    A known city that belongs to another district is cleared.
+    An unknown/custom city is deliberately preserved. */
+  function rxRebuildCityForDistrict(country,district,currentCity){
+    const city=String(
+      currentCity===undefined
+        ? rxGeoCurrent('city')
+        : currentCity
+    ).trim();
+
+    const options=cityOptions(country,district);
+
+    if(!city){
+      rxSetGeoValue('city',options,'');
+      return '';
+    }
+
+    if(!district){
+      return rxSetGeoValue('city',options,city);
+    }
+
+    const wanted=rxGeoNorm(city);
+
+    const belongsHere=mergedCities(country,district)
+      .some(value=>rxGeoNorm(value)===wanted);
+
+    if(belongsHere){
+      return rxSetGeoValue('city',options,city);
+    }
+
+    /* Unknown city = manual/custom value. Do not destroy it merely because the
+      District changed. */
+    if(!rxCityKnownForCountry(country,city)){
+      return rxSetGeoValue('city',options,city);
+    }
+
+    rxSetGeoValue('city',options,'');
+    return '';
+  }
+
+  /* If the selected/typed city maps to exactly one district, fill it.
+    Ambiguous and unknown cities leave District untouched. */
+  function syncDistrictFromCity(){
+    const country=rxGeoCurrent('country');
+    const city=rxGeoCurrent('city');
+
+    if(!country||!city) return '';
+
+    const district=districtForCity(country,city);
+
+    if(!district) return '';
+
+    const current=rxGeoCurrent('district');
+
+    if(rxGeoNorm(current)!==rxGeoNorm(district)){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        district
+      );
+    }
+
+    /* Rebuild the City list for the newly determined district while preserving
+      and canonicalizing the city the user actually chose. */
+    rxSetGeoValue(
+      'city',
+      cityOptions(country,district),
+      city
+    );
+
+    return district;
+  }
+
+  function rxApplyCountryValue(value){
+    const input=rxGeoInput('country');
+    const previous=input
+      ? String(input.dataset.geoCommitted??input.value??'').trim()
+      : rxGeoCurrent('country');
+
+    const country=rxSetGeoValue(
+      'country',
+      COUNTRY_NAMES,
+      value
+    );
+
+    /* Same place with different casing is normalization, not a Country change. */
+    const changed=
+      rxGeoNorm(previous)!==rxGeoNorm(country);
+
+    if(changed){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        ''
+      );
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,''),
+        ''
+      );
+    }
+
+    return country;
+  }
+
+  function rxApplyDistrictValue(value){
+    const country=rxSetGeoValue(
+      'country',
+      COUNTRY_NAMES,
+      rxGeoCurrent('country')
+    );
+
+    const currentCity=rxGeoCurrent('city');
+
+    const district=rxSetGeoValue(
+      'district',
+      districtOptions(country),
+      value
+    );
+
+    rxRebuildCityForDistrict(
+      country,
+      district,
+      currentCity
+    );
+
+    return district;
+  }
+
+  function rxApplyCityValue(value){
+    const country=rxSetGeoValue(
+      'country',
+      COUNTRY_NAMES,
+      rxGeoCurrent('country')
+    );
+
+    const district=rxGeoCurrent('district');
+
+    const city=rxSetGeoValue(
+      'city',
+      cityOptions(country,district),
+      value
+    );
+
+    syncDistrictFromCity();
+
+    return city;
+  }
+
+  /* Manual text entry uses exactly the same logic as dropdown selection.
+    "change" fires when the user finishes editing/leaves the field, which avoids
+    rewriting their text/cursor on every individual keystroke. */
+  function wireGeoManualInputs(){
+    const wire=(id,handler)=>{
+      const input=rxGeoInput(id);
+
+      if(!input || input.dataset.geoWired) return;
+
+      input.dataset.geoWired='1';
+      input.dataset.geoCommitted=input.value.trim();
+
+      input.addEventListener('change',()=>{
+        handler(input.value);
+      });
+    };
+
+    wire('country',rxApplyCountryValue);
+    wire('district',rxApplyDistrictValue);
+    wire('city',rxApplyCityValue);
+  }
       /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
       const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
             CITIES=[...new Set(Object.values(GEO).flatMap(d=>Object.values(d).flat()))];
@@ -2308,10 +2753,36 @@ function openExpandedRow(explicitId){
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
+  const GEOSEL=(k,list,v,placeholder)=>{
+    const values=[...(list||[])];
+
+    /* Preserve an existing/custom value even when it is not currently present
+      in the predefined/backend option list. */
+    if(v && !values.includes(v)){
+      values.unshift(v);
+    }
+
+    return `
+      <div class="rx-geo-combo">
+        <input
+          type="text"
+          class="rx-in rx-geo-input"
+          data-k="${k}"
+          data-geo-input="${k}"
+          value="${esc(v||'')}"
+          placeholder="${esc(placeholder||'')}"
+          autocomplete="off"
+        >
+        ${SEL(k,values,v,true,true)}
+      </div>
+    `;
+  };
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
   const DIRECT={role:'role',company_type:'company_type',subject:'subject',no:'site_number',bldg:'site_building',floor:'site_floor'};
   const val=k=>{ if(k==='reference') return src.reference||''; if(DIRECT[k]) return src[DIRECT[k]]||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
-
+  const countryValue=isNew ? (val('country')||'Lebanon') : val('country');
+  const districtValue=val('district');
+  const cityValue=val('city');
   let html='';
   html+=g('rx-g4',
     F('Pre',        SEL('prefix',[...allPrefixes(),PREFIX_ADD],val('prefix'),true)),
@@ -2344,9 +2815,13 @@ function openExpandedRow(explicitId){
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,siteCountry,true)),
-                F('District', SEL('district',districtOptions(siteCountry),val('district'),true)),
-                F('City',     SEL('city',cityOptionsForCountry(siteCountry),val('city'),true)))
+    +g('rx-g3',
+        F('Country',
+          GEOSEL('country',COUNTRY_NAMES,countryValue,'Type or select country')),
+        F('District',
+          GEOSEL('district',districtOptions(countryValue),districtValue,'Type or select district')),
+        F('City',
+          GEOSEL('city',cityOptions(countryValue,districtValue),cityValue,'Type or select city')))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12',val('no'))),
                 F('Building', IN('bldg','Bldg',val('bldg'))),
@@ -2446,7 +2921,8 @@ function openExpandedRow(explicitId){
   },0);
   $('rx-body').innerHTML=html;
   enhanceRxSelects();
-  rxRenumberPersons();                 // label any pre-existing "Contact N" cards
+  wireGeoManualInputs();
+  rxRenumberPersons();
   $('rx').hidden=false;
 
   // Tiles need the real width, which only exists once the sheet is laid out.

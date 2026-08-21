@@ -142,4 +142,4 @@ echo "  Call Log page: http://localhost:$PORT/api/v1/achi/ui"
 echo "  Stop: Ctrl+C"
 echo "================================================================"
 exec env HOME="$HOME" .venv/bin/openconstructionerp serve \
-  --host 127.0.0.1 --port "$PORT" --data-dir "$RUNTIME_DIR"
+  --host 0.0.0.0 --port "$PORT" --data-dir "$RUNTIME_DIR"
