@@ -149,6 +149,48 @@ def general_log_ui() -> HTMLResponse:
 
 
 @router.get(
+    "/site-visit/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="Site Visit shared Log workspace UI",
+)
+def site_visit_workspace_ui() -> HTMLResponse:
+    """Serve Site Visit as the shared ContactFile Log workspace.
+
+    The operational Site Visit view is intentionally a stage-scoped General Log
+    page, not the older independent SiteSurvey dataset. The same ContactFile
+    remains visible in CRM while its current stage is ``site_survey``.
+    """
+    page = (_UI_DIR / "general_log.html").read_text(encoding="utf-8")
+    page = page.replace(
+        "<title>Log Â· Achi Scaffolding ERP</title>",
+        "<title>Site Visit Â· Achi Scaffolding ERP</title>",
+        1,
+    ).replace(
+        '<body data-achi-title="Log">',
+        '<body data-achi-title="Site Visit">',
+        1,
+    ).replace(
+        "/api/v1/achi/ui/chrome.js?v=33",
+        "/api/v1/achi/ui/chrome.js?v=34",
+        1,
+    ).replace(
+        "  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants",
+        """  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
+  window.ACHI_BUSINESS_CODE_CONTEXT = 'site_visit';
+  window.ACHI_LOG_FILTER = {
+    create: {origin: 'crm', stage: 'site_survey'},
+    stages: ['site_survey'],
+  };""",
+        1,
+    )
+    return HTMLResponse(
+        page,
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
     "/prospect/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
