@@ -333,7 +333,8 @@
   .rx-select-delete:hover,.rx-select-delete:focus{outline:0;background:#fee2e2;color:#b91c1c}
   .rx-select-option[aria-selected="true"]{background:#fff;color:#1e3f85}
   .rx-select-option:hover,.rx-select-option:focus{outline:0;background:#1e3f85;color:#fff}
-  .rx-select-option.add-command{border-top:1px solid #dbe6f6;font-weight:700}
+  .rx-select-option.add-command{position:sticky;bottom:0;z-index:1;border-top:1px solid #dbe6f6;background:#fff;font-weight:700}
+  .rx-select-option.add-command:hover,.rx-select-option.add-command:focus{background:#1e3f85;color:#fff}
   .rx-location-combobox{position:relative;width:100%}
   .rx-location-input{width:100%;height:38px;border:1px solid #cfd9e8;border-radius:6px;padding:0 38px 0 10px;background:#fff;color:#1e293b;font:inherit;font-size:13px}
   .rx-location-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(40,79,158,.12)}

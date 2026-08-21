@@ -13,6 +13,7 @@
 	# Sidebar "Call Log" entry (tier 3, no fork). Serves the injector and rewrites
 	# </head> to load it. See modules/README.md ("it is not in their sidebar").
 	handle /achi-nav.js {
+		header Cache-Control "no-store, max-age=0, must-revalidate"
 		root * /srv/overrides
 		file_server
 	}
@@ -38,7 +39,7 @@
 	}
 
 replace {
-"</head>" `<link rel="stylesheet" href="/achi-theme.css?v=11"><script src="/achi-nav.js?v=108" defer></script><script src="/api/v1/achi/ui/comment.js?v=10" defer></script><script src="/api/v1/achi/ui/task_drawer.js?v=1" defer></script></head>`
+"</head>" `<link rel="stylesheet" href="/achi-theme.css?v=11"><script src="/achi-nav.js?v=110" defer></script><script src="/api/v1/achi/ui/comment.js?v=10" defer></script><script src="/api/v1/achi/ui/task_drawer.js?v=1" defer></script></head>`
 }
 
 	# Upstream documents three hard proxy requirements (deploy/docker/README.md):

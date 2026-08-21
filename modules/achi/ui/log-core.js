@@ -732,8 +732,9 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
     return matches.length===1 ? matches[0] : '';
   };
 
-  /* With a district: show that district's cities plus "+ Add City".
-    Without a district: show every known city for the selected country. */
+  /* Keep the creation action available whether or not a district is already
+    selected. A new city still needs a district for permanent storage, and the
+    add handler gives that guidance instead of making the action disappear. */
   const cityOptions=(c,d)=>{
     if(!c) return [];
 
@@ -744,7 +745,10 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
       ];
     }
 
-    return allCitiesForCountry(c);
+    return [
+      ...allCitiesForCountry(c),
+      CITY_ADD
+    ];
   };
   async function loadCustomCities(){
     try{ const rows=await api('/geo/cities'); customCities={};
@@ -760,6 +764,7 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
     const previousCity=rxGeoCurrent('city');
 
     if(!country||!district){
+      fail('Select or add a district before adding a city.');
       rxSetGeoValue(
         'city',
         cityOptions(country,district),
@@ -2577,7 +2582,7 @@ function openRxSelect(select,button){
   // For the Quick-notes subject combobox the trigger is a slim chevron, but the
   // menu should drop down across the whole field — so anchor it to the framed
   // row when the button lives inside one; every other select anchors to itself.
-  const r=(button.closest('.rx-notes-subject-row')||button).getBoundingClientRect();
+  const r=(button.closest('.rx-geo-combo')||button.closest('.rx-notes-subject-row')||button).getBoundingClientRect();
   const width=Math.max(r.width,150), menuHeight=Math.min(220,select.options.length*32);
   rxSelectMenu.style.width=Math.min(width,window.innerWidth-16)+'px';
   rxSelectMenu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-width-8))+'px';
