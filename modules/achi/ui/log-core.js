@@ -597,6 +597,27 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
   const cityKey=(c,d)=>String(c||'')+'|'+String(d||'');
   const mergedCities=(c,d)=>[...new Set([...(citiesFor(c,d)||[]),...(customCities[cityKey(c,d)]||[])])];
   const cityOptions=(c,d)=>(c&&d)?[...mergedCities(c,d),CITY_ADD]:[];
+  const cityOptionsForCountry=c=>{
+    if(!c) return [];
+    const predefined=Object.values(GEO[c]||{}).flat();
+    const saved=Object.entries(customCities)
+      .filter(([key])=>key.startsWith(`${c}|`))
+      .flatMap(([,cities])=>cities);
+    return [...new Set([...predefined,...saved]),CITY_ADD];
+  };
+  const districtForCity=(country,city)=>{
+    const wanted=String(city||'').trim().toLocaleLowerCase();
+    if(!country||!wanted) return null;
+    const matches=[];
+    Object.entries(GEO[country]||{}).forEach(([district,cities])=>{
+      if(cities.some(value=>value.toLocaleLowerCase()===wanted)) matches.push(district);
+    });
+    Object.entries(customCities).forEach(([key,cities])=>{
+      const [savedCountry,district]=key.split('|');
+      if(savedCountry===country&&cities.some(value=>value.toLocaleLowerCase()===wanted)) matches.push(district);
+    });
+    return matches.length===1?matches[0]:null;
+  };
   async function loadCustomCities(){
     try{ const rows=await api('/geo/cities'); customCities={};
       for(const r of rows){ const k=cityKey(r.country,r.district); (customCities[k]=customCities[k]||[]).push(r.city); }
@@ -607,7 +628,11 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      back to the current options with nothing chosen. */
   async function addCityAndSelect(sel){
     const country=$('rx-country')&&$('rx-country').value, district=$('rx-district')&&$('rx-district').value;
-    if(!country||!district){ rxFillSelect('city',cityOptions(country,district),''); return; }
+    if(!country||!district){
+      fail('Select or add a district before adding a city.');
+      rxFillSelect('city',cityOptionsForCountry(country),'');
+      return;
+    }
     const name=(window.prompt('New city for '+district+' (max 128 characters):')||'').trim();
     if(!name){ rxFillSelect('city',cityOptions(country,district),''); return; }
     if(name.length>128){ fail('City must be 128 characters or fewer.'); rxFillSelect('city',cityOptions(country,district),''); return; }
@@ -626,7 +651,8 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
     const sel=$('rx-'+id); if(!sel) return;
     sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':o===DISTRICT_ADD?'+ Add District':(o||'—'))}</option>`).join('');
     sel.value=selected||'';
-    if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+    if(sel._rxLocationSync) sel._rxLocationSync();
+    else if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
   };
       /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
       const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
@@ -2013,6 +2039,7 @@ function closeRxState(){
   if(btn) btn.setAttribute('aria-expanded','false');
 }
 let rxSelectMenu=null, rxSelectSource=null, rxSelectButton=null;
+let rxLocationOpen=null;
 function rxSelectLabel(select){
   const option=select.options[select.selectedIndex];
   return option&&option.textContent.trim()?option.textContent.trim():'—';
@@ -2022,6 +2049,17 @@ function closeRxSelect(){
   if(rxSelectButton) rxSelectButton.setAttribute('aria-expanded','false');
   rxSelectSource=null; rxSelectButton=null;
 }
+function closeRxLocation(){
+  if(!rxLocationOpen) return;
+  rxLocationOpen.menu.hidden=true;
+  rxLocationOpen.box.classList.remove('is-open');
+  rxLocationOpen.button.setAttribute('aria-expanded','false');
+  rxLocationOpen.input.setAttribute('aria-expanded','false');
+  rxLocationOpen=null;
+}
+document.addEventListener('mousedown',event=>{
+  if(rxLocationOpen&&!rxLocationOpen.box.contains(event.target)) closeRxLocation();
+});
 function ensureRxSelectMenu(){
   if(rxSelectMenu) return;
   rxSelectMenu=document.createElement('div');
@@ -2122,9 +2160,75 @@ function enhanceRxSelect(select){
   select.insertAdjacentElement('afterend',button);
   select._rxButton=button;
 }
+function enhanceRxLocationSelect(select){
+  if(select.dataset.rxLocationEnhanced) return;
+  select.dataset.rxLocationEnhanced='1';
+  select.classList.add('rx-native-select');
+  const box=document.createElement('div');
+  box.className='rx-location-combobox';
+  const input=document.createElement('input');
+  input.type='text'; input.className='rx-location-input'; input.autocomplete='off';
+  input.placeholder=select.dataset.rxSelect==='country'?'Type/select country':`Type/select ${select.dataset.rxSelect}`;
+  input.setAttribute('role','combobox'); input.setAttribute('aria-autocomplete','list');
+  input.setAttribute('aria-expanded','false');
+  const button=document.createElement('button');
+  button.type='button'; button.className='rx-location-toggle'; button.tabIndex=-1;
+  button.setAttribute('aria-label',`Show ${select.dataset.rxSelect} options`);
+  button.innerHTML='<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m2.5 4.5 3.5 3 3.5-3"/></svg>';
+  const menu=document.createElement('div');
+  menu.className='rx-location-dropdown'; menu.hidden=true; menu.setAttribute('role','listbox');
+  box.append(input,button,menu); select.insertAdjacentElement('afterend',box);
+  const sync=()=>{ input.value=select.value||''; };
+  select._rxLocationSync=sync; sync();
+  let isFiltering=false;
+  const matches=()=>{
+    const query=isFiltering?input.value.trim().toLocaleLowerCase():'';
+    return [...select.options].filter(option=>option.value)
+      .filter(option=>!query||option.textContent.trim().toLocaleLowerCase().includes(query));
+  };
+  const render=()=>{
+    const options=matches();
+    menu.innerHTML=options.length?options.map(option=>
+      `<button type="button" class="rx-location-option${option.value.startsWith('__')?' add-command':''}" role="option" data-value="${esc(option.value)}" aria-selected="${option.value===select.value}">${esc(option.textContent.trim())}</button>`
+    ).join(''):'<div class="rx-location-empty">No matching options</div>';
+  };
+  const selectValue=value=>{
+    const existing=[...select.options].find(option=>option.value.toLocaleLowerCase()===value.toLocaleLowerCase());
+    if(!existing&&value){ select.add(new Option(value,value)); }
+    select.value=existing?existing.value:value;
+    isFiltering=false; sync(); select.dispatchEvent(new Event('change',{bubbles:true})); closeRxLocation();
+  };
+  const open=()=>{
+    if(rxLocationOpen?.box===box){ closeRxLocation(); return; }
+    closeRxState(); closeRxSelect(); closeRxLocation(); render();
+    menu.hidden=false; box.classList.add('is-open'); button.setAttribute('aria-expanded','true');
+    input.setAttribute('aria-expanded','true'); rxLocationOpen={box,menu,button,input};
+  };
+  input.addEventListener('focus',open);
+  input.addEventListener('input',()=>{ isFiltering=true; render(); if(menu.hidden) open(); });
+  input.addEventListener('change',()=>selectValue(input.value.trim()));
+  input.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){ event.preventDefault(); closeRxLocation(); }
+    if(event.key==='Enter'){ const first=matches()[0]; if(first){ event.preventDefault(); selectValue(first.value); } }
+    if(event.key==='ArrowDown'){ event.preventDefault(); open(); menu.querySelector('.rx-location-option')?.focus(); }
+  });
+  button.addEventListener('mousedown',event=>event.preventDefault());
+  button.addEventListener('click',()=>{
+    if(rxLocationOpen?.box===box) closeRxLocation();
+    else {
+      input.focus();
+      if(rxLocationOpen?.box!==box) open();
+    }
+  });
+  menu.addEventListener('mousedown',event=>event.preventDefault());
+  menu.addEventListener('click',event=>{
+    const option=event.target.closest('.rx-location-option'); if(option) selectValue(option.dataset.value);
+  });
+}
 function enhanceRxSelects(){
+  $('rx').querySelectorAll('select[data-rx-select="country"],select[data-rx-select="district"],select[data-rx-select="city"]').forEach(enhanceRxLocationSelect);
   $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
-  $('rx').querySelectorAll('select.rx-native-select').forEach(enhanceRxSelect);
+  $('rx').querySelectorAll('select.rx-native-select:not([data-rx-location-enhanced])').forEach(enhanceRxSelect);
 }
 /* Push a quick-pick into the free-text Quick-notes Subject. The 'input' event is
    what the Quill mount wired to syncHidden(), so this also updates the saved
@@ -2236,12 +2340,13 @@ function openExpandedRow(explicitId){
   // One OR MORE tags — click to open a checkbox dropdown.
   F('Tags', `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
+  const siteCountry=isNew?'Lebanon':val('country');
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,val('country'),true)),
-                F('District', SEL('district',districtOptions(val('country')),val('district'),true)),
-                F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
+    +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,siteCountry,true)),
+                F('District', SEL('district',districtOptions(siteCountry),val('district'),true)),
+                F('City',     SEL('city',cityOptionsForCountry(siteCountry),val('city'),true)))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12',val('no'))),
                 F('Building', IN('bldg','Bldg',val('bldg'))),

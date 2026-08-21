@@ -292,6 +292,19 @@
   .rx-select-option[aria-selected="true"]{background:#fff;color:#1e3f85}
   .rx-select-option:hover,.rx-select-option:focus{outline:0;background:#1e3f85;color:#fff}
   .rx-select-option.add-command{border-top:1px solid #dbe6f6;font-weight:700}
+  .rx-location-combobox{position:relative;width:100%}
+  .rx-location-input{width:100%;height:38px;border:1px solid #cfd9e8;border-radius:6px;padding:0 38px 0 10px;background:#fff;color:#1e293b;font:inherit;font-size:13px}
+  .rx-location-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(40,79,158,.12)}
+  .rx-location-toggle{position:absolute;right:1px;top:1px;display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:0 6px 6px 0;background:transparent;color:#1e3f85;cursor:pointer}
+  .rx-location-toggle svg{width:12px;height:12px;transition:transform .15s}
+  .rx-location-combobox.is-open .rx-location-toggle svg{transform:rotate(180deg)}
+  .rx-location-dropdown{position:absolute;z-index:40;top:calc(100% + 3px);left:0;width:100%;max-height:240px;overflow-y:auto;box-sizing:border-box;padding:4px;background:#fff;border:1.5px solid #1e3f85;border-radius:0 0 8px 8px;box-shadow:0 10px 24px rgba(30,63,133,.16)}
+  .rx-location-dropdown[hidden]{display:none}
+  .rx-location-option{display:block;width:100%;padding:8px 10px;border:0;border-radius:5px;background:#fff;color:#1e3f85;font:inherit;font-size:12.5px;text-align:left;white-space:nowrap;cursor:pointer}
+  .rx-location-option:hover,.rx-location-option:focus{outline:0;background:#1e3f85;color:#fff}
+  .rx-location-option.add-command{position:sticky;bottom:0;margin-top:3px;border-top:1px solid #dbe6f6;background:#fff;font-weight:700}
+  .rx-location-option.add-command:hover,.rx-location-option.add-command:focus{background:#1e3f85;color:#fff}
+  .rx-location-empty{padding:8px 10px;color:#94a3b8;font-size:12px}
   .rx-fs{border:1px solid #e3e9f3;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
   .rx-fs>h4{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
   .rx-social{display:flex;gap:8px;align-items:center}

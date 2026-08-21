@@ -715,6 +715,14 @@ $('rx-body').addEventListener('change',e=>{
     rxFillSelect('city',cityOptions(country,el.value),'');
   }
   if(el.dataset.rxSelect==='city'&&el.value===CITY_ADD){ addCityAndSelect(el); }
+  else if(el.dataset.rxSelect==='city'){
+    const country=$('rx-country')&&$('rx-country').value;
+    const district=districtForCity(country,el.value);
+    if(district){
+      rxFillSelect('district',districtOptions(country),district);
+      rxFillSelect('city',cityOptions(country,district),el.value);
+    }
+  }
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
