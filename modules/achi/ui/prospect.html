@@ -161,8 +161,12 @@
      read by log-core.js (COLS + which columns freeze); everything else is shared. -->
 <script>
   window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
+  window.ACHI_BUSINESS_CODE_CONTEXT = 'prospect';
   window.ACHI_LOG_FILTER = {
-  log_type: 'Prospect',
+  origins: ['prospect'],
+  include_legacy_origins: true,
+  legacy_log_type: ['Prospect'],
+  create: {origin: 'prospect', stage: 'prospect'},
   stages: [
     'prospect',
     'outreach',
@@ -214,8 +218,8 @@
   ];
 </script>
 
-<script src="/api/v1/achi/ui/log-core.js?v=13"></script>
-<script src="/api/v1/achi/ui/log.js?v=11"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=14"></script>
+<script src="/api/v1/achi/ui/log.js?v=14"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=33"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>

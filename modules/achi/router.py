@@ -1686,6 +1686,7 @@ async def list_logs(
                 file_id=f.id,
                 file_number=f.file_number,
                 log_code=f.log_code,
+                origin_module=f.origin_module,
                 stage=f.stage,
                 status=f.status,
                 subject=f.subject or "",

@@ -35,6 +35,8 @@ STATUSES = ("open", "scheduled", "viewed", "cancelled", "done", "transferred")
 LOG_TYPES = ("Prospect", "Lead", "Client", "Field", "Fleet", "Yard",
              "Invoice", "Balance", "General")
 DELIVERABLE_KEYS = ("srv", "dwg", "mt", "boq", "cst", "qte")
+ORIGIN_MODULES = ("prospect", "crm", "quotation")
+OriginModule = Literal["prospect", "crm", "quotation"]
 
 class ModuleInfo(BaseModel):
     module: str
@@ -91,6 +93,7 @@ class ContactFileCreate(BaseModel):
     subject: str = Field(default="", max_length=255)
     stage: str = Field(default="enquiry", pattern="^(%s)$" % "|".join(STAGES))
     status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
+    origin_module: OriginModule | None = None
 
     country: str | None = Field(default=None, max_length=64)
     district: str | None = Field(default=None, max_length=128)
@@ -334,6 +337,7 @@ class ContactFileOut(BaseModel):
     contact_id: str | None = None
     subject: str
     log_code: str | None = None
+    origin_module: OriginModule | None = None
     stage: str
     status: str
     country: str | None
@@ -367,6 +371,7 @@ class ContactFileListOut(BaseModel):
     contact_id: str | None = None
     contact_name: str | None = None
     subject: str
+    origin_module: OriginModule | None = None
     stage: str
     status: str
     city: str | None
@@ -416,6 +421,7 @@ class QuickLogCreate(BaseModel):
 
     subject: str = Field(default="", max_length=255)
     stage: str = Field(default="enquiry", pattern="^(%s)$" % "|".join(STAGES))
+    origin_module: OriginModule | None = None
     # Force a new file even if this contact already has one open — a second,
     # unrelated enquiry from someone we already know.
     new_file: bool = False
@@ -463,6 +469,12 @@ class LogFilterParams(BaseModel):
         default_factory=list,
         max_length=len(STAGES),
     )
+    origins: list[OriginModule] = Field(
+        default_factory=list,
+        max_length=len(ORIGIN_MODULES),
+    )
+    include_legacy_origins: bool = False
+    legacy_log_type: list[str] = Field(default_factory=list, max_length=50)
 
     stage: list[str] = Field(
         default_factory=list,
@@ -525,6 +537,8 @@ class LogFilterParams(BaseModel):
     @field_validator(
         "status",
         "stages",
+        "origins",
+        "legacy_log_type",
         "stage",
         "prefix",
         "owner",
@@ -564,7 +578,7 @@ class LogFilterParams(BaseModel):
             # ?stages=enquiry,quotation
             parts = (
                 str(raw).split(",")
-                if info.field_name in {"stages","stage"}
+                if info.field_name in {"stages", "stage", "origins", "legacy_log_type"}
                 else [str(raw)]
             )
 
@@ -613,6 +627,8 @@ class LogFilterParams(BaseModel):
         item_limits = (
             ("status", 32),
             ("stages", 32),
+            ("origins", 16),
+            ("legacy_log_type", 64),
             ("stage", 32),
             ("prefix", 16),
             ("owner", 64),
@@ -684,6 +700,7 @@ class LogRowOut(BaseModel):
     file_id: str
     file_number: str
     log_code: str | None = None   # General Log "#" code, e.g. "SV001"
+    origin_module: OriginModule | None = None
     stage: str
     status: str
     subject: str = ""

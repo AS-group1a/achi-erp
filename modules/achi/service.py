@@ -448,6 +448,27 @@ def _log_filter_predicates(
             ContactFile.stage.in_(filters.stages)
         )
 
+    if filters.origins:
+        origin_predicates = [
+            ContactFile.origin_module.in_(filters.origins)
+        ]
+
+        if filters.include_legacy_origins:
+            legacy_predicate = ContactFile.origin_module.is_(None)
+
+            if filters.legacy_log_type:
+                legacy_predicate = and_(
+                    legacy_predicate,
+                    _case_insensitive_choices(
+                        FileLog.log_type,
+                        filters.legacy_log_type,
+                    ),
+                )
+
+            origin_predicates.append(legacy_predicate)
+
+        predicates.append(or_(*origin_predicates))
+
     if filters.stage:
         predicates.append(
             ContactFile.stage.in_(filters.stage)
@@ -1274,6 +1295,7 @@ class ContactFileService:
                 lead_socials=json.dumps([s.model_dump() for s in p.socials]) if p.socials else None,
                 subject=data.subject,
                 stage=data.stage,
+                origin_module=data.origin_module,
                 owner_user_id=user_id,
                 tenant_id=user_id,
                 **site,

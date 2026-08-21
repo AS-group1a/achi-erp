@@ -72,6 +72,10 @@ class ContactFile(Base):
     stage: Mapped[str] = mapped_column(String(32), nullable=False, default="enquiry")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
 
+    # Where this workflow started. Unlike ``stage`` this is immutable once the
+    # file exists. NULL deliberately means a legacy/unclassified record.
+    origin_module: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
     # General Log "#" code: a stage-bucketed, per-bucket sequential id like
     # "SV001". Nullable — files in an untracked stage (or created before this
     # feature) simply have none. Assigned/renumbered in service.py on stage
