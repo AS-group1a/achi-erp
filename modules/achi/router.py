@@ -171,8 +171,8 @@ def site_visit_workspace_ui() -> HTMLResponse:
         '<body data-achi-title="Site Visit">',
         1,
     ).replace(
-        "/api/v1/achi/ui/chrome.js?v=33",
-        "/api/v1/achi/ui/chrome.js?v=34",
+        "/api/v1/achi/ui/chrome.js?v=35",
+        "/api/v1/achi/ui/chrome.js?v=35",
         1,
     ).replace(
         "  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants",
@@ -300,7 +300,7 @@ def mt_workspace_ui() -> HTMLResponse:
     summary="DRAW workspace UI",
 )
 def draw_workspace_ui() -> HTMLResponse:
-    """Serve DRAW as the shared ContactFile workspace for drawing-stage work."""
+    """Serve the standalone drawing-stage workspace."""
     return HTMLResponse(
         (_UI_DIR / "draw_workspace.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
@@ -314,7 +314,7 @@ def draw_workspace_ui() -> HTMLResponse:
     summary="RESOURCE workspace UI",
 )
 def resource_workspace_ui() -> HTMLResponse:
-    """Serve RESOURCE as the shared ContactFile workspace for resource-stage work."""
+    """Serve the standalone resources-stage workspace."""
     return HTMLResponse(
         (_UI_DIR / "resource_workspace.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
@@ -328,11 +328,12 @@ def resource_workspace_ui() -> HTMLResponse:
     summary="PLAN workspace UI",
 )
 def plan_workspace_ui() -> HTMLResponse:
-    """Serve PLAN as the shared ContactFile workspace for plan-stage work."""
+    """Serve the standalone plan-stage workspace."""
     return HTMLResponse(
         (_UI_DIR / "plan_workspace.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
 
 @router.get(
     "/crm/crm.css",
