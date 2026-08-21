@@ -506,8 +506,14 @@
 
   function inject() {
     var pf = projectFilesLink();
-    if (!pf) return;
-    var sourceItem = pf.closest('li');
+    // React may remove the upstream Project Files row after the first ACHI
+    // injection.  The existing Log item is then a stable fallback template and
+    // anchor, so missing ACHI entries can still be recreated on every refresh.
+    var sourceItem = pf && pf.closest('li');
+    if (!sourceItem) {
+      var existingLog = document.getElementById(ID);
+      sourceItem = existingLog && existingLog.closest('li');
+    }
     if (!sourceItem) return;
     var after = sourceItem;
     for (var i = 0; i < ENTRIES.length; i++) {
