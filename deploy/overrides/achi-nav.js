@@ -23,10 +23,18 @@
        { id: 'achi-nav-boq', label: 'BOQ', route: '/boq',
       href: '/api/v1/achi/boq/ui',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>' },
-
+    { id: 'achi-nav-draw', label: 'DRAW', route: '/draw',
+      href: '/api/v1/achi/draw/ui',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m14 4 6 6-10 10H4v-6z"/><path d="m13 5 6 6"/></svg>' },
     { id: 'achi-nav-mt', label: 'M/T', route: '/mt',
       href: '/api/v1/achi/mt/ui',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/></svg>' },
+    { id: 'achi-nav-resource', label: 'RESOURCE', route: '/resource',
+      href: '/api/v1/achi/resource/ui',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h8"/></svg>' },
+    { id: 'achi-nav-plan', label: 'PLAN', route: '/plan',
+      href: '/api/v1/achi/plan/ui',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/></svg>' },
     { id: 'achi-nav-team-tasks', label: 'Team Tasks', route: '/team-tasks',
       href: '/api/v1/achi/tasks/ui?v=2',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' },
@@ -47,6 +55,9 @@
   var QUOTATION_ID = 'achi-nav-quotation';
   var BOQ_ID = 'achi-nav-boq';
   var MT_ID = 'achi-nav-mt';
+  var DRAW_ID = 'achi-nav-draw';
+  var RESOURCE_ID = 'achi-nav-resource';
+  var PLAN_ID = 'achi-nav-plan';
   var TASKS_ID = 'achi-nav-team-tasks';
   var CONTACTS_ROUTE = '/contacts';
   var CRM_ROUTE = '/crm';
@@ -54,6 +65,9 @@
   var QUOTATION_ROUTE = '/quotation';
   var BOQ_ROUTE = '/boq';
   var MT_ROUTE = '/mt';
+  var DRAW_ROUTE = '/draw';
+  var RESOURCE_ROUTE = '/resource';
+  var PLAN_ROUTE = '/plan';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
   var ORDER_KEY = 'achi_sidebar_module_order_v3';
@@ -237,6 +251,9 @@
         el.id === QUOTATION_ID ||
         el.id === BOQ_ID ||
         el.id === MT_ID ||
+        el.id === DRAW_ID ||
+        el.id === RESOURCE_ID ||
+        el.id === PLAN_ID ||
         el.id === ID
       ) continue;
       var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
@@ -254,16 +271,22 @@
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>' },
   { id: PROSPECTS_ID, route: PROSPECTS_ROUTE, label: 'PROSP',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M17 11h5M19.5 8.5v5"/></svg>' },
-  { id: SURVEY_ID, route: '/site-survey', label: 'Site Visit',
-  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' },
     { id: CRM_ID, route: CRM_ROUTE, label: 'CRM',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/><path d="M10 12v2h4v-2"/></svg>' },
-  { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotation',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' },
-  { id: BOQ_ID, route: BOQ_ROUTE, label: 'BOQ',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>' },
+  { id: SURVEY_ID, route: '/site-survey', label: 'Site Visit',
+  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' },
+  { id: DRAW_ID, route: DRAW_ROUTE, label: 'DRAW',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m14 4 6 6-10 10H4v-6z"/><path d="m13 5 6 6"/></svg>' },
   { id: MT_ID, route: MT_ROUTE, label: 'M/T',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/></svg>' },
+  { id: BOQ_ID, route: BOQ_ROUTE, label: 'BOQ',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>' },
+  { id: RESOURCE_ID, route: RESOURCE_ROUTE, label: 'RESOURCE',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h8"/></svg>' },
+  { id: PLAN_ID, route: PLAN_ROUTE, label: 'PLAN',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/></svg>' },
+  { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotation',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' },
   { id: TASKS_ID, route: '/team-tasks', label: 'Team Tasks',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' }
   ];
@@ -537,7 +560,10 @@
       a.id === PROSPECTS_ID ||
       a.id === QUOTATION_ID ||
       a.id === BOQ_ID ||
-      a.id === MT_ID
+      a.id === MT_ID ||
+      a.id === DRAW_ID ||
+      a.id === RESOURCE_ID ||
+      a.id === PLAN_ID
     ) {
     e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
@@ -556,8 +582,20 @@
         location.assign('/api/v1/achi/boq/ui');
         return;
       }
+      if (a.id === DRAW_ID) {
+        location.assign('/api/v1/achi/draw/ui');
+        return;
+      }
       if (a.id === MT_ID) {
         location.assign('/api/v1/achi/mt/ui');
+        return;
+      }
+      if (a.id === RESOURCE_ID) {
+        location.assign('/api/v1/achi/resource/ui');
+        return;
+      }
+      if (a.id === PLAN_ID) {
+        location.assign('/api/v1/achi/plan/ui');
         return;
       }
       if (a.id === CONTACTS_ID) {
@@ -681,6 +719,9 @@
         || link.id === QUOTATION_ID
         || link.id === BOQ_ID
         || link.id === MT_ID
+        || link.id === DRAW_ID
+        || link.id === RESOURCE_ID
+        || link.id === PLAN_ID
         || (link.id === TASKS_ID)
       );      if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
@@ -783,9 +824,12 @@
   var quotation = document.getElementById(QUOTATION_ID);
   var boq = document.getElementById(BOQ_ID);
   var mt = document.getElementById(MT_ID);
+  var draw = document.getElementById(DRAW_ID);
+  var resource = document.getElementById(RESOURCE_ID);
+  var plan = document.getElementById(PLAN_ID);
   var tasks = document.getElementById(TASKS_ID);
 
-if (!(log && contacts && prospects && survey && crm && quotation && boq && mt && tasks)) {
+if (!(log && contacts && prospects && crm && survey && draw && mt && boq && resource && plan && quotation && tasks)) {
       inject();
       ensureOverviewModules();
     }

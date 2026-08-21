@@ -29,17 +29,19 @@
   // Docked in the SPA? Upstream's sidebar is already there — stand down.
   if (window.top !== window.self) return;
 
-  // Keep this list exact and ordered: these seven primary destinations followed
-  // by the six admin destinations in TOOLS below. The All Modules arrow is
+  // Keep this list exact and ordered. The All Modules arrow is
 var LINKS = [
   { label: 'Log', href: '/api/v1/achi/ui', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
   { label: 'Contacts', href: '/api/v1/achi/contact-info/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
   { label: 'PROSP', href: '/api/v1/achi/prospect/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>' },
-  { label: 'Site Visit', href: '/api/v1/achi/site-visit/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
   { label: 'CRM', href: '/api/v1/achi/crm/ui', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
-  { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
-  { label: 'BOQ', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
+  { label: 'Site Visit', href: '/api/v1/achi/site-visit/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
+  { label: 'DRAW', href: '/api/v1/achi/draw/ui', icon: '<path d="M4 20h16"/><path d="m14 4 6 6-10 10H4v-6z"/><path d="m13 5 6 6"/>' },
   { label: 'M/T', href: '/api/v1/achi/mt/ui', icon: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/>' },
+  { label: 'BOQ', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
+  { label: 'RESOURCE', href: '/api/v1/achi/resource/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h8"/>' },
+  { label: 'PLAN', href: '/api/v1/achi/plan/ui', icon: '<path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/>' },
+  { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
   { label: 'Team Tasks', href: '/api/v1/achi/tasks/ui', icon: '<path d="M3 4h18v16H3z"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/>' }
 ];
 

@@ -93,6 +93,12 @@ class LogFilterParamsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             LogFilterParams(stage=["not-a-stage"])
 
+    def test_plan_stage_is_accepted_for_workspace_scoping(self) -> None:
+        filters = LogFilterParams(stages="plan", stage=["plan"])
+
+        self.assertEqual(filters.stages, ["plan"])
+        self.assertEqual(filters.stage, ["plan"])
+
     def test_inverted_date_range_is_rejected(self) -> None:
         with self.assertRaises(ValidationError):
             LogFilterParams(
@@ -132,6 +138,9 @@ class LogFilterParamsTests(unittest.TestCase):
             "prospect.html": "create: {origin: 'prospect', stage: 'prospect'}",
             "crm_general_log.html": "create: {origin: 'crm', stage: 'enquiry'}",
             "quotation_workspace.html": "create: {origin: 'quotation', stage: 'quotation'}",
+            "draw_workspace.html": "create: {origin: 'crm', stage: 'drawing'}",
+            "resource_workspace.html": "create: {origin: 'crm', stage: 'resources'}",
+            "plan_workspace.html": "create: {origin: 'crm', stage: 'plan'}",
         }
 
         for relative_path, expected_setting in expected.items():
