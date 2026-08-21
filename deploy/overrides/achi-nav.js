@@ -309,6 +309,12 @@
       // even when the synthetic row already exists so it cannot retain another
       // module's stale href.
       configureLink(link, spec.id, spec.route, spec.label, spec.icon);
+      // A source row can have been hidden by a prior role-filter pass.  A clone
+      // inherits that inline style, so explicitly restore every ACHI row here
+      // instead of relying on the marker being present on the cloned element.
+      item.style.display = '';
+      item.removeAttribute('aria-hidden');
+      item.removeAttribute(ROLE_HIDDEN);
       if (item.parentNode !== logItem.parentNode || item !== previous.nextElementSibling) {
         logItem.parentNode.insertBefore(item, previous.nextSibling);
       }
@@ -509,13 +515,22 @@
       var existing = document.getElementById(e.id);
       if (existing) {
         configureLink(existing, e.id, e.route, e.label, e.icon);
-        after = existing.closest('li') || after;
+        var existingItem = existing.closest('li');
+        if (existingItem) {
+          existingItem.style.display = '';
+          existingItem.removeAttribute('aria-hidden');
+          existingItem.removeAttribute(ROLE_HIDDEN);
+        }
+        after = existingItem || after;
         continue;
       }
       var item = sourceItem.cloneNode(true);
       var link = directLink(item);
       if (!link) continue;
       configureLink(link, e.id, e.route, e.label, e.icon);
+      item.style.display = '';
+      item.removeAttribute('aria-hidden');
+      item.removeAttribute(ROLE_HIDDEN);
       after.parentNode.insertBefore(item, after.nextSibling);
       after = item;
     }
