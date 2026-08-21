@@ -1601,6 +1601,34 @@ const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 // The General Log sets this so shared cells (e.g. Follow-up) can render its
 // variant without changing how the standard Log page looks.
 const GENERAL_LOG=(typeof window!=='undefined'&&window.ACHI_GENERAL_LOG===true);
+// Operational workspaces opt into business-code display. The permanent
+// ContactFile log_code is never changed; this only formats the rendered text.
+const BUSINESS_CODE_CONTEXT=(typeof window!=='undefined'&&typeof window.ACHI_BUSINESS_CODE_CONTEXT==='string')
+  ?window.ACHI_BUSINESS_CODE_CONTEXT:'';
+const BUSINESS_CODE_PREFIXES=Object.freeze({
+  prospect:'PROSP',
+  outreach:'PROSP',
+  follow_up:'PROSP',
+  first_contact:'PROSP',
+  second_follow_up:'PROSP',
+  enquiry:'ENQ',
+  site_survey:'SV',
+  quotation:'QUOT',
+});
+function formatBusinessCode(r,rowNumber){
+  const fallback=rowNumber;
+  if(!GENERAL_LOG||!r||!r.log_code) return fallback;
+
+  // Keep the existing General Log display unchanged, including its historical
+  // M/T spelling. Only opted-in operational workspaces receive a prefix.
+  const code=String(r.log_code).replace(/^MT(?=-)/,'M/T');
+  if(!BUSINESS_CODE_CONTEXT) return code;
+  const stage=String(r.stage||'').trim();
+  const prefix=BUSINESS_CODE_CONTEXT==='quotation'
+    ?'QUOT'
+    :BUSINESS_CODE_PREFIXES[stage];
+  return prefix?`${prefix}-${code}`:code;
+}
 /* User-selected column filters. These are separate from ACHI_LOG_FILTER:
    the latter defines an immutable workspace scope; these only narrow it. */
 const LOG_COLUMN_FILTER_SPECS=Object.freeze({
@@ -1838,7 +1866,7 @@ function isOverdueFollowup(r){
   return due<today;
 }
 function cellHTML(c,r,i){switch(c.k){
-  case 'num': return `<span class="rn">${GENERAL_LOG&&r&&r.log_code?esc(r.log_code):i+1}</span>`;
+  case 'num': return `<span class="rn">${esc(formatBusinessCode(r,i+1))}</span>`;
   case 'when': {
   const when = r.occurred_at || r.created_at;
   if(!when) return '<span class="mt">—</span>';
@@ -2113,7 +2141,7 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
     const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${GENERAL_LOG&&r.log_code?esc(String(r.log_code).replace(/^MT(?=-)/,'M/T')):rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${esc(formatBusinessCode(r,rowNumber))}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 

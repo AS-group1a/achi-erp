@@ -333,6 +333,24 @@ function draftMobile(st){
   return `${st.dial||DEFAULT_DIAL} ${num}`.trim();
 }
 function validDraftMobile(st){ return validMobile(draftMobile(st)); }
+function workspaceCreateDefaults(){
+  const scope =
+    typeof window !== 'undefined' &&
+    window.ACHI_LOG_FILTER &&
+    typeof window.ACHI_LOG_FILTER === 'object'
+      ? window.ACHI_LOG_FILTER
+      : {};
+
+  const create = scope.create && typeof scope.create === 'object'
+    ? scope.create
+    : {};
+
+  return {
+    origin: typeof create.origin === 'string' ? create.origin.trim() : '',
+    stage: typeof create.stage === 'string' ? create.stage.trim() : '',
+  };
+}
+
 function workspaceDefaultStage(){
   const scope =
     typeof window !== 'undefined' &&
@@ -340,6 +358,9 @@ function workspaceDefaultStage(){
     typeof window.ACHI_LOG_FILTER === 'object'
       ? window.ACHI_LOG_FILTER
       : {};
+
+  const create = workspaceCreateDefaults();
+  if(create.stage) return create.stage;
 
   const stages = Array.isArray(scope.stages)
     ? scope.stages.filter(
@@ -356,9 +377,12 @@ function draftPayload(st){
   const person=isCo?{is_company:true,company_name:company,mobile:mob,email:st.email||null}
     :{is_company:false,prefix:st.prefix||null,first_name:first||null,last_name:last||null,company_name:company||null,mobile:mob,email:st.email||null};
   const hasSite=st.country||st.district||st.city||st.street||st.maps||st.location;
+  const scope = window.ACHI_LOG_FILTER || {};
+  const create = workspaceCreateDefaults();
   const stage = st.stage || workspaceDefaultStage();
+  const newFile = scope.create_new_file === true;
   return {person,site:hasSite?{country:st.country||'Lebanon',district:st.district||null,city:st.city||null,street:st.street||null,maps_url:st.maps||null,site_location:st.location||null}:null,
-    status:st.status||'open',log_type:st.type||'inbound_call',stage:stage||undefined,category:st.category||null,tags:st.tags||'',description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
+    status:st.status||'open',log_type:st.type||'inbound_call',stage:stage||undefined,origin_module:create.origin||undefined,new_file:newFile,category:st.category||null,tags:st.tags||'',description:st.desc||'',updates:st.updates||'',follow_up_date:st.followup||null,follow_up_notes:st.funotes||''};
   }
 const committing=new Set();
 /* A row is saveable the moment it has an identity: a first name or a company.
@@ -2031,9 +2055,22 @@ function logFilteredPath(basePath){
         stage=>typeof stage==='string'&&stage.trim(),
       )
     : [];
+  const origins=Array.isArray(scope.origins)
+    ? scope.origins.filter(
+        origin=>typeof origin==='string'&&origin.trim(),
+      )
+    : [];
+  const legacyLogType=Array.isArray(scope.legacy_log_type)
+    ? scope.legacy_log_type.filter(
+        type=>typeof type==='string'&&type.trim(),
+      )
+    : [];
 
   if(logType) params.set('log_type',logType);
   if(stages.length) params.set('stages',stages.join(','));
+  if(origins.length) params.set('origins',origins.join(','));
+  if(scope.include_legacy_origins) params.set('include_legacy_origins','true');
+  if(legacyLogType.length) params.set('legacy_log_type',legacyLogType.join(','));
   const queryText=$('q')?.value.trim()||'';
 
   if(queryText) params.set('q',queryText);
