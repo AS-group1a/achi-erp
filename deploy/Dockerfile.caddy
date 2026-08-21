@@ -6,3 +6,10 @@ RUN xcaddy build --with github.com/caddyserver/replace-response
 
 FROM caddy:2-alpine
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
+# The Caddyfile is part of the image rather than a bind mount. Docker therefore
+# detects configuration changes during `docker compose up -d --build` and
+# recreates Caddy with the new response-rewrite rules. A bind-mounted Caddyfile
+# changes on disk but Caddy keeps its already-loaded configuration until an
+# explicit reload, which left browsers receiving an obsolete injected nav URL.
+COPY Caddyfile /etc/caddy/Caddyfile
