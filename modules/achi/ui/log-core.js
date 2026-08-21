@@ -1601,37 +1601,21 @@ const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 // The General Log sets this so shared cells (e.g. Follow-up) can render its
 // variant without changing how the standard Log page looks.
 const GENERAL_LOG=(typeof window!=='undefined'&&window.ACHI_GENERAL_LOG===true);
-// Operational workspaces opt into business-code display. The permanent
-// ContactFile log_code is never changed; this only formats the rendered text.
-const BUSINESS_CODE_CONTEXT=(typeof window!=='undefined'&&typeof window.ACHI_BUSINESS_CODE_CONTEXT==='string')
-  ?window.ACHI_BUSINESS_CODE_CONTEXT:'';
-const BUSINESS_CODE_PREFIXES=Object.freeze({
-  prospect:'PROSP',
-  outreach:'PROSP',
-  follow_up:'PROSP',
-  first_contact:'PROSP',
-  second_follow_up:'PROSP',
-  enquiry:'ENQ',
-  site_survey:'SV',
-  quotation:'QUOT',
-});
+// Operational workspaces opt into a display-only business code. It belongs to
+// the workspace being viewed, never to an individual row's workflow stage.
+// The permanent ContactFile log_code is never changed or used as this suffix.
+const BUSINESS_CODE=(typeof window!=='undefined'&&typeof window.ACHI_BUSINESS_CODE==='string')
+  ?window.ACHI_BUSINESS_CODE.trim():'';
 function formatBusinessCode(r,rowNumber){
-  const fallback=rowNumber;
-  if(!GENERAL_LOG||!r||!r.log_code) return fallback;
+  const displayNumber=String(rowNumber);
+  if(!GENERAL_LOG||!r) return displayNumber;
 
-  // Keep the existing General Log display unchanged, including its historical
-  // M/T spelling. Only opted-in operational workspaces receive a prefix.
-  const code=String(r.log_code).replace(/^MT(?=-)/,'M/T');
-  if(!BUSINESS_CODE_CONTEXT) return code;
-  const stage=String(r.stage||'').trim();
-  const prefix=BUSINESS_CODE_CONTEXT==='quotation'
-    ?'QUOT'
-    :BUSINESS_CODE_CONTEXT==='boq'&&stage==='boq'
-      ?'BOQ'
-    :BUSINESS_CODE_CONTEXT==='mt'&&stage==='takeoff'
-      ?'MT'
-      :BUSINESS_CODE_PREFIXES[stage];
-  return prefix?`${prefix}-${code}`:code;
+  // The unconfigured General Log deliberately keeps its existing permanent
+  // code display. Only explicitly configured workspaces use a visible index.
+  if(!BUSINESS_CODE){
+    return r.log_code?String(r.log_code).replace(/^MT(?=-)/,'M/T'):displayNumber;
+  }
+  return BUSINESS_CODE?`${BUSINESS_CODE}-${displayNumber}`:displayNumber;
 }
 /* User-selected column filters. These are separate from ACHI_LOG_FILTER:
    the latter defines an immutable workspace scope; these only narrow it. */
@@ -1870,7 +1854,7 @@ function isOverdueFollowup(r){
   return due<today;
 }
 function cellHTML(c,r,i){switch(c.k){
-  case 'num': return `<span class="rn">${esc(formatBusinessCode(r,i+1))}</span>`;
+  case 'num': return `<span class="rn${BUSINESS_CODE?' rn-code':''}">${esc(formatBusinessCode(r,i+1))}</span>`;
   case 'when': {
   const when = r.occurred_at || r.created_at;
   if(!when) return '<span class="mt">—</span>';
@@ -1984,7 +1968,8 @@ async function stats(){
  * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
  * so setting the th width is what actually sizes the column — the body cells
  * follow it and nothing has to be touched per row. */
-const COLW_KEY='achi_log_col_widths_v2', COLW_MIN=42;
+const COLW_KEY='achi_log_col_widths_v2', COLW_MIN=42,
+      BUSINESS_CODE_COLUMN_MIN=112;
 let COLW={};
 function loadColWidths(){
   try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY)||'{}')||{}; }catch(e){ COLW={}; }
@@ -1992,7 +1977,10 @@ function loadColWidths(){
 function saveColWidths(){
   try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){}
 }
-const colWidth=c=>Math.max(COLW_MIN, Number(COLW[c.k])||c.w);
+const colWidth=c=>Math.max(
+  c.k==='num'&&BUSINESS_CODE?BUSINESS_CODE_COLUMN_MIN:COLW_MIN,
+  Number(COLW[c.k])||c.w,
+);
 function fixedLeft(key){
   let left=0;
   for(const k of FIXED_KEYS){
@@ -2091,7 +2079,9 @@ function wireColResize(){
 function moveIndToActive(){ const b=tabsEl&&tabsEl.querySelector('.pill-tab.on'); if(b) moveInd(b); }
 
 function draftCell(c,dp,st,rowNumber){
-  if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
+  if(c.k==='num') return BUSINESS_CODE
+    ?'<span class="rn rn-draft">+</span>'
+    :`<span class="rn">${rowNumber}</span>`;
   // Frappe's CRM Log draft rows show the actual creation value as
   // DD/MM/YYYY HH:MM instead of the relative placeholder "now".
   if(c.k==='when'){
@@ -2142,10 +2132,10 @@ function draftRowHTML(dp,st,isTop,rowNumber){
 function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
-    const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
+    const cls=colClass(c,[c.cls||'',c.k==='num'&&BUSINESS_CODE?'business-code-cell':'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${esc(formatBusinessCode(r,rowNumber))}</span>`:cellHTML(c,r,i)}${exp}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn${BUSINESS_CODE?' rn-code':''}">${esc(formatBusinessCode(r,rowNumber))}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 
@@ -2202,9 +2192,19 @@ function render(){
     : (openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
   let rowNumber=1;
   const body=[
-    deletedView?'':draftRowHTML('d',topDraft,true,rowNumber++),
+    deletedView?'':draftRowHTML(
+      'd',
+      topDraft,
+      true,
+      BUSINESS_CODE?rowNumber:rowNumber++,
+    ),
     rows.length?rows.map((r,i)=>dataRowHTML(r,i,rowNumber++)).join(''):'',
-    deletedView?'':bottomDrafts.map((st,i)=>draftRowHTML('b'+i,st,false,rowNumber++)).join(''),
+    deletedView?'':bottomDrafts.map((st,i)=>draftRowHTML(
+      'b'+i,
+      st,
+      false,
+      BUSINESS_CODE?rowNumber:rowNumber++,
+    )).join(''),
   ].join('');
   $('rows').innerHTML=body;
   refreshSelectionButton();

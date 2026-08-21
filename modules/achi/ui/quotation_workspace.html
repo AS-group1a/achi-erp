@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quotation  · Achi Scaffolding ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=10">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=12">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <body data-achi-title="Quotation">
@@ -161,7 +161,7 @@
      read by log-core.js (COLS + which columns freeze); everything else is shared. -->
 <script>
   window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
-  window.ACHI_BUSINESS_CODE_CONTEXT = 'quotation';
+  window.ACHI_BUSINESS_CODE = 'QUOT';
   window.ACHI_LOG_FILTER = {
   create: {origin: 'quotation', stage: 'quotation'},
   stages: [
@@ -214,7 +214,7 @@ window.ACHI_LOG_TAB_FIRST_KEYS = {
   ];
 </script>
 
-<script src="/api/v1/achi/ui/log-core.js?v=14"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=15"></script>
 <script src="/api/v1/achi/ui/log.js?v=14"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=33"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
