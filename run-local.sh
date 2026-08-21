@@ -50,11 +50,12 @@ cp deploy/overrides/achi-nav.js  "$DIST/achi-nav.js"
 import re, sys
 p = sys.argv[1]
 html = orig = open(p, encoding="utf-8").read()
-NAV_V = "75"
+NAV_V = "80"
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css?v=11">',
     '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,
     '<script src="/api/v1/achi/ui/comment.js?v=14" defer></script>',
+    '<script src="/api/v1/achi/ui/task_drawer.js?v=1" defer></script>',
 ]
 # Strip any copy we injected before, INCLUDING an older ?v= cache-buster, then
 # re-add the current tags. Matching on the exact tag string instead meant a
@@ -64,6 +65,7 @@ tags = [
 html = re.sub(r'<link rel="stylesheet" href="/achi-theme\.css(?:\?v=[^"]*)?"\s*/?>', '', html)
 html = re.sub(r'<script src="/achi-nav\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
 html = re.sub(r'<script src="/api/v1/achi/ui/comment\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
+html = re.sub(r'<script src="/api/v1/achi/ui/task_drawer\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
 if "</head>" in html:
     html = html.replace("</head>", "".join(tags) + "</head>", 1)
 if html != orig:

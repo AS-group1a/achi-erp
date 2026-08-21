@@ -4,8 +4,17 @@ import json
 from datetime import date, datetime
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
-
+from typing import Literal
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 # No "client" stage: becoming a client isn't a file state, it's the file
 # converting into a project.
 # The General Log offers the full sales pipeline (18 stages). The original six
@@ -25,7 +34,9 @@ STATUSES = ("open", "scheduled", "viewed", "cancelled", "done", "transferred")
 # editable instead of failing validation on their next save.
 LOG_TYPES = ("Prospect", "Lead", "Client", "Field", "Fleet", "Yard",
              "Invoice", "Balance", "General")
-
+DELIVERABLE_KEYS = ("srv", "dwg", "mt", "boq", "cst", "qte")
+ORIGIN_MODULES = ("prospect", "crm", "quotation")
+OriginModule = Literal["prospect", "crm", "quotation"]
 
 class ModuleInfo(BaseModel):
     module: str
@@ -82,6 +93,7 @@ class ContactFileCreate(BaseModel):
     subject: str = Field(default="", max_length=255)
     stage: str = Field(default="enquiry", pattern="^(%s)$" % "|".join(STAGES))
     status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
+    origin_module: OriginModule | None = None
 
     country: str | None = Field(default=None, max_length=64)
     district: str | None = Field(default=None, max_length=128)
@@ -229,6 +241,43 @@ class FileLogUpdate(BaseModel):
     # the service from the payload, never trusted from the client.
     drawing: str | None = None
 
+class AttachmentDeliverablesUpdate(BaseModel):
+    """Deliverable classifications selected for one attached file."""
+
+    deliverables: list[str] = Field(default_factory=list, max_length=12)
+
+    @field_validator("deliverables")
+    @classmethod
+    def _validate_deliverables(cls, value: list[str]) -> list[str]:
+        clean = []
+        seen = set()
+
+        for item in value:
+            name = str(item).strip()
+
+            if not name:
+                continue
+
+            if len(name) > 32:
+                raise ValueError(
+                    "deliverable classification must be 32 characters or fewer"
+                )
+
+            # Commas are reserved because classifications are stored
+            # as one comma-separated string in the database.
+            if "," in name:
+                raise ValueError(
+                    "deliverable classification cannot contain commas"
+                )
+
+            # Prevent duplicates while preserving how the user typed the name.
+            lookup = name.lower()
+
+            if lookup not in seen:
+                seen.add(lookup)
+                clean.append(name)
+
+        return clean
 
 class AttachmentOut(BaseModel):
     """One file attached to a log — what the popup's file list renders."""
@@ -240,7 +289,26 @@ class AttachmentOut(BaseModel):
     filename: str
     content_type: str
     size_bytes: int
+
+    # Stored in the DB as "srv,dwg,mt", returned to JS as ["srv","dwg","mt"].
+    deliverables: list[str] = Field(default_factory=list)
+
     created_at: datetime
+
+    @field_validator("deliverables", mode="before")
+    @classmethod
+    def _parse_deliverables(cls, value):
+        if not value:
+            return []
+
+        if isinstance(value, str):
+            return [
+                item.strip()
+                for item in value.split(",")
+                if item.strip()
+            ]
+
+        return value
 
 
 class FileLogOut(BaseModel):
@@ -269,6 +337,7 @@ class ContactFileOut(BaseModel):
     contact_id: str | None = None
     subject: str
     log_code: str | None = None
+    origin_module: OriginModule | None = None
     stage: str
     status: str
     country: str | None
@@ -302,6 +371,7 @@ class ContactFileListOut(BaseModel):
     contact_id: str | None = None
     contact_name: str | None = None
     subject: str
+    origin_module: OriginModule | None = None
     stage: str
     status: str
     city: str | None
@@ -351,6 +421,7 @@ class QuickLogCreate(BaseModel):
 
     subject: str = Field(default="", max_length=255)
     stage: str = Field(default="enquiry", pattern="^(%s)$" % "|".join(STAGES))
+    origin_module: OriginModule | None = None
     # Force a new file even if this contact already has one open — a second,
     # unrelated enquiry from someone we already know.
     new_file: bool = False
@@ -375,6 +446,234 @@ class QuickLogOut(BaseModel):
     # Set when a company was named alongside a person — it gets its own contact.
     company_contact_id: str | None = None
 
+
+class LogFilterParams(BaseModel):
+    """Validated filters shared by every General Log-style workspace."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+    q: str | None = Field(default=None, max_length=512)
+    number: str | None = Field(default=None, max_length=32)
+
+    when_from: AwareDatetime | None = None
+    when_to: AwareDatetime | None = None
+
+    status: list[str] = Field(
+        default_factory=list,
+        max_length=len(STATUSES),
+    )
+    stages: list[str] = Field(
+        default_factory=list,
+        max_length=len(STAGES),
+    )
+    origins: list[OriginModule] = Field(
+        default_factory=list,
+        max_length=len(ORIGIN_MODULES),
+    )
+    include_legacy_origins: bool = False
+    legacy_log_type: list[str] = Field(default_factory=list, max_length=50)
+
+    stage: list[str] = Field(
+        default_factory=list,
+        max_length=len(STAGES),
+    )
+
+    prefix: list[str] = Field(default_factory=list, max_length=32)
+    owner: list[str] = Field(default_factory=list, max_length=50)
+    log_type: list[str] = Field(default_factory=list, max_length=50)
+    type: list[str] = Field(default_factory=list, max_length=50)
+    communication: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+    )
+    deliverable: list[str] = Field(
+        default_factory=list,
+        max_length=12,
+    )
+    tag: list[str] = Field(default_factory=list, max_length=50)
+    country: list[str] = Field(default_factory=list, max_length=50)
+    district: list[str] = Field(default_factory=list, max_length=50)
+    city: list[str] = Field(default_factory=list, max_length=50)
+
+    first: str | None = Field(default=None, max_length=128)
+    last: str | None = Field(default=None, max_length=128)
+    company: str | None = Field(default=None, max_length=255)
+    mobile: str | None = Field(default=None, max_length=50)
+    email: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=512)
+    updates: str | None = Field(default=None, max_length=512)
+    street: str | None = Field(default=None, max_length=255)
+
+    unassigned: bool = False
+    has_map: bool | None = None
+    has_attachment: bool | None = None
+    has_drawing: bool | None = None
+
+    email_state: Literal[
+        "sent",
+        "not_sent",
+        "missing",
+    ] | None = None
+
+    communication_mode: Literal["any", "all"] = "any"
+    deliverable_mode: Literal["any", "all"] = "any"
+    tag_mode: Literal["any", "all"] = "any"
+
+    last_touch_from: AwareDatetime | None = None
+    last_touch_to: AwareDatetime | None = None
+
+    follow_up_from: date | None = None
+    follow_up_to: date | None = None
+    today: date | None = None
+    follow_up_state: Literal[
+        "overdue",
+        "scheduled",
+        "missing",
+    ] | None = None
+
+    @field_validator(
+        "status",
+        "stages",
+        "origins",
+        "legacy_log_type",
+        "stage",
+        "prefix",
+        "owner",
+        "log_type",
+        "type",
+        "communication",
+        "deliverable",
+        "tag",
+        "country",
+        "district",
+        "city",
+        mode="before",
+    )
+    @classmethod
+    def _normalise_multi_values(
+        cls,
+        value,
+        info: ValidationInfo,
+    ) -> list[str]:
+        if value is None:
+            return []
+
+        raw_values = (
+            value
+            if isinstance(value, (list, tuple, set))
+            else [value]
+        )
+
+        values: list[str] = []
+        seen: set[str] = set()
+
+        for raw in raw_values:
+            if raw is None:
+                continue
+
+            # Preserve compatibility with the existing:
+            # ?stages=enquiry,quotation
+            parts = (
+                str(raw).split(",")
+                if info.field_name in {"stages", "stage", "origins", "legacy_log_type"}
+                else [str(raw)]
+            )
+
+            for part in parts:
+                item = part.strip()
+
+                if not item:
+                    continue
+
+                key = item.casefold()
+
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                values.append(item)
+
+        return values
+
+    @field_validator("stages","stage")
+    @classmethod
+    def _validate_stages(cls, value: list[str]) -> list[str]:
+        invalid = sorted(set(value).difference(STAGES))
+
+        if invalid:
+            raise ValueError(
+                f"unknown stage value(s): {', '.join(invalid)}"
+            )
+
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def _validate_statuses(cls, value: list[str]) -> list[str]:
+        invalid = sorted(set(value).difference(STATUSES))
+
+        if invalid:
+            raise ValueError(
+                f"unknown status value(s): {', '.join(invalid)}"
+            )
+
+        return value
+
+    @model_validator(mode="after")
+    def _validate_filter_values(self):
+        item_limits = (
+            ("status", 32),
+            ("stages", 32),
+            ("origins", 16),
+            ("legacy_log_type", 64),
+            ("stage", 32),
+            ("prefix", 16),
+            ("owner", 64),
+            ("log_type", 64),
+            ("type", 64),
+            ("communication", 32),
+            ("deliverable", 32),
+            ("tag", 64),
+            ("country", 64),
+            ("district", 128),
+            ("city", 128),
+        )
+
+        for field_name, maximum in item_limits:
+            for value in getattr(self, field_name):
+                if len(value) > maximum:
+                    raise ValueError(
+                        f"{field_name} values must be "
+                        f"{maximum} characters or fewer"
+                    )
+
+        ranges = (
+            ("when_from", "when_to"),
+            ("last_touch_from", "last_touch_to"),
+            ("follow_up_from", "follow_up_to"),
+        )
+
+        for start_name, end_name in ranges:
+            start = getattr(self, start_name)
+            end = getattr(self, end_name)
+
+            if start is not None and end is not None and start > end:
+                raise ValueError(
+                    f"{start_name} must be before or equal to {end_name}"
+                )
+
+        return self
+
+
+class LogListParams(LogFilterParams):
+    """Log filters plus list pagination and deleted-row selection."""
+
+    limit: int = Field(default=200, ge=1, le=1000)
+    offset: int = Field(default=0, ge=0)
+    deleted: bool = False
 
 class LogRowOut(BaseModel):
     """A row in the log table — flat, joined, no client-side assembly.
@@ -401,6 +700,7 @@ class LogRowOut(BaseModel):
     file_id: str
     file_number: str
     log_code: str | None = None   # General Log "#" code, e.g. "SV001"
+    origin_module: OriginModule | None = None
     stage: str
     status: str
     subject: str = ""
@@ -425,6 +725,7 @@ class LogRowOut(BaseModel):
     # boq, cst, qte. Computed from real signals (surveys, drawings, quotations);
     # boq/cst have no data source yet and stay False.
     docs: dict[str, bool] | None = None
+    deliverables: list[str] = Field(default_factory=list)
     communication: str | None = None   # General Log "Communication" channel (legacy single value)
     comm_tally: dict[str, int] | None = None   # this log's per-channel counters, e.g. {"WhatsApp": 2}
     # General Log Communication pills + Last Touch: how this file's logs split by

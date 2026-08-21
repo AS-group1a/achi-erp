@@ -72,6 +72,10 @@ class ContactFile(Base):
     stage: Mapped[str] = mapped_column(String(32), nullable=False, default="enquiry")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
 
+    # Where this workflow started. Unlike ``stage`` this is immutable once the
+    # file exists. NULL deliberately means a legacy/unclassified record.
+    origin_module: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
     # General Log "#" code: a stage-bucketed, per-bucket sequential id like
     # "SV001". Nullable — files in an untracked stage (or created before this
     # feature) simply have none. Assigned/renumbered in service.py on stage
@@ -199,6 +203,13 @@ class LogAttachment(Base):
     content_type: Mapped[str] = mapped_column(String(128), nullable=False, default="application/octet-stream")
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+
+    deliverables: Mapped[str] = mapped_column(
+    String(64),
+    nullable=False,
+    default="",
+    server_default="",
+)
 
     uploaded_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -682,3 +693,7 @@ class AchiEmail(Base):
 
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+# Register the isolated Team Tasks models with OCE's metadata loader.
+# This import stays at the bottom to avoid affecting existing model definitions.
+from . import task_models as _task_models  # noqa: E402,F401

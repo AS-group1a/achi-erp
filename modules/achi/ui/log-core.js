@@ -34,6 +34,37 @@ function getRefreshToken(){
 let TOKEN=getToken();   // reassigned by refreshToken() when the access token expires
 const API='/api/v1/achi';
 const $=id=>document.getElementById(id);
+/* Shared dark ACHI hero for General Log-style workspaces.
+   The page title comes from each page's existing data-achi-title attribute. */
+(function addAchiLogHero(){
+  if(window.ACHI_GENERAL_LOG !== true) return;
+
+  const main=document.querySelector('main');
+  if(!main || document.getElementById('achi-log-hero')) return;
+
+  const title=(document.body.dataset.achiTitle || 'Log').trim();
+  const hero=document.createElement('section');
+  hero.id='achi-log-hero';
+  hero.className='achi-log-hero';
+
+  const eyebrow=document.createElement('div');
+  eyebrow.className='achi-log-hero__eyebrow';
+  eyebrow.textContent='ACHI SCAFFOLDING';
+
+  const heading=document.createElement('h1');
+  heading.className='achi-log-hero__title';
+  heading.textContent=title;
+
+  const subtitle=document.createElement('p');
+  subtitle.className='achi-log-hero__subtitle';
+  subtitle.textContent='Manage prospects, customer calls, follow-ups and quotations in one place.';
+
+  hero.append(eyebrow, heading, subtitle);
+
+  const kpis=main.querySelector('.kpis');
+  if(kpis) main.insertBefore(hero, kpis);
+  else main.appendChild(hero);
+})();
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* Quick notes is a Quill editor now, so `description` can hold formatting HTML.
    Render it SAFELY: allow only Quill's formatting tags, strip every attribute,
@@ -470,8 +501,8 @@ const showInvalidMobile=input=>showFeedback('Invalid Phone Number','Please Enter
    values are the ones the team uses; DISTRICTS/CITIES are Lebanon-specific
    because that is where the sites are. */
 const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
-      LOG_STATES=['OPEN','TRANSFERED','ONGOING','DONE','CANCELLED'],
-      COPY_TARGETS=['Log only','Site Survey','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
+      LOG_STATES=['OPEN','SCHEDULED','VIEWED','CANCELLED','DONE','TRANSFERRED'],
+      COPY_TARGETS=['Log only','Site Visit','CRM — new deal','Quotation','Project Files','Dispatch / Fleet','Inventory','Job Orders'],
       ROLES=['Owner','Engineer','Contractor','Foreman','Site manager','Architect','Procurement'],
       SUBJECTS=['External scaffolding','Rental per piece','New project','Current job status',
                 'Off-hire','Adaptation','Inspection','Complaint','Invoice'],
@@ -547,25 +578,174 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
     }catch(e){/* predefined GEO districts still work */}
   }
   async function addDistrictAndSelect(sel){
-    const country=$('rx-country')&&$('rx-country').value;
-    if(!country){ rxFillSelect('district',districtOptions(country),''); return; }
-    const name=(window.prompt('New district for '+country+' (max 128 characters):')||'').trim();
-    if(!name){ rxFillSelect('district',districtOptions(country),''); return; }
-    if(name.length>128){ fail('District must be 128 characters or fewer.'); rxFillSelect('district',districtOptions(country),''); return; }
+    const country=rxGeoCurrent('country');
+    const previousDistrict=rxGeoCurrent('district');
+    const currentCity=rxGeoCurrent('city');
+
+    if(!country){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+      return;
+    }
+
+    const name=(
+      window.prompt(
+        'New district for '+country+' (max 128 characters):'
+      )||''
+    ).trim();
+
+    if(!name){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+      return;
+    }
+
+    if(name.length>128){
+      fail('District must be 128 characters or fewer.');
+
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+
+      return;
+    }
+
     try{
-      const saved=await api('/geo/districts',{method:'POST',body:JSON.stringify({country,district:name})});
-      const list=customDistricts[country]=customDistricts[country]||[];
-      if(!list.includes(saved.district)&&!(districtsFor(country)||[]).includes(saved.district)) list.push(saved.district);
-      rxFillSelect('district',districtOptions(country),saved.district);
-      rxFillSelect('city',cityOptions(country,saved.district),'');
+      const saved=await api(
+        '/geo/districts',
+        {
+          method:'POST',
+          body:JSON.stringify({
+            country,
+            district:name
+          })
+        }
+      );
+
+      const list=
+        customDistricts[country]=
+        customDistricts[country]||[];
+
+      if(
+        !list.includes(saved.district) &&
+        !(districtsFor(country)||[]).includes(saved.district)
+      ){
+        list.push(saved.district);
+      }
+
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        saved.district
+      );
+
+      rxRebuildCityForDistrict(
+        country,
+        saved.district,
+        currentCity
+      );
+
       clearErr();
-    }catch(e){ fail(e.message); rxFillSelect('district',districtOptions(country),''); }
+
+    }catch(e){
+      fail(e.message);
+
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        previousDistrict
+      );
+
+      rxRebuildCityForDistrict(
+        country,
+        previousDistrict,
+        currentCity
+      );
+    }
   }
   const CITY_ADD='__add_city__';
   let customCities={};
+
   const cityKey=(c,d)=>String(c||'')+'|'+String(d||'');
-  const mergedCities=(c,d)=>[...new Set([...(citiesFor(c,d)||[]),...(customCities[cityKey(c,d)]||[])])];
-  const cityOptions=(c,d)=>(c&&d)?[...mergedCities(c,d),CITY_ADD]:[];
+
+  const mergedCities=(c,d)=>[
+    ...new Set([
+      ...(citiesFor(c,d)||[]),
+      ...(customCities[cityKey(c,d)]||[])
+    ])
+  ];
+
+  /* All known cities for a country, regardless of district.
+    Includes both predefined GEO cities and backend-added custom cities. */
+  const allCitiesForCountry=c=>{
+    if(!c) return [];
+
+    const values=[];
+
+    for(const district of districtsMerged(c)){
+      values.push(...mergedCities(c,district));
+    }
+
+    const prefix=String(c)+'|';
+
+    for(const [key,cities] of Object.entries(customCities)){
+      if(key.startsWith(prefix)){
+        values.push(...cities);
+      }
+    }
+
+    return [...new Set(values)];
+  };
+
+  /* Return a district only when the city has exactly one matching district.
+    If the city is unknown, or exists in multiple districts, return blank. */
+  const districtForCity=(c,city)=>{
+    if(!c||!city) return '';
+
+    const wanted=rxGeoNorm(city);
+    const matches=[];
+
+    const districts=[
+      ...new Set([
+        ...districtsMerged(c),
+        ...Object.keys(customCities)
+          .filter(key=>key.startsWith(String(c)+'|'))
+          .map(key=>key.slice(String(c).length+1))
+      ])
+    ];
+
+    for(const district of districts){
+      const found=mergedCities(c,district)
+        .some(value=>rxGeoNorm(value)===wanted);
+
+      if(found) matches.push(district);
+    }
+
+    return matches.length===1 ? matches[0] : '';
+  };
+
+  /* With a district: show that district's cities plus "+ Add City".
+    Without a district: show every known city for the selected country. */
+  const cityOptions=(c,d)=>{
+    if(!c) return [];
+
+    if(d){
+      return [
+        ...mergedCities(c,d),
+        CITY_ADD
+      ];
+    }
+
+    return allCitiesForCountry(c);
+  };
   async function loadCustomCities(){
     try{ const rows=await api('/geo/cities'); customCities={};
       for(const r of rows){ const k=cityKey(r.country,r.district); (customCities[k]=customCities[k]||[]).push(r.city); }
@@ -575,28 +755,350 @@ const SOCIALS=['IG','FB','LinkedIn','TikTok','X'],
      the change handler calls it fire-and-forget. On failure the select falls
      back to the current options with nothing chosen. */
   async function addCityAndSelect(sel){
-    const country=$('rx-country')&&$('rx-country').value, district=$('rx-district')&&$('rx-district').value;
-    if(!country||!district){ rxFillSelect('city',cityOptions(country,district),''); return; }
-    const name=(window.prompt('New city for '+district+' (max 128 characters):')||'').trim();
-    if(!name){ rxFillSelect('city',cityOptions(country,district),''); return; }
-    if(name.length>128){ fail('City must be 128 characters or fewer.'); rxFillSelect('city',cityOptions(country,district),''); return; }
+    const country=rxGeoCurrent('country');
+    const district=rxGeoCurrent('district');
+    const previousCity=rxGeoCurrent('city');
+
+    if(!country||!district){
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
+      return;
+    }
+
+    const name=(
+      window.prompt(
+        'New city for '+district+' (max 128 characters):'
+      )||''
+    ).trim();
+
+    if(!name){
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
+      return;
+    }
+
+    if(name.length>128){
+      fail('City must be 128 characters or fewer.');
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
+
+      return;
+    }
+
     try{
-      const saved=await api('/geo/cities',{method:'POST',body:JSON.stringify({country,district,city:name})});
-      const k=cityKey(country,district), list=customCities[k]=customCities[k]||[];
-      if(!list.includes(saved.city)&&!(citiesFor(country,district)||[]).includes(saved.city)) list.push(saved.city);
-      rxFillSelect('city',cityOptions(country,district),saved.city);
+      const saved=await api(
+        '/geo/cities',
+        {
+          method:'POST',
+          body:JSON.stringify({
+            country,
+            district,
+            city:name
+          })
+        }
+      );
+
+      const k=cityKey(country,district);
+      const list=
+        customCities[k]=
+        customCities[k]||[];
+
+      if(
+        !list.includes(saved.city) &&
+        !(citiesFor(country,district)||[]).includes(saved.city)
+      ){
+        list.push(saved.city);
+      }
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        saved.city
+      );
+
       clearErr();
-    }catch(e){ fail(e.message); rxFillSelect('city',cityOptions(country,district),''); }
+
+    }catch(e){
+      fail(e.message);
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,district),
+        previousCity
+      );
+    }
   }
   /* Module-scope so the change handler (also module-scope) can call it: rebuild
      a site-info select's options when the level above changes, refresh its
      enhanced button label. The menu reads <option>s on open, so this suffices. */
   const rxFillSelect=(id,list,selected)=>{
     const sel=$('rx-'+id); if(!sel) return;
-    sel.innerHTML=['',...(list||[])].map(o=>`<option value="${esc(o)}"${o===(selected||'')?' selected':''}>${esc(o===CITY_ADD?'+ Add City':o===DISTRICT_ADD?'+ Add District':(o||'—'))}</option>`).join('');
-    sel.value=selected||'';
-    if(sel.dataset.rxEnhanced&&sel._rxButton) sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+
+    const chosen=String(selected||'');
+    const values=[...new Set(list||[])];
+
+    /* Keep a manually typed/custom value selectable even when it is not part of
+      the predefined/backend list. Insert it before "+ Add ..." commands. */
+    if(chosen && !values.includes(chosen)){
+      const commandIndex=values.findIndex(value=>String(value).startsWith('__add_'));
+
+      if(commandIndex>=0) values.splice(commandIndex,0,chosen);
+      else values.push(chosen);
+    }
+
+    sel.innerHTML=['',...values].map(o=>
+      `<option value="${esc(o)}"${o===chosen?' selected':''}>${
+        esc(
+          o===CITY_ADD?'+ Add City':
+          o===DISTRICT_ADD?'+ Add District':
+          (o||'—')
+        )
+      }</option>`
+    ).join('');
+
+    sel.value=chosen;
+
+    /* Country/District/City have a visible text input sitting over this select.
+      Whenever code changes the underlying select, keep that visible value synced. */
+    const input=document.querySelector(`[data-geo-input="${id}"]`);
+    if(input) input.value=chosen;
+
+    if(sel.dataset.rxEnhanced&&sel._rxButton){
+      sel._rxButton.querySelector('span').textContent=rxSelectLabel(sel);
+    }
   };
+
+  function rxGeoInput(id){
+    return document.querySelector(`[data-geo-input="${id}"]`);
+  }
+
+  function rxGeoCurrent(id){
+    const input=rxGeoInput(id);
+    if(input) return input.value.trim();
+
+    const sel=$('rx-'+id);
+    return sel ? String(sel.value||'').trim() : '';
+  }
+
+  /* Normalize against an existing option when possible:
+      lebanon -> Lebanon
+      jounieh -> Jounieh
+    Unknown/custom values remain untouched. */
+  function rxSetGeoValue(id,list,value){
+    const raw=String(value||'').trim();
+    const options=[...(list||[])];
+
+    const commands=options.filter(option=>
+      String(option).startsWith('__add_')
+    );
+
+    const normalOptions=options.filter(option=>
+      !String(option).startsWith('__add_')
+    );
+
+    const chosen=raw
+      ? rxGeoChoice(raw,normalOptions)
+      : '';
+
+    rxFillSelect(id,[...normalOptions,...commands],chosen);
+
+    const input=rxGeoInput(id);
+    if(input) input.dataset.geoCommitted=chosen;
+
+    return chosen;
+  }
+
+  function rxCityKnownForCountry(country,city){
+    if(!country||!city) return false;
+
+    const wanted=rxGeoNorm(city);
+
+    return allCitiesForCountry(country)
+      .some(value=>rxGeoNorm(value)===wanted);
+  }
+
+  /* When District changes, narrow the City dropdown.
+
+    A known city that belongs to another district is cleared.
+    An unknown/custom city is deliberately preserved. */
+  function rxRebuildCityForDistrict(country,district,currentCity){
+    const city=String(
+      currentCity===undefined
+        ? rxGeoCurrent('city')
+        : currentCity
+    ).trim();
+
+    const options=cityOptions(country,district);
+
+    if(!city){
+      rxSetGeoValue('city',options,'');
+      return '';
+    }
+
+    if(!district){
+      return rxSetGeoValue('city',options,city);
+    }
+
+    const wanted=rxGeoNorm(city);
+
+    const belongsHere=mergedCities(country,district)
+      .some(value=>rxGeoNorm(value)===wanted);
+
+    if(belongsHere){
+      return rxSetGeoValue('city',options,city);
+    }
+
+    /* Unknown city = manual/custom value. Do not destroy it merely because the
+      District changed. */
+    if(!rxCityKnownForCountry(country,city)){
+      return rxSetGeoValue('city',options,city);
+    }
+
+    rxSetGeoValue('city',options,'');
+    return '';
+  }
+
+  /* If the selected/typed city maps to exactly one district, fill it.
+    Ambiguous and unknown cities leave District untouched. */
+  function syncDistrictFromCity(){
+    const country=rxGeoCurrent('country');
+    const city=rxGeoCurrent('city');
+
+    if(!country||!city) return '';
+
+    const district=districtForCity(country,city);
+
+    if(!district) return '';
+
+    const current=rxGeoCurrent('district');
+
+    if(rxGeoNorm(current)!==rxGeoNorm(district)){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        district
+      );
+    }
+
+    /* Rebuild the City list for the newly determined district while preserving
+      and canonicalizing the city the user actually chose. */
+    rxSetGeoValue(
+      'city',
+      cityOptions(country,district),
+      city
+    );
+
+    return district;
+  }
+
+  function rxApplyCountryValue(value){
+    const input=rxGeoInput('country');
+    const previous=input
+      ? String(input.dataset.geoCommitted??input.value??'').trim()
+      : rxGeoCurrent('country');
+
+    const country=rxSetGeoValue(
+      'country',
+      COUNTRY_NAMES,
+      value
+    );
+
+    /* Same place with different casing is normalization, not a Country change. */
+    const changed=
+      rxGeoNorm(previous)!==rxGeoNorm(country);
+
+    if(changed){
+      rxSetGeoValue(
+        'district',
+        districtOptions(country),
+        ''
+      );
+
+      rxSetGeoValue(
+        'city',
+        cityOptions(country,''),
+        ''
+      );
+    }
+
+    return country;
+  }
+
+  function rxApplyDistrictValue(value){
+    const country=rxSetGeoValue(
+      'country',
+      COUNTRY_NAMES,
+      rxGeoCurrent('country')
+    );
+
+    const currentCity=rxGeoCurrent('city');
+
+    const district=rxSetGeoValue(
+      'district',
+      districtOptions(country),
+      value
+    );
+
+    rxRebuildCityForDistrict(
+      country,
+      district,
+      currentCity
+    );
+
+    return district;
+  }
+
+  function rxApplyCityValue(value){
+    const country=rxSetGeoValue(
+      'country',
+      COUNTRY_NAMES,
+      rxGeoCurrent('country')
+    );
+
+    const district=rxGeoCurrent('district');
+
+    const city=rxSetGeoValue(
+      'city',
+      cityOptions(country,district),
+      value
+    );
+
+    syncDistrictFromCity();
+
+    return city;
+  }
+
+  /* Manual text entry uses exactly the same logic as dropdown selection.
+    "change" fires when the user finishes editing/leaves the field, which avoids
+    rewriting their text/cursor on every individual keystroke. */
+  function wireGeoManualInputs(){
+    const wire=(id,handler)=>{
+      const input=rxGeoInput(id);
+
+      if(!input || input.dataset.geoWired) return;
+
+      input.dataset.geoWired='1';
+      input.dataset.geoCommitted=input.value.trim();
+
+      input.addEventListener('change',()=>{
+        handler(input.value);
+      });
+    };
+
+    wire('country',rxApplyCountryValue);
+    wire('district',rxApplyDistrictValue);
+    wire('city',rxApplyCityValue);
+  }
       /* Flat unions, so the grid's non-cascading dropdowns still show everything. */
       const DISTRICTS=[...new Set(Object.values(GEO).flatMap(d=>Object.keys(d)))],
             CITIES=[...new Set(Object.values(GEO).flatMap(d=>Object.values(d).flat()))];
@@ -736,7 +1238,7 @@ const GL_STAGES=[
   {k:'first_contact',    label:'First Contact', color:'#7c3aed'},
   {k:'second_follow_up', label:'2nd Follow-up', color:'#0d9488'},
   {k:'enquiry',          label:'Enquiry',       color:'#2563eb'},
-  {k:'site_survey',      label:'Site Survey',   color:'#0891b2'},
+  {k:'site_survey',      label:'Site Visit',    color:'#0891b2'},
   {k:'drawing',          label:'Drawing',       color:'#0ea5e9'},
   {k:'takeoff',          label:'Takeoff',       color:'#0284c7'},
   {k:'boq',              label:'BOQ',           color:'#7c3aed'},
@@ -751,12 +1253,31 @@ const GL_STAGES=[
 ];
 const GL_STAGE_BY_KEY=Object.fromEntries(GL_STAGES.map(s=>[s.k,s]));
 const GL_STAGE_ORDER=GL_STAGES.map(s=>s.k);
-// Keys the stage dropdown offers, in order (all of them).
-const GL_STAGE_PIPELINE=GL_STAGE_ORDER.slice();
+/* A General Log-style workspace can declare ACHI_LOG_FILTER.stages before this
+   script loads. Standard Log and General Log declare nothing, so they keep the
+   complete pipeline. Invalid configuration is ignored safely. */
+const GL_STAGE_PIPELINE=(()=>{
+  const raw=(typeof window!=='undefined') ? window.ACHI_LOG_FILTER : null;
+  const configured=raw && Array.isArray(raw.stages) ? raw.stages : [];
+  const allowed=configured.filter(
+    stage=>typeof stage==='string' && GL_STAGE_BY_KEY[stage]
+  );
+  return allowed.length ? Array.from(new Set(allowed)) : GL_STAGE_ORDER.slice();
+})();
 const GL_STAGE_COLOR=Object.fromEntries(GL_STAGES.map(s=>[s.k,s.color]));
 // Rows from before the pipeline expansion carry a couple of retired keys.
 const GL_LEGACY_STAGE={lead:'enquiry',measurements:'takeoff'};
-const glStageKey=s=>{const k=GL_LEGACY_STAGE[s]||s||'enquiry';return GL_STAGE_BY_KEY[k]?k:'enquiry';};
+const glStageKey=s=>{
+  const raw=String(s||'').trim();
+
+  // ONLY missing stage defaults to Prospect
+  if(!raw) return 'prospect';
+
+  const k=GL_LEGACY_STAGE[raw]||raw;
+
+  // Keep any valid explicitly selected stage
+  return GL_STAGE_BY_KEY[k] ? k : 'prospect';
+};
 const glStageLabel=s=>{const k=glStageKey(s);return (GL_STAGE_BY_KEY[k]||{}).label||label(k);};
 // The bar is a fixed 6 segments filled to the stage's position in the pipeline,
 // so it stays compact whether there are 6 stages or 18. "cancelled" reads as a
@@ -769,15 +1290,75 @@ function glStageCell(r){
   return `<div class="lstage"><span class="lstage-top"><span class="lstage-dot" style="background:${color}"></span><span class="lstage-label" style="color:${color}">${esc(glStageLabel(k))}</span><svg class="lstage-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg></span><span class="lstage-bar">${segs}</span></div>`;
 }
 const GL_DOCS=[['srv','SURV'],['dwg','DWG'],['mt','M/T'],['boq','BOQ'],['cst','CST'],['qte','QTE']];
-function glDocsCell(r){const d=r.docs||{};return `<div class="ldocs">${GL_DOCS.map(([k,lb])=>`<span class="ldoc${d[k]?' on':''}">${lb}</span>`).join('')}</div>`;}
 const GL_COMM_COLOR={Call:'#2563eb',Phone:'#2563eb',Email:'#7c3aed',WhatsApp:'#16a34a','In-person':'#ea580c',SMS:'#0891b2',Instagram:'#db2777',Facebook:'#1d4ed8',LinkedIn:'#0a66c2',X:'#0f172a',TikTok:'#0f172a',Other:'#64748b'};
 // Short two/three-letter tags for the Communication pills (photo #3).
+
 const GL_COMM_ABBR={Call:'PH',Phone:'PH',Email:'EM',WhatsApp:'WA','In-person':'IP',SMS:'SMS',Instagram:'IG',Facebook:'FB',LinkedIn:'LI',X:'X',TikTok:'TT',Other:'··'};
-const glCommColor=k=>GL_COMM_COLOR[k]||'#64748b';
+function glCommColor(k){
+  return GL_COMM_COLOR[k] || '#64748b';
+}
 const glCommAbbr=k=>GL_COMM_ABBR[k]||String(k||'').slice(0,2).toUpperCase();
 const glCommPill=(k,n)=>{const c=glCommColor(k);return `<span class="lcomm" style="color:${c};border-color:${c}44;background:${c}14" title="${esc(k)}${n!=null?': '+n:''}">${esc(glCommAbbr(k))}${n!=null?' '+n:''}</span>`;};
 // Channels the "+" menu offers on the Communication cell (kept short on purpose).
-const GL_COMM_ADD=['Call','WhatsApp','Email','LinkedIn'];
+const GL_COMM_ADD=[
+  'Call',
+  'WhatsApp',
+  'Email',
+  'LinkedIn',
+  'Facebook',
+  'Instagram',
+  'X'
+];
+function glDocsCell(r){
+  const raw = Array.isArray(r.deliverables)
+    ? r.deliverables
+    : [];
+
+  let selected = raw.map(value => {
+    const name = String(value || '').trim();
+
+    if(!name) return null;
+
+    const fixed = GL_DOCS.find(
+      ([k]) => k.toLowerCase() === name.toLowerCase()
+    );
+
+    return fixed ? fixed[1] : name;
+  }).filter(Boolean);
+
+  // Fallback for older rows/API responses.
+  if(!selected.length){
+    const d = r.docs || {};
+
+    selected = GL_DOCS
+      .filter(([k]) => d[k])
+      .map(([, label]) => label);
+  }
+
+  // Remove duplicates without changing the displayed name.
+  const seen = new Set();
+
+  selected = selected.filter(name => {
+    const key = name.toLowerCase();
+
+    if(seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+
+  if(!selected.length){
+    return '<span class="mt">—</span>';
+  }
+
+  return `<div class="ldocs">${
+    selected
+      .map(name =>
+        `<span class="ldoc selected-only">${esc(name)}</span>`
+      )
+      .join('')
+  }</div>`;
+}
 /* This log's own per-channel counters, seeded from the legacy single
    `communication` value the first time so old rows upgrade seamlessly. */
 function glCommTally(r){
@@ -798,20 +1379,67 @@ function glCommCell(r){
   return `<span class="ctally">${chips}<button type="button" class="ctadd" data-cc-add title="Add a channel">+</button></span>`;
 }
 const GL_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const fmtDayMonthYear=s=>{const d=new Date(s);if(isNaN(d))return String(s||'');return `${String(d.getDate()).padStart(2,'0')} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;};
-/* Last Touch cell: this row's date over a "CHANNELS · N total" sub-line driven
-   by the row's own communication counters — e.g. WA 2 + LI 3 → "WA, LI · 5
-   total". Reads the same per-log tally as the Communication cell so the two
-   always agree and update together. */
+
+function toLocalDateTimeValue(value){
+  if(!value) return '';
+
+  const d=new Date(value);
+  if(isNaN(d)) return '';
+
+  const p=n=>String(n).padStart(2,'0');
+
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`
+       + `T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function fmtLastTouchDateTime(value){
+  if(!value) return '—';
+
+  const d=new Date(value);
+  if(isNaN(d)) return String(value||'');
+
+  const p=n=>String(n).padStart(2,'0');
+
+  let hour=d.getHours();
+  const ampm=hour>=12?'PM':'AM';
+  hour=hour%12||12;
+
+  return `${p(d.getDate())} ${GL_MONTHS[d.getMonth()]} ${d.getFullYear()} `
+       + `${p(hour)}:${p(d.getMinutes())} ${ampm}`;
+}
+
 function glLastTouchCell(r){
   const when=r.occurred_at||r.created_at||r.last_touch_at;
+
   const t=glCommTally(r);
-  const channels=Object.keys(t).filter(k=>t[k]>0).sort((a,b)=>t[b]-t[a]||a.localeCompare(b));
+  const channels=Object.keys(t)
+    .filter(k=>t[k]>0)
+    .sort((a,b)=>t[b]-t[a]||a.localeCompare(b));
+
   const total=channels.reduce((s,k)=>s+t[k],0);
-  if(!when && !total) return '<span class="mt">—</span>';
   const abbrs=channels.map(k=>glCommAbbr(k)).join(', ');
-  const sub=[abbrs,total?`${total} total`:''].filter(Boolean).join(' · ');
-  return `<span class="lt"><span class="lt-date">${when?esc(fmtDayMonthYear(when)):'—'}</span>${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}</span>`;
+  const sub=[abbrs,total?`${total} TOTAL`:''].filter(Boolean).join(' · ');
+
+  return `
+    <span class="lt">
+      <button
+        type="button"
+        class="lt-date lt-date-button"
+        data-last-touch-open
+        title="Change Last Touch date and time"
+      >${when?esc(fmtLastTouchDateTime(when)):'—'}</button>
+
+      <input
+        type="datetime-local"
+        class="lt-picker-hidden"
+        data-last-touch
+        value="${esc(toLocalDateTimeValue(when))}"
+        aria-label="Last Touch date and time"
+      >
+
+      ${sub?`<span class="lt-sub">${esc(sub)}</span>`:''}
+    </span>
+  `;
 }
 const SVG={
   mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
@@ -954,6 +1582,7 @@ const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&wi
   {k:'owner',  h:'Owner',          tab:0, w:80},
   {k:'type',   h:'Log Type',       tab:0, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
   {k:'category',h:'Category',      tab:0, w:170, draft:'select', edit:{kind:'category',target:'log',field:'category',val:r=>r.category||''}},
+  {k:'stage',  h:'Stage',          tab:0, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
   {k:'mobile', h:'Mobile',         tab:1, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
   {k:'email',  h:'Email',          tab:1, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
   {k:'maps',   h:'Maps',           tab:2, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
@@ -961,6 +1590,8 @@ const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&wi
   {k:'district',h:'District',      tab:2, w:120, draft:'text', edit:{kind:'district',target:'file',field:'district',val:r=>r.district||''}},
   {k:'city',   h:'City',           tab:2, w:120, draft:'text', edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
   {k:'street', h:'Street',         tab:2, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
+  {k:'communication',h:'Communication', tab:3, w:188},
+  {k:'last_touch',h:'Last Touch',  tab:3, w:200},
   {k:'updates',h:'Updates',        tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
   {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
   {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
@@ -970,6 +1601,265 @@ const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 // The General Log sets this so shared cells (e.g. Follow-up) can render its
 // variant without changing how the standard Log page looks.
 const GENERAL_LOG=(typeof window!=='undefined'&&window.ACHI_GENERAL_LOG===true);
+// Operational workspaces opt into business-code display. The permanent
+// ContactFile log_code is never changed; this only formats the rendered text.
+const BUSINESS_CODE_CONTEXT=(typeof window!=='undefined'&&typeof window.ACHI_BUSINESS_CODE_CONTEXT==='string')
+  ?window.ACHI_BUSINESS_CODE_CONTEXT:'';
+const BUSINESS_CODE_PREFIXES=Object.freeze({
+  prospect:'PROSP',
+  outreach:'PROSP',
+  follow_up:'PROSP',
+  first_contact:'PROSP',
+  second_follow_up:'PROSP',
+  enquiry:'ENQ',
+  site_survey:'SV',
+  quotation:'QUOT',
+});
+function formatBusinessCode(r,rowNumber){
+  const fallback=rowNumber;
+  if(!GENERAL_LOG||!r||!r.log_code) return fallback;
+
+  // Keep the existing General Log display unchanged, including its historical
+  // M/T spelling. Only opted-in operational workspaces receive a prefix.
+  const code=String(r.log_code).replace(/^MT(?=-)/,'M/T');
+  if(!BUSINESS_CODE_CONTEXT) return code;
+  const stage=String(r.stage||'').trim();
+  const prefix=BUSINESS_CODE_CONTEXT==='quotation'
+    ?'QUOT'
+    :BUSINESS_CODE_CONTEXT==='boq'&&stage==='boq'
+      ?'BOQ'
+    :BUSINESS_CODE_CONTEXT==='mt'&&stage==='takeoff'
+      ?'MT'
+      :BUSINESS_CODE_PREFIXES[stage];
+  return prefix?`${prefix}-${code}`:code;
+}
+/* User-selected column filters. These are separate from ACHI_LOG_FILTER:
+   the latter defines an immutable workspace scope; these only narrow it. */
+const LOG_COLUMN_FILTER_SPECS=Object.freeze({
+  num:           {kind:'text',     param:'number'},
+  when:          {kind:'date',     from:'when_from',to:'when_to'},
+  status:        {kind:'multi',    param:'status'},
+  prefix:        {kind:'multi',    param:'prefix'},
+  first:         {kind:'text',     param:'first'},
+  last:          {kind:'text',     param:'last'},
+  company:       {kind:'text',     param:'company'},
+  owner:         {kind:'multi',    param:'owner',unassigned:'unassigned'},
+  mobile:        {kind:'text',     param:'mobile'},
+  email:         {kind:'text',     param:'email'},
+  maps:          {kind:'presence', param:'has_map'},
+  desc:          {kind:'text',     param:'description'},
+  type:          {kind:'multi',    param:'type'},
+  stage:         {kind:'multi',    param:'stage'},
+  communication: {kind:'multi',    param:'communication',mode:'communication_mode'},
+  last_touch:    {kind:'date',     from:'last_touch_from',to:'last_touch_to'},
+  deliverables:  {kind:'multi',    param:'deliverable',mode:'deliverable_mode'},
+  tags:          {kind:'multi',    param:'tag',mode:'tag_mode'},
+  updates:       {kind:'text',     param:'updates'},
+  followup:      {kind:'date',     from:'follow_up_from',to:'follow_up_to',state:'follow_up_state'},
+  country:       {kind:'multi',    param:'country'},
+  district:      {kind:'multi',    param:'district'},
+  city:          {kind:'multi',    param:'city'},
+  street:        {kind:'text',     param:'street'},
+});
+
+const LOG_COLUMN_KEYS=new Set(COLS.map(column=>column.k));
+const LOG_COLUMN_FILTERS=Object.create(null);
+const LOG_FILTER_STORAGE_KEY=
+  `achi_log_column_filters_v1:${location.pathname}`;
+
+function logFilterValues(raw){
+  const source=Array.isArray(raw)
+    ? raw
+    : raw==null
+      ? []
+      : [raw];
+
+  const values=[];
+  const seen=new Set();
+
+  for(const item of source){
+    const value=String(item||'').trim();
+    const fingerprint=value.toLocaleLowerCase();
+
+    if(!value||seen.has(fingerprint)) continue;
+
+    seen.add(fingerprint);
+    values.push(value);
+  }
+
+  return values;
+}
+
+function normaliseLogColumnFilter(key,raw){
+  const spec=LOG_COLUMN_FILTER_SPECS[key];
+
+  if(!spec||!LOG_COLUMN_KEYS.has(key)) return null;
+
+  if(spec.kind==='text'){
+    const value=String(
+      raw&&typeof raw==='object'&&'value' in raw
+        ? raw.value
+        : raw||''
+    ).trim();
+
+    return value?{value}:null;
+  }
+
+  if(spec.kind==='multi'){
+    const values=logFilterValues(
+      raw&&typeof raw==='object'&&'values' in raw
+        ? raw.values
+        : raw
+    );
+    const unassigned=Boolean(
+      raw&&typeof raw==='object'&&raw.unassigned
+    );
+
+    if(!values.length&&!unassigned) return null;
+
+    return {
+      values,
+      unassigned,
+      mode:
+        raw&&typeof raw==='object'&&raw.mode==='all'
+          ? 'all'
+          : 'any',
+    };
+  }
+
+  if(spec.kind==='presence'){
+    const value=
+      raw&&typeof raw==='object'&&'value' in raw
+        ? raw.value
+        : raw;
+
+    if(value!==true&&value!==false) return null;
+
+    return {value};
+  }
+
+  if(spec.kind==='date'){
+    const from=String(raw&&raw.from||'').trim();
+    const to=String(raw&&raw.to||'').trim();
+    const state=String(raw&&raw.state||'').trim();
+
+    if(!from&&!to&&!state) return null;
+
+    return {from,to,state};
+  }
+
+  return null;
+}
+
+function persistLogColumnFilters(){
+  try{
+    sessionStorage.setItem(
+      LOG_FILTER_STORAGE_KEY,
+      JSON.stringify(LOG_COLUMN_FILTERS),
+    );
+  }catch(_){}
+}
+
+function setLogColumnFilter(key,raw,{persist=true}={}){
+  const state=normaliseLogColumnFilter(key,raw);
+
+  if(state) LOG_COLUMN_FILTERS[key]=state;
+  else delete LOG_COLUMN_FILTERS[key];
+
+  if(persist) persistLogColumnFilters();
+}
+
+function clearLogColumnFilter(key){
+  delete LOG_COLUMN_FILTERS[key];
+  persistLogColumnFilters();
+}
+
+function clearAllLogColumnFilters(){
+  Object.keys(LOG_COLUMN_FILTERS).forEach(
+    key=>delete LOG_COLUMN_FILTERS[key],
+  );
+  persistLogColumnFilters();
+}
+
+function hasLogColumnFilter(key){
+  return Boolean(LOG_COLUMN_FILTERS[key]);
+}
+
+function restoreLogColumnFilters(){
+  try{
+    const saved=JSON.parse(
+      sessionStorage.getItem(LOG_FILTER_STORAGE_KEY)||'{}',
+    );
+
+    if(!saved||typeof saved!=='object') return;
+
+    Object.entries(saved).forEach(([key,value])=>{
+      setLogColumnFilter(key,value,{persist:false});
+    });
+  }catch(_){}
+}
+
+function logFilterDateTime(value,endOfDay=false){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))) return '';
+
+  const time=endOfDay?'T23:59:59.999':'T00:00:00';
+  const date=new Date(`${value}${time}`);
+
+  return isNaN(date)?'':date.toISOString();
+}
+
+function logLocalToday(){
+  const date=new Date();
+  const pad=value=>String(value).padStart(2,'0');
+
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+}
+
+function appendLogColumnFilterParams(params){
+  for(const [key,state] of Object.entries(LOG_COLUMN_FILTERS)){
+    const spec=LOG_COLUMN_FILTER_SPECS[key];
+
+    if(!spec||!state) continue;
+
+    if(spec.kind==='text'){
+      params.set(spec.param,state.value);
+      continue;
+    }
+
+    if(spec.kind==='multi'){
+      state.values.forEach(value=>params.append(spec.param,value));
+
+      if(spec.unassigned&&state.unassigned){
+        params.set(spec.unassigned,'true');
+      }
+
+      if(spec.mode&&state.mode==='all'){
+        params.set(spec.mode,'all');
+      }
+
+      continue;
+    }
+
+    if(spec.kind==='presence'){
+      params.set(spec.param,String(state.value));
+      continue;
+    }
+
+    if(spec.kind==='date'){
+      const from=logFilterDateTime(state.from);
+      const to=logFilterDateTime(state.to,true);
+
+      if(spec.from&&from) params.set(spec.from,from);
+      if(spec.to&&to) params.set(spec.to,to);
+      if(spec.state&&state.state){
+        params.set(spec.state,state.state);
+        params.set('today',logLocalToday());
+      }
+    }
+  }
+}
+
+restoreLogColumnFilters();
 // A follow-up date is overdue once it's in the past and the file isn't closed.
 function isOverdueFollowup(r){
   if(!r||!r.follow_up_date) return false;
@@ -980,9 +1870,26 @@ function isOverdueFollowup(r){
   return due<today;
 }
 function cellHTML(c,r,i){switch(c.k){
-  case 'num': return `<span class="rn">${GENERAL_LOG&&r&&r.log_code?esc(r.log_code):i+1}</span>`;
-  case 'when': return dateTimeHTML(r.occurred_at||r.created_at);
-  case 'status': return badge(r.status);
+  case 'num': return `<span class="rn">${esc(formatBusinessCode(r,i+1))}</span>`;
+  case 'when': {
+  const when = r.occurred_at || r.created_at;
+  if(!when) return '<span class="mt">—</span>';
+
+  const d = new Date(when);
+  if(isNaN(d)) return esc(when);
+
+  const p = n => String(n).padStart(2,'0');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const hour = d.getHours();
+  const h = hour % 12 || 12;
+
+  const text =
+    `${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ` +
+    `${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`;
+
+  return `<span class="lt-date">${esc(text)}</span>`;
+}  case 'status': return badge(r.status);
   case 'prefix': return dash(r.prefix);
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
@@ -1036,8 +1943,8 @@ function cellHTML(c,r,i){switch(c.k){
   case 'deliverables': return glDocsCell(r);
 }}
 
-const ROW_CACHE_KEY='achi_log_rows_v1';
-let ROWS=[], openOnly=false, activeTab=0;
+const ROW_CACHE_KEY=
+  `achi_log_rows_v2:${window.location.pathname}`;let ROWS=[], openOnly=false, activeTab=0;
 // Deleted Logs filter. When on, the grid renders `deletedRows` (soft-deleted
 // logs fetched separately) instead of ROWS, read-only, for restore / permanent
 // delete. Kept distinct from ROWS so KPIs and the active list stay correct.
@@ -1056,10 +1963,22 @@ const selectedRows=new Set();
 let topDraft={}, bottomDrafts=[];   // persisted client-side entry state
 let selected=new Set();             // selected log ids
 
-function stats(){ const now=new Date();
-  const m=ROWS.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).length;
-  $('k-total').textContent=ROWS.length; $('k-open').textContent=ROWS.filter(r=>r.status==='open').length;
-  $('k-month').textContent=m; $('k-done').textContent=ROWS.filter(r=>r.status==='done').length; }
+async function stats(){
+  try{
+    const path=typeof logStatsPath==='function'
+    ? logStatsPath()
+    : '/logs/stats';
+    const s = await api(path);
+
+    $('k-total').textContent = s.total ?? 0;
+    $('k-open').textContent = s.open ?? 0;
+    $('k-month').textContent = s.this_month ?? 0;
+    $('k-done').textContent = s.done ?? 0;
+
+  }catch(e){
+    console.warn('Could not load log stats', e);
+  }
+}
 /* ── column widths (ported from tabbed_grid.js _wireColResize) ─────────────
  * Widths are per-column and remembered per browser, so someone who widens
  * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
@@ -1112,8 +2031,21 @@ function buildHead(){
     const sel=c.k==='num'
       ? ` class="${colClass(c,`${c.cls||''} num-head`)}" role="button" tabindex="0" aria-pressed="false" title="Select or unselect all rows"`
       : ` class="${colClass(c,c.cls||'')}"`;
+    const filterButton=LOG_COLUMN_FILTER_SPECS[c.k]
+      ? `<button type="button" class="log-col-filter-btn${
+          hasLogColumnFilter(c.k)?' is-active':''
+        }" data-log-filter-key="${c.k}" aria-label="Filter ${esc(c.h)}"
+          title="Filter ${esc(c.h)}">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 3h12L9.4 8.1v3.7l-2.8 1.4V8.1z"/>
+          </svg>
+        </button>`
+      : '';
     return `<th data-tab="${c.tab??''}" data-k="${c.k}"${sel} style="${fixedStyle(c)}">`
-      +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
+    +`<span class="log-col-head-label">${c.h}</span>`
+    +filterButton
+    +`</span><span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
+    +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
   }).join('');
 }
 /* Pointer events rather than mouse, so this works on the tablet a surveyor
@@ -1162,7 +2094,20 @@ function draftCell(c,dp,st,rowNumber){
   if(c.k==='num') return `<span class="rn">${rowNumber}</span>`;
   // Frappe's CRM Log draft rows show the actual creation value as
   // DD/MM/YYYY HH:MM instead of the relative placeholder "now".
-  if(c.k==='when') return dateTimeHTML(new Date());
+  if(c.k==='when'){
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const hour = d.getHours();
+  const h = hour % 12 || 12;
+
+  const text =
+    `${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ` +
+    `${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`;
+
+  return `<span class="lt-date">${esc(text)}</span>`;
+  }
   if(c.k==='status') return `<input class="din pg-select-input draft-popup-select" id="${dp}-status" data-dp="${dp}" data-dk="status" data-select-value="${esc(st.status||'open')}" value="${esc(label(st.status||'open'))}" readonly>`;
   if(c.k==='owner') return `<span class="mt">you</span>`;
   const id=`${dp}-${c.k}`, v=esc(st[c.k]||'');
@@ -1200,7 +2145,7 @@ function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class=
     const cls=colClass(c,[c.cls||'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
     const select=c.k==='num'?`data-select-row="${key}" title="Select this row" aria-label="Select row ${rowNumber}"`:'';
     const exp=c.note?`<button type="button" class="note-exp" data-noteexp title="Open notes, files and drawing">${SVG.expand}</button>`:'';
-    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${GENERAL_LOG&&r.log_code?esc(r.log_code):rowNumber}</span>`:cellHTML(c,r,i)}${exp}</td>`;
+    return `<td data-tab="${c.tab??''}" data-k="${c.k}" class="${cls}" style="${fixedStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${esc(formatBusinessCode(r,rowNumber))}</span>`:cellHTML(c,r,i)}${exp}</td>`;
   }).join('')
 }</tr>`; }
 
@@ -1250,11 +2195,11 @@ function toggleRowSelection(tr,force){
 }
 
 function render(){
-  const q=$('q').value.trim().toLowerCase();
-  // In the Deleted Logs filter the grid shows deletedRows (read-only) and never
-  // the draft rows or the Open filter — those only make sense for active logs.
-  let rows=deletedView?deletedRows:(openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
-  if(q) rows=rows.filter(r=>[r.contact_name,r.company_name,r.file_number,r.city,r.description,r.log_type,r.mobile,r.email,r.category,r.tags].some(v=>String(v||'').toLowerCase().includes(q)));
+  // Text search is handled by the API, together with column filters, so results
+  // are correct even when matching rows are outside the currently loaded set.
+  let rows=deletedView
+    ? deletedRows
+    : (openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
   let rowNumber=1;
   const body=[
     deletedView?'':draftRowHTML('d',topDraft,true,rowNumber++),
@@ -1265,6 +2210,101 @@ function render(){
   refreshSelectionButton();
   refreshDeleteButton();
 }
+
+/* Open the Last Touch calendar when its displayed date is clicked. */
+$('rows').addEventListener('click',e=>{
+  const button=e.target.closest('[data-last-touch-open]');
+  if(!button) return;
+
+  const cell=button.closest('td');
+  const picker=cell?.querySelector('input[data-last-touch]');
+  if(!picker) return;
+
+  try{
+    picker.showPicker();
+  }catch(_){
+    picker.click();
+  }
+});
+
+
+/* Save the selected Last Touch date + time. */
+$('rows').addEventListener('change',async e=>{
+  const input=e.target.closest('input[data-last-touch]');
+  if(!input) return;
+
+  const tr=input.closest('tr[data-log]');
+  if(!tr) return;
+
+  const logId=tr.dataset.log;
+  const row=ROWS.find(r=>String(r.id)===String(logId));
+  const previous=row?.occurred_at||'';
+
+  try{
+    const occurredAt=input.value
+      ? new Date(input.value).toISOString()
+      : null;
+
+    await api('/logs/'+logId,{
+      method:'PATCH',
+      body:JSON.stringify({
+        occurred_at:occurredAt
+      })
+    });
+
+    if(row) row.occurred_at=occurredAt;
+
+    const label=tr.querySelector('[data-last-touch-open]');
+    if(label){
+      label.textContent=occurredAt
+        ? fmtLastTouchDateTime(occurredAt)
+        : '—';
+    }
+
+    clearErr();
+
+  }catch(err){
+    input.value=toLocalDateTimeValue(previous);
+    fail(err.message||'Could not update Last Touch');
+  }
+});
+
+/* Save the General Log Last Touch date + time. */
+$('rows').addEventListener('change',async e=>{
+  const input=e.target.closest('input[data-last-touch]');
+  if(!input) return;
+
+  const tr=input.closest('tr[data-log]');
+  if(!tr) return;
+
+  const logId=tr.dataset.log;
+  const row=ROWS.find(r=>String(r.id)===String(logId));
+  const previous=row&&row.occurred_at ? row.occurred_at : '';
+
+  try{
+    input.disabled=true;
+
+    const occurredAt=input.value
+      ? new Date(input.value).toISOString()
+      : null;
+
+    await api('/logs/'+logId,{
+      method:'PATCH',
+      body:JSON.stringify({
+        occurred_at:occurredAt
+      })
+    });
+
+    if(row) row.occurred_at=occurredAt;
+
+    clearErr();
+  }catch(err){
+    input.value=toLocalDateTimeValue(previous);
+    fail(err.message||'Could not update Last Touch');
+  }finally{
+    input.disabled=false;
+  }
+});
 
 /* Keep row creation spatially obvious. The grid has its own vertical scroll
    container, so scrolling the page is not enough: target the exact rendered
@@ -1413,7 +2453,7 @@ function rxNameHTML(src){
 function rxBadgesHTML(r){
   const b=[];
   if(r.company_contact_id) b.push('Company contact');
-  if(r.has_drawing) b.push('Linked: Site Survey');
+  if(r.has_drawing) b.push('Linked: Site Visit');
   if(r.attachment_count>0) b.push(`${r.attachment_count} attachment${r.attachment_count>1?'s':''}`);
   if(!b.length) return '';
   return `<div class="rx-badges">${b.map(x=>`<span class="rx-badge">${esc(x)}</span>`).join('')}</div>`;
@@ -1634,10 +2674,36 @@ function openExpandedRow(explicitId){
 
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
+  const GEOSEL=(k,list,v,placeholder)=>{
+    const values=[...(list||[])];
+
+    /* Preserve an existing/custom value even when it is not currently present
+      in the predefined/backend option list. */
+    if(v && !values.includes(v)){
+      values.unshift(v);
+    }
+
+    return `
+      <div class="rx-geo-combo">
+        <input
+          type="text"
+          class="rx-in rx-geo-input"
+          data-k="${k}"
+          data-geo-input="${k}"
+          value="${esc(v||'')}"
+          placeholder="${esc(placeholder||'')}"
+          autocomplete="off"
+        >
+        ${SEL(k,values,v,true,true)}
+      </div>
+    `;
+  };
   const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
   const DIRECT={role:'role',company_type:'company_type',subject:'subject',no:'site_number',bldg:'site_building',floor:'site_floor'};
   const val=k=>{ if(k==='reference') return src.reference||''; if(DIRECT[k]) return src[DIRECT[k]]||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
-
+  const countryValue=isNew ? (val('country')||'Lebanon') : val('country');
+  const districtValue=val('district');
+  const cityValue=val('city');
   let html='';
   html+=g('rx-g4',
     F('Pre',        SEL('prefix',[...allPrefixes(),PREFIX_ADD],val('prefix'),true)),
@@ -1661,35 +2727,44 @@ function openExpandedRow(explicitId){
     <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
   html+=g('rx-g2',socialHandles,
     F('Reference',SEL('reference',[...allReferences(),REFERENCE_ADD],val('reference'),true)));
-  html+=g('rx-g3',
-    F('Log type',    SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
-    F('Log subject', SEL('subject',[...new Set([val('subject'),...allSubjects()].filter(Boolean)),SUBJECT_ADD],val('subject'),true)),
-    // One OR MORE tags — click to open a checkbox dropdown (the same picker the
-    // grid uses). Selections are stored comma-joined in this data-k="tags" input.
-    F('Tags',        `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
+  html+=g('rx-g2',
+  F('Log type', SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
+  // One OR MORE tags — click to open a checkbox dropdown.
+  F('Tags', `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
   const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
   html+=`<div class="rx-fs"><h4>Site info</h4>`
     +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
     +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3', F('Country',  SEL('country',COUNTRY_NAMES,val('country'),true)),
-                F('District', SEL('district',districtOptions(val('country')),val('district'),true)),
-                F('City',     SEL('city',cityOptions(val('country'),val('district')),val('city'),true)))
+    +g('rx-g3',
+        F('Country',
+          GEOSEL('country',COUNTRY_NAMES,countryValue,'Type or select country')),
+        F('District',
+          GEOSEL('district',districtOptions(countryValue),districtValue,'Type or select district')),
+        F('City',
+          GEOSEL('city',cityOptions(countryValue,districtValue),cityValue,'Type or select city')))
     +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
                 F('No.',      IN('no','12',val('no'))),
                 F('Building', IN('bldg','Bldg',val('bldg'))),
                 F('Floor',    IN('floor','GF',val('floor'))))
     +`</div>`;
   html+=`<div class="rx-notes">
-    <div class="rx-notes-head">
-      <h4>Quick notes — no time? dump everything here</h4>
-      ${isNew ? '' : `<button type="button" class="rx-notes-attach-btn" id="rx-notes-attach-btn">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M13.5 9.5v2a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2"/>
-          <polyline points="10.5 5.5 8 3 5.5 5.5"/>
-          <line x1="8" y1="3" x2="8" y2="10.5"/>
-        </svg>
-        Attach file</button>`}
-    </div>
+    <div class="rx-notes-head" id="rx-notes-head">
+  <h4>Quick notes — no time? dump everything here</h4>
+
+  <button type="button"
+          class="rx-notes-attach-btn"
+          id="rx-notes-attach-btn">
+    <svg viewBox="0 0 24 24"
+         fill="none"
+         stroke="currentColor"
+         stroke-width="2"
+         stroke-linecap="round"
+         stroke-linejoin="round">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+    </svg>
+    Attach file
+  </button>
+</div>
     <div class="rx-notes-subject-row">
       <input type="text" class="rx-notes-subject" id="rx-notes-subject" placeholder="Subject…" maxlength="200" autocomplete="off">
       ${SEL('notesubject',[...allNoteSubjects(),NOTE_SUBJECT_ADD],'',true,true)}
@@ -1766,7 +2841,8 @@ function openExpandedRow(explicitId){
   },0);
   $('rx-body').innerHTML=html;
   enhanceRxSelects();
-  rxRenumberPersons();                 // label any pre-existing "Contact N" cards
+  wireGeoManualInputs();
+  rxRenumberPersons();
   $('rx').hidden=false;
 
   // Tiles need the real width, which only exists once the sheet is laid out.
@@ -2114,7 +3190,6 @@ function rxExtrasChanged(r){
   let saved='[]'; try{ saved=JSON.stringify(JSON.parse(r.socials||'[]')); }catch(e){}
   return rxExtraCur('role')!==String(r.role||'')
     || rxExtraCur('company_type')!==String(r.company_type||'')
-    || rxExtraCur('subject')!==String(r.subject||'')
     || rxExtraCur('no')!==String(r.site_number||'')
     || rxExtraCur('bldg')!==String(r.site_building||'')
     || rxExtraCur('floor')!==String(r.site_floor||'')
@@ -2125,14 +3200,19 @@ async function rxSaveExtras(r){
     lead_role: rxExtraCur('role')||null,
     lead_company_type: rxExtraCur('company_type')||null,
     lead_socials: JSON.stringify(rxCollectSocials()),
-    subject: rxExtraCur('subject')||'',
     site_number: rxExtraCur('no')||null,
     site_building: rxExtraCur('bldg')||null,
     site_floor: rxExtraCur('floor')||null,
   };
   await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify(patch)});
-  Object.assign(r,{role:patch.lead_role,company_type:patch.lead_company_type,socials:patch.lead_socials,
-    subject:patch.subject,site_number:patch.site_number,site_building:patch.site_building,site_floor:patch.site_floor});
+  Object.assign(r,{
+  role:patch.lead_role,
+  company_type:patch.lead_company_type,
+  socials:patch.lead_socials,
+  site_number:patch.site_number,
+  site_building:patch.site_building,
+  site_floor:patch.site_floor
+});
 }
 function rxCollectNew(){
   const v={};
@@ -2151,9 +3231,24 @@ function rxCollectNew(){
   const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
     street:v.street||null, maps_url:v.maps||null, site_location:v.location||null,
     site_number:v.no||null, site_building:v.bldg||null, site_floor:v.floor||null}:null;
-  return {person, site, subject:v.subject||'', status:v.status||'open', log_type:v.type||'inbound_call',
-    category:v.category||null, reference:v.reference||null, tags:(v.tags&&v.tags!==TAG_ADD)?v.tags:'', description:v.desc||'', updates:v.updates||'',
-    follow_up_date:v.followup||null, follow_up_notes:v.funotes||''};
+return {
+  person,
+  site,
+  subject:v.subject||'',
+  status:(rxStateValue||'OPEN').toLowerCase(),
+  log_type:v.type||'inbound_call',
+
+  // Use selected stage. Only default to Prospect if none exists.
+  stage:v.stage || 'prospect',
+
+  category:v.category||null,
+  reference:v.reference||null,
+  tags:(v.tags&&v.tags!==TAG_ADD)?v.tags:'',
+  description:v.desc||'',
+  updates:v.updates||'',
+  follow_up_date:v.followup||null,
+  follow_up_notes:v.funotes||''
+};
 }
 
 function rxBusy(on){ const a=$('rx-save'),b=$('rx-cancel'); if(a)a.disabled=on; if(b)b.disabled=on; }

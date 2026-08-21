@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import datetime, timezone
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -16,8 +16,24 @@ from app.modules.contacts import bridge
 from app.modules.contacts.models import Contact
 from app.modules.users.models import User
 
-from .models import ContactFile, FileLog, LogAttachment, Quotation, SiteSurvey
-from .schemas import ContactFileCreate, ContactFileUpdate, FileLogCreate, PersonIn, QuickLogCreate
+from .models import (
+    AchiEmail,
+    ContactFile,
+    FileLog,
+    LogAttachment,
+    Quotation,
+    SiteSurvey,
+)
+
+from .schemas import (
+    ContactFileCreate,
+    ContactFileUpdate,
+    FileLogCreate,
+    LogFilterParams,
+    LogListParams,
+    PersonIn,
+    QuickLogCreate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,40 +45,30 @@ _UNSAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 # stages not listed here ("other": drawing, boq, resources, costing, pricing,
 # negotiation, accepted, cancelled, on_hold) never assign or change a code — a
 # file parked in one of them keeps whatever code it last had (frozen).
-STAGE_CODE_BUCKETS: dict[str, str] = {
-    "prospect": "PROSP",
-    "outreach": "ENQ",
-    "follow_up": "ENQ",
-    "first_contact": "ENQ",
-    "second_follow_up": "ENQ",
-    "enquiry": "ENQ",
-    "site_survey": "SV",
-    "takeoff": "MT",
-    "quotation": "QUOT",
-}
-_CODE_RE = re.compile(r"^([A-Z]+)(\d+)$")
+
 # Set once per process the first time the log feed is served, so the one-time
 # backfill of existing rows isn't re-attempted on every request.
-_backfill_attempted = False
 
 
-def _bucket_for_stage(stage: str | None) -> str | None:
-    """The code bucket a stage belongs to, or None for an 'other' stage."""
-    return STAGE_CODE_BUCKETS.get(stage or "")
+_NUMERIC_LOG_CODE_RE = re.compile(r"^[1-9]\d*$")
+
+# PostgreSQL transaction-scoped advisory lock for global Log-number allocation.
+# This prevents concurrent Log creation transactions from receiving the same
+# permanent number.
+_LOG_NUMBER_LOCK = 681_246_020
 
 
-def _stages_for_bucket(bucket: str) -> list[str]:
-    return [s for s, b in STAGE_CODE_BUCKETS.items() if b == bucket]
+def _log_code_sort_key(code: str | None) -> tuple[int, int, str]:
+    """Sort permanent numeric Log IDs numerically and tolerate legacy codes."""
+    value = (code or "").strip()
 
+    if _NUMERIC_LOG_CODE_RE.fullmatch(value):
+        return (0, int(value), "")
 
-def _code_prefix(code: str | None) -> str | None:
-    m = _CODE_RE.match(code or "")
-    return m.group(1) if m else None
+    # Legacy prefix-coded records remain readable until the explicit
+    # one-time renumbering migration.
+    return (1, 0, value)
 
-
-def _code_number(code: str | None) -> int | None:
-    m = _CODE_RE.match(code or "")
-    return int(m.group(2)) if m else None
 
 
 def parse_comm_tally(raw: str | None) -> dict[str, int]:
@@ -269,6 +275,492 @@ def _display_name(c: Contact | None) -> str | None:
     return name or c.company_name or None
 
 
+def _like_contains(column, value: str):
+    """Case-insensitive contains with SQL wildcard characters escaped."""
+
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+    return column.ilike(f"%{escaped}%", escape="\\")
+
+
+def _effective_value(primary, fallback):
+    """Mirror the API's canonical-contact then lead-snapshot fallback."""
+
+    return func.coalesce(
+        func.nullif(primary, ""),
+        fallback,
+    )
+
+
+def _case_insensitive_choices(column, values: list[str]):
+    return func.lower(column).in_(
+        [value.casefold() for value in values]
+    )
+
+
+def _csv_token_matches(column, value: str):
+    """Match one complete token in a comma-separated database field."""
+
+    pattern = (
+        rf"(^|,\s*){re.escape(value.strip())}(\s*,|$)"
+    )
+    return column.op("~*")(pattern)
+
+
+def _combine_multi(predicates: list, mode: str):
+    if mode == "all":
+        return and_(*predicates)
+
+    return or_(*predicates)
+
+
+def _log_filter_predicates(
+    filters: LogFilterParams,
+) -> tuple:
+    """Translate validated grid filters into allowlisted SQL predicates."""
+
+    effective_first = _effective_value(
+        Contact.first_name,
+        ContactFile.lead_first_name,
+    )
+    effective_last = _effective_value(
+        Contact.last_name,
+        ContactFile.lead_last_name,
+    )
+    effective_company = _effective_value(
+        Contact.company_name,
+        ContactFile.lead_company,
+    )
+    effective_mobile = _effective_value(
+        Contact.primary_phone,
+        ContactFile.lead_mobile,
+    )
+    effective_email = _effective_value(
+        Contact.primary_email,
+        ContactFile.lead_email,
+    )
+    effective_full_name = func.trim(
+        func.concat(
+            func.coalesce(effective_first, ""),
+            " ",
+            func.coalesce(effective_last, ""),
+        )
+    )
+
+    achi_prefix = (
+        Contact.custom_properties["achi"]["prefix"].as_string()
+    )
+    contact_info_prefix = (
+        Contact.custom_properties[
+            CONTACT_INFO_TAG
+        ]["prefix"].as_string()
+    )
+    effective_prefix = func.coalesce(
+        func.nullif(achi_prefix, ""),
+        func.nullif(contact_info_prefix, ""),
+        ContactFile.lead_prefix,
+    )
+
+    visible_when = func.coalesce(
+        FileLog.occurred_at,
+        FileLog.created_at,
+    )
+
+    attachment_exists = (
+        select(1)
+        .select_from(LogAttachment)
+        .where(LogAttachment.log_id == FileLog.id)
+        .correlate(FileLog)
+        .exists()
+    )
+
+    email_present = (
+        func.nullif(
+            func.trim(effective_email),
+            "",
+        ).is_not(None)
+    )
+    sent_email_exists = (
+        select(1)
+        .select_from(AchiEmail)
+        .where(
+            AchiEmail.status == "sent",
+            func.lower(func.trim(AchiEmail.to_email))
+            == func.lower(func.trim(effective_email)),
+        )
+        .correlate(Contact, ContactFile)
+        .exists()
+    )
+
+    predicates: list = []
+
+    if filters.q:
+        searchable = (
+            effective_full_name,
+            effective_first,
+            effective_last,
+            effective_company,
+            ContactFile.file_number,
+            ContactFile.log_code,
+            ContactFile.city,
+            FileLog.description,
+            FileLog.log_type,
+            effective_mobile,
+            effective_email,
+            FileLog.category,
+            FileLog.tags,
+            FileLog.updates,
+            ContactFile.street,
+        )
+        predicates.append(
+            or_(
+                *(
+                    _like_contains(column, filters.q)
+                    for column in searchable
+                )
+            )
+        )
+
+    if filters.number:
+        predicates.append(
+            _like_contains(
+                ContactFile.log_code,
+                filters.number,
+            )
+        )
+
+    if filters.when_from:
+        predicates.append(visible_when >= filters.when_from)
+
+    if filters.when_to:
+        predicates.append(visible_when <= filters.when_to)
+
+    if filters.status:
+        predicates.append(
+            ContactFile.status.in_(filters.status)
+        )
+
+    if filters.stages:
+        predicates.append(
+            ContactFile.stage.in_(filters.stages)
+        )
+
+    if filters.origins:
+        origin_predicates = [
+            ContactFile.origin_module.in_(filters.origins)
+        ]
+
+        if filters.include_legacy_origins:
+            legacy_predicate = ContactFile.origin_module.is_(None)
+
+            if filters.legacy_log_type:
+                legacy_predicate = and_(
+                    legacy_predicate,
+                    _case_insensitive_choices(
+                        FileLog.log_type,
+                        filters.legacy_log_type,
+                    ),
+                )
+
+            origin_predicates.append(legacy_predicate)
+
+        predicates.append(or_(*origin_predicates))
+
+    if filters.stage:
+        predicates.append(
+            ContactFile.stage.in_(filters.stage)
+        )
+
+    if filters.prefix:
+        predicates.append(
+            _case_insensitive_choices(
+                effective_prefix,
+                filters.prefix,
+            )
+        )
+
+    if filters.first:
+        predicates.append(
+            _like_contains(effective_first, filters.first)
+        )
+
+    if filters.last:
+        predicates.append(
+            _like_contains(effective_last, filters.last)
+        )
+
+    if filters.company:
+        predicates.append(
+            _like_contains(
+                effective_company,
+                filters.company,
+            )
+        )
+
+    owner_predicates = []
+
+    if filters.owner:
+        owner_predicates.append(
+            ContactFile.owner_user_id.in_(filters.owner)
+        )
+
+    if filters.unassigned:
+        owner_predicates.append(
+            ContactFile.owner_user_id.is_(None)
+        )
+
+    if owner_predicates:
+        predicates.append(or_(*owner_predicates))
+
+    if filters.mobile:
+        digits = re.sub(r"\D", "", filters.mobile)
+
+        if digits:
+            normalized_mobile = func.regexp_replace(
+                effective_mobile,
+                "[^0-9]",
+                "",
+                "g",
+            )
+            predicates.append(
+                normalized_mobile.like(f"%{digits}%")
+            )
+        else:
+            predicates.append(
+                _like_contains(
+                    effective_mobile,
+                    filters.mobile,
+                )
+            )
+
+    if filters.email:
+        predicates.append(
+            _like_contains(effective_email, filters.email)
+        )
+
+    if filters.email_state == "sent":
+        predicates.append(
+            and_(email_present, sent_email_exists)
+        )
+    elif filters.email_state == "not_sent":
+        predicates.append(
+            and_(email_present, ~sent_email_exists)
+        )
+    elif filters.email_state == "missing":
+        predicates.append(~email_present)
+
+    if filters.has_map is not None:
+        has_map = (
+            func.nullif(
+                func.trim(ContactFile.maps_url),
+                "",
+            ).is_not(None)
+        )
+        predicates.append(
+            has_map if filters.has_map else ~has_map
+        )
+
+    if filters.description:
+        predicates.append(
+            _like_contains(
+                FileLog.description,
+                filters.description,
+            )
+        )
+
+    if filters.has_attachment is not None:
+        predicates.append(
+            attachment_exists
+            if filters.has_attachment
+            else ~attachment_exists
+        )
+
+    if filters.has_drawing is not None:
+        has_drawing = (
+            func.coalesce(FileLog.has_drawing, 0) > 0
+        )
+        predicates.append(
+            has_drawing
+            if filters.has_drawing
+            else ~has_drawing
+        )
+
+    if filters.log_type:
+        predicates.append(
+            _case_insensitive_choices(
+                FileLog.log_type,
+                filters.log_type,
+            )
+        )
+
+    if filters.type:
+        predicates.append(
+            _case_insensitive_choices(
+                FileLog.log_type,
+                filters.type,
+            )
+        )
+
+    if filters.communication:
+        channel_predicates = []
+
+        for channel in filters.communication:
+            encoded_channel = json.dumps(
+                channel,
+                ensure_ascii=False,
+            )
+            tally_pattern = (
+                rf"{re.escape(encoded_channel)}"
+                rf"\s*:\s*[1-9][0-9]*"
+            )
+            channel_predicates.append(
+                or_(
+                    func.lower(FileLog.communication)
+                    == channel.casefold(),
+                    FileLog.comm_tally.op("~*")(
+                        tally_pattern
+                    ),
+                )
+            )
+
+        predicates.append(
+            _combine_multi(
+                channel_predicates,
+                filters.communication_mode,
+            )
+        )
+
+    if filters.last_touch_from:
+        predicates.append(
+            visible_when >= filters.last_touch_from
+        )
+
+    if filters.last_touch_to:
+        predicates.append(
+            visible_when <= filters.last_touch_to
+        )
+
+    if filters.deliverable:
+        deliverable_predicates = []
+
+        for deliverable in filters.deliverable:
+            deliverable_predicates.append(
+                select(1)
+                .select_from(LogAttachment)
+                .where(
+                    LogAttachment.log_id == FileLog.id,
+                    _csv_token_matches(
+                        LogAttachment.deliverables,
+                        deliverable,
+                    ),
+                )
+                .correlate(FileLog)
+                .exists()
+            )
+
+        predicates.append(
+            _combine_multi(
+                deliverable_predicates,
+                filters.deliverable_mode,
+            )
+        )
+
+    if filters.tag:
+        tag_predicates = [
+            _csv_token_matches(FileLog.tags, tag)
+            for tag in filters.tag
+        ]
+        predicates.append(
+            _combine_multi(
+                tag_predicates,
+                filters.tag_mode,
+            )
+        )
+
+    if filters.updates:
+        predicates.append(
+            _like_contains(
+                FileLog.updates,
+                filters.updates,
+            )
+        )
+
+    if filters.follow_up_from:
+        predicates.append(
+            FileLog.follow_up_date
+            >= filters.follow_up_from
+        )
+
+    if filters.follow_up_to:
+        predicates.append(
+            FileLog.follow_up_date
+            <= filters.follow_up_to
+        )
+
+    if filters.follow_up_state:
+        today = (
+            filters.today
+            or datetime.now(timezone.utc).date()
+        )
+        closed_statuses = ("done", "cancelled")
+
+        overdue = and_(
+            FileLog.follow_up_date.is_not(None),
+            FileLog.follow_up_date < today,
+            ContactFile.status.not_in(closed_statuses),
+        )
+
+        if filters.follow_up_state == "overdue":
+            predicates.append(overdue)
+        elif filters.follow_up_state == "scheduled":
+            predicates.append(
+                and_(
+                    FileLog.follow_up_date.is_not(None),
+                    ~overdue,
+                )
+            )
+        elif filters.follow_up_state == "missing":
+            predicates.append(
+                FileLog.follow_up_date.is_(None)
+            )
+
+    if filters.country:
+        predicates.append(
+            _case_insensitive_choices(
+                ContactFile.country,
+                filters.country,
+            )
+        )
+
+    if filters.district:
+        predicates.append(
+            _case_insensitive_choices(
+                ContactFile.district,
+                filters.district,
+            )
+        )
+
+    if filters.city:
+        predicates.append(
+            _case_insensitive_choices(
+                ContactFile.city,
+                filters.city,
+            )
+        )
+
+    if filters.street:
+        predicates.append(
+            _like_contains(
+                ContactFile.street,
+                filters.street,
+            )
+        )
+
+    return tuple(predicates)
+
 class ContactFileService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -311,7 +803,7 @@ class ContactFileService:
             tenant_id=user_id,
             **data.model_dump(exclude={"contact_id", "person"}),
         )
-        await self._assign_new_code(f)   # General Log "#" code, if the stage is tracked
+        await self._assign_new_code(f)   # permanent global General Log "#"
         self.session.add(f)
         await self.session.commit()   # the bridge never commits — that's ours to do
         await self.session.refresh(f)
@@ -339,120 +831,51 @@ class ContactFileService:
             return None
         return _display_name(await self.session.get(Contact, contact_id))
 
-    # ── General Log "#" code assignment ──────────────────────────────────────
-    async def _bucket_holders(self, bucket: str) -> list[ContactFile]:
-        """Every file that occupies a numbered slot in this bucket.
-
-        That's any file whose code already carries the bucket's prefix (live or
-        frozen), plus any file whose current stage maps to the bucket — the
-        union, so a fresh number never collides with a frozen one.
-        """
-        q = select(ContactFile).where(
-            or_(
-                ContactFile.log_code.like(f"{bucket}%"),
-                ContactFile.stage.in_(_stages_for_bucket(bucket)),
-            )
-        )
-        return list((await self.session.execute(q)).scalars().all())
+    # ── General Log permanent numeric "#" assignment ────────────────────────
 
     async def _assign_new_code(self, f: ContactFile) -> None:
-        """Give ``f`` the next free code in the bucket its stage maps to.
+        """Assign one permanent global numeric Log number.
 
-        Appends (max existing number + 1) so it never clashes with a frozen
-        holder. No-op when the stage is untracked.
+        Allocation is serialized with a PostgreSQL transaction-scoped advisory
+        lock so concurrent creates cannot receive the same number.
+
+        During the temporary migration period, legacy prefix-coded rows still
+        count as occupied records. This keeps newly-created numeric IDs above
+        the existing population so they do not need to change during the later
+        one-time renumbering.
         """
-        bucket = _bucket_for_stage(f.stage)
-        if not bucket:
-            return
-        nums = [
-            _code_number(h.log_code)
-            for h in await self._bucket_holders(bucket)
-            if h.id != f.id and _code_prefix(h.log_code) == bucket
+        await self.session.execute(
+            select(func.pg_advisory_xact_lock(_LOG_NUMBER_LOCK))
+        )
+
+        codes = list(
+            (
+                await self.session.execute(
+                    select(ContactFile.log_code)
+                )
+            ).scalars().all()
+        )
+
+        numeric_numbers = [
+            int(value.strip())
+            for value in codes
+            if isinstance(value, str)
+            and _NUMERIC_LOG_CODE_RE.fullmatch(value.strip())
         ]
-        nums = [n for n in nums if n]
-        f.log_code = f"{bucket}{(max(nums) + 1) if nums else 1:03d}"
 
-    async def _renumber_bucket(self, bucket: str, *, exclude_id: str | None = None) -> None:
-        """Compact the live holders of a bucket to close a freed-up gap.
+        # While legacy prefix-coded rows still exist, the total ContactFile
+        # population reserves their future numeric slots. Once migration is
+        # complete, max_numeric keeps numbering monotonic even if gaps exist.
+        existing_count = len(codes)
+        max_numeric = max(numeric_numbers, default=0)
 
-        Frozen holders (a file parked in an 'other' stage but still carrying this
-        bucket's code) keep their number — the user asked that those never
-        change — so live rows are packed into the lowest numbers *around* them,
-        which also guarantees no two rows share a code.
-        """
-        holders = [
-            h for h in await self._bucket_holders(bucket)
-            if _code_prefix(h.log_code) == bucket and h.id != exclude_id
-        ]
-        reserved = {
-            _code_number(h.log_code)
-            for h in holders
-            if _bucket_for_stage(h.stage) != bucket and _code_number(h.log_code)
-        }
-        live = [h for h in holders if _bucket_for_stage(h.stage) == bucket]
-        live.sort(key=lambda h: _code_number(h.log_code) or 0)
-        n = 0
-        for h in live:
-            n += 1
-            while n in reserved:
-                n += 1
-            code = f"{bucket}{n:03d}"
-            if h.log_code != code:
-                h.log_code = code
+        f.log_code = str(max(existing_count, max_numeric) + 1)
 
-    async def _apply_stage_code(self, f: ContactFile, old_stage: str | None) -> None:
-        """Re-code ``f`` (and heal siblings) after its stage changed.
-
-        - Into an 'other' stage → keep the frozen code, keep the slot held.
-        - Within the same bucket (e.g. outreach → enquiry) → code unchanged.
-        - Into a different tracked bucket → append a fresh code there, then
-          close the gap left behind in the old bucket.
-        """
-        new_bucket = _bucket_for_stage(f.stage)
-        old_bucket = _code_prefix(f.log_code)
-        if new_bucket is None or old_bucket == new_bucket:
-            return
-        await self._assign_new_code(f)   # f.log_code now carries new_bucket
-        if old_bucket:
-            await self._renumber_bucket(old_bucket, exclude_id=f.id)
-
-    async def backfill_codes(self) -> bool:
-        """One-time: code every un-coded file that sits in a tracked stage.
-
-        Ordered by creation time so the oldest file in each bucket is 001.
-        Idempotent — files already coded, or in an 'other' stage, are skipped.
-        """
-        files = list((await self.session.execute(
-            select(ContactFile).where(ContactFile.log_code.is_(None))
-        )).scalars().all())
-        by_bucket: dict[str, list[ContactFile]] = {}
-        for x in files:
-            b = _bucket_for_stage(x.stage)
-            if b:
-                by_bucket.setdefault(b, []).append(x)
-        if not by_bucket:
-            return False
-        for bucket, items in by_bucket.items():
-            items.sort(key=lambda x: (x.created_at or datetime.min.replace(tzinfo=timezone.utc), x.file_number))
-            existing = [
-                _code_number(h.log_code)
-                for h in await self._bucket_holders(bucket)
-                if _code_prefix(h.log_code) == bucket
-            ]
-            n = max([e for e in existing if e], default=0)
-            for x in items:
-                n += 1
-                x.log_code = f"{bucket}{n:03d}"
-        await self.session.commit()
-        return True
 
     async def update(self, f: ContactFile, data: ContactFileUpdate) -> ContactFile:
         d = data.model_dump(exclude_unset=True)
-        old_stage = f.stage
         for k, v in d.items():
             setattr(f, k, v)
-        if "stage" in d and d["stage"] != old_stage:
-            await self._apply_stage_code(f, old_stage)
         await self.session.commit()
         await self.session.refresh(f)
         return f
@@ -667,6 +1090,20 @@ class ContactFileService:
     async def get_attachment(self, attachment_id: str) -> LogAttachment | None:
         return await self.session.get(LogAttachment, attachment_id)
 
+    async def update_attachment_deliverables(
+        self,
+        att: LogAttachment,
+        deliverables: list[str],
+    ) -> LogAttachment:
+        """Save the selected General Log deliverable classifications."""
+
+        att.deliverables = ",".join(deliverables)
+
+        await self.session.commit()
+        await self.session.refresh(att)
+
+        return att
+
     async def read_attachment(self, att: LogAttachment) -> bytes:
         return await get_storage_backend().get(att.storage_key)
 
@@ -689,12 +1126,61 @@ class ContactFileService:
         """Attachment count per log — one grouped query, not one per row."""
         if not log_ids:
             return {}
+
         q = (
             select(LogAttachment.log_id, func.count(LogAttachment.id))
             .where(LogAttachment.log_id.in_(log_ids))
             .group_by(LogAttachment.log_id)
         )
-        return {log_id: n for log_id, n in (await self.session.execute(q)).all()}
+
+        return {
+            log_id: n
+            for log_id, n in (await self.session.execute(q)).all()
+        }
+
+    async def attachment_deliverables(
+        self,
+        log_ids: list[str],
+    ) -> dict[str, list[str]]:
+        """Union of selected deliverables across each log's attachments."""
+
+        if not log_ids:
+            return {}
+
+        rows = (
+            await self.session.execute(
+                select(
+                    LogAttachment.log_id,
+                    LogAttachment.deliverables,
+                ).where(
+                    LogAttachment.log_id.in_(log_ids)
+                )
+            )
+        ).all()
+
+        result: dict[str, list[str]] = {}
+
+        for log_id, raw in rows:
+            if not raw:
+                continue
+
+            bucket = result.setdefault(log_id, [])
+            seen = {item.lower() for item in bucket}
+
+            for item in raw.split(","):
+                name = item.strip()
+
+                if not name:
+                    continue
+
+                key = name.lower()
+
+                if key not in seen:
+                    seen.add(key)
+                    bucket.append(name)
+
+        return result
+
 
     async def doc_signals(self, file_ids: list[str]) -> tuple[set[str], set[str], set[str]]:
         """For the CRM "Docs" pills: which files have a survey / survey with
@@ -809,10 +1295,12 @@ class ContactFileService:
                 lead_socials=json.dumps([s.model_dump() for s in p.socials]) if p.socials else None,
                 subject=data.subject,
                 stage=data.stage,
+                origin_module=data.origin_module,
                 owner_user_id=user_id,
                 tenant_id=user_id,
                 **site,
             )
+            await self._assign_new_code(f)
             self.session.add(f)
             await self.session.flush()
 
@@ -1006,32 +1494,154 @@ class ContactFileService:
         )
         return row.scalar_one_or_none()
 
-    async def list_logs(self, *, limit: int = 200, deleted: bool = False) -> list[tuple]:
-        """Log rows joined to their file — one query, not N+1.
+    async def list_logs(
+        self,
+        *,
+        params: LogListParams,
+    ) -> list[tuple]:
+        """Return filtered log rows before pagination is applied."""
 
-        User is joined for the owner's name: the grid shows initials, and without
-        this it only had owner_user_id — a UUID, whose first two characters are
-        what produced avatars like "5C". outerjoin because owner_user_id is
-        nullable and is not a real FK, so a stale id must not drop the row.
-
-        ``deleted`` flips which side of the soft-delete line we return: the active
-        grid gets live rows (deleted_at IS NULL, newest created first); the Deleted
-        Logs view gets removed rows (deleted_at IS NOT NULL, newest deleted first).
-        """
-        # A second User alias resolves the *assigned* person's name (the CRM
-        # table's "Assigned" column), independently of the owner join above.
         assigned_user = aliased(User)
-        q = (
-            select(FileLog, ContactFile, Contact, User.full_name, assigned_user.full_name)
-            .join(ContactFile, FileLog.file_id == ContactFile.id)
-            .outerjoin(Contact, ContactFile.contact_id == Contact.id)
-            .outerjoin(User, ContactFile.owner_user_id == User.id)
-            .outerjoin(assigned_user, ContactFile.assigned_to_user_id == assigned_user.id)
-            .where(FileLog.deleted_at.is_not(None) if deleted else FileLog.deleted_at.is_(None))
-            .order_by((FileLog.deleted_at if deleted else FileLog.created_at).desc())
-            .limit(limit)
+        predicates = _log_filter_predicates(params)
+
+        sort_column = (
+            FileLog.deleted_at
+            if params.deleted
+            else FileLog.created_at
         )
-        return list((await self.session.execute(q)).all())
+
+        query = (
+            select(
+                FileLog,
+                ContactFile,
+                Contact,
+                User.full_name,
+                assigned_user.full_name,
+            )
+            .join(
+                ContactFile,
+                FileLog.file_id == ContactFile.id,
+            )
+            .outerjoin(
+                Contact,
+                ContactFile.contact_id == Contact.id,
+            )
+            .outerjoin(
+                User,
+                ContactFile.owner_user_id == User.id,
+            )
+            .outerjoin(
+                assigned_user,
+                ContactFile.assigned_to_user_id
+                == assigned_user.id,
+            )
+            .where(
+                FileLog.deleted_at.is_not(None)
+                if params.deleted
+                else FileLog.deleted_at.is_(None),
+                *predicates,
+            )
+            .order_by(
+                sort_column.desc(),
+                FileLog.id.desc(),
+            )
+            .offset(params.offset)
+            .limit(params.limit)
+        )
+
+        return list(
+            (await self.session.execute(query)).all()
+        )
+
+    async def log_stats(
+        self,
+        *,
+        filters: LogFilterParams,
+    ) -> dict[str, int]:
+        """Dashboard totals using the same filters as the table."""
+
+        now = datetime.now(timezone.utc)
+        month_start = datetime(
+            now.year,
+            now.month,
+            1,
+            tzinfo=timezone.utc,
+        )
+
+        if now.month == 12:
+            next_month = datetime(
+                now.year + 1,
+                1,
+                1,
+                tzinfo=timezone.utc,
+            )
+        else:
+            next_month = datetime(
+                now.year,
+                now.month + 1,
+                1,
+                tzinfo=timezone.utc,
+            )
+
+        base_predicates = (
+            FileLog.deleted_at.is_(None),
+            *_log_filter_predicates(filters),
+        )
+
+        def count_statement(*extra_predicates):
+            return (
+                select(func.count(FileLog.id))
+                .join(
+                    ContactFile,
+                    FileLog.file_id == ContactFile.id,
+                )
+                .outerjoin(
+                    Contact,
+                    ContactFile.contact_id == Contact.id,
+                )
+                .where(
+                    *base_predicates,
+                    *extra_predicates,
+                )
+            )
+
+        total = (
+            await self.session.execute(
+                count_statement()
+            )
+        ).scalar_one()
+
+        open_count = (
+            await self.session.execute(
+                count_statement(
+                    ContactFile.status == "open",
+                )
+            )
+        ).scalar_one()
+
+        done_count = (
+            await self.session.execute(
+                count_statement(
+                    ContactFile.status == "done",
+                )
+            )
+        ).scalar_one()
+
+        this_month = (
+            await self.session.execute(
+                count_statement(
+                    FileLog.created_at >= month_start,
+                    FileLog.created_at < next_month,
+                )
+            )
+        ).scalar_one()
+
+        return {
+            "total": total,
+            "open": open_count,
+            "this_month": this_month,
+            "done": done_count,
+        }
 
     # ── cross-module links ────────────────────────────────────────────────
     async def contact_links(self, contact_id: str) -> dict:

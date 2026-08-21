@@ -41,6 +41,8 @@ RUN echo "deb [trusted=yes] https://pkg.datadrivenconstruction.io stable main" >
 # glTF step (bim_hub.ifc_processor) needs it to read the converter's .dae, but it
 # is an UNDECLARED dependency and absent from a stock install, so add it here.
 RUN pip install --no-cache-dir "openconstructionerp==${OCE_VERSION}" pycollada
+# Brand the OpenConstructionERP frontend as Arara
+RUN python -c "from pathlib import Path; import importlib.util,re; spec=importlib.util.find_spec('app'); p=Path(next(iter(spec.submodule_search_locations))) / '_frontend_dist' / 'index.html'; s=p.read_text(encoding='utf-8'); s=re.sub(r'<title>.*?</title>','<title>Arara</title>',s,count=1,flags=re.S); s=re.sub(r'(<meta\s+property=\"og:title\"\s+content=\")[^\"]*(\")',r'\1Arara\2',s); p.write_text(s,encoding='utf-8'); print('Branded homepage title:',p)"
 
 # --- ACHI's own module -------------------------------------------------------
 # The loader scans app/modules/ on the filesystem (MODULES_DIR is hardcoded to the

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Site Surveys · Achi Scaffolding ERP</title>
+<title>Site Visits · Achi Scaffolding ERP</title>
 <link rel="stylesheet" href="/api/v1/achi/ui/grid.css?v=1">
 <style>
   /* Survey statuses have no badge classes in the shared sheet — the Call Log's
@@ -41,8 +41,9 @@
     </div>
   </div>
 </main>
-<script src="/api/v1/achi/ui/chrome.js?v=19"></script>
-<script src="/api/v1/achi/ui/comment.js?v=14"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=33"></script>
+<script src="/api/v1/achi/ui/comment.js?v=15"></script>
+<script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 <script>
 /* Site Survey table — the Call Log grid's contract, on survey rows.
    Design comes from the shared grid.css rather than a copy, so the two tables
@@ -145,7 +146,7 @@ function initials(name){
 const isLink=v=>/^https?:\/\//i.test(String(v||''));
 
 function cell(c,r,i){
-  if(c.k==='num') return `<a class="rn" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the complete survey form">${i+1}</a>`;
+  if(c.k==='num') return `<a class="rn" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the complete survey form">${esc(r.survey_number||'—')}</a>`;
   if(c.k==='owner') return `<span class="avatar" title="${esc(r.owner_name||'')}">${esc(initials(r.owner_name))}</span>`;
   if(c.formLink){
     const n=c.count?Number(r[c.count]||0):0;
@@ -194,7 +195,7 @@ function render(){
       const ed=(c.ro||c.k==='num')?'':`data-edit data-k="${c.k}"`;
       const cls=[c.fixed?'pg-f':'',c.cls||'',(c.ro||c.k==='num')?'':(c.opts?'sel':'ed')].filter(Boolean).join(' ');
       const select=c.k==='num'?`data-select-row="${esc(r.id)}" title="Select this row"`:'';
-      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${i+1}</span>`:cell(c,r,i)}</td>`;}).join('')}</tr>`).join('')
+      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${esc(r.survey_number||'—')}</span>`:cell(c,r,i)}</td>`;}).join('')}</tr>`).join('')
       :`<tr><td colspan="${COLS.length}" class="empty">No surveys yet — type in the highlighted row; Enter saves.</td></tr>`,
     bottomDrafts.map((st,i)=>`<tr class="draft" data-dp="bottom-${i}">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c,st,'bottom-'+i)}</td>`).join('')}</tr>`).join(''),
   ].join('');

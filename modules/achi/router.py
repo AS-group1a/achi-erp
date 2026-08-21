@@ -6,6 +6,7 @@ import asyncio
 import logging
 import re
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import quote, urlparse
 
 import httpx
@@ -31,6 +32,7 @@ from . import access
 
 from .manifest import manifest as MANIFEST
 from .schemas import (
+    AttachmentDeliverablesUpdate,
     AttachmentOut,
     ContactFileCreate,
     ContactFileListOut,
@@ -40,6 +42,8 @@ from .schemas import (
     ContactPatch,
     FileConvertRequest,
     FileLogCreate,
+    LogFilterParams,
+    LogListParams,
     FileLogOut,
     FileLogUpdate,
     LogRowOut,
@@ -54,6 +58,7 @@ from .geo_router import geo_router
 from .chat_router import chat_router
 from .comment_router import comment_router
 from .mail_router import mail_router
+from .task_router import task_router
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +71,7 @@ router.include_router(geo_router)
 router.include_router(chat_router)
 router.include_router(comment_router)
 router.include_router(mail_router)
+router.include_router(task_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
@@ -121,7 +127,7 @@ def ui() -> HTMLResponse:
     routes below. Serving the shell to an anonymous browser leaks nothing.
     """
     return HTMLResponse(
-        (_UI_DIR / "log.html").read_text(encoding="utf-8"),
+        (_UI_DIR / "general_log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -138,6 +144,24 @@ def general_log_ui() -> HTMLResponse:
     set. Same enquiry data (/logs/), so a log added on either page shows on both."""
     return HTMLResponse(
         (_UI_DIR / "general_log.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/prospect/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="PROSP UI",
+)
+def prospect_ui() -> HTMLResponse:
+    """Serve the General Log-style PROSP page.
+
+    This first version intentionally shares the General Log data and behaviour.
+    Prospect-only filtering will be added later after the workflow is approved.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "prospect.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -164,13 +188,67 @@ def contact_info_ui() -> HTMLResponse:
     summary="ACHI CRM UI",
 )
 def crm_ui() -> HTMLResponse:
-    """Serve ACHI's CRM workspace over the official OCE CRM API."""
+    """Serve the General Log-style CRM page.
 
+    This first version intentionally shares the General Log data and behaviour.
+    CRM-specific filtering will be added later after the workflow is approved.
+    """
     return HTMLResponse(
-        (_UI_DIR / "crm.html").read_text(encoding="utf-8"),
+        (_UI_DIR / "crm_general_log.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+@router.get(
+    "/quotation/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="QUOTATION workspace UI",
+)
+def quotation_workspace_ui() -> HTMLResponse:
+    """Serve the General Log-style QUOTATION workspace.
+
+    It reads the same Log rows as the other workspaces. The page-level stage
+    filter limits its visible rows to quotation workflow stages.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "quotation_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+@router.get(
+    "/boq/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="BOQ workspace UI",
+)
+def boq_workspace_ui() -> HTMLResponse:
+    """Serve the General Log-style BOQ workspace.
+
+    This follows CRM, PROSP, and Quotation: the page uses shared Log data and
+    behavior, initially filtered to records in the BOQ stage.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "boq_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/mt/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="M/T workspace UI",
+)
+def mt_workspace_ui() -> HTMLResponse:
+    """Serve the General Log-style Materials and Tools workspace.
+
+    It follows the other stage workspaces and initially shows records in the
+    resources workflow stage.
+    """
+    return HTMLResponse(
+        (_UI_DIR / "mt_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 @router.get(
     "/crm/crm.css",
@@ -616,6 +694,20 @@ def ui_comment_js() -> PlainTextResponse:
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+
+@router.get(
+    "/ui/task_drawer.js",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+    summary="Employee My Tasks tab for the ACHI comment drawer",
+)
+def ui_task_drawer_js() -> PlainTextResponse:
+    """Serve the isolated Employee My Tasks drawer script."""
+    return PlainTextResponse(
+        (_UI_DIR / "task_drawer.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 @router.get(
     "/ui/model-viewer.js",
@@ -1417,6 +1509,33 @@ async def open_in_takeoff(
     await session.commit()
     return {"url": _takeoff_url(kind, ext_id, pid), "project_id": pid, "kind": kind}
 
+@router.patch(
+    "/attachments/{attachment_id}/deliverables",
+    response_model=AttachmentOut,
+    summary="Classify an attachment by deliverable",
+)
+async def update_attachment_deliverables(
+    attachment_id: str,
+    data: AttachmentDeliverablesUpdate,
+    session: SessionDep,
+    _user_id: CurrentUserId,
+) -> AttachmentOut:
+    svc = ContactFileService(session)
+
+    att = await svc.get_attachment(attachment_id)
+
+    if att is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "Attachment not found"
+        )
+
+    att = await svc.update_attachment_deliverables(
+        att,
+        data.deliverables,
+    )
+
+    return AttachmentOut.model_validate(att)
 
 @router.delete(
     "/attachments/{attachment_id}",
@@ -1450,33 +1569,39 @@ async def contact_links(contact_id: str, session: SessionDep, _user_id: CurrentU
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
     return links
 
+@router.get(
+    "/logs/stats",
+    summary="General Log dashboard totals",
+)
+async def log_stats(
+    session: SessionDep,
+    _user_id: CurrentUserId,
+    filters: Annotated[LogFilterParams, Query()],
+) -> dict[str, int]:
+    return await ContactFileService(session).log_stats(
+        filters=filters,
+    )
 
-@router.get("/logs/", response_model=list[LogRowOut], summary="All logs, newest first")
+@router.get(
+    "/logs/",
+    response_model=list[LogRowOut],
+    summary="All logs, newest first",
+)
 async def list_logs(
     session: SessionDep,
     _user_id: CurrentUserId,
-    limit: int = Query(default=200, ge=1, le=1000),
-    deleted: bool = Query(default=False, description="Return soft-deleted logs (Deleted Logs view) instead of active ones"),
+    params: Annotated[LogListParams, Query()],
 ) -> list[LogRowOut]:
     from .models import AchiEmail
 
     svc = ContactFileService(session)
-    # One-time per process: give any pre-existing / uncoded file its General Log
-    # "#" code. Idempotent and cheap once done, so guarded by a module flag.
-    from . import service as _svc
-    if not _svc._backfill_attempted:
-        _svc._backfill_attempted = True
-        try:
-            await svc.backfill_codes()
-        except Exception:
-            logger.exception("achi: log_code backfill failed")
-    rows = await svc.list_logs(limit=limit, deleted=deleted)
-    # index rather than unpack: list_logs' tuple width changes when a column is
-    # added to its select (owner name was the last one), and a positional unpack
-    # here breaks the endpoint when it does
-    counts = await svc.attachment_counts([r[0].id for r in rows])
-    # CRM "Docs" pills: which files have a survey / measurements / quotation.
-    survey_files, measured_files, quote_files = await svc.doc_signals([r[1].id for r in rows])
+    rows = await svc.list_logs(params=params)
+    log_ids = [r[0].id for r in rows]
+
+    counts = await svc.attachment_counts(log_ids)
+
+    # Deliverables selected on this log's attached files.
+    attachment_docs = await svc.attachment_deliverables(log_ids)
     # General Log Communication pills + Last Touch: per-file channel breakdown.
     comm_summary = await svc.communication_summary([r[1].id for r in rows])
     # Addresses we've already emailed (any teammate, successfully sent) — one query,
@@ -1501,9 +1626,13 @@ async def list_logs(
             mobile = contact.primary_phone
             email = contact.primary_email
             # prefix (Mr/Ms/…) is stashed in the contact's module bucket by the bridge
-            for v in (contact.custom_properties or {}).values():
-                if isinstance(v, dict) and v.get("prefix"):
-                    prefix = v["prefix"]
+            properties = contact.custom_properties or {}
+
+            for bucket_key in ("achi", _CONTACT_INFO_TAG):
+                bucket = properties.get(bucket_key)
+
+                if isinstance(bucket, dict) and bucket.get("prefix"):
+                    prefix = bucket["prefix"]
                     break
         first = first or f.lead_first_name
         last = last or f.lead_last_name
@@ -1533,6 +1662,11 @@ async def list_logs(
             phones = [{"label": "Mobile", "number": mobile}]
         if not emails and email:
             emails = [{"label": "Primary", "address": email}]
+        log_deliverables = attachment_docs.get(log.id, [])
+        deliverable_keys = {
+            str(item).lower()
+            for item in log_deliverables
+        }
         out.append(
             LogRowOut(
                 id=log.id,
@@ -1552,6 +1686,7 @@ async def list_logs(
                 file_id=f.id,
                 file_number=f.file_number,
                 log_code=f.log_code,
+                origin_module=f.origin_module,
                 stage=f.stage,
                 status=f.status,
                 subject=f.subject or "",
@@ -1572,13 +1707,14 @@ async def list_logs(
                 owner_name=owner_name,
                 assigned=f.assigned_to_user_id,
                 assigned_name=assigned_name,
+                deliverables=log_deliverables,
                 docs={
-                    "srv": f.id in survey_files,
-                    "dwg": bool(log.has_drawing),
-                    "mt": f.id in measured_files,
-                    "boq": False,
-                    "cst": False,
-                    "qte": f.id in quote_files,
+                    "srv": "srv" in attachment_docs.get(log.id, set()),
+                    "dwg": "dwg" in attachment_docs.get(log.id, set()),
+                    "mt":  "mt"  in attachment_docs.get(log.id, set()),
+                    "boq": "boq" in attachment_docs.get(log.id, set()),
+                    "cst": "cst" in attachment_docs.get(log.id, set()),
+                    "qte": "qte" in attachment_docs.get(log.id, set()),
                 },
                 comm_counts=comm.get("counts") or None,
                 comm_total=comm.get("total") or 0,

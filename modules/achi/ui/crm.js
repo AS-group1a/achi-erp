@@ -121,7 +121,7 @@
   // ── Domain: the enquiry stage pipeline + the document pills ─────────────────
   const STAGES = [
     { k: 'enquiry',     label: 'Enquiry',     color: '#2563eb' },
-    { k: 'site_survey', label: 'Site Survey', color: '#0891b2' },
+    { k: 'site_survey', label: 'Site Visit', color: '#0891b2' },
     { k: 'takeoff',     label: 'Takeoff',     color: '#0ea5e9' },
     { k: 'boq',         label: 'BOQ',         color: '#7c3aed' },
     { k: 'costing',     label: 'Costing',     color: '#ea580c' },
