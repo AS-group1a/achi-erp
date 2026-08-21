@@ -2671,9 +2671,7 @@ function enhanceRxLocationSelect(select){
   });
 }
 function enhanceRxSelects(){
-  $('rx').querySelectorAll('select[data-rx-select="country"],select[data-rx-select="district"],select[data-rx-select="city"]').forEach(enhanceRxLocationSelect);
   $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
-  $('rx').querySelectorAll('select.rx-native-select:not([data-rx-location-enhanced])').forEach(enhanceRxSelect);
 }
 /* Push a quick-pick into the free-text Quick-notes Subject. The 'input' event is
    what the Quill mount wired to syncHidden(), so this also updates the saved
