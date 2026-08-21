@@ -65,7 +65,9 @@ services:
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set to your domain, or :80 for IP-only}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Caddyfile is baked into the image so `up -d --build` recreates Caddy
+      # whenever its injected asset versions or routes change. Keep only the
+      # mutable override assets bind-mounted.
       - ./overrides:/srv/overrides:ro   # bind-mounted: edit CSS, restart caddy, no rebuild
       - caddydata:/data
       - caddyconfig:/config
