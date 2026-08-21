@@ -1211,6 +1211,30 @@
     return 'FILE';
   }
 
+  function hasImagePreview(file) {
+    return ['png', 'jpg', 'jpeg', 'webp'].includes(
+      attachmentExtension(file.name),
+    );
+  }
+
+  function pendingAttachmentDetails(file) {
+    const extension = attachmentExtension(file.name);
+    const type = extension ? extension.toUpperCase() : attachmentKind(file);
+
+    return `${type} · ${formatFileSize(file.size)}`;
+  }
+
+  function revokePendingAttachmentPreview(pendingAttachment) {
+    if (pendingAttachment?.previewUrl) {
+      URL.revokeObjectURL(pendingAttachment.previewUrl);
+    }
+  }
+
+  function clearPendingAttachments() {
+    state.pendingAttachments.forEach(revokePendingAttachmentPreview);
+    state.pendingAttachments = [];
+  }
+
   function renderPendingAttachments() {
     const list = $('achi-task-editor-pending-attachments');
     const count = $('achi-task-editor-attachments-count');
@@ -1218,19 +1242,35 @@
     list.replaceChildren();
     count.textContent = String(state.pendingAttachments.length);
 
-    state.pendingAttachments.forEach((file, index) => {
+    state.pendingAttachments.forEach((pendingAttachment, index) => {
+      const { file, previewUrl } = pendingAttachment;
       const row = el('article', 'achi-task-pending-attachment');
-      const icon = el(
-        'span',
-        'achi-task-attachment-file-icon',
-        attachmentKind(file),
-      );
+      let icon;
+
+      if (previewUrl) {
+        icon = el('span', 'achi-task-attachment-preview');
+        const image = document.createElement('img');
+
+        image.src = previewUrl;
+        image.alt = `Preview of ${file.name}`;
+        image.addEventListener('error', () => {
+          icon.className = 'achi-task-attachment-file-icon';
+          icon.textContent = 'IMG';
+        }, { once: true });
+        icon.append(image);
+      } else {
+        icon = el(
+          'span',
+          'achi-task-attachment-file-icon',
+          attachmentKind(file),
+        );
+      }
       const meta = el('div', 'achi-task-attachment-meta');
       const name = el('p', 'achi-task-attachment-name', file.name);
       const info = el(
         'p',
         'achi-task-attachment-info',
-        formatFileSize(file.size),
+        pendingAttachmentDetails(file),
       );
       const actions = el('div', 'achi-task-attachment-actions');
       const remove = el(
@@ -1275,7 +1315,10 @@
       accepted.push(file);
     });
 
-    state.pendingAttachments.push(...accepted);
+    state.pendingAttachments.push(...accepted.map(file => ({
+      file,
+      previewUrl: hasImagePreview(file) ? URL.createObjectURL(file) : null,
+    })));
     errorNode.textContent = rejected.join('. ');
     renderPendingAttachments();
   }
@@ -1287,10 +1330,15 @@
     $('achi-task-editor-heading').textContent = 'New task';
     $('achi-task-editor-save').textContent = 'Save task';
     $('achi-task-editor-error').textContent = '';
-    state.pendingAttachments = [];
+    clearPendingAttachments();
     $('achi-task-editor-attachments-input').value = '';
     $('achi-task-editor-attachments-error').textContent = '';
     renderPendingAttachments();
+  }
+
+  function closeEditor() {
+    resetEditor();
+    closeDialog($('achi-task-editor-dialog'));
   }
 
   function editTask(task) {
@@ -1308,7 +1356,7 @@
     $('achi-task-editor-related-id').value = task.related_id || '';
     $('achi-task-editor-related-label').value = task.related_label || '';
     $('achi-task-editor-error').textContent = '';
-    state.pendingAttachments = [];
+    clearPendingAttachments();
     $('achi-task-editor-attachments-input').value = '';
     $('achi-task-editor-attachments-error').textContent = '';
     renderPendingAttachments();
@@ -1356,7 +1404,8 @@
     const failed = [];
     let lastError = null;
 
-    for (const file of pending) {
+    for (const pendingAttachment of pending) {
+      const { file } = pendingAttachment;
       const formData = new FormData();
       formData.append('file', file, file.name);
 
@@ -1366,11 +1415,14 @@
           body: formData,
         });
       } catch (error) {
-        failed.push(file);
+        failed.push(pendingAttachment);
         lastError = error;
       }
     }
 
+    pending
+      .filter(pendingAttachment => !failed.includes(pendingAttachment))
+      .forEach(revokePendingAttachmentPreview);
     state.pendingAttachments = failed;
     renderPendingAttachments();
 
@@ -1418,7 +1470,7 @@
 
       const uploadedCount = await uploadPendingAttachments(savedTask.id);
 
-      closeDialog($('achi-task-editor-dialog'));
+      closeEditor();
 
       const attachmentText = uploadedCount
         ? ` ${uploadedCount} attachment${uploadedCount === 1 ? '' : 's'} uploaded.`
@@ -2007,7 +2059,8 @@
 
       if (!Number.isInteger(index)) return;
 
-      state.pendingAttachments.splice(index, 1);
+      const [removedAttachment] = state.pendingAttachments.splice(index, 1);
+      revokePendingAttachmentPreview(removedAttachment);
       $('achi-task-editor-attachments-error').textContent = '';
       renderPendingAttachments();
     });
@@ -2059,12 +2112,17 @@
 
     $('achi-task-editor-close').addEventListener(
       'click',
-      () => closeDialog($('achi-task-editor-dialog')),
+      closeEditor,
     );
     $('achi-task-editor-cancel').addEventListener(
       'click',
-      () => closeDialog($('achi-task-editor-dialog')),
+      closeEditor,
     );
+
+    $('achi-task-editor-dialog').addEventListener('cancel', event => {
+      event.preventDefault();
+      closeEditor();
+    });
 
     $('achi-task-filter-search').addEventListener('input', () => {
       window.clearTimeout(state.searchTimer);
@@ -2241,7 +2299,11 @@
     ].forEach(id => {
       $(id).addEventListener('click', event => {
         if (event.target === event.currentTarget) {
-          closeDialog(event.currentTarget);
+          if (event.currentTarget.id === 'achi-task-editor-dialog') {
+            closeEditor();
+          } else {
+            closeDialog(event.currentTarget);
+          }
         }
       });
     });
