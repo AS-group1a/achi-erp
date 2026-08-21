@@ -41,7 +41,7 @@ var LINKS = [
   { label: 'BOQ', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
   { label: 'RESOURCE', href: '/api/v1/achi/resource/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h8"/>' },
   { label: 'PLAN', href: '/api/v1/achi/plan/ui', icon: '<path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/>' },
-  { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
+  { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
   { label: 'Team Tasks', href: '/api/v1/achi/tasks/ui', icon: '<path d="M3 4h18v16H3z"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/>' }
 ];
 
@@ -263,9 +263,12 @@ var LINKS = [
         href === '/api/v1/achi/prospect/ui' ||
         href === '/api/v1/achi/site-visit/ui' ||
         href === '/api/v1/achi/crm/ui' ||
+        href === '/api/v1/achi/draw/ui' ||
         href === '/api/v1/achi/quotation/ui' ||
         href === '/api/v1/achi/boq/ui' ||
         href === '/api/v1/achi/mt/ui' ||
+        href === '/api/v1/achi/resource/ui' ||
+        href === '/api/v1/achi/plan/ui' ||
         href === '/api/v1/achi/tasks/ui';
       if (!alwaysVisible) links[i].style.display = 'none';
     }

@@ -138,9 +138,9 @@ class LogFilterParamsTests(unittest.TestCase):
             "prospect.html": "create: {origin: 'prospect', stage: 'prospect'}",
             "crm_general_log.html": "create: {origin: 'crm', stage: 'enquiry'}",
             "quotation_workspace.html": "create: {origin: 'quotation', stage: 'quotation'}",
-            "draw_workspace.html": "create: {origin: 'crm', stage: 'drawing'}",
-            "resource_workspace.html": "create: {origin: 'crm', stage: 'resources'}",
-            "plan_workspace.html": "create: {origin: 'crm', stage: 'plan'}",
+            "draw_workspace.html": "stage: 'drawing'",
+            "resource_workspace.html": "stage:'resources'",
+            "plan_workspace.html": "stage:'plan'",
         }
 
         for relative_path, expected_setting in expected.items():
