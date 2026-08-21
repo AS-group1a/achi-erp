@@ -46,6 +46,7 @@ echo "Injected modules/achi -> $APP_DIR/modules/achi"
 DIST="$APP_DIR/_frontend_dist"
 cp deploy/overrides/achi-theme.css "$DIST/achi-theme.css"
 cp deploy/overrides/achi-nav.js  "$DIST/achi-nav.js"
+cp deploy/overrides/achi-workspace-nav.js "$DIST/achi-workspace-nav.js"
 "$PY" - "$DIST/index.html" <<'PY'
 import re, sys
 p = sys.argv[1]
@@ -54,6 +55,7 @@ NAV_V = "112"
 tags = [
     '<link rel="stylesheet" href="/achi-theme.css?v=11">',
     '<script src="/achi-nav.js?v=%s" defer></script>' % NAV_V,
+    '<script src="/achi-workspace-nav.js?v=1" defer></script>',
     '<script src="/api/v1/achi/ui/comment.js?v=14" defer></script>',
     '<script src="/api/v1/achi/ui/task_drawer.js?v=1" defer></script>',
 ]
@@ -64,6 +66,7 @@ tags = [
 # MutationObservers) for anyone who had run this script at an earlier version.
 html = re.sub(r'<link rel="stylesheet" href="/achi-theme\.css(?:\?v=[^"]*)?"\s*/?>', '', html)
 html = re.sub(r'<script src="/achi-nav\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
+html = re.sub(r'<script src="/achi-workspace-nav\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
 html = re.sub(r'<script src="/api/v1/achi/ui/comment\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
 html = re.sub(r'<script src="/api/v1/achi/ui/task_drawer\.js(?:\?v=[^"]*)?"[^>]*></script>', '', html)
 if "</head>" in html:
