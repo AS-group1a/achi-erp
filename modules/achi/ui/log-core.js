@@ -1243,6 +1243,7 @@ const GL_STAGES=[
   {k:'takeoff',          label:'Takeoff',       color:'#0284c7'},
   {k:'boq',              label:'BOQ',           color:'#7c3aed'},
   {k:'resources',        label:'Resources',     color:'#9333ea'},
+  {k:'plan',             label:'Plan',          color:'#6366f1'},
   {k:'costing',          label:'Costing',       color:'#ea580c'},
   {k:'pricing',          label:'Pricing',       color:'#f59e0b'},
   {k:'quotation',        label:'Quotation',     color:'#4f46e5'},
@@ -1969,7 +1970,7 @@ async function stats(){
  * so setting the th width is what actually sizes the column — the body cells
  * follow it and nothing has to be touched per row. */
 const COLW_KEY='achi_log_col_widths_v2', COLW_MIN=42,
-      BUSINESS_CODE_COLUMN_MIN=112;
+      BUSINESS_CODE_COLUMN_MIN=136;
 let COLW={};
 function loadColWidths(){
   try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY)||'{}')||{}; }catch(e){ COLW={}; }

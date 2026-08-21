@@ -755,18 +755,18 @@
   tbody tr.selectable-row.row-selected td{background:#dbeafe!important}
   tbody tr.selectable-row.row-selected:hover td{background:#bfdbfe!important}
   tbody tr.selectable-row.row-selected .rn{background:var(--navy);color:#fff}
-  /* Business-code workspaces use readable text, not the plain Log's numeric
-     badge. Keep this stable on hover so it never becomes a cropped blue pill. */
-  tbody tr.selectable-row td.business-code-cell{padding:0 8px;text-align:center}
+  /* Business-code workspaces keep the Log page's clickable number-badge
+     behavior, while allowing room for the longer module prefixes. */
+  tbody tr.selectable-row td.business-code-cell{padding:0 10px;text-align:center}
   .rn.rn-code,
   tbody tr.selectable-row:hover .rn.rn-code,
   tbody tr.selectable-row.row-selected .rn.rn-code{
-    display:inline-block;width:auto;min-width:0;height:auto;padding:0;border:0;border-radius:0;
-    background:transparent;color:var(--navy);white-space:nowrap;overflow:visible;
-    text-overflow:clip;letter-spacing:.02em;font-size:11px}
+    display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
+    min-width:104px;height:28px;padding:0 12px;border:0;border-radius:8px;
+    background:#eff6ff;color:var(--navy);white-space:nowrap;overflow:visible;
+    text-overflow:clip;letter-spacing:.02em;font-weight:800;font-size:11px}
   tbody tr.selectable-row:hover .rn.rn-code{
-    color:#1d4ed8;text-decoration:underline;text-decoration-thickness:1px;
-    text-underline-offset:3px}
+    background:var(--navy);color:#fff;text-decoration:none}
   /* General Log retains its permanent-code display and its existing text-only
      treatment; the workspace code styling above is intentionally separate. */
   body[data-achi-title="General Log"] tbody tr.selectable-row td.num{padding:0 6px;text-align:center}

@@ -23,7 +23,7 @@ from pydantic import (
 STAGES = (
     "prospect", "outreach", "follow_up", "first_contact", "second_follow_up",
     "enquiry", "site_survey", "drawing", "takeoff", "boq", "resources",
-    "costing", "pricing", "quotation", "negotiation", "accepted",
+    "plan", "costing", "pricing", "quotation", "negotiation", "accepted",
     "cancelled", "on_hold",
 )
 # "transferred" was added for the General Log; the rest are the original set.

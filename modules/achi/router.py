@@ -292,6 +292,48 @@ def mt_workspace_ui() -> HTMLResponse:
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+
+@router.get(
+    "/draw/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="DRAW workspace UI",
+)
+def draw_workspace_ui() -> HTMLResponse:
+    """Serve DRAW as the shared ContactFile workspace for drawing-stage work."""
+    return HTMLResponse(
+        (_UI_DIR / "draw_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/resource/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="RESOURCE workspace UI",
+)
+def resource_workspace_ui() -> HTMLResponse:
+    """Serve RESOURCE as the shared ContactFile workspace for resource-stage work."""
+    return HTMLResponse(
+        (_UI_DIR / "resource_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get(
+    "/plan/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="PLAN workspace UI",
+)
+def plan_workspace_ui() -> HTMLResponse:
+    """Serve PLAN as the shared ContactFile workspace for plan-stage work."""
+    return HTMLResponse(
+        (_UI_DIR / "plan_workspace.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
 @router.get(
     "/crm/crm.css",
     response_class=PlainTextResponse,
