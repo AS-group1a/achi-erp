@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planner | ACHI Scaffolding ERP</title>
+  <link rel="stylesheet" href="/api/v1/achi/planner/planner.css?v=1">
+</head>
+<body data-achi-title="Planner">
+  <main class="planner-page">
+    <header class="planner-page-header">
+      <div>
+        <p class="planner-breadcrumb">ACHI / PLANNER</p>
+        <h1>Planner</h1>
+        <p class="planner-subtitle">Plan work, meetings and important dates in one place.</p>
+      </div>
+      <div class="planner-new-menu">
+        <button class="planner-primary" id="planner-new" type="button" aria-expanded="false" aria-controls="planner-new-options">+ New</button>
+        <div id="planner-new-options" class="planner-new-options" hidden>
+          <button type="button" data-planner-new-type="meeting">Meeting</button>
+          <button type="button" data-planner-new-type="event">Event</button>
+          <button type="button" data-planner-new-type="appointment">Appointment</button>
+          <button type="button" data-planner-new-type="reminder">Reminder</button>
+          <button type="button" data-planner-new-type="time_block">Time block</button>
+          <button type="button" data-planner-new-task>Team task</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="planner-workspace">
+    <aside class="planner-task-backlog" aria-label="Team Tasks to schedule">
+      <section class="planner-sources" aria-labelledby="planner-sources-title">
+        <p class="planner-breadcrumb">CALENDARS</p>
+        <h2 id="planner-sources-title">Show on calendar</h2>
+        <label><input type="checkbox" data-planner-source="own" checked> My events</label>
+        <label><input type="checkbox" data-planner-source="task" checked> Team task blocks</label>
+        <label><input type="checkbox" data-planner-source="meeting" checked> Meetings, calls &amp; follow-ups</label>
+        <label><input type="checkbox" data-planner-source="related" checked> Linked CRM / Site Visit records</label>
+        <label><input type="checkbox" data-planner-source="crm" checked> CRM follow-up dates</label>
+        <label><input type="checkbox" data-planner-source="site_visit" checked> Scheduled Site Visits</label>
+        <div class="planner-source-members">
+          <p class="planner-breadcrumb">TEAM MEMBERS</p>
+          <div id="planner-member-filters"></div>
+        </div>
+      </section>
+      <section class="planner-reminder-queue" aria-labelledby="planner-reminder-queue-title">
+        <div class="planner-backlog-heading">
+          <div><p class="planner-breadcrumb">REMINDERS</p><h2 id="planner-reminder-queue-title">Upcoming</h2></div>
+          <span id="planner-reminder-count" class="planner-count">0</span>
+        </div>
+        <div id="planner-reminder-list"></div>
+      </section>
+      <div class="planner-backlog-heading">
+        <div><p class="planner-breadcrumb">TEAM TASKS</p><h2>Tasks to schedule</h2></div>
+        <span id="planner-task-count" class="planner-count">0</span>
+      </div>
+      <p class="planner-backlog-help">Drag a task onto a date or time to add a one-hour work block. You can schedule additional blocks; the task itself is not changed.</p>
+      <div id="planner-task-backlog-list" class="planner-task-backlog-list"></div>
+    </aside>
+
+    <section class="planner-shell" aria-label="Planner calendar">
+      <div class="planner-toolbar">
+        <div class="planner-toolbar-group">
+          <button class="planner-button" id="planner-prev" type="button" aria-label="Previous period">‹</button>
+          <button class="planner-button" id="planner-today" type="button">Today</button>
+          <button class="planner-button" id="planner-next" type="button" aria-label="Next period">›</button>
+          <h2 id="planner-period-label">Loading…</h2>
+        </div>
+        <div class="planner-view-switch" role="tablist" aria-label="Calendar view">
+          <button type="button" data-planner-view="month" role="tab">Month</button>
+          <button type="button" data-planner-view="week" role="tab">Week</button>
+          <button type="button" data-planner-view="day" role="tab">Day</button>
+          <button type="button" data-planner-view="agenda" role="tab">Agenda</button>
+        </div>
+        <label class="planner-search"><span class="sr-only">Search calendar</span><input id="planner-search" type="search" maxlength="255" autocomplete="off" placeholder="Search calendar"></label>
+      </div>
+      <p class="planner-message" id="planner-message" role="status" hidden></p>
+      <div id="planner-calendar"></div>
+    </section>
+    </div>
+  </main>
+
+  <dialog class="planner-dialog" id="planner-dialog" aria-labelledby="planner-dialog-title">
+    <form id="planner-form" method="dialog">
+      <header class="planner-dialog-header">
+        <div>
+          <p class="planner-breadcrumb">PLANNER EVENT</p>
+          <h2 id="planner-dialog-title">New event</h2>
+        </div>
+        <button class="planner-icon-button" id="planner-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div class="planner-form-grid">
+        <label class="planner-field planner-field-full">Title
+          <input id="planner-title" name="title" maxlength="255" required autocomplete="off">
+        </label>
+        <label class="planner-field">Type
+          <select id="planner-type" name="event_type">
+            <option value="event">Event</option><option value="meeting">Meeting</option>
+            <option value="appointment">Appointment</option><option value="reminder">Reminder</option>
+            <option value="time_block">Time block</option><option value="site_visit">Site visit</option>
+            <option value="call">Call</option><option value="follow_up">Follow-up</option>
+            <option value="deadline">Deadline</option>
+          </select>
+        </label>
+        <label class="planner-field">Visibility
+          <select id="planner-visibility" name="visibility"><option value="team">Team</option><option value="private">Private</option></select>
+        </label>
+        <label class="planner-field">Starts
+          <input id="planner-start" name="start" type="datetime-local" required>
+        </label>
+        <label class="planner-field">Ends
+          <input id="planner-end" name="end" type="datetime-local" required>
+        </label>
+        <label class="planner-check planner-field-full"><input id="planner-all-day" type="checkbox"> All-day event</label>
+        <label class="planner-field">Repeat
+          <select id="planner-repeat" name="repeat">
+            <option value="">Does not repeat</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="YEARLY">Yearly</option>
+          </select>
+        </label>
+        <label class="planner-field">Repeat until
+          <input id="planner-repeat-until" type="datetime-local">
+          <small>Optional. Editing or deleting a repeated event applies to the whole series.</small>
+        </label>
+        <fieldset class="planner-field planner-field-full planner-reminders">
+          <legend>In-app reminders</legend>
+          <div>
+            <label><input type="checkbox" name="planner-reminder" value="15"> 15 minutes before</label>
+            <label><input type="checkbox" name="planner-reminder" value="60"> 1 hour before</label>
+            <label><input type="checkbox" name="planner-reminder" value="1440"> 1 day before</label>
+          </div>
+          <small>Saved reminder schedules are shown in Planner. Email/push delivery requires administrator configuration.</small>
+        </fieldset>
+        <label class="planner-field">Location
+          <input id="planner-location" maxlength="500" autocomplete="off" placeholder="Meeting room, client site…">
+        </label>
+        <label class="planner-field">Meeting link
+          <input id="planner-meeting-url" type="url" maxlength="1024" autocomplete="url" placeholder="https://…">
+        </label>
+        <label class="planner-field planner-field-full">Related ACHI record
+          <input id="planner-related-search" maxlength="255" autocomplete="off" placeholder="Search Log, CRM, Site Visit, or quotation record">
+          <small id="planner-related-current">No related record selected.</small>
+          <div id="planner-related-results" class="planner-related-results" hidden></div>
+          <input id="planner-related-type" type="hidden">
+          <input id="planner-related-id" type="hidden">
+          <input id="planner-related-label" type="hidden">
+        </label>
+        <label class="planner-field planner-field-full">Internal attendees
+          <div id="planner-attendees" class="planner-attendee-picker" aria-describedby="planner-attendee-help"></div>
+          <small id="planner-attendee-help">Choose the teammates who should attend this event.</small>
+        </label>
+        <label class="planner-field planner-field-full">External attendees
+          <textarea id="planner-external-attendees" rows="2" maxlength="2000" placeholder="One email per line, optionally: Client Name &lt;client@example.com&gt;"></textarea>
+        </label>
+        <p class="planner-conflicts" id="planner-conflicts" hidden></p>
+        <div class="planner-rsvp" id="planner-rsvp" hidden>
+          <strong>Your response</strong>
+          <button type="button" data-rsvp="accepted">Accept</button>
+          <button type="button" data-rsvp="tentative">Tentative</button>
+          <button type="button" data-rsvp="declined">Decline</button>
+        </div>
+        <label class="planner-field planner-field-full">Description
+          <textarea id="planner-description" rows="4" maxlength="20000" placeholder="Agenda, notes or details…"></textarea>
+        </label>
+      </div>
+      <footer class="planner-dialog-footer">
+        <button class="planner-cancel-event" id="planner-cancel-event" type="button" hidden>Cancel event</button>
+        <button class="planner-danger" id="planner-delete" type="button" hidden>Delete</button>
+        <span></span>
+        <button class="planner-button" id="planner-cancel" type="button">Cancel</button>
+        <button class="planner-primary" type="submit">Save event</button>
+      </footer>
+    </form>
+  </dialog>
+  <script src="/api/v1/achi/ui/chrome.js?v=35"></script>
+  <script src="/api/v1/achi/planner/planner.js?v=1"></script>
+</body>
+</html>

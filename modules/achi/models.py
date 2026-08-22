@@ -697,3 +697,4 @@ class AchiEmail(Base):
 # Register the isolated Team Tasks models with OCE's metadata loader.
 # This import stays at the bottom to avoid affecting existing model definitions.
 from . import task_models as _task_models  # noqa: E402,F401
+from . import planner_models as _planner_models  # noqa: E402,F401

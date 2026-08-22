@@ -59,6 +59,7 @@ from .chat_router import chat_router
 from .comment_router import comment_router
 from .mail_router import mail_router
 from .task_router import task_router
+from .planner_router import planner_router
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ router.include_router(chat_router)
 router.include_router(comment_router)
 router.include_router(mail_router)
 router.include_router(task_router)
+router.include_router(planner_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
