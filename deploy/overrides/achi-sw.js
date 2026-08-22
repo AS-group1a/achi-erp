@@ -18,8 +18,8 @@
  * survive offline needs a write queue and conflict handling, which is a
  * different piece of work. Do not read "works offline" into this.
  */
-const ACHI_SW_VERSION = 'achi-shell-v11';
-const ACHI_CACHE = 'achi-offline-v11';
+const ACHI_SW_VERSION = 'achi-shell-v12';
+const ACHI_CACHE = 'achi-offline-v12';
 
 /* Our own shell. Same-origin paths only — never the API data routes. */
 const ACHI_ASSETS = [
