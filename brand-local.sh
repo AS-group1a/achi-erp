@@ -14,9 +14,9 @@ EMAIL="${EMAIL:-demo@openconstructionerp.com}"
 PASSWORD="${PASSWORD:-DemoPass1234!}"
 COMPANY_NAME="${COMPANY_NAME:-Achi Scaffolding ERP}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY="$HERE/.venv/Scripts/python.exe"
+PY="$HERE/.venv/bin/python"
 
-INDEX_HTML="$HERE/.venv/Lib/site-packages/app/_frontend_dist/index.html"
+INDEX_HTML="$("$PY" -c 'import app, pathlib; print(pathlib.Path(app.__file__).parent / "_frontend_dist" / "index.html")')"
 
 if [ -f "$INDEX_HTML" ]; then
   "$PY" - "$INDEX_HTML" <<'PY'
