@@ -1621,7 +1621,12 @@ function formatBusinessCode(r,rowNumber){
   if(!BUSINESS_CODE){
     return r.log_code?String(r.log_code).replace(/^MT(?=-)/,'M/T'):displayNumber;
   }
-  return BUSINESS_CODE?`${BUSINESS_CODE}-${displayNumber}`:displayNumber;
+  // The API calculates this rank over the immutable module scope ordered from
+  // oldest to newest. It must never be derived from the visual row position.
+  const sequence=Number(r.module_sequence);
+  return Number.isInteger(sequence)&&sequence>0
+    ?`${BUSINESS_CODE}-${sequence}`
+    :displayNumber;
 }
 /* User-selected column filters. These are separate from ACHI_LOG_FILTER:
    the latter defines an immutable workspace scope; these only narrow it. */
@@ -1651,6 +1656,21 @@ const LOG_COLUMN_FILTER_SPECS=Object.freeze({
   city:          {kind:'multi',    param:'city'},
   street:        {kind:'text',     param:'street'},
 });
+const LOG_SORT_OPTIONS=Object.freeze([
+  ['created_at','Created date'],
+  ['occurred_at','Date & time'],
+  ['first_name','First name'],
+  ['last_name','Last name'],
+  ['company','Company'],
+  ['status','Status'],
+  ['stage','Stage'],
+  ['log_type','Log type'],
+  ['country','Country'],
+  ['district','District'],
+  ['city','City'],
+  ['follow_up_date','Follow-up date'],
+  ['updated_at','Last updated'],
+]);
 
 const LOG_COLUMN_KEYS=new Set(COLS.map(column=>column.k));
 const LOG_COLUMN_FILTERS=Object.create(null);
@@ -1934,7 +1954,53 @@ function cellHTML(c,r,i){switch(c.k){
 }}
 
 const ROW_CACHE_KEY=
-  `achi_log_rows_v2:${window.location.pathname}`;let ROWS=[], openOnly=false, activeTab=0;
+  `achi_log_rows_v2:${window.location.pathname}`;
+const LOG_PAGE_SIZE=100;
+let ROWS=[], openOnly=false, activeTab=0, logOffset=0, logTotal=0;
+let logSortBy='', logSortDir='';
+function sortDirectionLabels(field){
+  if(field==='stage') return ['Pipeline order','Reverse pipeline order'];
+  if(['created_at','occurred_at','follow_up_date','updated_at'].includes(field)){
+    return ['Oldest first','Newest first'];
+  }
+  return ['A–Z','Z–A'];
+}
+function ensureLogSortControl(){
+  const actions=document.querySelector('.nav-actions');
+  if(!actions || $('log-sort-control')) return;
+  const control=document.createElement('label');
+  control.className='log-sort-control';
+  control.id='log-sort-control';
+  control.innerHTML=`<span>Sort by</span><select id="log-sort-by" aria-label="Sort logs by">
+    <option value="">Default order</option>
+    ${LOG_SORT_OPTIONS.map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}
+  </select><select id="log-sort-dir" aria-label="Sort direction" disabled></select>`;
+  const addLog=$('expand-row');
+  if(addLog) addLog.insertAdjacentElement('afterend',control);
+  else actions.appendChild(control);
+  const by=$('log-sort-by'), dir=$('log-sort-dir');
+  const syncDirectionOptions=()=>{
+    const current=logSortDir||'asc';
+    const [ascending,descending]=sortDirectionLabels(logSortBy);
+    dir.innerHTML=`<option value="asc">${ascending}</option><option value="desc">${descending}</option>`;
+    dir.value=current;
+  };
+  const sync=()=>{
+    by.value=logSortBy;
+    dir.disabled=!logSortBy;
+    syncDirectionOptions();
+  };
+  by.addEventListener('change',()=>{
+    logSortBy=by.value;
+    logSortDir=logSortBy?(dir.value||'asc'):'';
+    logOffset=0; sync(); load();
+  });
+  dir.addEventListener('change',()=>{
+    if(!logSortBy) return;
+    logSortDir=dir.value; logOffset=0; load();
+  });
+  sync();
+}
 // Deleted Logs filter. When on, the grid renders `deletedRows` (soft-deleted
 // logs fetched separately) instead of ROWS, read-only, for restore / permanent
 // delete. Kept distinct from ROWS so KPIs and the active list stay correct.
@@ -2036,10 +2102,9 @@ function buildHead(){
         </button>`
       : '';
     return `<th data-tab="${c.tab??''}" data-k="${c.k}"${sel} style="${fixedStyle(c)}">`
-    +`<span class="log-col-head-label">${c.h}</span>`
+    +`<span class="log-col-head"><span class="log-col-head-label">${c.h}</span>`
     +filterButton
     +`</span><span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
-    +`${c.h}<span class="rz" data-k="${c.k}" title="Drag to resize"></span></th>`;
   }).join('');
 }
 /* Pointer events rather than mouse, so this works on the tablet a surveyor

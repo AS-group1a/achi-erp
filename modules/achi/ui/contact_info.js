@@ -1032,7 +1032,7 @@
 
       const [files, logs, projects, invoicesResponse] = await enrichmentPromise;
       state.files = Array.isArray(files) ? files : [];
-      state.logs = Array.isArray(logs) ? logs : [];
+      state.logs = Array.isArray(logs) ? logs : (Array.isArray(logs?.items) ? logs.items : []);
       state.projects = Array.isArray(projects) ? projects : null;
       state.invoices = invoicesResponse && Array.isArray(invoicesResponse.items)
         ? invoicesResponse.items

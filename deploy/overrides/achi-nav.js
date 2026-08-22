@@ -139,10 +139,24 @@
     }
     return null;
   }
+  function moduleNav() {
+    var pf = projectFilesLink();
+    if (pf) return pf.closest('nav');
+
+    // Some upstream versions omit the Project Files row from the compact
+    // sidebar.  Do not make ACHI navigation depend on that one vendor link:
+    // use the first navigation list that contains an ordinary application
+    // route as our stable insertion point instead.
+    var ours = document.getElementById(ID);
+    if (ours && ours.closest('nav')) return ours.closest('nav');
+    var navs = document.querySelectorAll('nav');
+    for (var i = 0; i < navs.length; i++) {
+      if (navs[i].querySelector('ul > li > a[href^="/"]')) return navs[i];
+    }
+    return null;
+  }
   function sidebarEl() {
-    var our = document.getElementById(ENTRIES[0].id) || document.getElementById(ENTRIES[1] && ENTRIES[1].id);
-    var anchor = our || projectFilesLink();
-    return anchor ? anchor.closest('nav, aside, [class*="sidebar" i]') : null;
+    return moduleNav() || document.querySelector('aside, [class*="sidebar" i]');
   }
   function setIcon(el, svg) {
     var old = el.querySelector('svg');
@@ -170,10 +184,6 @@
     link.classList.remove('active', 'router-link-active', 'router-link-exact-active');
     setLabel(link, label);
     if (icon) setIcon(link, icon);
-  }
-  function moduleNav() {
-    var pf = projectFilesLink();
-    return pf ? pf.closest('nav') : null;
   }
   function directLink(item) {
     if (!item || item.tagName !== 'LI') return null;
@@ -521,6 +531,21 @@
     if (!sourceItem) {
       var existingLog = document.getElementById(ID);
       sourceItem = existingLog && existingLog.closest('li');
+    }
+    if (!sourceItem) {
+      // Live OCE builds can omit /files entirely. Clone the first ordinary
+      // sidebar module row instead, preserving the upstream list structure
+      // and icon sizing while still giving ACHI a reliable anchor.
+      var nav = moduleNav();
+      var candidates = nav && nav.querySelectorAll('ul > li');
+      for (var s = 0; candidates && s < candidates.length; s++) {
+        var candidateLink = directLink(candidates[s]);
+        var candidateHref = candidateLink && (candidateLink.getAttribute('href') || '');
+        if (candidateHref && candidateHref.charAt(0) === '/') {
+          sourceItem = candidates[s];
+          break;
+        }
+      }
     }
     if (!sourceItem) return;
     var after = sourceItem;
