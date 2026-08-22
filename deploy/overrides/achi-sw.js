@@ -18,13 +18,14 @@
  * survive offline needs a write queue and conflict handling, which is a
  * different piece of work. Do not read "works offline" into this.
  */
-const ACHI_SW_VERSION = 'achi-shell-v10';
-const ACHI_CACHE = 'achi-offline-v10';
+const ACHI_SW_VERSION = 'achi-shell-v11';
+const ACHI_CACHE = 'achi-offline-v11';
 
 /* Our own shell. Same-origin paths only — never the API data routes. */
 const ACHI_ASSETS = [
   '/api/v1/achi/ui',
   '/api/v1/achi/survey/ui',
+  '/api/v1/achi/planner/ui',
   '/api/v1/achi/ui/chrome.js',
   '/api/v1/achi/ui/drawing.js',
   '/api/v1/branding/',
@@ -41,7 +42,8 @@ function isOurs(url) {
   return p === '/logo.svg'
     || p === '/api/v1/branding/'
     || p.startsWith('/api/v1/achi/ui')
-    || p.startsWith('/api/v1/achi/survey/ui');
+    || p.startsWith('/api/v1/achi/survey/ui')
+    || p.startsWith('/api/v1/achi/planner/');
 }
 
 self.addEventListener('install', function (event) {

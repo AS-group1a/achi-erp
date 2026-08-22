@@ -35,6 +35,9 @@
     { id: 'achi-nav-plan', label: 'PLAN', route: '/plan',
       href: '/api/v1/achi/plan/ui',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/></svg>' },
+    { id: 'achi-nav-planner', label: 'Planner', route: '/planner',
+      href: '/api/v1/achi/planner/ui',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>' },
     { id: 'achi-nav-team-tasks', label: 'Team Tasks', route: '/team-tasks',
       href: '/api/v1/achi/tasks/ui?v=2',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' },
@@ -58,6 +61,7 @@
   var DRAW_ID = 'achi-nav-draw';
   var RESOURCE_ID = 'achi-nav-resource';
   var PLAN_ID = 'achi-nav-plan';
+  var PLANNER_ID = 'achi-nav-planner';
   var TASKS_ID = 'achi-nav-team-tasks';
   var CONTACTS_ROUTE = '/contacts';
   var CRM_ROUTE = '/crm';
@@ -68,6 +72,7 @@
   var DRAW_ROUTE = '/draw';
   var RESOURCE_ROUTE = '/resource';
   var PLAN_ROUTE = '/plan';
+  var PLANNER_ROUTE = '/planner';
   var HREF = ENTRIES[0].href;
   var ROUTE = ENTRIES[0].route;
   var ORDER_KEY = 'achi_sidebar_module_order_v3';
@@ -254,6 +259,7 @@
         el.id === DRAW_ID ||
         el.id === RESOURCE_ID ||
         el.id === PLAN_ID ||
+        el.id === PLANNER_ID ||
         el.id === ID
       ) continue;
       var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
@@ -285,6 +291,8 @@
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h8"/></svg>' },
   { id: PLAN_ID, route: PLAN_ROUTE, label: 'PLAN',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/></svg>' },
+  { id: PLANNER_ID, route: PLANNER_ROUTE, label: 'Planner',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>' },
   { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotation',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' },
   { id: TASKS_ID, route: '/team-tasks', label: 'Team Tasks',
@@ -585,6 +593,7 @@
       a.id === DRAW_ID ||
       a.id === RESOURCE_ID ||
       a.id === PLAN_ID
+      || a.id === PLANNER_ID
     ) {
     e.preventDefault(); e.stopImmediatePropagation();
       try { hideEmbed(); } catch (err) {}
@@ -617,6 +626,10 @@
       }
       if (a.id === PLAN_ID) {
         location.assign('/api/v1/achi/plan/ui');
+        return;
+      }
+      if (a.id === PLANNER_ID) {
+        location.assign('/api/v1/achi/planner/ui');
         return;
       }
       if (a.id === CONTACTS_ID) {
@@ -743,6 +756,7 @@
         || link.id === DRAW_ID
         || link.id === RESOURCE_ID
         || link.id === PLAN_ID
+        || link.id === PLANNER_ID
         || (link.id === TASKS_ID)
       );      if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
@@ -848,9 +862,10 @@
   var draw = document.getElementById(DRAW_ID);
   var resource = document.getElementById(RESOURCE_ID);
   var plan = document.getElementById(PLAN_ID);
+  var planner = document.getElementById(PLANNER_ID);
   var tasks = document.getElementById(TASKS_ID);
 
-if (!(log && contacts && prospects && crm && survey && draw && mt && boq && resource && plan && quotation && tasks)) {
+if (!(log && contacts && prospects && crm && survey && draw && mt && boq && resource && plan && planner && quotation && tasks)) {
       inject();
       ensureOverviewModules();
     }
