@@ -174,10 +174,6 @@ def site_visit_workspace_ui() -> HTMLResponse:
         '<body data-achi-title="Site Visit">',
         1,
     ).replace(
-        "/api/v1/achi/ui/chrome.js?v=35",
-        "/api/v1/achi/ui/chrome.js?v=35",
-        1,
-    ).replace(
         "  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants",
         """  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
   window.ACHI_BUSINESS_CODE = 'SV';

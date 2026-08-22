@@ -53,6 +53,10 @@ services:
       PLANNER_REMINDER_POLL_SECONDS: ${PLANNER_REMINDER_POLL_SECONDS:-60}
     volumes:
       - appdata:/data          # HOME=/data -> holds ~/.openestimate AND the packs
+      # Keep ACHI's own module live after a normal deploy restart.  The image
+      # still contains the same copy as a safe build-time fallback, but this
+      # mount prevents a git-pull + restart from serving an older UI bundle.
+      - ../modules/achi:/usr/local/lib/python3.12/site-packages/app/modules/achi:ro
     expose: ["8080"]
 
   planner-reminders:
@@ -79,6 +83,8 @@ services:
       SMTP_TLS: ${SMTP_TLS:-true}
       PLANNER_REMINDER_DELIVERY_ENABLED: ${PLANNER_REMINDER_DELIVERY_ENABLED:-false}
       PLANNER_REMINDER_POLL_SECONDS: ${PLANNER_REMINDER_POLL_SECONDS:-60}
+    volumes:
+      - ../modules/achi:/usr/local/lib/python3.12/site-packages/app/modules/achi:ro
 
   caddy:
     # Custom build: stock caddy has no response-rewrite, which we need to inject
