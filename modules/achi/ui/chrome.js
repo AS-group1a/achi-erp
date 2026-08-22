@@ -270,6 +270,7 @@ var LINKS = [
         href === '/api/v1/achi/mt/ui' ||
         href === '/api/v1/achi/resource/ui' ||
         href === '/api/v1/achi/plan/ui' ||
+        href === '/api/v1/achi/planner/ui' ||
         href === '/api/v1/achi/tasks/ui';
       if (!alwaysVisible) links[i].style.display = 'none';
     }
