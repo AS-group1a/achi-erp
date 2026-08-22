@@ -2143,13 +2143,12 @@ function renderLogPagination(){
   let el=$('log-pagination');
   if(!el){
     el=document.createElement('div'); el.id='log-pagination';
-    el.style.cssText='display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:10px 2px;font-size:12px;color:#52627d';
     const table=$('touter'); table?.insertAdjacentElement('afterend',el);
   }
   const start=logTotal?logOffset+1:0;
   const end=Math.min(logOffset+ROWS.length,logTotal);
   const prev=logOffset<=0, next=logOffset+ROWS.length>=logTotal;
-  el.innerHTML=`<span>${start}-${end} of ${logTotal}</span><button type="button" data-log-page="prev" ${prev?'disabled':''}>Previous</button><button type="button" data-log-page="next" ${next?'disabled':''}>Next</button>`;
+  el.innerHTML=`<span class="log-pagination-range">${start}-${end} of ${logTotal}</span><div class="log-pagination-actions"><button class="log-pagination-button" type="button" data-log-page="prev" ${prev?'disabled':''}><span aria-hidden="true">‹</span> Previous</button><button class="log-pagination-button" type="button" data-log-page="next" ${next?'disabled':''}>Next <span aria-hidden="true">›</span></button></div>`;
   el.querySelectorAll('[data-log-page]').forEach(button=>button.addEventListener('click',()=>{
     logOffset=button.dataset.logPage==='next'
       ?logOffset+LOG_PAGE_SIZE:Math.max(0,logOffset-LOG_PAGE_SIZE);

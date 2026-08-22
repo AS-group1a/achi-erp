@@ -205,6 +205,18 @@
   .log-sort-control select:disabled{opacity:.55;cursor:not-allowed}
   .log-sort-control option{background:#fff;color:#24324a}
 
+  /* Footer pagination follows the compact toolbar language without competing
+     with the data grid above it. */
+  #log-pagination{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:12px 2px 4px;color:#60708a;font-size:12px;font-weight:700}
+  .log-pagination-range{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .log-pagination-actions{display:inline-flex;align-items:center;gap:6px}
+  .log-pagination-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:86px;height:34px;padding:0 12px;border:1px solid #c9d5e6;border-radius:8px;background:#fff;color:#1e3f85;font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s,border-color .15s,color .15s,box-shadow .15s}
+  .log-pagination-button:hover:not(:disabled){background:#eef4ff;border-color:#6f91ca;box-shadow:0 2px 7px rgba(30,63,133,.12)}
+  .log-pagination-button:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+  .log-pagination-button:disabled{border-color:#e1e7f0;background:#f8fafc;color:#a3afc0;cursor:not-allowed;box-shadow:none}
+  .log-pagination-button span{font-size:18px;line-height:1;font-weight:500}
+  @media(max-width:640px){#log-pagination{justify-content:space-between;gap:8px;padding-top:10px}.log-pagination-button{min-width:0;padding:0 10px}}
+
   /* The expanded row. A sheet rather than a dialog: one column, scrolls
      vertically, reads the way the same record would on a phone. */
   .rx{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,35,75,.58);backdrop-filter:blur(4px)}
