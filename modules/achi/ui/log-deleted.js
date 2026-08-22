@@ -19,9 +19,9 @@
     [...selectedRows].filter(k => String(k).startsWith('log:')).map(k => String(k).slice(4));
 
   async function fetchDeleted(){
-    try{deletedRows = await api(
-        logFilteredPath('/logs/?deleted=true'),
-      ); }
+    try{const result=await api(logFilteredPath('/logs/?deleted=true'));
+      deletedRows=Array.isArray(result)?result:(result.items||[]);
+    }
     catch(e){ deletedRows = []; fail(e.message); }
   }
 

@@ -43,6 +43,7 @@ from .schemas import (
     FileConvertRequest,
     FileLogCreate,
     LogFilterParams,
+    LogListOut,
     LogListParams,
     FileLogOut,
     FileLogUpdate,
@@ -1671,18 +1672,18 @@ async def log_stats(
 
 @router.get(
     "/logs/",
-    response_model=list[LogRowOut],
-    summary="All logs, newest first",
+    response_model=LogListOut,
+    summary="Server-paginated log rows",
 )
 async def list_logs(
     session: SessionDep,
     _user_id: CurrentUserId,
     params: Annotated[LogListParams, Query()],
-) -> list[LogRowOut]:
+) -> LogListOut:
     from .models import AchiEmail
 
     svc = ContactFileService(session)
-    rows = await svc.list_logs(params=params)
+    rows, total = await svc.list_logs(params=params)
     log_ids = [r[0].id for r in rows]
 
     counts = await svc.attachment_counts(log_ids)
@@ -1701,7 +1702,9 @@ async def list_logs(
         if e
     }
     out: list[LogRowOut] = []
-    for log, f, contact, owner_name, assigned_name in rows:
+    for row in rows:
+        log, f, contact, owner_name, assigned_name, *sequence = row
+        module_sequence = int(sequence[0]) if sequence and sequence[0] is not None else None
         # A row only has a Contact when a phone or email was given. Without one the
         # identity lives on the file exactly as it was typed, so fall back to that
         # rather than showing a blank row.
@@ -1757,6 +1760,7 @@ async def list_logs(
         out.append(
             LogRowOut(
                 id=log.id,
+                module_sequence=module_sequence,
                 log_type=log.log_type,
                 category=log.category,
                 reference=log.reference,
@@ -1823,7 +1827,12 @@ async def list_logs(
                 related_contacts=related_contacts,
             )
         )
-    return out
+    return LogListOut(
+        items=out,
+        total=total,
+        limit=params.limit,
+        offset=params.offset,
+    )
 
 
 # --- Access control: limit new users to the ACHI pages -----------------------

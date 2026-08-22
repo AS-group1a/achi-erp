@@ -671,9 +671,52 @@ class LogFilterParams(BaseModel):
 class LogListParams(LogFilterParams):
     """Log filters plus list pagination and deleted-row selection."""
 
-    limit: int = Field(default=200, ge=1, le=1000)
+    limit: int = Field(default=100, ge=1, le=1000)
     offset: int = Field(default=0, ge=0)
     deleted: bool = False
+    sort_by: Literal[
+        "code", "occurred_at", "status", "stage", "first_name",
+        "last_name", "company", "country", "district", "city",
+        "owner", "category", "follow_up_date", "created_at",
+        "updated_at", "log_type",
+    ] | None = None
+    sort_dir: Literal["asc", "desc"] = "asc"
+
+    # A workspace sends its immutable business scope separately from the user's
+    # current narrowing filters.  This makes module display ranks stable while
+    # users search, filter, sort, or move between pages.
+    module_sequence: bool = False
+    sequence_stages: list[str] = Field(default_factory=list, max_length=len(STAGES))
+    sequence_origins: list[OriginModule] = Field(default_factory=list, max_length=len(ORIGIN_MODULES))
+    sequence_include_legacy_origins: bool = False
+    sequence_legacy_log_type: list[str] = Field(default_factory=list, max_length=50)
+
+    @field_validator(
+        "sequence_stages", "sequence_origins", "sequence_legacy_log_type",
+        mode="before",
+    )
+    @classmethod
+    def _normalise_sequence_scope(cls, value) -> list[str]:
+        if value is None:
+            return []
+        raw_values = value if isinstance(value, (list, tuple, set)) else [value]
+        values: list[str] = []
+        seen: set[str] = set()
+        for raw in raw_values:
+            for part in str(raw).split(","):
+                item = part.strip()
+                if item and item.casefold() not in seen:
+                    seen.add(item.casefold())
+                    values.append(item)
+        return values
+
+    @field_validator("sequence_stages")
+    @classmethod
+    def _validate_sequence_stages(cls, value: list[str]) -> list[str]:
+        invalid = sorted(set(value).difference(STAGES))
+        if invalid:
+            raise ValueError(f"unknown sequence stage value(s): {', '.join(invalid)}")
+        return value
 
 class LogRowOut(BaseModel):
     """A row in the log table — flat, joined, no client-side assembly.
@@ -683,6 +726,7 @@ class LogRowOut(BaseModel):
     """
 
     id: str
+    module_sequence: int | None = None
     log_type: str
     category: str | None = None
     reference: str | None = None
@@ -761,6 +805,15 @@ class LogRowOut(BaseModel):
     # output so a legacy/odd stored value can never 500 the whole grid.
     emails: list[dict] = Field(default_factory=list)
     related_contacts: list[dict] = Field(default_factory=list)
+
+
+class LogListOut(BaseModel):
+    """One server-paginated page of shared Log rows."""
+
+    items: list[LogRowOut]
+    total: int
+    limit: int
+    offset: int
 
 
 # ── Site survey ───────────────────────────────────────────────────────────

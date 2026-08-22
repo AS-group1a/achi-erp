@@ -368,7 +368,9 @@ function workspaceDefaultStage(){
       )
     : [];
 
-  return stages.length === 1 ? stages[0] : null;
+  // The unscoped master Log creates prospects by default but remains an
+  // all-records display. Operational workspaces always provide their scope.
+  return stages.length === 1 ? stages[0] : 'prospect';
 }
 function draftPayload(st){
   const first=(st.first||'').trim(),last=(st.last||'').trim(),company=(st.company||'').trim();
@@ -2081,7 +2083,34 @@ function logFilteredPath(basePath){
   return query?`${path}?${query}`:path;
 }
 function logListPath(){
-  return logFilteredPath('/logs/');
+  const base=logFilteredPath('/logs/');
+  const url=new URL(base,window.location.origin);
+  url.searchParams.set('limit',String(LOG_PAGE_SIZE));
+  url.searchParams.set('offset',String(logOffset));
+
+  const scope=(window.ACHI_LOG_FILTER&&typeof window.ACHI_LOG_FILTER==='object')
+    ?window.ACHI_LOG_FILTER:{};
+  const business=String(window.ACHI_BUSINESS_CODE||'').trim();
+  if(business){
+    url.searchParams.set('module_sequence','true');
+    const sequenceFields=[
+      ['stages','sequence_stages'], ['origins','sequence_origins'],
+      ['legacy_log_type','sequence_legacy_log_type'],
+    ];
+    sequenceFields.forEach(([source,target])=>{
+      const values=Array.isArray(scope[source])?scope[source].filter(Boolean):[];
+      if(values.length) url.searchParams.set(target,values.join(','));
+    });
+    if(scope.include_legacy_origins) url.searchParams.set('sequence_include_legacy_origins','true');
+  }
+  if(logSortBy){
+    url.searchParams.set('sort_by',logSortBy);
+    url.searchParams.set('sort_dir',logSortDir);
+  }else if(business){
+    url.searchParams.set('sort_by','created_at');
+    url.searchParams.set('sort_dir','asc');
+  }
+  return url.pathname+url.search;
 }
 
 function logStatsPath(){
@@ -2090,7 +2119,9 @@ function logStatsPath(){
 
 async function load(){
   try{
-    ROWS = await api(logListPath());
+    const result = await api(logListPath());
+    ROWS = Array.isArray(result)?result:(result.items||[]);
+    logTotal=Array.isArray(result)?ROWS.length:Number(result.total||0);
 
     try{
       sessionStorage.setItem(
@@ -2101,10 +2132,29 @@ async function load(){
 
     await stats();
     render();
+    renderLogPagination();
 
   }catch(e){
     fail(e.message);
   }
+}
+
+function renderLogPagination(){
+  let el=$('log-pagination');
+  if(!el){
+    el=document.createElement('div'); el.id='log-pagination';
+    el.style.cssText='display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:10px 2px;font-size:12px;color:#52627d';
+    const table=$('touter'); table?.insertAdjacentElement('afterend',el);
+  }
+  const start=logTotal?logOffset+1:0;
+  const end=Math.min(logOffset+ROWS.length,logTotal);
+  const prev=logOffset<=0, next=logOffset+ROWS.length>=logTotal;
+  el.innerHTML=`<span>${start}-${end} of ${logTotal}</span><button type="button" data-log-page="prev" ${prev?'disabled':''}>Previous</button><button type="button" data-log-page="next" ${next?'disabled':''}>Next</button>`;
+  el.querySelectorAll('[data-log-page]').forEach(button=>button.addEventListener('click',()=>{
+    logOffset=button.dataset.logPage==='next'
+      ?logOffset+LOG_PAGE_SIZE:Math.max(0,logOffset-LOG_PAGE_SIZE);
+    load();
+  }));
 }
 
 /* tabs = scroll positions */
@@ -2273,6 +2323,6 @@ $('btn-clear-filters').onclick=async()=>{
 $('totop').innerHTML=SVG.up;
 $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
 $('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="email-count">0</span>';
-loadColWidths(); buildHead(); wireColResize(); setActivePill(0); stats(); render();
+loadColWidths(); buildHead(); wireColResize(); ensureLogSortControl(); setActivePill(0); stats(); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); loadCustomCities(); loadCustomDistricts(); }

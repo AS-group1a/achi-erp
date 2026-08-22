@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -1498,26 +1498,108 @@ class ContactFileService:
         self,
         *,
         params: LogListParams,
-    ) -> list[tuple]:
-        """Return filtered log rows before pagination is applied."""
+    ) -> tuple[list[tuple], int]:
+        """Return one ordered page of logs and its full filtered total."""
 
         assigned_user = aliased(User)
         predicates = _log_filter_predicates(params)
 
-        sort_column = (
-            FileLog.deleted_at
-            if params.deleted
-            else FileLog.created_at
+        effective_first = _effective_value(Contact.first_name, ContactFile.lead_first_name)
+        effective_last = _effective_value(Contact.last_name, ContactFile.lead_last_name)
+        effective_company = _effective_value(Contact.company_name, ContactFile.lead_company)
+        visible_when = func.coalesce(FileLog.occurred_at, FileLog.created_at)
+
+        sequence_rows = None
+        if params.module_sequence and not params.deleted:
+            # This scope intentionally excludes transient search/column filters.
+            # A module code is a stable chronological business rank, not a row index.
+            sequence_scope = LogFilterParams(
+                stages=params.sequence_stages,
+                origins=params.sequence_origins,
+                include_legacy_origins=params.sequence_include_legacy_origins,
+                legacy_log_type=params.sequence_legacy_log_type,
+            )
+            sequence_rows = (
+                select(
+                    FileLog.id.label("log_id"),
+                    func.row_number().over(
+                        order_by=(
+                            ContactFile.created_at.asc(),
+                            FileLog.created_at.asc(),
+                            ContactFile.id.asc(),
+                            FileLog.id.asc(),
+                        ),
+                    ).label("module_sequence"),
+                )
+                .join(ContactFile, FileLog.file_id == ContactFile.id)
+                .outerjoin(Contact, ContactFile.contact_id == Contact.id)
+                .where(FileLog.deleted_at.is_(None), *_log_filter_predicates(sequence_scope))
+                .subquery()
+            )
+
+        stage_sort_order = case(
+            {stage: index for index, stage in enumerate((
+                "prospect", "outreach", "follow_up", "first_contact",
+                "second_follow_up", "enquiry", "site_survey", "drawing",
+                "takeoff", "boq", "resources", "plan", "costing",
+                "pricing", "quotation", "negotiation", "accepted",
+                "cancelled", "on_hold",
+            ))},
+            value=ContactFile.stage,
+            else_=999,
         )
+        sort_columns = {
+            "code": ContactFile.log_code,
+            "occurred_at": visible_when,
+            "status": ContactFile.status,
+            # Stages are a workflow, not alphabetic labels: Prospect must be
+            # first, followed by the canonical pipeline sequence.
+            "stage": stage_sort_order,
+            "first_name": effective_first,
+            "last_name": effective_last,
+            "company": effective_company,
+            "country": ContactFile.country,
+            "district": ContactFile.district,
+            "city": ContactFile.city,
+            "owner": User.full_name,
+            "category": FileLog.category,
+            "follow_up_date": FileLog.follow_up_date,
+            "created_at": FileLog.created_at,
+            "updated_at": FileLog.updated_at,
+            "log_type": FileLog.log_type,
+        }
+        sort_by = params.sort_by or ""
+        sort_column = sort_columns.get(sort_by)
+        if sort_column is not None:
+            text_sort_fields = {
+                "first_name", "last_name", "company", "country", "district",
+                "city", "owner", "category", "log_type", "status",
+            }
+            if sort_by in text_sort_fields:
+                sort_column = func.lower(sort_column)
+            primary_order = (
+                sort_column.asc().nulls_last()
+                if params.sort_dir == "asc"
+                else sort_column.desc().nulls_last()
+            )
+            ordering = (primary_order, FileLog.created_at.asc(), FileLog.id.asc())
+        elif params.deleted:
+            ordering = (FileLog.deleted_at.desc(), FileLog.id.desc())
+        else:
+            ordering = (FileLog.created_at.desc(), FileLog.id.desc())
+
+        columns = [
+            FileLog,
+            ContactFile,
+            Contact,
+            User.full_name,
+            assigned_user.full_name,
+        ]
+        if sequence_rows is not None:
+            columns.append(sequence_rows.c.module_sequence)
 
         query = (
-            select(
-                FileLog,
-                ContactFile,
-                Contact,
-                User.full_name,
-                assigned_user.full_name,
-            )
+            select(*columns)
             .join(
                 ContactFile,
                 FileLog.file_id == ContactFile.id,
@@ -1541,17 +1623,29 @@ class ContactFileService:
                 else FileLog.deleted_at.is_(None),
                 *predicates,
             )
-            .order_by(
-                sort_column.desc(),
-                FileLog.id.desc(),
-            )
+            .order_by(*ordering)
             .offset(params.offset)
             .limit(params.limit)
         )
 
-        return list(
-            (await self.session.execute(query)).all()
+        if sequence_rows is not None:
+            query = query.outerjoin(sequence_rows, sequence_rows.c.log_id == FileLog.id)
+
+        count_query = (
+            select(func.count(FileLog.id))
+            .select_from(FileLog)
+            .join(ContactFile, FileLog.file_id == ContactFile.id)
+            .outerjoin(Contact, ContactFile.contact_id == Contact.id)
+            .where(
+                FileLog.deleted_at.is_not(None)
+                if params.deleted
+                else FileLog.deleted_at.is_(None),
+                *predicates,
+            )
         )
+        rows = list((await self.session.execute(query)).all())
+        total = int((await self.session.execute(count_query)).scalar_one())
+        return rows, total
 
     async def log_stats(
         self,

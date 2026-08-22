@@ -89,6 +89,27 @@ class LogFilterParamsTests(unittest.TestCase):
         self.assertEqual(params.offset, 20)
         self.assertTrue(params.deleted)
 
+    def test_sort_and_stable_sequence_scope_are_validated(self) -> None:
+        params = LogListParams(
+            sort_by="company",
+            sort_dir="desc",
+            module_sequence=True,
+            sequence_stages="takeoff",
+            sequence_origins="crm,prospect",
+        )
+
+        self.assertEqual(params.sort_by, "company")
+        self.assertEqual(params.sort_dir, "desc")
+        self.assertTrue(params.module_sequence)
+        self.assertEqual(params.sequence_stages, ["takeoff"])
+        self.assertEqual(params.sequence_origins, ["crm", "prospect"])
+
+    def test_invalid_sort_and_sequence_stage_are_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            LogListParams(sort_by="description")
+        with self.assertRaises(ValidationError):
+            LogListParams(sequence_stages="not-a-stage")
+
     def test_invalid_stage_is_rejected(self) -> None:
         with self.assertRaises(ValidationError):
             LogFilterParams(stage=["not-a-stage"])

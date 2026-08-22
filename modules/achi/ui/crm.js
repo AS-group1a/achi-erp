@@ -256,7 +256,7 @@
     $('rows').innerHTML = stateRow('Loading…');
     try {
       const data = await request(`${API}/logs/`);
-      ROWS = Array.isArray(data) ? data : [];
+      ROWS = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
       renderRows();
     } catch (error) {
       $('rows').innerHTML = stateRow(`Couldn’t load records: ${error.message || 'error'}`);
