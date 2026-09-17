@@ -289,10 +289,11 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     BOQ: '/api/v1/achi/boq/ui', MT: '/api/v1/achi/mt/ui',
     DWG: '/api/v1/achi/draw/ui', DRAW: '/api/v1/achi/draw/ui',
     RES: '/api/v1/achi/resource/ui', PLAN: '/api/v1/achi/plan/ui' };
-  var FOLDER_NAME = { ENQ: 'Enquiries', LOG: 'Enquiries', GEN: 'Enquiries', CRM: 'Enquiries', PROSP: 'Enquiries',
+
+   var FOLDER_NAME = { ENQ: 'Enquiries', LOG: 'Enquiries', GEN: 'Enquiries', CRM: 'Enquiries', PROSP: 'Enquiries',
     SV: 'Site visits', SUR: 'Site visits', DWG: 'Drawings', DRAW: 'Drawings', MT: 'M/T', BOQ: 'BOQ',
     QUO: 'Quotations', QTE: 'Quotations', JOB: 'Jobs', DJO: 'Jobs', DS: 'Delivery slips',
-    INV: 'Invoices', CL: 'Contracts' };
+    INV: 'Invoices', CL: 'Contracts', RES: 'Resource', PLAN: 'Plan' };
   var MODULE_FOLDER = { log: 'Call Log', 'call-log': 'Call Log', call_log: 'Call Log',
     general: 'Call Log', 'general-log': 'Call Log', general_log: 'Call Log',
     crm: 'CRM', prospect: 'Prospects',
@@ -304,8 +305,12 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   function folderOf(mod, code) {
     var m = MODULE_FOLDER[String(mod || '').toLowerCase()];
     if (m) return m;
-    return FOLDER_NAME[prefixOf(code)] || 'Call Log';
+    var p = prefixOf(code);
+    if (FOLDER_NAME[p]) return FOLDER_NAME[p];
+    if (p && !/^\d+$/.test(p)) return p;   // reviewer's rule: named prefixes get their own folder
+    return 'Call Log';                      // numeric / codeless records live in the root log
   }
+
 
   function prefixOf(code) { return String(code || '').split('-')[0].toUpperCase(); }
   function displayCode(code) {
@@ -404,8 +409,9 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     $('store-label').textContent = fmtSize(total) + ' across ' + n;
   }
   function renderTypeOptions() {
-    var exts = ['PDF', 'DWG', 'RVT', 'XLSX', 'DOCX', 'JPG', 'ZIP'];
+    var exts = [];
     FILES.forEach(function (f) { if (exts.indexOf(f.ext) === -1) exts.push(f.ext); });
+    exts.sort();
     if (exts.indexOf(state.fType) === -1) state.fType = 'All types';
     $('ftype').innerHTML = '<option>All types</option>' + exts.map(function (e) {
       return '<option' + (state.fType === e ? ' selected' : '') + '>' + esc(e) + '</option>';
