@@ -116,7 +116,6 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
       <button type="button" id="seg-list" class="on">List</button>
       <button type="button" id="seg-grid">Grid</button>
     </div>
-    <button type="button" class="mini" id="btn-newfolder">⊞ New folder</button>
     <button type="button" class="mini pri" id="btn-upload">⭱ Upload</button>
     <input type="file" id="file-input" multiple hidden>
   </div>
@@ -156,10 +155,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
           <button type="button" class="mini" id="up-add">+ Add files</button>
         </div>
         <div>
-          <div class="upl" style="display:flex;align-items:center;gap:8px">Attach to code
-            <span style="flex:1"></span>
-            <button type="button" class="mini" id="up-newrec" style="height:22px;font-size:10px">+ New record</button>
-          </div>
+          <div class="upl">Attach to code</div>
           <input class="srch" style="width:100%;margin-bottom:5px" id="up-q" placeholder="Search code, client, subject…">
           <div class="pick" id="up-pick"><div class="pkempty">Loading records…</div></div>
         </div>
@@ -173,21 +169,6 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
             <label><input type="checkbox" value="cst">CST</label>
             <label><input type="checkbox" value="qte">QTE</label>
           </div>
-        </div>
-      </div>
-      <div class="upb" id="up-new" hidden style="border-top:1px solid #e3e9f3;background:#fbfcff">
-        <div class="upl">New record — its fresh code becomes a new folder</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <input class="srch" id="nr-first" placeholder="First name">
-          <input class="srch" id="nr-last" placeholder="Last name">
-          <input class="srch" id="nr-company" placeholder="Company" style="grid-column:1/-1">
-          <input class="srch" id="nr-mobile" placeholder="Phone (optional)">
-          <input class="srch" id="nr-subject" placeholder="Subject (optional)">
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span class="upstat" id="nr-stat"></span>
-          <button type="button" class="mini" id="nr-back">Back</button>
-          <button type="button" class="mini pri" id="nr-create">Create record</button>
         </div>
       </div>
       <div class="upf">
@@ -561,7 +542,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     if (!up.records.length) {
       return '<div class="pkempty">' + (up.allRecords.length
         ? 'Nothing matches this search.'
-        : 'No records yet — files attach to a business code. Click <b>+ New record</b> above to create the first one.') + '</div>';
+        : 'No records yet — files attach to a business code. Create a record in Call Log / CRM first, then upload here.') + '</div>';
     }
     return up.records.map(function (r) {
       var code = displayCode(r.code);
@@ -625,7 +606,6 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     }
     $('up').hidden = false;
     $('up-stat').textContent = ''; $('up-stat').className = 'upstat';
-    nrShow(false);
     upSync();
     upFetchRecords();
   }
@@ -645,15 +625,23 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     up.busy = true; upSync();
     var stat = $('up-stat');
     stat.className = 'upstat';
-    var done = 0, failed = [];
+    var done = 0, failed = [], kindFailed = [];
     var queue = up.files.slice();
     function next() {
       if (!queue.length) {
         up.busy = false;
         if (failed.length) {
           stat.className = 'upstat bad';
-          stat.textContent = done + ' uploaded, ' + failed.length + ' failed: ' + failed.join(', ');
+          stat.textContent = done + ' uploaded, ' + failed.length + ' failed: ' + failed.join(', ')
+            + (kindFailed.length ? ' — Kind tags also failed for: ' + kindFailed.join(', ') : '');
           up.files = up.files.filter(function (f) { return failed.indexOf(f.name) !== -1; });
+          upSync();
+        } else if (kindFailed.length) {
+          stat.className = 'upstat bad';
+          stat.textContent = 'Uploaded ' + done + ' file' + (done === 1 ? '' : 's')
+            + ', but setting the Kind tags FAILED for: ' + kindFailed.join(', ')
+            + ' — the files are saved; set their Kind from the record\'s log.';
+          up.files = [];
           upSync();
         } else {
           stat.className = 'upstat ok';
@@ -686,7 +674,9 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ deliverables: kinds })
-            }).catch(function () {});
+            }).then(function (r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+            }).catch(function () { kindFailed.push(f.name); });
           }
         })
         .catch(function (e) { failed.push(f.name); })
@@ -695,48 +685,6 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     next();
   }
 
-  function nrShow(on) {
-    $('up-new').hidden = !on;
-    $('nr-stat').textContent = ''; $('nr-stat').className = 'upstat';
-  }
-  function nrCreate() {
-    var first = $('nr-first').value.trim();
-    var last = $('nr-last').value.trim();
-    var company = $('nr-company').value.trim();
-    var stat = $('nr-stat');
-    if (!first && !last && !company) {
-      stat.className = 'upstat bad'; stat.textContent = 'Enter at least a name or company.'; return;
-    }
-    var isCo = !!company && !first && !last;
-    var person = isCo
-      ? { is_company: true, company_name: company, mobile: $('nr-mobile').value.trim() || null, email: null }
-      : { is_company: false, first_name: first || null, last_name: last || null,
-          company_name: company || null, mobile: $('nr-mobile').value.trim() || null, email: null };
-    var btn = $('nr-create');
-    btn.disabled = true;
-    stat.className = 'upstat'; stat.textContent = 'Creating…';
-    api('/logs/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ person: person, subject: $('nr-subject').value.trim() })
-    }).then(function (res) {
-      var newLogId = res && res.log && res.log.id;
-      stat.className = 'upstat ok'; stat.textContent = 'Created — now add files and hit Upload.';
-      ['nr-first', 'nr-last', 'nr-company', 'nr-mobile', 'nr-subject'].forEach(function (id) { $(id).value = ''; });
-      $('up-q').value = '';
-      return upFetchRecords(newLogId).then(function () {
-        nrShow(false);
-        loadData().catch(function () {});
-      });
-    }).catch(function (e) {
-      stat.className = 'upstat bad';
-      stat.textContent = 'Create failed: ' + (e && e.message ? e.message : e);
-    }).then(function () { btn.disabled = false; });
-  }
-  $('up-newrec').addEventListener('click', function () { nrShow($('up-new').hidden); });
-  $('nr-back').addEventListener('click', function () { nrShow(false); });
-  $('nr-create').addEventListener('click', nrCreate);
-  $('btn-newfolder').addEventListener('click', function () { openUpload(); nrShow(true); });
   $('btn-upload').addEventListener('click', function () { openUpload(); });
   $('up-add').addEventListener('click', function () { $('file-input').click(); });
   $('drop').addEventListener('click', function () { $('file-input').click(); });
