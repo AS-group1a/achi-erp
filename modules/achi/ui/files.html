@@ -108,7 +108,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   <div class="bar">
     <h1>Files</h1>
     <span class="st" style="background:#eaf1ff;color:#284F9E" id="total-label">loading…</span>
-    <span class="hint">every file attached anywhere in the system — linked to its business code</span>
+    <span class="hint">Files attached to ARARA records — linked to their business code</span>
     <span style="flex:1"></span>
     <input class="srch" style="width:230px" id="q" placeholder="Search file, code, client…">
     <select class="srch" id="ftype"><option>All types</option></select>
@@ -181,7 +181,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
 </main>
 
 <script>
-/* ACHI Files page — live data + upload + create-record + delete.
+/* ACHI Files page — live data + upload + delete.
  * List: GET /files/manager (one call, everything joined).
  * Upload: pick a record from GET /logs/, then POST /logs/{id}/attachments
  * (multipart) — the exact endpoint the log popups use — then optionally
