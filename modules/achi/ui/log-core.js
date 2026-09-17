@@ -130,8 +130,8 @@ async function attDownload(id,name){
    in the PDF-Takeoff editor (scale/measure). The server uploads it into the
    editor (cached per attachment) and hands back the URL; we open it in a new
    tab. window.open() runs synchronously first so the pop-up isn't blocked. */
-async function openInTakeoff(id,name){
-  const w=window.open('','_blank');
+async function openInTakeoff(id,name,preparedWindow){
+  const w=preparedWindow&&!preparedWindow.closed?preparedWindow:window.open('','_blank');
   if(w){ try{ w.document.write('<p style="font:14px -apple-system,Segoe UI,sans-serif;color:#555;padding:26px">Opening in the editor…</p>'); }catch(_){} }
   try{
     const r=await fetch(`${API}/attachments/${id}/takeoff`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN}});
@@ -1449,6 +1449,10 @@ function glLastTouchCell(r){
 }
 const SVG={
   mail:`<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
+  mailOutline:`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M2 4l6 5 6-5"/></svg>`,
+  phone:`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 2.2 5.4 2l1.2 3.1-1.5 1.2a10.2 10.2 0 0 0 4.6 4.6l1.2-1.5 3.1 1.2-.2 2.2c-.1.7-.7 1.2-1.4 1.2C6.7 14 2 9.3 2 3.6c0-.7.5-1.3 1.2-1.4Z"/></svg>`,
+  chat:`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v6A1.5 1.5 0 0 1 12.5 11H7l-3.5 2.5V11A1.5 1.5 0 0 1 2 9.5Z"/></svg>`,
+  tinyChev:`<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg>`,
   pin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
   copy:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="8" height="9" rx="1.2"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h7a1 1 0 011 1v2"/></svg>`,
   pen:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L5 13H3v-2z"/><path d="M10 4l2 2"/></svg>`,
@@ -1572,9 +1576,10 @@ const COUNTRIES=[
 ];
 const flagSrc=iso=>`https://flagcdn.com/24x18/${iso}.png`;
 
-/* A page may preset window.ACHI_LOG_COLS (the General Log does) to render a
-   different column set; otherwise the standard Log columns below are used. */
-const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&window.ACHI_LOG_COLS.length)?window.ACHI_LOG_COLS:[
+/* Full field definitions used by the Add/Edit Log form. Keep these independent
+   from the table columns so the list can be redesigned without losing fields
+   from the form or changing how those fields are saved. */
+const FORM_COLS=[
   {k:'num',    h:'#',              tab:null, cls:'num pg-f-num', w:42},
   {k:'when',   h:'Date & Time',    tab:null, cls:'pg-f-date', w:132},
   {k:'status', h:'Status',         tab:null, cls:'pg-f-stat', w:105, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
@@ -1582,6 +1587,7 @@ const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&wi
   {k:'first',  h:'First',          tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
   {k:'last',   h:'Last',           tab:0, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
   {k:'company',h:'Company',        tab:0, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+  {k:'subject',h:'Subject',        tab:0, w:220, wide:true, edit:{kind:'text',target:'log',field:'subject',val:r=>r.subject||''}},
   {k:'desc',   h:'Description',    tab:0, w:320, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
   {k:'location',h:'Location',      tab:0, w:170, draft:'text', edit:{kind:'text',target:'file',field:'site_location',val:r=>r.site_location||''}},
   {k:'tags',   h:'Tags',           tab:0, w:170, draft:'select', edit:{kind:'tags',target:'log',field:'tags',val:r=>r.tags||''}},
@@ -1602,6 +1608,40 @@ const COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&wi
   {k:'followup',h:'Follow-up Date',tab:3, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
   {k:'funotes',h:'Follow-up Notes',tab:3, w:300, wide:true, draft:'text', note:true, edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
 ];
+
+/* The standard Log is a compact summary list. Its full Add/Edit form continues
+   to use FORM_COLS above, so removing a field from this table never removes it
+   from the form or changes how it is saved. */
+const STANDARD_LOG_TABLE_COLS=[
+  {k:'num',       h:'Code',                  tab:null, cls:'num pg-f-num',  w:74},
+  {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',     w:112},
+  {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',     w:112, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
+  {k:'contact',   h:'Contact',               tab:null,                     w:190},
+  {k:'mobile',    h:'Mobile / WA',           tab:null,                     w:165, edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+  {k:'email',     h:'Email',                 tab:null,                     w:200, edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
+  {k:'role',      h:'Role',                  tab:null,                     w:135},
+  {k:'company',   h:'Company',               tab:null,                     w:180, edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+  {k:'city',      h:'City',                  tab:null,                     w:135, edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
+  {k:'desc',      h:'Notes — What Was Said', tab:null,                     w:330, wide:true, note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
+  {k:'intent',    h:'Intent',                tab:null,                     w:165},
+  {k:'linked_to', h:'Linked To',             tab:null,                     w:125},
+  {k:'owner',     h:'By',                    tab:null,                     w:56},
+
+];
+
+/* A page may preset window.ACHI_LOG_COLS (the General Log does) to render its
+   own column set. Only the standard Log receives the compact summary columns. */
+const TABLE_COLS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_LOG_COLS)&&window.ACHI_LOG_COLS.length)
+  ?window.ACHI_LOG_COLS
+  :STANDARD_LOG_TABLE_COLS;
+
+/* Temporary compatibility alias for the existing table/rendering code. */
+const COLS=TABLE_COLS;
+const COMPACT_STANDARD_LOG=TABLE_COLS===STANDARD_LOG_TABLE_COLS;
+if(COMPACT_STANDARD_LOG){
+  const addRowButton=$('add-row');
+  if(addRowButton) addRowButton.style.display='none';
+}
 const FIXED_KEYS=(typeof window!=='undefined'&&Array.isArray(window.ACHI_FIXED_KEYS))?window.ACHI_FIXED_KEYS:['num','when','status'];
 const DRAFT_KEYS=COLS.filter(c=>c.draft).map(c=>c.k);
 // The General Log sets this so shared cells (e.g. Follow-up) can render its
@@ -1614,7 +1654,16 @@ const BUSINESS_CODE=(typeof window!=='undefined'&&typeof window.ACHI_BUSINESS_CO
   ?window.ACHI_BUSINESS_CODE.trim():'';
 function formatBusinessCode(r,rowNumber){
   const displayNumber=String(rowNumber);
-  if(!GENERAL_LOG||!r) return displayNumber;
+  if(!r) return displayNumber;
+
+  /* The compact standard Log shows the permanent code. Older rows without one
+     retain a stable-looking visual fallback instead of rendering blank. */
+  if(!GENERAL_LOG){
+    const raw=String(r.log_code||'').trim();
+    if(!raw) return '#'+displayNumber;
+    const compact=raw.replace(/^LOG[-\s]*/i,'');
+    return compact.startsWith('#')?compact:'#'+compact;
+  }
 
   // The unconfigured General Log deliberately keeps its existing permanent
   // code display. Only explicitly configured workspaces use a visible index.
@@ -1879,6 +1928,155 @@ function isOverdueFollowup(r){
   const today=new Date(); today.setHours(0,0,0,0);
   return due<today;
 }
+
+/* ── Intent — "Copy Log → Stage" menu data ─────────────────────────────────
+   18 fixed targets in 3 groups, matching the design reference exactly (label
+   text and grouping are the visual source of truth). Selecting one PATCHes
+   `intent` on the log record itself (see pickIntent in log.js) — this data
+   only describes the menu; it never invents a linked document. */
+const INTENT_GROUPS=[
+  {title:'Sales & Design', group:'sales', options:[
+    {code:'ENQ', label:'ENQ — enquiry', hasNumber:true},
+    {code:'SV',  label:'Site Visit',    hasNumber:true},
+    {code:'DRW', label:'DRAW',          hasNumber:true},
+    {code:'MT',  label:'M/T',           hasNumber:true},
+    {code:'BOQ', label:'BOQ',           hasNumber:true},
+    {code:'RES', label:'RESOURCE',      hasNumber:true},
+    {code:'PLN', label:'PLAN',          hasNumber:true},
+    {code:'QUO', label:'Quotation',     hasNumber:true},
+  ]},
+  {title:'Operations', group:'ops', options:[
+    {code:'JOB', label:'Jobs',          hasNumber:true},
+    {code:'CAL', label:'Jobs Calendar', hasNumber:false},
+    {code:'CRW', label:'Crew',          hasNumber:false},
+    {code:'YRD', label:'Yard',          hasNumber:true},
+    {code:'FLT', label:'Fleet',         hasNumber:false},
+    {code:'DS',  label:'Delivery Slip', hasNumber:true},
+  ]},
+  {title:'Finance & People', group:'finance', options:[
+    {code:'INV',  label:'Invoice',           hasNumber:true},
+    {code:'ICAL', label:'Invoice Calendar',  hasNumber:false},
+    {code:'RCP',  label:'Payment / receipt', hasNumber:true},
+    {code:'HR',   label:'HR / Payroll case', hasNumber:true},
+  ]},
+];
+const INTENT_STAGES=Object.fromEntries(
+  INTENT_GROUPS.flatMap(g=>g.options.map(o=>[o.code,{...o,group:g.group,groupTitle:g.title}]))
+);
+
+/* Live "next code" figures, when the backend provides them (see
+   loadIntentNextCodes below). Until that endpoint exists, INTENT_NEXT_CODES
+   stays empty and the menu falls back to the placeholder figures taken
+   straight from the design mockup's screenshots — these are NOT production
+   counters, only a visual stand-in, and are replaced automatically the
+   moment the real endpoint responds. */
+let INTENT_NEXT_CODES={};
+const INTENT_NEXT_CODES_PLACEHOLDER={
+  ENQ:'ENQ-0105', SV:'SV-0036', DRW:'DRW-0013', MT:'MT-0182', BOQ:'BOQ-0089',
+  RES:'RES-0022', PLN:'PLN-0010', QUO:'QUO-0143', JOB:'JOB-0018', YRD:'YRD-0058',
+  DS:'DS-0453', INV:'INV-0914', RCP:'RCP-1206', HR:'HR-0045',
+};
+function intentNextLabel(code){
+  const live=INTENT_NEXT_CODES[code];
+  if(live) return live+' next';
+  const placeholder=INTENT_NEXT_CODES_PLACEHOLDER[code];
+  return placeholder?placeholder+' next':'next';
+}
+/* Proposed endpoint: GET /logs/intent-next-codes -> { ENQ:'ENQ-0106', SV:'SV-0037', ... }
+   one entry per code that has hasNumber:true above. Silently no-ops if the
+   endpoint doesn't exist yet — the menu keeps showing the placeholder figures. */
+async function loadIntentNextCodes(){
+  try{
+    const data=await api('/logs/intent-next-codes');
+    if(data&&typeof data==='object') INTENT_NEXT_CODES=data;
+  }catch(e){ /* not implemented yet — placeholder figures stay in place */ }
+}
+function renderIntentGroupsHTML(selectedCode){
+  return INTENT_GROUPS.map(group=>{
+    const rows=group.options.map(o=>{
+      const selected=o.code===selectedCode;
+      const next=o.hasNumber?intentNextLabel(o.code):'entry';
+      return `<button type="button" class="intent-option" role="option" data-code="${esc(o.code)}" aria-selected="${selected}">`
+        + `<span class="intent-code">${esc(o.code)}</span>`
+        + `<span class="intent-label">${esc(o.label)}</span>`
+        + `<span class="intent-next">${esc(next)}</span>`
+        + `</button>`;
+    }).join('');
+    return `<div class="intent-group"><div class="intent-group-label" role="presentation">${esc(group.title)}</div>${rows}</div>`;
+  }).join('');
+}
+
+/* Compact standard-Log cells. These are display adapters only: the underlying
+   record and the full Add/Edit form keep their original fields. */
+function compactLogStatus(r){
+  const value=String(r.status||'open').trim().toLowerCase();
+  return `<span class="badge b-${esc(value)} log-status-pill"><span>${esc(label(value))}</span><span class="log-pill-arrow">${SVG.tinyChev}</span></span>`;
+}
+function compactLogContact(r){
+  const name=String(r.contact_name||'').trim()
+    ||[r.prefix,r.first_name,r.last_name].filter(Boolean).join(' ').trim()
+    ||String(r.company_name||'').trim()
+    ||'New contact';
+  const source=[r.channel,r.communication,r.log_type,r.reference]
+    .filter(Boolean).join(' ').toLowerCase();
+  const icon=source.includes('email')
+    ?SVG.mailOutline
+    :(source.includes('whatsapp')||source.includes('message')||source.includes('sms')||source.includes('dm')||source.includes('instagram')||source.includes('facebook')||source.includes('linkedin'))
+      ?SVG.chat
+      :SVG.phone;
+  return `<span class="log-contact-cell"><span class="log-contact-icon" aria-hidden="true">${icon}</span><strong>${esc(name)}</strong></span>`;
+}
+function compactLogCity(r){
+  const city=String(r.city||'').trim();
+  if(!city) return '<span class="mt">—</span>';
+  const query=[r.city,r.district,r.country].filter(Boolean).join(', ');
+  const url=(r.maps_url&&normalizeMapsUrl(r.maps_url))
+    ||('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(query));
+  return `<a class="loc-link log-city-link" href="${esc(url)}" target="_blank" rel="noreferrer" title="Open in Google Maps">${SVG.pin}${esc(city)}</a>`;
+}
+function compactLogNotes(r){
+  const aiText=String(r.ai_summary||'').trim();
+  const value=aiText||String(r.description||'');
+  const source=String(r.note_source||r.description_source||r.summary_source||'').toLowerCase();
+  const isAI=!!aiText||r.ai_generated===true||source==='ai'||source.startsWith('ai_');
+  const text=value?richTextToPlain(value):'';
+  return `<span class="log-notes-cell"><span class="log-note-source${isAI?' is-ai':''}">${isAI?'AI':'NOTES'}</span><span class="log-note-text">${text?esc(text):'<span class="mt">—</span>'}</span></span>${marks(r)}`;
+}
+function compactLogIntent(r){
+  const code=String(r.intent||'').trim();
+  const info=INTENT_STAGES[code];
+  const attrs=`data-intent-trigger aria-haspopup="listbox" aria-expanded="false" title="Copy this log into a stage — also files an ENQ in CRM"`;
+  if(info){
+    return `<button type="button" class="log-intent-pill log-intent-group-${info.group}" ${attrs}>`
+      + `<span>${esc(info.code+' — '+info.label)}</span><span class="log-pill-arrow">${SVG.tinyChev}</span></button>`;
+  }
+  if(code){
+    // A value the menu doesn't recognise (e.g. data predating this menu).
+    // Shown as-is rather than hidden; picking a new value still works.
+    return `<button type="button" class="log-intent-pill log-intent-empty" ${attrs}>`
+      + `<span>${esc(code)}</span><span class="log-pill-arrow">${SVG.tinyChev}</span></button>`;
+  }
+  return `<button type="button" class="log-intent-pill log-intent-empty" ${attrs}>`
+    + `<span>Set intent</span><span class="log-pill-arrow">${SVG.tinyChev}</span></button>`;
+}
+function compactLinkedValue(r){
+  const linked=r.linked_to;
+  if(linked&&typeof linked==='object'){
+    return String(linked.code||linked.reference||linked.name||linked.id||'').trim();
+  }
+  return String(linked||r.linked_to_code||r.linked_code||r.related_code
+    ||r.enquiry_code||r.quotation_code||r.project_code||'').trim();
+}
+function compactLogLinked(r){
+  const value=compactLinkedValue(r);
+  if(!value) return '<span class="mt">—</span>';
+  const href=String(r.linked_url||r.link_url||'').trim();
+  if(href&&(/^(?:https?:\/\/|\/)/i).test(href)){
+    return `<a class="log-linked-code" href="${esc(href)}">${esc(value)}</a>`;
+  }
+  return `<span class="log-linked-code">${esc(value)}</span>`;
+}
+
 function cellHTML(c,r,i){switch(c.k){
   case 'num': return `<span class="rn${BUSINESS_CODE?' rn-code':''}">${esc(formatBusinessCode(r,i+1))}</span>`;
   case 'when': {
@@ -1894,17 +2092,20 @@ function cellHTML(c,r,i){switch(c.k){
   const hour = d.getHours();
   const h = hour % 12 || 12;
 
-  const text =
-    `${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ` +
-    `${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`;
+  const text=GENERAL_LOG
+    ?`${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`
+    :`${p(d.getDate())}/${p(d.getMonth()+1)} ${p(hour)}:${p(d.getMinutes())}`;
 
   return `<span class="lt-date">${esc(text)}</span>`;
-}  case 'status': return badge(r.status);
+}  case 'status': return GENERAL_LOG?badge(r.status):compactLogStatus(r);
+  case 'contact': return compactLogContact(r);
   case 'prefix': return dash(r.prefix);
   case 'first': return dash(r.first_name);
   case 'last': return dash(r.last_name);
   case 'company': return dash(r.company_name);
-  case 'desc': return `<span class="desc-cell-text">${r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>'}</span>`+marks(r);
+  case 'desc': return GENERAL_LOG
+    ?`<span class="desc-cell-text">${r.description?(looksHTML(r.description)?richText(r.description):esc(r.description)):'<span class="mt">—</span>'}</span>`+marks(r)
+    :compactLogNotes(r);
   case 'location': {
     // The Location column shows the CITY as a Google Maps link — the pinned
     // maps_url when one is set, otherwise a Maps search for city/district/country.
@@ -1932,8 +2133,10 @@ function cellHTML(c,r,i){switch(c.k){
     : '<span class="mt">—</span>';
   case 'country': return dash(r.country);
   case 'district': return dash(r.district);
-  case 'city': return dash(r.city);
+  case 'city': return GENERAL_LOG?dash(r.city):compactLogCity(r);
   case 'street': return dash(r.street);
+  case 'intent': return compactLogIntent(r);
+  case 'linked_to': return compactLogLinked(r);
   case 'updates': return r.updates?esc(r.updates):'<span class="mt">—</span>';
   case 'followup': {
     if(!r.follow_up_date) return '<span class="mt">—</span>';
@@ -2262,20 +2465,21 @@ function render(){
     ? deletedRows
     : (openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
   let rowNumber=1;
+  const showInlineDrafts=!COMPACT_STANDARD_LOG&&!deletedView;
   const body=[
-    deletedView?'':draftRowHTML(
+    showInlineDrafts?draftRowHTML(
       'd',
       topDraft,
       true,
       BUSINESS_CODE?rowNumber:rowNumber++,
-    ),
+    ):'',
     rows.length?rows.map((r,i)=>dataRowHTML(r,i,rowNumber++)).join(''):'',
-    deletedView?'':bottomDrafts.map((st,i)=>draftRowHTML(
+    showInlineDrafts?bottomDrafts.map((st,i)=>draftRowHTML(
       'b'+i,
       st,
       false,
       BUSINESS_CODE?rowNumber:rowNumber++,
-    )).join(''),
+    )).join(''):'',
   ].join('');
   $('rows').innerHTML=body;
   refreshSelectionButton();
@@ -2524,7 +2728,7 @@ function rxNameHTML(src){
 function rxBadgesHTML(r){
   const b=[];
   if(r.company_contact_id) b.push('Company contact');
-  if(r.has_drawing) b.push('Linked: Site Visit');
+  if(r.has_drawing) b.push('Linked: Drawing');
   if(r.attachment_count>0) b.push(`${r.attachment_count} attachment${r.attachment_count>1?'s':''}`);
   if(!b.length) return '';
   return `<div class="rx-badges">${b.map(x=>`<span class="rx-badge">${esc(x)}</span>`).join('')}</div>`;
@@ -2541,6 +2745,8 @@ function setRxState(state){
   if(labelEl) labelEl.textContent=rxStateValue;
   if(mark){ mark.className='rx-state-mark '+rxStateValue.toLowerCase(); mark.textContent=rxStateValue==='DONE'?'✓':''; }
   if(menu) menu.querySelectorAll('.rx-state-option').forEach(el=>el.setAttribute('aria-selected',String(el.dataset.state===rxStateValue)));
+  const hidden=$('rx-status-hidden');
+  if(hidden) hidden.value=rxStateValue.toLowerCase();
 }
 function prepareRxState(state){
   const menu=$('rx-state-menu');
@@ -2741,7 +2947,7 @@ function enhanceRxLocationSelect(select){
   });
 }
 function enhanceRxSelects(){
-  $('rx').querySelectorAll('select:not(.rx-native-select)').forEach(enhanceRxSelect);
+  $('rx').querySelectorAll('select:not(.rx-native-select):not([data-rx-native])').forEach(enhanceRxSelect);
 }
 /* Push a quick-pick into the free-text Quick-notes Subject. The 'input' event is
    what the Quill mount wired to syncHidden(), so this also updates the saved
@@ -2797,204 +3003,319 @@ function rxMapHTML(r){
     +`<a href="${esc(url)}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>`;
 }
 
+function rxContactInitials(first,last,fallback){
+  const chars=[first,last].map(v=>String(v||'').trim().charAt(0)).filter(Boolean);
+  if(chars.length) return chars.join('').toUpperCase().slice(0,2);
+  return String(fallback||'Contact').trim().split(/\s+/).map(v=>v.charAt(0)).join('').toUpperCase().slice(0,2)||'C';
+}
+function rxContactOptions(list,current){
+  const values=[...new Set([current,...(list||[])].filter(v=>v!==undefined&&v!==null&&String(v)!==''))];
+  return values.map(value=>{
+    const label=value===PREFIX_ADD||value===COMPANY_ADD?'+ Add New':value===ROLE_ADD?'＋ Add Role':value;
+    return `<option value="${esc(value)}"${String(value)===String(current||'')?' selected':''}>${esc(label)}</option>`;
+  }).join('');
+}
+function rxContactPhotoCard(kind,initials,findOnline){
+  const title=kind==='company'?'Logo':'Photo';
+  const add=kind==='company'?'Add logo':'Add photo';
+  return `<div class="rx-contact-photo-card" data-rx-photo-card="${kind}">
+    <div class="rx-contact-card-title">${title}</div>
+    <label class="rx-contact-photo-drop" title="Drop or browse for an image">
+      <input type="file" accept="image/*" data-rx-photo-input hidden>
+      <span class="rx-contact-photo-placeholder"><span class="rx-contact-avatar${kind==='company'?' is-logo':''}" data-rx-photo-initials>${esc(initials)}</span><span>＋ ${add}</span></span>
+    </label>
+    ${findOnline?'<button type="button" class="rx-ref-mini rx-find-online" id="rx-find-online">🔍 Find online</button>':''}
+  </div>`;
+}
+function rxReferenceTelRow(label,phone,scope){
+  const parts=contactPhoneParts(phone||'');
+  const id=nextPhoneId();
+  return `<div class="rx-ref-line" data-rx-${scope}-phone-row>
+    <span class="rx-ref-line-label">${esc(label)}</span>
+    <span class="tel-wrap"><button type="button" class="tel-cc${label==='WhatsApp'?' is-whatsapp':''}" data-rx-phone="${id}" aria-label="Choose country code"><img src="${flagSrc(parts.iso)}" alt=""><span class="cc">${esc(parts.dial)}</span>${SVG.chev}</button><input class="rx-in tel-num" id="${id}" data-rx-tel inputmode="tel" placeholder="${label==='Telephone'?'1 234 567':'70 123 456'}" value="${esc(parts.mobilenum)}"></span>
+    <button type="button" class="rx-ref-remove" data-rx-ref-remove aria-label="Remove ${esc(label)}">×</button>
+  </div>`;
+}
+function rxReferenceOnlineRow(label,value,scope,placeholder){
+  return `<div class="rx-ref-line" data-rx-${scope}-online-row><span class="rx-ref-line-label">${esc(label)}</span><input class="rx-in" data-rx-ref-online="${esc(label.toLowerCase())}" placeholder="${esc(placeholder||'')}" value="${esc(value||'')}"><button type="button" class="rx-ref-remove" data-rx-ref-remove aria-label="Remove ${esc(label)}">×</button></div>`;
+}
+function rxReferenceSocialRow(platform,handle,scope){
+  return `<div class="rx-ref-line" data-rx-${scope}-online-row><span class="rx-ref-line-label">Social</span><span class="rx-ref-social"><select class="rx-in" data-social-platform>${socialOptionsHTML(platform||'IG')}</select><input class="rx-in" placeholder="@handle" value="${esc(handle||'')}"></span><button type="button" class="rx-ref-remove" data-rx-ref-remove aria-label="Remove social handle">×</button></div>`;
+}
+function rxReferenceContactHTML(src,val){
+  const first=val('first')||'',last=val('last')||'',company=val('company')||'';
+  const initials=rxContactInitials(first,last,company);
+  const source=val('reference')||'Returning client';
+  const sourceOptions=['Returning client','Advertisement','Social media','Referral — someone','Website','Walk-in'];
+  const phoneRows=rxExistingPhones(src),emailRows=rxExistingEmails(src);
+  let savedSocials=[]; try{ savedSocials=JSON.parse(src.socials||'[]')||[]; }catch(e){}
+  const socials=savedSocials.length?savedSocials:[{platform:'IG',handle:''}];
+  const relatedRows=rxRelatedRowsHTML(rxExistingRelated(src));
+  const companyOpen=!!company;
+  const companyInitials=rxContactInitials('','',company||'Company');
+  const prefixOptions=rxContactOptions([...allPrefixes(),PREFIX_ADD],val('prefix'));
+  const roleOptions=rxContactOptions([...allRoles(),ROLE_ADD],val('role'));
+  const typeOptions=rxContactOptions([...allCompanyTypes(),COMPANY_ADD],val('company_type'));
+  const emailHtml=(emailRows.length?emailRows:[{label:'Primary',address:''}]).map((item,index)=>rxEmailRow(item,index>0)).join('');
+  const matched=src.contact_id?`✓ Matched existing contact — ${esc([first,last].filter(Boolean).join(' ')||company||'linked contact')}${company&&first?' · '+esc(company):''}`:'';
+  return `<div class="rx-contact-reference">
+    <div class="rx-contact-identity">
+      ${rxContactPhotoCard('person',initials,true)}
+      <div class="rx-contact-fields">
+        <span class="rx-ref-label">Pre</span><select class="rx-in" id="rx-prefix" data-rx-select="prefix" data-k="prefix">${prefixOptions}</select>
+        <span class="rx-ref-label">First <i>*</i></span><input class="rx-in" data-k="first" value="${esc(first)}" placeholder="Type to search contacts...">
+        <span class="rx-ref-label">Middle</span><input class="rx-in" data-rx-contact-middle value="${esc(src.middle_name||'')}" placeholder="Middle name">
+        <span class="rx-ref-label">Last</span><input class="rx-in" data-k="last" value="${esc(last)}" placeholder="Type to search contacts...">
+        <span class="rx-ref-label">Father’s name</span><input class="rx-in" data-rx-contact-father placeholder="Father’s name">
+        <span class="rx-ref-label">Mother’s name</span><input class="rx-in" data-rx-contact-mother placeholder="Mother’s name">
+        <span class="rx-ref-label">Role</span><select class="rx-in" id="rx-role" data-rx-select="role" data-k="role">${roleOptions}</select>
+        <span class="rx-ref-label">Company</span><input class="rx-in rx-contact-company-input" data-k="company" value="${esc(company)}" placeholder="Type to search companies...">
+        <span class="rx-ref-label">Found us via</span><select class="rx-in" id="rx-reference" data-k="reference">${rxContactOptions(sourceOptions,source)}</select>
+        <span class="rx-ref-label rx-referral-label"${source==='Referral — someone'?'':' hidden'}>Referred by</span><input class="rx-in rx-referral-input"${source==='Referral — someone'?'':' hidden'} data-rx-referred-by placeholder="Name / company">
+      </div>
+    </div>
+    <div class="rx-online-result" id="rx-online-result" hidden></div>
+    <div class="rx-contact-panels">
+      <div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div>${rxPhoneListHTML(phoneRows)}</div>
+      <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-email-list" id="rx-email-list">${emailHtml}</div><div class="rx-website-list" id="rx-website-list">${rxReferenceOnlineRow('Website',src.website||'','main','company.com')}</div><div class="rx-social-list" id="rx-social-list">${socials.map(s=>rxReferenceSocialRow(s.platform,s.handle,'main')).join('')}</div><select class="rx-in rx-ref-add-select" id="rx-add-online"><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
+    </div>
+    <button type="button" class="rx-ref-mini rx-address-toggle" data-rx-address-toggle="main">+ Add Address</button>
+    <div class="rx-ref-address" data-rx-address-panel="main" hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where the person lives — site address stays in the Site section</span><button type="button" data-rx-address-close="main">×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street name"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>
+    <label class="rx-company-toggle"><input type="checkbox" id="rx-company-toggle"${companyOpen?' checked':''}>From a company — <span id="rx-company-toggle-hint">${companyOpen?'company section below':'tick to add company details'}</span></label>
+    <div class="rx-company-panel" id="rx-company-panel"${companyOpen?'':' hidden'}>
+      <div class="rx-ref-subhead"><b>Company — <span id="rx-company-title">${esc(company||'new company')}</span></b><span>the contact belongs to this company</span></div>
+      <div class="rx-contact-identity">
+        ${rxContactPhotoCard('company',companyInitials,false)}
+        <div class="rx-contact-fields">
+          <span class="rx-ref-label">Name</span><input class="rx-in" data-rx-company-name value="${esc(company)}" placeholder="Type or pick">
+          <span class="rx-ref-label">Type</span><select class="rx-in" id="rx-company_type" data-rx-select="company_type" data-k="company_type">${typeOptions}</select>
+          <span class="rx-ref-label">VAT / MOF no.</span><input class="rx-in" data-rx-company-vat placeholder="Tax registration">
+          <span class="rx-ref-label">HQ address</span><span class="rx-ref-wide-control"><input class="rx-in" data-rx-company-hq placeholder="Street, city"><button type="button" class="rx-ref-mini" data-rx-company-address-toggle>+ Detail</button></span>
+          <span class="rx-ref-label">Industry</span><select class="rx-in"><option>Construction</option><option>Real estate</option><option>Industrial</option><option>Public sector</option><option>+ Add New</option></select>
+          <span class="rx-ref-label">Activity</span><select class="rx-in"><option>General contracting</option><option>Scaffolding &amp; formwork</option><option>Fit-out &amp; finishing</option><option>MEP</option><option>Infrastructure</option><option>Developer / owner</option><option>+ Add New</option></select>
+          <span class="rx-ref-label">Size</span><select class="rx-in"><option>1–10</option><option>11–50</option><option>51–200</option><option>200+</option></select>
+        </div>
+      </div>
+      <div class="rx-ref-address" data-rx-company-address-panel hidden><div class="rx-ref-subhead"><b>Company HQ details</b><span>registered or main office address</span><button type="button" data-rx-company-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / floor"></div></div>
+      <div class="rx-contact-panels">
+        <div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div><div class="rx-company-phone-list">${rxReferenceTelRow('Telephone','','company')}${rxReferenceTelRow('Mobile','','company')}${rxReferenceTelRow('WhatsApp','','company')}</div><button type="button" class="rx-ref-mini" data-rx-company-add-phone>+ Add Number</button></div>
+        <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-company-online-list">${rxReferenceOnlineRow('Email','','company','info@company.com')}${rxReferenceOnlineRow('Website','','company','company.com')}${rxReferenceSocialRow('IG','','company')}</div><select class="rx-in rx-ref-add-select" data-rx-company-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
+      </div>
+    </div>
+    <div class="rx-related-wrap${relatedRows?'':' rx-related-empty'}" id="rx-related-wrap"><div class="rx-related-heading">Additional contacts — same company, saved with this log</div><div class="rx-related-list" id="rx-related-list">${relatedRows}</div></div>
+    <button type="button" class="rx-ref-mini rx-add-related" id="rx-add-related">+ Person — add another contact</button>
+    <div class="rx-contact-match-note" id="rx-contact-match-note">${matched}</div>
+  </div>`;
+}
+
 function openExpandedRow(explicitId){
-  if(deletedView) return;   // deleted rows are read-only — no edit popup, no blank-create
-  // With a row selected (or an explicit id from "Save & continue"), edit it.
-  // Without one, open blank and CREATE on save — rxRowId === null is the flag
-  // the save path reads to tell edit from create.
-  const id=explicitId||selectedLogId();
+  if(deletedView) return;
+  const forceNew=explicitId===null;
+  const id=forceNew?null:(explicitId||selectedLogId());
   const r=id?ROWS.find(x=>x.id===id):null;
   rxRowId=r?id:null;
   const isNew=!r;
-  const src=r||{};   // empty object -> every field renders blank
-  // Title is set to the log number further down (was "Add Log"/"Log Details").
-  $('rx-sub').textContent=r?'view or update this call log':'fill while you’re on the call — everything prices itself live';
+  const src=r||{};
+  $('rx-sub').textContent=isNew?'Quick capture':'View or update this log';
 
-  /* Laid out to the Add Log mockups. Fields whose model column exists carry
-     data-k and save through the normal path; the rest are marked data-nosave
-     and are visual only until they have a column, so the design is reviewable
-     now without inventing fields the API would reject. */
   const opt=(list,v,blank)=>((blank?['']:[]).concat(list)).map(o=>
     `<option value="${esc(o)}"${String(o)===String(v||'')?' selected':''}>${esc(
-        o===TYPE_ADD?'+ Add New':o===PREFIX_ADD?'+ Add New':o===COMPANY_ADD?'+ Add New':o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===TAG_ADD?'＋ Add Tag':o===NOTE_SUBJECT_ADD?'+ Add New':o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
+      o===TYPE_ADD||o===PREFIX_ADD||o===COMPANY_ADD||o===NOTE_SUBJECT_ADD?'+ Add New'
+      :o===CITY_ADD?'+ Add City':o===ROLE_ADD?'＋ Add Role':o===TAG_ADD?'＋ Add Tag'
+      :o===SUBJECT_ADD||o===REFERENCE_ADD?'＋ Add New':(o||'—'))}</option>`).join('');
   const F=(lab,ctl,req)=>`<div><label class="rx-l">${esc(lab)}${req?' <span class="req">*</span>':''}</label>${ctl}</div>`;
-
   const IN=(k,ph,v,ns)=>`<input class="rx-in" ${ns?'data-nosave':`data-k="${k}"`} placeholder="${esc(ph||'')}" value="${esc(v??'')}">`;
   const SEL=(k,list,v,blank,ns)=>`<select class="rx-in" id="rx-${k}" data-rx-select="${k}" ${ns?'data-nosave':`data-k="${k}"`}>${opt(list,v,blank)}</select>`;
   const GEOSEL=(k,list,v,placeholder)=>{
     const values=[...(list||[])];
-
-    /* Preserve an existing/custom value even when it is not currently present
-      in the predefined/backend option list. */
-    if(v && !values.includes(v)){
-      values.unshift(v);
-    }
-
-    return `
-      <div class="rx-geo-combo">
-        <input
-          type="text"
-          class="rx-in rx-geo-input"
-          data-k="${k}"
-          data-geo-input="${k}"
-          value="${esc(v||'')}"
-          placeholder="${esc(placeholder||'')}"
-          autocomplete="off"
-        >
-        ${SEL(k,values,v,true,true)}
-      </div>
-    `;
+    if(v&&!values.includes(v)) values.unshift(v);
+    return `<div class="rx-geo-combo">
+      <input type="text" class="rx-in rx-geo-input" data-k="${k}" data-geo-input="${k}"
+        value="${esc(v||'')}" placeholder="${esc(placeholder||'')}" autocomplete="off">
+      ${SEL(k,values,v,true,true)}
+    </div>`;
   };
-  const g=(cls,...f)=>`<div class="rx-grid ${cls}">${f.join('')}</div>`;
+  const g=(cls,...fields)=>`<div class="rx-grid ${cls}">${fields.join('')}</div>`;
   const DIRECT={role:'role',company_type:'company_type',subject:'subject',no:'site_number',bldg:'site_building',floor:'site_floor'};
-  const val=k=>{ if(k==='reference') return src.reference||''; if(DIRECT[k]) return src[DIRECT[k]]||''; const c=COLS.find(x=>x.k===k&&x.edit); return c?c.edit.val(src):''; };
-  const countryValue=isNew ? (val('country')||'Lebanon') : val('country');
-  const districtValue=val('district');
-  const cityValue=val('city');
-  let html='';
-  html+=g('rx-g4',
-    F('Pre',        SEL('prefix',[...allPrefixes(),PREFIX_ADD],val('prefix'),true)),
-    F('First name', IN('first','Type or pick...',val('first')),true),
-    F('Last name',  IN('last','Type or pick...',val('last'))),
-    F('Role',       SEL('role',[...allRoles(),ROLE_ADD],val('role'),true)));
-  html+=g('rx-gc',
-    F('Phone / WhatsApp', rxPhoneListHTML(rxExistingPhones(src))+`<button type="button" class="rx-add-related" id="rx-add-related">+ Add Contact Person</button>`),
-    F('Email',            rxEmailListHTML(rxExistingEmails(src))),
-    F('Company',          IN('company','Type or pick',val('company'))),
-    F('Company type',     SEL('company_type',[...new Set([val('company_type'),...allCompanyTypes()].filter(Boolean)),COMPANY_ADD],val('company_type'),true)));
-  // Additional contact people — a full-width block under the contact row, filled
-  // by "+ Add Contact Person". Hidden until it has at least one person.
-  const relatedRows=rxRelatedRowsHTML(rxExistingRelated(src));
-  html+=`<div class="rx-related-wrap${relatedRows?'':' rx-related-empty'}" id="rx-related-wrap"><label class="rx-l">Additional contacts</label><div class="rx-related-list" id="rx-related-list">${relatedRows}</div></div>`;
-  let savedSocials=[]; try{ savedSocials=JSON.parse(src.socials||'[]')||[]; }catch(e){}
-  const socialRow=(plat,handle)=>`<div class="rx-social"><select class="rx-in" data-nosave data-social-platform>${socialOptionsHTML(plat||'IG')}</select>`
-    +`<input class="rx-in" data-nosave placeholder="@handle" value="${esc(handle||'')}"></div>`;
-  const socialRows=(savedSocials.length?savedSocials:[{platform:'',handle:''}]).map(s=>socialRow(s.platform,s.handle)).join('');
-  const socialHandles=`<div><label class="rx-l">Social handles</label><div class="rx-social-list" id="rx-social-list">${socialRows}</div>
-    <button type="button" class="rx-add-handle" id="rx-add-handle">+ Add Handle</button></div>`;
-  html+=g('rx-g2',socialHandles,
-    F('Reference',SEL('reference',[...allReferences(),REFERENCE_ADD],val('reference'),true)));
-  html+=g('rx-g2',
-  F('Log type', SEL('type',[...allTypes(val('type')),TYPE_ADD],val('type'),true)),
-  // One OR MORE tags — click to open a checkbox dropdown.
-  F('Tags', `<input class="rx-in rx-tags-input" id="rx-tags" data-k="tags" data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="Select tags…" readonly>`));
-  const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use My Current Location</span></button>`;
-  const siteCountry=isNew?'Lebanon':val('country');
-  html+=`<div class="rx-fs"><h4>Site info</h4>`
-    +`<div class="rx-mapfield">${F('Google maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}`
-    +`<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>`
-    +g('rx-g3',
-        F('Country',
-          GEOSEL('country',COUNTRY_NAMES,countryValue,'Type or select country')),
-        F('District',
-          GEOSEL('district',districtOptions(countryValue),districtValue,'Type or select district')),
-        F('City',
-          GEOSEL('city',cityOptions(countryValue,districtValue),cityValue,'Type or select city')))
-    +g('rx-g4', F('Street',   IN('street','Street name',val('street'))),
-                F('No.',      IN('no','12',val('no'))),
-                F('Building', IN('bldg','Bldg',val('bldg'))),
-                F('Floor',    IN('floor','GF',val('floor'))))
-    +`</div>`;
-  html+=`<div class="rx-notes">
-    <div class="rx-notes-head" id="rx-notes-head">
-  <h4>Quick notes — no time? dump everything here</h4>
+  const val=k=>{
+    if(k==='reference') return src.reference||'';
+    if(DIRECT[k]) return src[DIRECT[k]]||'';
+    const c=FORM_COLS.find(x=>x.k===k&&x.edit);
+    return c?c.edit.val(src):'';
+  };
+  const section=(key,title,contents,open,hint='')=>`<fieldset class="rx-section" data-rx-section="${key}"${open?'':' hidden'}>
+    <legend>＋ ${esc(title)}${hint?` <span class="rx-section-hint">— ${esc(hint)}</span>`:''}<button type="button" class="rx-section-remove" data-rx-remove-section="${key}" aria-label="Remove ${esc(title)}">×</button></legend>
+    ${contents}
+  </fieldset>`;
 
-  <button type="button"
-          class="rx-notes-attach-btn"
-          id="rx-notes-attach-btn">
-    <svg viewBox="0 0 24 24"
-         fill="none"
-         stroke="currentColor"
-         stroke-width="2"
-         stroke-linecap="round"
-         stroke-linejoin="round">
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
-    </svg>
-    Attach file
-  </button>
-</div>
-    <div class="rx-notes-subject-row">
-      <input type="text" class="rx-notes-subject" id="rx-notes-subject" placeholder="Subject…" maxlength="200" autocomplete="off">
-      ${SEL('notesubject',[...allNoteSubjects(),NOTE_SUBJECT_ADD],'',true,true)}
-    </div>
-    <input type="file" id="rx-notes-file-input" multiple style="display:none">
-    <div class="rx-notes-dropzone" id="rx-notes-dropzone">
-      <div id="quill-desc-editor"></div>
-      <div id="quill-desc-toolbar">
-        <button class="ql-bold"></button>
-        <button class="ql-italic"></button>
-        <button class="ql-underline"></button>
-        <button class="ql-strike"></button>
-        <button class="ql-list" value="ordered"></button>
-        <button class="ql-list" value="bullet"></button>
-        <button class="ql-blockquote"></button>
-        <button class="ql-clean"></button>
+  /* Quick capture is always visible. It keeps the production Quill, tags and
+     upload IDs while adopting the compact reference layout. */
+  const capture=`<div class="rx-capture">
+    <div class="rx-capture-top">
+      <div class="rx-notes-subject-row">
+        <input type="text" class="rx-notes-subject" id="rx-notes-subject" data-k="subject"
+          value="${esc(val('subject'))}" placeholder="Subject…" maxlength="200" autocomplete="off">
+        ${SEL('notesubject',[...allNoteSubjects(),NOTE_SUBJECT_ADD],'',true,true)}
       </div>
+      <input class="rx-in rx-tags-input" id="rx-tags" data-k="tags"
+        data-select-value="${esc(val('tags'))}" value="${esc(val('tags'))}" placeholder="+ tag ▾" readonly>
     </div>
-    <input type="hidden" data-k="desc" id="quill-desc-hidden" value="${esc(val('desc'))}">
-  </div>
-  <div class="rx-attach" id="rx-attach-section" style="display:none">
-    <h4>Attachments</h4>
-    <div class="rx-notes-files" id="rx-notes-files"></div>
+    <div class="rx-notes">
+      <input type="file" id="rx-notes-file-input" multiple style="display:none">
+      <div class="rx-notes-dropzone" id="rx-notes-dropzone">
+        <div id="quill-desc-editor"></div>
+        <div id="quill-desc-toolbar">
+          <button class="ql-bold"></button><button class="ql-italic"></button>
+          <button class="ql-underline"></button><button class="ql-strike"></button>
+          <button class="ql-list" value="ordered"></button><button class="ql-list" value="bullet"></button>
+          <button class="ql-blockquote"></button><button class="ql-clean"></button>
+        </div>
+      </div>
+      <div class="rx-capture-tools">
+        <button type="button" class="rx-notes-attach-btn" id="rx-notes-attach-btn" title="Attach files">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          <span>Attach file</span>
+        </button>
+      </div>
+      <input type="hidden" data-k="desc" id="quill-desc-hidden" value="${esc(val('desc'))}">
+      <input type="hidden" data-k="type" id="rx-type-hidden" value="${esc(val('type')||'inbound_call')}">
+      <input type="hidden" data-k="status" id="rx-status-hidden" value="${esc(String(src.status||'open').toLowerCase())}">
+      <input type="hidden" data-k="followup" id="rx-followup-hidden" value="${esc(val('followup'))}">
+    </div>
   </div>`;
-  // Attachments & drawing and Cost estimate were deliberately removed earlier;
-  // Quick notes (above, with its own Attach file) is the last section. Alfred's
-  // quick-notes patch reintroduced those two blocks here — kept out on purpose.
-  /* Header and footer picklists. The state and copy-to values have no column
-     yet, so they are presentational — the log still saves through the normal
-     path and nothing is silently dropped, because they are never sent. */
-  const fill=(id,list)=>{ const el=$(id); if(el) el.innerHTML=list.map(o=>`<option>${esc(o)}</option>`).join(''); };
-  const currentState=String(r&&r.status||'OPEN').toUpperCase();
+
+  const contact=rxReferenceContactHTML(src,val);
+
+  const countryValue=isNew?'':val('country');
+  const districtValue=val('district'), cityValue=val('city');
+  const gpsButton=`<button type="button" class="rx-use-location" id="rx-use-location" title="Use this device's current location"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.75 4.5 8.5 4.5 8.5s4.5-4.75 4.5-8.5c0-2.49-2.01-4.5-4.5-4.5zm0 6.1a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z" fill="currentColor"/></svg><span>Use my location</span></button>`;
+  const site=`<div class="rx-fs">
+    <div class="rx-mapfield">${F('Maps link',`<div class="rx-map-input-row">${IN('maps','https://maps.app.goo.gl/…',val('maps'))}${gpsButton}</div><div class="rx-location-status" id="rx-location-status" role="status"></div>`)}<div class="rx-mapprev" id="rx-mapprev" hidden></div></div>
+    ${g('rx-g3',
+      F('Country',GEOSEL('country',COUNTRY_NAMES,countryValue,'Type or select country')),
+      F('District',GEOSEL('district',districtOptions(countryValue),districtValue,'Type or select district')),
+      F('City',GEOSEL('city',cityOptions(countryValue,districtValue),cityValue,'Type or select city')))}
+    ${g('rx-g4',F('Street',IN('street','Street name',val('street'))),F('No.',IN('no','12',val('no'))),F('Building',IN('bldg','Bldg',val('bldg'))),F('Floor',IN('floor','GF',val('floor'))))}
+  </div>`;
+
+  const attachments=`<div class="rx-attach" id="rx-attach-section"><div class="rx-attachment-drop">Drop JPEG, PNG, PDF, DWG, DXF, Revit/IFC or another supported file here, or use the attachment button in Quick Notes.</div><div class="rx-notes-files" id="rx-notes-files"></div></div>`;
+  const draftReady=Number(src.attachment_count||0)>0;
+  const draftStatus=draftReady?'is-ready':'is-waiting';
+  const autoDraft=`<div class="rx-auto-grid">
+    <article class="rx-auto-card">
+      <div class="rx-auto-preview rx-auto-preview-3d">3D MODEL — massing + scaffold wrap<span>auto</span></div>
+      <div class="rx-auto-card-body">
+        <strong class="rx-auto-status ${draftStatus}">${draftReady?`✓ READY — drafted from ${Number(src.attachment_count)} file${Number(src.attachment_count)===1?'':'s'}`:'waiting for files — drop photos or a model'}</strong>
+        <p>photogrammetry from the photos · video for scale · client .rvt merged as-is</p>
+        <div class="rx-auto-actions"><button type="button" class="rx-mini" title="Module ships in a later development stage">open in Draw ↗</button><button type="button" class="rx-mini" title="Auto-draft integration will be connected later">↻ re-draft</button></div>
+      </div>
+    </article>
+    <article class="rx-auto-card">
+      <div class="rx-auto-preview rx-auto-preview-4d">4D — MODEL × PLAN PHASES<span>auto</span></div>
+      <div class="rx-auto-card-body">
+        <strong class="rx-auto-status ${draftStatus}">${draftReady?'✓ READY — phases from the PLAN section below':'drafts once files + a PLAN section exist'}</strong>
+        <p>erection animated week by week — updates live when the PLAN section changes</p>
+        <div class="rx-auto-actions"><button type="button" class="rx-mini" title="4D playback will be connected later">play 4D ↗</button><button type="button" class="rx-mini" title="PLAN integration will be connected later">PLAN module ↗</button></div>
+      </div>
+    </article>
+    <article class="rx-auto-card">
+      <div class="rx-auto-preview rx-auto-preview-drw">DRW — EXPLICATIVE SHEET<span>auto</span></div>
+      <div class="rx-auto-card-body">
+        <strong class="rx-auto-status ${draftStatus}">${draftReady?'✓ Drawing drafted — GA + elevation':'waiting for files'}</strong>
+        <p>GA + elevation on the client's .dwg underlay — engineer stamps before issue</p>
+        <div class="rx-auto-actions"><button type="button" class="rx-mini" title="Drawing Studio integration will be connected later">open in Studio ↗</button><button type="button" class="rx-mini" title="Auto-draft integration will be connected later">↻ re-draft</button></div>
+      </div>
+    </article>
+  </div>
+  <p class="rx-section-note">Drafts update automatically when files are added · drafts feed the M/T below — takeoff lines can pull measured faces straight from the 3D</p>`;
+  const drawing=`<div class="rx-tool-placeholder"><strong>Drawing — sketch</strong><span>Open the drawing workspace and save the sketch directly against this log. A new log is created and linked automatically before the canvas opens.</span><button type="button" class="rx-mini" id="rx-draw">Open drawing tool</button></div>`;
+  const visitDate=val('followup')||(()=>{ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; })();
+  const siteVisit=`<div class="rx-visit-grid">
+    ${F('Date',`<input type="date" class="rx-in" id="rx-site-visit-date" data-nosave value="${esc(visitDate)}">`)}
+    ${F('Time',`<input type="time" class="rx-in" id="rx-site-visit-time" data-nosave value="10:00">`)}
+    ${F('Surveyor',`<select class="rx-in" id="rx-site-visit-surveyor" data-nosave><option>Rami Abou Khalil</option><option>Samir Mansour</option></select>`)}
+  </div>
+  <div class="rx-visit-media">
+    <div class="rx-visit-media-head"><strong>Media taken by us — on site</strong><span>surveyor's photos, measurements, walk-round video — filed on the SV</span></div>
+    <div class="rx-visit-drop">Drop or browse — filled by Rami at the visit · syncs from the mobile app</div>
+    <div class="rx-visit-awaiting"><div class="rx-visit-camera" aria-hidden="true">📷</div><div>awaiting visit — ${esc(visitDate)} 10:00</div></div>
+  </div>`;
+  const mt=`<div class="rx-tool-placeholder"><strong>M/T — measurement takeoff</strong><span>Open an attached PDF, DWG, DXF, Revit or IFC file in the correct measurement tool, or upload a source file first.</span><button type="button" class="rx-mini" id="rx-mt">Open M/T tool</button><span class="rx-tool-status" id="rx-mt-status" role="status"></span></div>`;
+  const hasContact=!isNew||!!(src.first_name||src.last_name||src.company_name||src.mobile||src.email);
+  const hasSite=!!(src.site_location||src.country||src.district||src.city||src.street||src.maps_url||src.site_number||src.site_building||src.site_floor);
+  const hasAttachments=Number(src.attachment_count||0)>0;
+  const hasDrawing=!!src.has_drawing;
+
+  const addOption=(key,label,open)=>`<button type="button" class="rx-add-option" data-rx-add-section="${key}"${open?' disabled':''}>${esc(label)}<span class="rx-add-check">${open?'✓':''}</span></button>`;
+  const addMenu=`<div class="rx-plusrow">
+    <button type="button" class="rx-plus" id="rx-add-section-toggle" aria-label="Add a section" aria-haspopup="menu" aria-expanded="false">+</button>
+    <div class="rx-add-menu" id="rx-add-section-menu" role="menu" hidden>
+      ${addOption('contact','Contact — caller & company',hasContact)}
+      ${addOption('site','Site — pick the site',hasSite)}
+      ${addOption('attachments','Attach — client files, AI reads',hasAttachments)}
+      ${addOption('autodraft','Auto-draft — 3D · 4D · drawing',false)}
+      ${addOption('drawing','Drawing — sketch',hasDrawing)}
+      ${addOption('sitevisit','Site visit booking',false)}
+      ${addOption('mt','M/T — measurement takeoff',false)}
+    </div>
+  </div>`;
+
+  $('rx-body').innerHTML=capture
+    +section('contact','Contact',contact,hasContact,'shared picker: same block in ENQ, Job, SV forms')
+    +section('site','Site',site,hasSite,'location and address')
+    +section('attachments','Attach',attachments,hasAttachments,'files shared by the client')
+    +section('autodraft','Auto-draft — 3D · 4D · drawing',autoDraft,false,'drafts itself from the attached files + the notes, before any M/T')
+    +section('drawing','Drawing',drawing,hasDrawing,'sketch or open the drawing workspace')
+    +section('sitevisit','Site visit booking',siteVisit,false)
+    +section('mt','M/T',mt,false,'quantities and takeoff')
+    +addMenu;
+
+  const fill=(id,list)=>{ const el=$(id); if(el) el.innerHTML=list.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join(''); };
+  const currentState=String(src.status||'OPEN').toUpperCase();
   prepareRxState(currentState);
   fill('rx-copy',COPY_TARGETS);
-  /* Save button follows the copy-to target: "Save Log" when the log stays put,
-     otherwise "Save & copy to <target>". CRM's option reads "CRM — new deal"; the
-     button says just "CRM". The copy-to select sits in the static footer, outside
-     rx-body, so its change is bound here rather than on the body handler. */
   const updateSaveLabel=()=>{
-    const v=($('rx-copy')&&$('rx-copy').value)||'Log only';
+    const target=($('rx-copy')&&$('rx-copy').value)||'Log only';
     const btn=$('rx-save'); if(!btn) return;
-    btn.textContent=v==='Log only'?'Save Log':'Save & copy to '+(v==='CRM — new deal'?'CRM':v);
+    btn.textContent=target==='Log only'?'Save Log':'Save & copy to '+(target==='CRM — new deal'?'CRM':target);
   };
   if($('rx-copy')&&!$('rx-copy').dataset.saveLabelWired){
     $('rx-copy').dataset.saveLabelWired='1';
     $('rx-copy').addEventListener('change',updateSaveLabel);
   }
   updateSaveLabel();
-  const rowIndex=r?ROWS.findIndex(row=>row.id===r.id):-1;
-  // Show the log number AS the title (replacing "Add Log"), and hide the now
-  // redundant "Log #…" chip that used to sit beside it.
-  $('rx-title').textContent=`Log #${r&&rowIndex>=0?ROWS.length-rowIndex:ROWS.length+1}`;
-  const rxNum=$('rx-num'); if(rxNum) rxNum.style.display='none';
-  const whenDate=new Date(r&&r.created_at?r.created_at:Date.now());
+
+  $('rx-title').textContent=isNew?'New':'Edit';
+  const code=String(src.log_code||'LOG').replace(/^LOG[-\s]*/i,'')||'LOG';
+  $('rx-num').textContent=isNew?'LOG':(/^#/.test(code)?code:'#'+code);
+  $('rx-by').textContent='by '+String(src.owner||src.created_by||'—');
+  const whenDate=new Date(src.created_at||Date.now());
   const w=$('rx-when');
   if(w){
     const p=n=>String(n).padStart(2,'0');
     w.value=`${whenDate.getFullYear()}-${p(whenDate.getMonth()+1)}-${p(whenDate.getDate())}T${p(whenDate.getHours())}:${p(whenDate.getMinutes())}`;
     $('rx-when-label').textContent=fmtHeaderDT(whenDate);
   }
-  /* A native <select> has no pick hook to intercept, so "＋ Add new…" is caught
-     on change: prompt, store, then replace the sentinel with the new value.
-     Cancelling restores the previous selection, so the sentinel can never be
-     the value that gets saved. */
-  setTimeout(()=>{ const sel=$('rx-body').querySelector('select[data-k="type"]'); if(!sel) return;
-    let last=sel.value;
-    sel.addEventListener('change',()=>{
-      if(sel.value!==TYPE_ADD){ last=sel.value; return; }
-      const added=addType();
-      if(added){ if(![...sel.options].some(o=>o.value===added)) sel.add(new Option(added,added),sel.options.length-1);
-                 sel.value=added; last=added; }
-      else sel.value=last;
-    });
-  },0);
-  $('rx-body').innerHTML=html;
+
+  const typeSelect=$('rx-header-type');
+  if(typeSelect){
+    const typeValue=val('type')||'inbound_call';
+    const types=allTypes(typeValue).filter(value=>value!==TYPE_ADD);
+    typeSelect.innerHTML=types.map(value=>`<option value="${esc(value)}"${value===typeValue?' selected':''}>${esc(label(value))}</option>`).join('');
+    typeSelect.onchange=()=>{ const hidden=$('rx-type-hidden'); if(hidden) hidden.value=typeSelect.value; };
+  }
+  const followup=$('rx-header-followup');
+  if(followup){
+    followup.value=val('followup')||'';
+    followup.onchange=()=>{ const hidden=$('rx-followup-hidden'); if(hidden) hidden.value=followup.value; };
+  }
+
   enhanceRxSelects();
   wireGeoManualInputs();
   rxRenumberPersons();
+  setRxState(currentState);
   $('rx').hidden=false;
-
-  // Tiles need the real width, which only exists once the sheet is laid out.
-  rxUpdateMapPreview();   // render for any link already on the row
+  rxUpdateMapPreview();
   $('rx-body').scrollTop=0;
 }
 
@@ -3104,7 +3425,7 @@ function rxUpdateMapPreview(){
 // Social handles are a repeatable list (no single data-k), so collect them by row.
 function rxCollectSocials(){
   const list=$('rx-social-list');
-  return (list?[...list.querySelectorAll('.rx-social')]:[]).map(row=>({
+  return (list?[...list.querySelectorAll('.rx-social,[data-rx-main-online-row]')]:[]).filter(row=>row.querySelector('[data-social-platform]')).map(row=>({
     platform:(row.querySelector('[data-social-platform]')?.value||'').trim(),
     handle:(row.querySelector('input')?.value||'').trim()
   })).filter(s=>s.handle);
@@ -3246,30 +3567,38 @@ function rxPersonFields(rc){
   rc=rc||{};
   let first=rc.first_name||'', last=rc.last_name||'';
   if(!first&&!last&&rc.name){ const p=String(rc.name).trim().split(/\s+/); first=p[0]||''; last=p.slice(1).join(' '); }
-  return {prefix:rc.prefix||'', first, last, role:rc.role||rc.tag||'', phone_label:rc.phone_label||'Mobile', phone:rc.phone||'', email:rc.email||'', primary:!!rc.primary};
+  return {prefix:rc.prefix||'', first, middle:rc.middle_name||'', last, father:rc.father_name||'', mother:rc.mother_name||'', role:rc.role||rc.tag||'', company:rc.company_name||'', source:rc.source||'Returning client', phone_label:rc.phone_label||'Mobile', phone:rc.phone||'', email:rc.email||'', website:rc.website||'', social_platform:rc.social_platform||'IG', social:rc.social||'', primary:!!rc.primary};
 }
 function rxRelatedRow(rc){
   const f=rxPersonFields(rc);
   const parts=contactPhoneParts(f.phone);
   const id=nextPhoneId();
+  const initials=rxContactInitials(f.first,f.last,f.company);
   return `<div class="rx-person" data-rx-related-row>`
     +`<div class="rx-person-head"><span class="rx-person-t" data-rx-person-num>Contact</span>`
       +`<button type="button" class="rx-person-x" data-rx-related-remove aria-label="Remove contact person">&times; Remove</button></div>`
-    +`<div class="rx-grid rx-g4">`
-      +`<div><label class="rx-l">Pre</label><select class="rx-in" data-rc-prefix>${rxPersonOpts(allPrefixes(),f.prefix)}</select></div>`
-      +`<div><label class="rx-l">First name</label><input class="rx-in" data-rc-first maxlength="128" placeholder="Type or pick..." value="${esc(f.first)}"></div>`
-      +`<div><label class="rx-l">Last name</label><input class="rx-in" data-rc-last maxlength="128" placeholder="Type or pick..." value="${esc(f.last)}"></div>`
-      +`<div><label class="rx-l">Role</label><select class="rx-in" data-rc-role>${rxPersonOpts(allRoles(),f.role)}</select></div>`
+    +`<div class="rx-contact-identity">${rxContactPhotoCard('person',initials,false)}<div class="rx-contact-fields">`
+      +`<span class="rx-ref-label">Pre</span><select class="rx-in" data-rc-prefix>${rxPersonOpts(allPrefixes(),f.prefix)}</select>`
+      +`<span class="rx-ref-label">First <i>*</i></span><input class="rx-in" data-rc-first maxlength="128" placeholder="Type to search contacts..." value="${esc(f.first)}">`
+      +`<span class="rx-ref-label">Middle</span><input class="rx-in" data-rc-middle placeholder="Middle name" value="${esc(f.middle)}">`
+      +`<span class="rx-ref-label">Last</span><input class="rx-in" data-rc-last maxlength="128" placeholder="Type to search contacts..." value="${esc(f.last)}">`
+      +`<span class="rx-ref-label">Father’s name</span><input class="rx-in" data-rc-father placeholder="Father’s name" value="${esc(f.father)}">`
+      +`<span class="rx-ref-label">Mother’s name</span><input class="rx-in" data-rc-mother placeholder="Mother’s name" value="${esc(f.mother)}">`
+      +`<span class="rx-ref-label">Role</span><select class="rx-in" data-rc-role>${rxPersonOpts(allRoles(),f.role)}</select>`
+      +`<span class="rx-ref-label">Company</span><input class="rx-in rx-related-company" data-rc-company placeholder="Type to search companies..." value="${esc(f.company)}">`
+      +`<span class="rx-ref-label">Found us via</span><select class="rx-in" data-rc-source>${rxContactOptions(['Returning client','Advertisement','Social media','Referral — someone','Website','Walk-in'],f.source)}</select>`
+    +`</div></div>`
+    +`<div class="rx-contact-panels">`
+      +`<div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div><div class="rx-related-phone-list">`
+        +`<div class="rx-ref-line"><select class="rx-in rx-ref-line-label" data-rc-phone-label>${rxPhoneOptions(f.phone_label)}</select><span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="${id}" aria-label="Choose country code"><img src="${flagSrc(parts.iso)}" alt=""><span class="cc">${esc(parts.dial)}</span>${SVG.chev}</button><input class="rx-in tel-num" id="${id}" data-rc-phone data-rx-tel inputmode="tel" placeholder="70 123 456" value="${esc(parts.mobilenum)}"></span><button type="button" class="rx-ref-remove" data-rx-ref-remove>×</button></div>${rxReferenceTelRow('WhatsApp','','related')}${rxReferenceTelRow('Telephone','','related')}`
+      +`</div><button type="button" class="rx-ref-mini" data-rx-related-add-phone>+ Add Number</button></div>`
+      +`<div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-related-online-list">`
+        +`<div class="rx-ref-line"><span class="rx-ref-line-label">Email</span><input class="rx-in" data-rc-email inputmode="email" placeholder="name@company.com" value="${esc(f.email)}"><button type="button" class="rx-ref-remove" data-rx-ref-remove>×</button></div>`
+        +`${rxReferenceOnlineRow('Website',f.website,'related','company.com')}${rxReferenceSocialRow(f.social_platform,f.social,'related')}`
+      +`</div><select class="rx-in rx-ref-add-select" data-rx-related-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>`
     +`</div>`
-    +`<div class="rx-grid rx-g-person">`
-      +`<div><label class="rx-l">Phone / WhatsApp</label><div class="rx-person-tel">`
-        +`<select class="rx-in rx-phone-label" data-rc-phone-label aria-label="Number type">${rxPhoneOptions(f.phone_label)}</select>`
-        +`<span class="tel-wrap"><button type="button" class="tel-cc" data-rx-phone="${id}" aria-label="Choose country code" title="Country code"><img src="${flagSrc(parts.iso)}" alt=""><span class="cc">${esc(parts.dial)}</span>${SVG.chev}</button>`
-        +`<input class="rx-in tel-num" id="${id}" data-rc-phone data-rx-tel inputmode="tel" autocomplete="tel-national" placeholder="70 123 456" value="${esc(parts.mobilenum)}"></span>`
-      +`</div></div>`
-      +`<div><label class="rx-l">Email</label><input class="rx-in" data-rc-email inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(f.email)}"></div>`
-      +`<div><label class="rx-l">Primary?</label><select class="rx-in" data-rc-primary><option value="no"${f.primary?'':' selected'}>No</option><option value="yes"${f.primary?' selected':''}>Yes</option></select></div>`
-    +`</div>`
+    +`<div class="rx-person-foot"><label>Primary contact? <select class="rx-in" data-rc-primary><option value="no"${f.primary?'':' selected'}>No</option><option value="yes"${f.primary?' selected':''}>Yes</option></select></label><button type="button" class="rx-ref-mini" data-rx-related-address-toggle>+ Add Address</button></div>`
+    +`<div class="rx-ref-address" data-rx-related-address-panel hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where this person lives</span><button type="button" data-rx-related-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>`
   +`</div>`;
 }
 function rxRelatedRowsHTML(list){ return (list||[]).map(rxRelatedRow).join(''); }
@@ -3399,26 +3728,66 @@ return {
 };
 }
 
-function rxBusy(on){ const a=$('rx-save'),b=$('rx-cancel'); if(a)a.disabled=on; if(b)b.disabled=on; }
+/* bottom drag strip resizes table height (persisted) */
+(function(){
+  const saved=+localStorage.getItem('achi_bh'); if(saved>160) outer.style.setProperty('--bh',saved+'px');
+  $('vrz').addEventListener('pointerdown',e=>{
+    const start={y:e.clientY,h:outer.getBoundingClientRect().height}; document.body.classList.add('resizing');
+    const mv=ev=>{ const h=Math.max(180,Math.min(1400,start.h+(ev.clientY-start.y))); outer.style.setProperty('--bh',h+'px'); };
+    const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); document.body.classList.remove('resizing');
+      localStorage.setItem('achi_bh',Math.round(outer.getBoundingClientRect().height)); };
+    window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+  });
+})();
+
+/* Optional "TABLE SIZE" stepper (general_log.html). Reads/writes the SAME
+   --bh custom property and achi_bh storage key as the drag strip above, so
+   dragging and clicking always agree. A page without the buttons — any other
+   workspace sharing this script — simply has nothing to wire. */
+(function(){
+  const smaller=$('log-size-smaller'), bigger=$('log-size-bigger'), compact=$('log-size-compact');
+  if(!smaller&&!bigger&&!compact) return;
+  const clamp=h=>Math.max(140,Math.min(1400,h));
+  const currentH=()=>{ const v=parseFloat(getComputedStyle(outer).getPropertyValue('--bh')); return isNaN(v)?(+localStorage.getItem('achi_bh')||420):v; };
+  const setH=h=>{ h=clamp(h); outer.style.setProperty('--bh',h+'px'); try{ localStorage.setItem('achi_bh',Math.round(h)); }catch(e){} };
+  if(smaller) smaller.addEventListener('click',()=>setH(currentH()-60));
+  if(bigger) bigger.addEventListener('click',()=>setH(currentH()+60));
+  if(compact) compact.addEventListener('click',()=>setH(180));
+})();
+
+/* boot */
+$('totop').innerHTML=SVG.up;
+$('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
+$('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="email-count">0</span>';
+loadColWidths(); buildHead(); wireColResize(); ensureLogSortControl(); setActivePill(0); stats(); render();
+if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
+else { load(); loadCustomCities(); loadCustomDistricts(); loadIntentNextCodes() }
+
+function rxBusy(on){
+  const a=$('rx-save'),b=$('rx-cancel'),c=$('rx-save-cont');
+  if(a)a.disabled=on;
+  if(b)b.disabled=on;
+  if(c)c.disabled=on;
+}
 
 async function rxCreateNew(keepOpen){
   const st=$('rx-status');
   const payload=rxCollectNew();
   // A file needs an identity — the same rule the grid enforces before saving.
   if(!(payload.person.first_name||payload.person.last_name||payload.person.company_name)){
-    st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return;
+    st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return null;
   }
   const badEmail=rxFirstInvalidEmail();
   if(badEmail){
-    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(badEmail); return;
+    st.textContent='Invalid email'; st.className='rx-status bad'; showInvalidEmail(badEmail); return null;
   }
   const badPhone=rxFirstInvalidPhone();
   if(badPhone){
-    st.textContent='Invalid phone number'; st.className='rx-status bad'; showInvalidMobile(badPhone); return;
+    st.textContent='Invalid phone number'; st.className='rx-status bad'; showInvalidMobile(badPhone); return null;
   }
   const badRel=rxRelatedInvalid();
   if(badRel){
-    st.textContent=badRel.msg; st.className='rx-status bad'; if(badRel.el) badRel.el.focus(); return;
+    st.textContent=badRel.msg; st.className='rx-status bad'; if(badRel.el) badRel.el.focus(); return null;
   }
   rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
   try{
@@ -3453,6 +3822,7 @@ async function rxCreateNew(keepOpen){
     // including files/drawing which need a saved log. Plain Save: close.
     if(keepOpen && newLogId && ROWS.find(x=>x.id===newLogId)){ openExpandedRow(newLogId); }
     else setTimeout(closeExpandedRow,700);
-  }catch(e){ st.textContent=e.message||'Could not create'; st.className='rx-status bad'; rxBusy(false); }
+    return newLogId||null;
+  }catch(e){ st.textContent=e.message||'Could not create'; st.className='rx-status bad'; rxBusy(false); return null; }
 }
 
