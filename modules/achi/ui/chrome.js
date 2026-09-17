@@ -43,8 +43,9 @@ var LINKS = [
   { label: 'PLAN', href: '/api/v1/achi/plan/ui', icon: '<path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/>' },
   { label: 'Planner', href: '/api/v1/achi/planner/ui', icon: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>' },
   { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
-  { label: 'Team Tasks', href: '/api/v1/achi/tasks/ui', icon: '<path d="M3 4h18v16H3z"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/>' }
-];
+  { label: 'Team Tasks', href: '/api/v1/achi/tasks/ui', icon: '<path d="M3 4h18v16H3z"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/>' },
+  { label: 'Files', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' }
+  ];
 
   /* The admin cluster upstream pins at the bottom of its sidebar — a literal
    * clone, not an approximation: upstream's own Lucide paths, its 14px icons at
@@ -271,7 +272,8 @@ var LINKS = [
         href === '/api/v1/achi/resource/ui' ||
         href === '/api/v1/achi/plan/ui' ||
         href === '/api/v1/achi/planner/ui' ||
-        href === '/api/v1/achi/tasks/ui';
+        href === '/api/v1/achi/tasks/ui' ||
+        href === '/api/v1/achi/files/ui';
       if (!alwaysVisible) links[i].style.display = 'none';
     }
   }

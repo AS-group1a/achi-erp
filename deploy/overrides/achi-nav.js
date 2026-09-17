@@ -44,7 +44,9 @@
     { id: 'achi-nav-survey', label: 'Site Visit', route: '/site-survey',
       href: '/api/v1/achi/site-visit/ui?v=1',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/></svg>' },
-
+  { id: 'achi-nav-files', label: 'Files', route: '/achi-files',
+      href: '/api/v1/achi/files/ui?v=1',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>' }
   ];
   var byRoute = function (r) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].route === r) return ENTRIES[i]; return null; };
   var byId = function (id) { for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i].id === id) return ENTRIES[i]; return null; };
@@ -63,6 +65,7 @@
   var PLAN_ID = 'achi-nav-plan';
   var PLANNER_ID = 'achi-nav-planner';
   var TASKS_ID = 'achi-nav-team-tasks';
+  var FILES_ID = 'achi-nav-files';
   var CONTACTS_ROUTE = '/contacts';
   var CRM_ROUTE = '/crm';
   var PROSPECTS_ROUTE = '/prospects';
@@ -270,6 +273,7 @@
         el.id === RESOURCE_ID ||
         el.id === PLAN_ID ||
         el.id === PLANNER_ID ||
+        el.id === FILES_ID ||
         el.id === ID
       ) continue;
       var href = (el.getAttribute('href') || '').split('?')[0].replace(/\/+$/, '');
@@ -306,7 +310,9 @@
   { id: QUOTATION_ID, route: QUOTATION_ROUTE, label: 'Quotation',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>' },
   { id: TASKS_ID, route: '/team-tasks', label: 'Team Tasks',
-  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' }
+  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/></svg>' },
+  { id: FILES_ID, route: '/achi-files', label: 'Files',
+  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>' }
   ];
     var previous = logItem;
     specs.forEach(function (spec) {
@@ -783,6 +789,7 @@
         || link.id === PLAN_ID
         || link.id === PLANNER_ID
         || (link.id === TASKS_ID)
+        || link.id === FILES_ID
       );      if (keep) {
         // inject() clones a row that may already be hidden; a clone inherits
         // the inline display and our marker, so lift both off the keepers.
@@ -889,8 +896,9 @@
   var plan = document.getElementById(PLAN_ID);
   var planner = document.getElementById(PLANNER_ID);
   var tasks = document.getElementById(TASKS_ID);
+  var files = document.getElementById(FILES_ID);
 
-if (!(log && contacts && prospects && crm && survey && draw && mt && boq && resource && plan && planner && quotation && tasks)) {
+if (!(log && contacts && prospects && crm && survey && draw && mt && boq && resource && plan && planner && quotation && tasks && files)) {
       inject();
       ensureOverviewModules();
     }
