@@ -293,11 +293,26 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     SV: 'Site visits', SUR: 'Site visits', DWG: 'Drawings', DRAW: 'Drawings', MT: 'M/T', BOQ: 'BOQ',
     QUO: 'Quotations', QTE: 'Quotations', JOB: 'Jobs', DJO: 'Jobs', DS: 'Delivery slips',
     INV: 'Invoices', CL: 'Contracts' };
-  var FOLDERS = ['Enquiries', 'Site visits', 'Drawings', 'M/T', 'BOQ', 'Quotations', 'Jobs',
-    'Delivery slips', 'Invoices', 'Contracts'];
+  var MODULE_FOLDER = { log: 'Call Log', 'call-log': 'Call Log', call_log: 'Call Log',
+    general: 'Call Log', 'general-log': 'Call Log', general_log: 'Call Log',
+    crm: 'CRM', prospect: 'Prospects',
+    survey: 'Site visits', 'site-visit': 'Site visits', site_visit: 'Site visits',
+    quotation: 'Quotations', boq: 'BOQ', mt: 'M/T', draw: 'Drawings',
+    resource: 'Resource', plan: 'Plan' };
+  var FOLDERS = ['Call Log', 'CRM', 'Prospects', 'Site visits', 'Quotations', 'BOQ', 'M/T',
+    'Drawings', 'Resource', 'Plan'];
+  function folderOf(mod, code) {
+    var m = MODULE_FOLDER[String(mod || '').toLowerCase()];
+    if (m) return m;
+    return FOLDER_NAME[prefixOf(code)] || 'Call Log';
+  }
 
   function prefixOf(code) { return String(code || '').split('-')[0].toUpperCase(); }
-  function displayCode(code) { return String(code || '').replace(/^MT(?=-)/, 'M/T'); }
+  function displayCode(code) {
+    code = String(code || '');
+    if (/^\d+$/.test(code)) return '#' + code;
+    return code.replace(/^MT(?=-)/, 'M/T');
+  }
   function recordHref(f) {
     var mod = String(f.origin_module || '').toLowerCase();
     return MODULE_HREF[mod] || PREFIX_HREF[prefixOf(f.codeRaw)] || null;
@@ -320,7 +335,6 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   function adopt(items) {
     FILES = (items || []).map(function (r) {
       var codeRaw = r.log_code || r.file_number || '';
-      var pref = prefixOf(codeRaw);
       return {
         id: r.id,
         name: r.filename || 'file',
@@ -328,7 +342,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
         codeRaw: codeRaw,
         code: displayCode(codeRaw),
         origin_module: r.origin_module,
-        folder: FOLDER_NAME[pref] || 'Other',
+        folder: folderOf(r.origin_module, codeRaw),
         client: [r.client, r.site].filter(Boolean).join(' · '),
         clientOnly: r.client || '',
         site: r.site || '',
@@ -369,7 +383,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   }
   function folders() {
     var list = ['All files'].concat(FOLDERS);
-    if (FILES.some(function (f) { return f.folder === 'Other'; })) list.push('Other');
+    FILES.forEach(function (f) { if (list.indexOf(f.folder) === -1) list.push(f.folder); });
     return list;
   }
   function filtered() {
@@ -585,6 +599,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
       return '<button type="button" class="pkr' + (up.logId === r.logId ? ' on' : '') + '" data-log="' + esc(r.logId) + '">'
         + '<span class="code">' + esc(code || '—') + '</span>'
         + '<span class="who">' + esc(extra) + (r.subject ? ' — ' + esc(r.subject) : '') + '</span>'
+        + '<span class="kd">' + esc(r.folder) + '</span>'
         + '</button>';
     }).join('');
   }
@@ -596,8 +611,13 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
       : 'Upload' + (up.files.length ? ' ' + up.files.length + ' file' + (up.files.length === 1 ? '' : 's') : '');
     var stat = $('up-stat');
     if (!up.busy && stat.className === 'upstat') {
+      var sel = null;
+      for (var ri = 0; ri < up.allRecords.length; ri++) {
+        if (up.allRecords[ri].logId === up.logId) { sel = up.allRecords[ri]; break; }
+      }
       stat.textContent = !up.files.length ? 'Add at least one file.'
-        : (!up.logId ? 'Now click a code above so Upload turns blue.' : '');
+        : (!sel ? 'Now click a code above so Upload turns blue.'
+          : 'Uploads to ' + displayCode(sel.code) + ' — lands in the ' + sel.folder + ' folder.');
     }
   }
   function upGroupRecords(items) {
@@ -606,9 +626,11 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
       var key = r.file_id || r.id;
       if (seen[key]) return;
       seen[key] = 1;
+      var code = r.log_code || r.file_number || '';
       out.push({
         logId: r.id,
-        code: r.log_code || r.file_number || '',
+        code: code,
+        folder: folderOf(r.origin_module, code),
         who: r.contact_name || r.company_name || '',
         city: r.city || '',
         subject: r.subject || ''
