@@ -235,7 +235,7 @@ def crm_ui() -> HTMLResponse:
     CRM-specific filtering will be added later after the workflow is approved.
     """
     return HTMLResponse(
-        (_UI_DIR / "crm_general_log.html").read_text(encoding="utf-8"),
+        (_UI_DIR / "crm.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
