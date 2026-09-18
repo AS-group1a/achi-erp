@@ -1613,7 +1613,7 @@ const FORM_COLS=[
    to use FORM_COLS above, so removing a field from this table never removes it
    from the form or changes how it is saved. */
 const STANDARD_LOG_TABLE_COLS=[
-  {k:'num',       h:'Code',                  tab:null, cls:'num pg-f-num',  w:74},
+  {k:'num',       h:'LOG-number',            tab:null, cls:'num pg-f-num',  w:96},
   {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',     w:112},
   {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',     w:112, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
   {k:'contact',   h:'Contact',               tab:null,                     w:190},
@@ -1660,9 +1660,9 @@ function formatBusinessCode(r,rowNumber){
      retain a stable-looking visual fallback instead of rendering blank. */
   if(!GENERAL_LOG){
     const raw=String(r.log_code||'').trim();
-    if(!raw) return '#'+displayNumber;
-    const compact=raw.replace(/^LOG[-\s]*/i,'');
-    return compact.startsWith('#')?compact:'#'+compact;
+    if(!raw) return 'LOG-'+displayNumber;
+    const compact=raw.replace(/^LOG[-\s]*/i,'').replace(/^#/,'').trim();
+    return 'LOG-'+(compact||displayNumber);
   }
 
   // The unconfigured General Log deliberately keeps its existing permanent
@@ -2459,11 +2459,9 @@ function toggleRowSelection(tr,force){
 }
 
 function render(){
-  // Text search is handled by the API, together with column filters, so results
-  // are correct even when matching rows are outside the currently loaded set.
-  let rows=deletedView
-    ? deletedRows
-    : (openOnly?ROWS.filter(r=>r.status==='open'):ROWS);
+  // Search, column filters and the Open Logs toggle are handled by the API so
+  // results and pagination cover the complete dataset, not only this page.
+  const rows=deletedView?deletedRows:ROWS;
   let rowNumber=1;
   const showInlineDrafts=!COMPACT_STANDARD_LOG&&!deletedView;
   const body=[

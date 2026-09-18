@@ -1495,6 +1495,7 @@ function readLogColumnFilter(key){
 
 async function applyLogColumnFilter(key){
   setLogColumnFilter(key,readLogColumnFilter(key));
+  logOffset=0;
   selectedRows.clear();
   refreshSelectionButton();
   refreshDeleteButton();
@@ -1514,6 +1515,7 @@ async function applyLogColumnFilter(key){
 
 async function clearLogColumnFilterFromPopover(key){
   clearLogColumnFilter(key);
+  logOffset=0;
   selectedRows.clear();
   refreshSelectionButton();
   refreshDeleteButton();
@@ -2397,8 +2399,10 @@ function openCommAddMenu(btn){
   setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
 /* General Log-style workspaces can declare ACHI_LOG_FILTER before this script.
-   The same query-string format is shared by both the table and KPI requests. */
-function logFilteredPath(basePath){
+   Immutable workspace scope is shared by the table and KPIs. User search and
+   column filters narrow only the table; KPI counts always describe the full
+   workspace. */
+function logFilteredPath(basePath,{includeTableFilters=true,includeOpenOnly=false}={}){
   const separator=basePath.indexOf('?');
   const path=separator===-1
     ? basePath
@@ -2440,17 +2444,29 @@ function logFilteredPath(basePath){
   if(origins.length) params.set('origins',origins.join(','));
   if(scope.include_legacy_origins) params.set('include_legacy_origins','true');
   if(legacyLogType.length) params.set('legacy_log_type',legacyLogType.join(','));
-  const queryText=$('q')?.value.trim()||'';
+  if(includeTableFilters){
+    const queryText=$('q')?.value.trim()||'';
 
-  if(queryText) params.set('q',queryText);
-  appendLogColumnFilterParams(params);
+    if(queryText) params.set('q',queryText);
+    appendLogColumnFilterParams(params);
+  }
+
+  // Open Logs is the only KPI card that narrows the table. Override any
+  // separate Status-column selection while the card is active.
+  if(includeOpenOnly&&openOnly){
+    params.delete('status');
+    params.append('status','open');
+  }
 
   const query=params.toString();
 
   return query?`${path}?${query}`:path;
 }
 function logListPath(){
-  const base=logFilteredPath('/logs/');
+  const base=logFilteredPath('/logs/',{
+    includeTableFilters:true,
+    includeOpenOnly:true,
+  });
   const url=new URL(base,window.location.origin);
   url.searchParams.set('limit',String(LOG_PAGE_SIZE));
   url.searchParams.set('offset',String(logOffset));
@@ -2481,7 +2497,10 @@ function logListPath(){
 }
 
 function logStatsPath(){
-  return logFilteredPath('/logs/stats');
+  return logFilteredPath('/logs/stats',{
+    includeTableFilters:false,
+    includeOpenOnly:false,
+  });
 }
 
 async function load(){
@@ -2630,13 +2649,22 @@ tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dat
 let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('show',outer.scrollTop>200); if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
 $('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
 window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
-$('k-open-card').onclick=()=>{ openOnly=!openOnly; $('k-open-card').classList.toggle('on',openOnly); render(); };
+$('k-open-card').onclick=async()=>{
+  if(deletedView) return;
+
+  openOnly=!openOnly;
+  logOffset=0;
+  $('k-open-card').classList.toggle('on',openOnly);
+  await load();
+};
 let logSearchTimer=null;
 
 $('q').oninput=()=>{
   clearTimeout(logSearchTimer);
 
   logSearchTimer=setTimeout(async()=>{
+    logOffset=0;
+
     if(
       deletedView
       &&typeof window.reloadDeletedLogs==='function'
@@ -2655,6 +2683,7 @@ $('btn-clear-filters').onclick=async()=>{
 
   $('q').value='';
   openOnly=false;
+  logOffset=0;
   $('k-open-card').classList.remove('on');
 
   selectedRows.clear();
