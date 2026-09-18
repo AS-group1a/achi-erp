@@ -4,46 +4,67 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CRM | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=8">
+  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=9">
 </head>
 <body data-achi-title="CRM">
   <svg class="icon-sprite" aria-hidden="true">
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7L20 14"/><path d="M20 5v6h-6"/></symbol>
-    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="m18 6-12 12M6 6l12 12"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
   </svg>
 
-  <main class="crm-page">
-    <header class="page-header">
-      <div>
-        <p class="breadcrumb">ACHI / CRM</p>
-        <h1>CRM</h1>
-        <p class="page-description">Prospects, leads and enquiries</p>
+  <main class="pg" id="pg">
+    <div class="bar">
+      <h1>CRM — enquiries pipeline</h1>
+      <span class="st pill-total" id="total-pill">…</span>
+      <span class="hint">everything hangs on the ENQ — logs, SV, drawing, M/T, BOQ, quotation chain to the JOB</span>
+      <span style="flex:1"></span>
+      <label class="srch-wrap" for="crm-search"><svg><use href="#i-search"/></svg><input class="srch" type="search" id="crm-search" placeholder="Search ENQ, client, subject…" autocomplete="off"></label>
+      <div class="seg" id="seg-filters">
+        <button type="button" data-seg="all" class="on">All</button>
+        <button type="button" data-seg="act">Active</button>
+        <button type="button" data-seg="wait">Waiting</button>
+        <button type="button" data-seg="won">Won</button>
+        <button type="button" data-seg="cold">Cold</button>
       </div>
-      <div class="header-actions">
-        <button class="icon-button" type="button" id="refresh-button" aria-label="Refresh CRM" title="Refresh"><svg><use href="#i-refresh"/></svg></button>
-        <button class="button button-primary" type="button" id="new-prospect-button"><svg><use href="#i-plus"/></svg>New Prospect</button>
+      <div class="seg" id="seg-view">
+        <button type="button" data-view="list" class="on">☰ Grid</button>
+        <button type="button" data-view="board">▦ Board</button>
       </div>
-    </header>
+      <button class="mini" type="button" id="refresh-button" title="Refresh"><svg><use href="#i-refresh"/></svg></button>
+      <button class="mini" type="button" id="new-prospect-button"><svg><use href="#i-plus"/></svg>New Prospect</button>
+    </div>
 
-    <section class="workspace">
-      <div class="workspace-toolbar">
-        <span class="crm-total" id="crm-total"></span>
-        <label class="search-field" for="crm-search"><svg><use href="#i-search"/></svg><input type="search" id="crm-search" placeholder="Search name, company, subject, ref or category" autocomplete="off"></label>
-      </div>
-      <div class="tscroll" id="touter">
-        <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
-      </div>
-    </section>
+    <div class="ai">
+      <span class="badge">ARARA AI</span>
+      <input id="ai-q" placeholder="Ask the pipeline… “what’s stuck?” · “who went quiet?” · “at quotation?”" autocomplete="off">
+      <span class="chip" data-chip="stuck">⚠ What’s stuck</span>
+      <span class="chip" data-chip="quiet">Who went quiet</span>
+      <span class="chip" data-chip="quo">At quotation stage</span>
+    </div>
+
+    <div class="kchips" id="kchips"></div>
+
+    <div class="wrap" id="list-wrap">
+      <div class="hd" id="hd"></div>
+      <div id="rows"></div>
+      <div class="foot" id="foot"></div>
+    </div>
+
+    <div class="wrap bmode" id="board-wrap" hidden>
+      <div class="bwrap" id="board"></div>
+    </div>
+
+    <aside class="dpanel" id="panel" hidden></aside>
   </main>
 
   <div class="modal-backdrop" id="prospect-modal" hidden>
     <section class="record-modal" role="dialog" aria-modal="true" aria-labelledby="prospect-title">
       <header class="modal-header">
         <div><p class="modal-eyebrow">CRM</p><h2 id="prospect-title">New prospect</h2></div>
-        <button class="icon-button" type="button" id="prospect-close" aria-label="Close form" title="Close"><svg><use href="#i-x"/></svg></button>
+        <button class="dpx dark" type="button" id="prospect-close" aria-label="Close form" title="Close"><svg><use href="#i-x"/></svg></button>
       </header>
       <form id="prospect-form">
         <div class="form-grid">
@@ -57,15 +78,15 @@
         </div>
         <p class="form-error" id="prospect-error" role="alert"></p>
         <div class="form-actions">
-          <button class="button button-secondary" type="button" id="prospect-cancel">Cancel</button>
-          <button class="button button-primary" type="submit" id="prospect-save">Add prospect</button>
+          <button class="mini ghost" type="button" id="prospect-cancel">Cancel</button>
+          <button class="mini solid" type="submit" id="prospect-save">Add prospect</button>
         </div>
       </form>
     </section>
   </div>
 
   <div class="toast" id="toast" role="status" hidden></div>
-  <script src="/api/v1/achi/crm/crm.js?v=7"></script>
+  <script src="/api/v1/achi/crm/crm.js?v=9"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=41"></script>
 </body>
 </html>
