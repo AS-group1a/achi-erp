@@ -3,145 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact Info | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=12">
+  <title>Contacts | ACHI Scaffolding ERP</title>
+  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=14">
 </head>
-<body data-achi-title="Contact Info">
-  <main class="contact-page">
-    <header class="page-header">
-      <div>
-        <p class="breadcrumb">ACHI / Contact Info</p>
-        <h1>Contact Info</h1>
-        <p class="page-description">Clients, prospects, suppliers, subcontractors and internal contacts</p>
-      </div>
-      <div class="header-actions">
-        <button class="button button-secondary" type="button" id="import-button">Import CSV</button>
-        <input type="file" id="import-input" accept=".csv,text/csv" hidden>
-        <button class="button button-secondary" type="button" id="export-button">Export CSV</button>
-        <button class="button button-primary" type="button" id="new-contact-button">New contact</button>
-      </div>
-    </header>
+<body data-achi-title="Contacts">
+  <main class="pg" data-screen-label="Contacts">
 
-    <section class="directory-switcher" aria-label="Directory type">
-      <button class="switch-button is-active" type="button" data-record-type="person">People</button>
-      <button class="switch-button" type="button" data-record-type="company">Companies</button>
-      <button class="switch-button" type="button" data-record-type="all">All</button>
-    </section>
+    <!-- HEADER -->
+    <div class="bar">
+      <div class="bar-title">
+        <h1>Contacts</h1>
+        <span class="st st-count" id="contact-total">Loading…</span>
+        <span class="hint">one directory for people &amp; companies — humans and the AI work the same records</span>
+        <span class="fill"></span>
+        <input class="srch" type="search" id="contact-search" placeholder="Search name, phone, company…" autocomplete="off">
 
-    <section class="summary-grid" aria-label="Contact category summary">
-      <button class="summary-card is-active" type="button" data-category="all"><strong id="all-count">0</strong><span>All</span></button>
-      <button class="summary-card" type="button" data-category="client"><strong id="client-count">0</strong><span>Client</span></button>
-      <button class="summary-card" type="button" data-category="prospect"><strong id="prospect-count">0</strong><span>Prospect</span></button>
-      <button class="summary-card" type="button" data-category="lead"><strong id="lead-count">0</strong><span>Lead</span></button>
-      <button class="summary-card" type="button" data-category="supplier"><strong id="supplier-count">0</strong><span>Supplier</span></button>
-      <button class="summary-card" type="button" data-category="subcontractor"><strong id="subcontractor-count">0</strong><span>Subcontractor</span></button>
-      <button class="summary-card" type="button" data-category="internal"><strong id="internal-count">0</strong><span>Internal</span></button>
-      <button class="summary-card" type="button" data-category="other"><strong id="other-count">0</strong><span>Other</span></button>
-    </section>
+        <div class="seg" role="group" aria-label="Contact type">
+          <button type="button" class="on" data-record-type="all">All</button>
+          <button type="button" data-record-type="person">People</button>
+          <button type="button" data-record-type="company">Companies</button>
+          <button type="button" data-record-type="duplicates">&#9888; Duplicates</button>
+        </div>
 
-    <section class="contacts-surface">
-      <div class="contacts-toolbar">
-        <label class="search-field" for="contact-search">
-          <span aria-hidden="true">&#128269;</span>
-          <input type="search" id="contact-search" placeholder="Search name, company, phone, email or location" autocomplete="off">
-        </label>
-        <div class="toolbar-meta">
-          <div class="status-switcher" role="group" aria-label="Contact status">
-            <button class="status-mode-button is-active" type="button" data-directory-status="active">Active</button>
-            <button class="status-mode-button" type="button" data-directory-status="deleted">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>
-              <span>Deleted</span><span class="status-count" id="deleted-count">0</span>
-            </button>
-          </div>
-          <span class="contact-total" id="contact-total">Loading contacts...</span>
-          <div class="view-switcher" role="group" aria-label="Contact view">
-            <button class="view-mode-button is-active" type="button" data-view-mode="list" title="Standard view" aria-label="Standard view">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>List</span>
-            </button>
-            <button class="view-mode-button" type="button" data-view-mode="grid" title="Grid view" aria-label="Grid view">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Grid</span>
-            </button>
-          </div>
+        <div class="seg" role="group" aria-label="Contact view">
+          <button type="button" class="on" data-view-mode="list">&#9776; List</button>
+          <button type="button" data-view-mode="grid">&#9638; Cards</button>
         </div>
       </div>
-
-      <div class="table-wrapper" id="list-view">
-        <table class="contacts-table">
-          <thead>
-            <tr>
-              <th>Contact</th>
-              <th>Company</th>
-              <th>Category</th>
-              <th>Phone</th>
-              <th>Location</th>
-              <th>Last contact</th>
-              <th>Logs</th>
-              <th>Jobs</th>
-              <th><span class="sr-only">Open</span></th>
-            </tr>
-          </thead>
-          <tbody id="contacts-table-body">
-            <tr><td class="table-message" colspan="9">Loading...</td></tr>
-          </tbody>
-        </table>
+      <div class="bar-actions">
+        <button type="button" class="mini mini-primary" id="new-person-button">+ Person</button>
+        <button type="button" class="mini" id="new-company-button">+ Company</button>
       </div>
-      <div class="contacts-grid" id="grid-view" hidden></div>
-    </section>
-  </main>
-
-  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
-  <aside class="contact-drawer" id="contact-drawer" aria-hidden="true" aria-label="Contact details">
-    <header class="drawer-header">
-      <div class="drawer-identity">
-        <span class="avatar avatar-large" id="drawer-avatar">--</span>
-        <div>
-          <p class="drawer-record-type" id="drawer-record-type">Person</p>
-          <h2 id="drawer-name">Contact</h2>
-          <p id="drawer-company"></p>
-        </div>
-      </div>
-      <button class="icon-button" type="button" id="drawer-close" aria-label="Close contact drawer" title="Close">&times;</button>
-    </header>
-
-    <div class="drawer-actions" id="drawer-actions"></div>
-
-    <nav class="drawer-tabs" aria-label="Contact detail sections">
-      <button class="drawer-tab is-active" type="button" data-drawer-tab="overview">Overview</button>
-      <button class="drawer-tab" type="button" data-drawer-tab="activity">Activity</button>
-      <button class="drawer-tab" type="button" data-drawer-tab="jobs">Jobs</button>
-      <button class="drawer-tab" type="button" data-drawer-tab="invoices">Invoices</button>
-    </nav>
-
-    <div class="drawer-body">
-      <section class="drawer-panel" data-drawer-panel="overview">
-        <div id="drawer-overview"></div>
-      </section>
-      <section class="drawer-panel" data-drawer-panel="activity" hidden>
-        <form class="quick-log-form" id="quick-log-form" hidden>
-          <div class="form-row">
-            <label>Activity type
-              <select id="quick-log-type">
-                <option value="inbound_call">Inbound call</option>
-                <option value="outbound_call">Outbound call</option>
-                <option value="meeting">Meeting</option>
-                <option value="note">Note</option>
-              </select>
-            </label>
-          </div>
-          <label>Notes
-            <textarea id="quick-log-notes" rows="3" maxlength="5000" required></textarea>
-          </label>
-          <div class="form-actions compact-actions">
-            <button class="button button-secondary" type="button" id="quick-log-cancel">Cancel</button>
-            <button class="button button-primary" type="submit">Save activity</button>
-          </div>
-        </form>
-        <div id="drawer-activity"></div>
-      </section>
-      <section class="drawer-panel" data-drawer-panel="jobs" hidden><div id="drawer-jobs"></div></section>
-      <section class="drawer-panel" data-drawer-panel="invoices" hidden><div id="drawer-invoices"></div></section>
     </div>
-  </aside>
+
+    <!-- AI BAR (visual only: no AI service is connected to this page yet) -->
+    <div class="ai">
+      <span class="badge">ARARA AI</span>
+      <input type="text" id="ai-query" placeholder="Ask the directory… “who is the procurement contact at Zerock?” · “which clients went quiet for 60 days?”" autocomplete="off">
+      <button type="button" class="chip" disabled>Draft follow-ups for quiet leads</button>
+      <button type="button" class="chip" disabled>Merge duplicate suspects</button>
+      <button type="button" class="chip" disabled>Enrich from last 20 calls</button>
+    </div>
+
+    <!-- KPI CHIPS ("—" where the backend has no data for the metric yet) -->
+    <div class="kchips">
+      <span class="kc"><b id="people-count">—</b> people</span>
+      <span class="kc"><b id="company-count">—</b> companies</span>
+      <span class="kc"><b id="matched-count">—</b> inbound calls auto-matched</span>
+      <span class="kc"><b id="duplicate-count">—</b> duplicate suspects</span>
+      <span class="kc"><b id="enriched-count">—</b> enriched by AI this week</span>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div class="wrap" id="list-view">
+      <div class="hd">
+        <span></span>
+        <span>Name</span>
+        <span>Role</span>
+        <span>Company</span>
+        <span>Mobile</span>
+        <span>City</span>
+        <span>Prefers</span>
+        <span>Found us via</span>
+        <span>Linked to</span>
+        <span>Last touch</span>
+        <span>AI note</span>
+      </div>
+      <div id="contacts-table-body">
+        <div class="empty-msg">Loading…</div>
+      </div>
+      <div class="foot">
+        <span><span class="js-shown-count"></span> — search hits name, phone, company</span>
+        <span class="fill"></span>
+        <span>the AI matches every inbound call/WhatsApp to a contact and pre-fills the log · unknown numbers become PROSP suggestions</span>
+      </div>
+    </div>
+
+    <!-- CARD VIEW -->
+    <div class="wrap wrap-cards" id="grid-view" hidden>
+      <div class="ccards" id="contacts-cards"></div>
+      <div class="foot">
+        <span class="js-shown-count"></span>
+        <span class="fill"></span>
+        <span>click a card for the full record + AI summary</span>
+      </div>
+    </div>
+
+    <!-- DETAILS PANEL -->
+    <aside class="dpanel" id="contact-drawer" aria-label="Contact details" hidden>
+      <div class="dph">
+        <b id="drawer-name">Contact</b>
+        <span class="code" id="drawer-id"></span>
+        <span class="fill"></span>
+        <button type="button" class="dpx" id="drawer-expand" title="Expand / restore">&#x26F6;</button>
+        <button type="button" class="dpx" id="drawer-close" title="Close">&#x2715;</button>
+      </div>
+
+      <div class="dpb">
+        <div class="sec aiS" id="drawer-ai" hidden>
+          <div class="sech">AI summary<span id="drawer-ai-when"></span></div>
+          <div class="ai-sum" id="drawer-ai-text"></div>
+        </div>
+
+        <div class="sec">
+          <div class="sech">Contact
+            <button type="button" class="sech-btn" id="drawer-edit">Edit</button>
+            <button type="button" class="sech-btn sech-danger" id="drawer-delete">Delete</button>
+          </div>
+          <div class="kv" id="drawer-overview"></div>
+        </div>
+
+        <div class="sec">
+          <div class="sech">Linked records <a href="/api/v1/achi/crm/ui">CRM →</a></div>
+          <table class="t"><tbody id="drawer-jobs"></tbody></table>
+        </div>
+
+        <div class="sec">
+          <div class="sech">Latest logs <a href="#" id="drawer-add-log">+ Add Log</a></div>
+          <form class="quick-log-form" id="quick-log-form" hidden>
+            <select id="quick-log-type" aria-label="Activity type">
+              <option value="inbound_call">Inbound call</option>
+              <option value="outbound_call">Outbound call</option>
+              <option value="meeting">Meeting</option>
+              <option value="note">Note</option>
+            </select>
+            <textarea id="quick-log-notes" rows="2" maxlength="5000" placeholder="Notes" aria-label="Notes" required></textarea>
+            <div class="ql-actions">
+              <button type="button" class="mini" id="quick-log-cancel">Cancel</button>
+              <button type="submit" class="mini mini-primary">Save log</button>
+            </div>
+          </form>
+          <table class="t"><tbody id="drawer-activity"></tbody></table>
+        </div>
+      </div>
+    </aside>
+  </main>
 
   <div class="modal-backdrop" id="contact-modal" hidden>
     <section class="contact-modal" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
@@ -311,7 +307,7 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="/api/v1/achi/contact-info/contact_info.js?v=15"></script>
-<script src="/api/v1/achi/ui/chrome.js?v=38"></script>
+  <script src="/api/v1/achi/contact-info/contact_info.js?v=17"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
 </body>
 </html>

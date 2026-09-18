@@ -1660,9 +1660,9 @@ function formatBusinessCode(r,rowNumber){
      retain a stable-looking visual fallback instead of rendering blank. */
   if(!GENERAL_LOG){
     const raw=String(r.log_code||'').trim();
-    if(!raw) return 'LOG-'+displayNumber;
-    const compact=raw.replace(/^LOG[-\s]*/i,'').replace(/^#/,'').trim();
-    return 'LOG-'+(compact||displayNumber);
+    if(!raw) return '#'+displayNumber;
+    const compact=raw.replace(/^LOG[-\s]*/i,'');
+    return compact.startsWith('#')?compact:'#'+compact;
   }
 
   // The unconfigured General Log deliberately keeps its existing permanent

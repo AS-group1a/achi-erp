@@ -68,8 +68,7 @@
   const ADD_TAG = '__add_tag__';
   const DEFAULT_ISO = 'lb';
   const DEFAULT_DIAL = '+961';
-  const ACTIVE_CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500';
-  const DELETED_CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500&deleted=true';
+  const CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500';
   const CONTACT_REFRESH_MS = 15000;
   const COUNTRIES = [
     ['lb', 'Lebanon', '+961'], ['ae', 'United Arab Emirates', '+971'], ['sa', 'Saudi Arabia', '+966'], ['qa', 'Qatar', '+974'],
@@ -109,21 +108,17 @@
   }
 
   const state = {
-    contactSets: { active: [], deleted: [] },
     rawContacts: [],
     contacts: [],
     files: [],
     logs: [],
     projects: null,
-    invoices: null,
     links: {},
-    recordType: 'person',
-    category: 'all',
-    directoryStatus: 'active',
+    recordType: 'all',
     search: '',
     viewMode: storedViewMode(),
     activeContactId: null,
-    drawerTab: 'overview',
+    panelWide: false,
     mapResolutions: {},
   };
 
@@ -349,14 +344,6 @@
 
   function mapIcon() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z"/><circle cx="12" cy="10" r="2"/></svg>';
-  }
-
-  function trashIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>';
-  }
-
-  function restoreIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>';
   }
 
   function tileMap(lat, lng, width, height, zoom = 15) {
@@ -719,15 +706,6 @@
     ));
   }
 
-  function invoicesForContact(contactId) {
-    if (!Array.isArray(state.invoices)) return [];
-    const projectIds = new Set(projectsForContact(contactId).map(project => String(project.id)));
-    return state.invoices.filter(invoice => (
-      String(invoice.contact_id || '') === contactId
-      || projectIds.has(String(invoice.project_id || ''))
-    ));
-  }
-
   function fallbackCategory(raw, contactFiles) {
     const type = String(raw.contact_type || '').toLowerCase();
     if (type === 'customer') return 'client';
@@ -840,125 +818,220 @@
       siteBuilding: bucket.site_building || '',
       siteFloor: bucket.site_floor || '',
       mapsUrl: normalizeMapsUrl(bucket.maps_url),
-      logCount: contactLogs.length,
-      jobCount: projectsForContact(id).length,
+      latestFile: [...contactFiles].sort(
+        (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+      )[0] || null,
       lastContact: contactLogs[0] ? (contactLogs[0].occurred_at || contactLogs[0].created_at) : null,
       contactDate: bucket.contact_date || raw.created_at || null,
+      // Only shown when the backend stores them; nothing is inferred client-side.
+      preferredChannel: bucket.preferred_channel || '',
+      aiNote: bucket.ai_note || '',
+      aiSummary: bucket.ai_summary || '',
+      aiSummaryWhen: bucket.ai_summary_at || null,
+      duplicateOf: [],
     };
+  }
+
+  // Duplicate suspects: contacts sharing an email, a company name, or a person
+  // name + phone — the same identity the directory already dedupes on.
+  function contactIdentityKeys(contact) {
+    const keys = [];
+    const email = String(contact.primary_email || '').trim().toLowerCase();
+    if (email) keys.push(`email:${email}`);
+    if (contact.recordType === 'company') {
+      keys.push(`company:${String(contact.company_name || '').trim().toLowerCase()}`);
+    } else {
+      const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim().toLowerCase();
+      const phone = contact.phones[0] ? contact.phones[0].number.replace(/\D/g, '') : '';
+      if (name) keys.push(`person:${name}:${phone}`);
+    }
+    return keys.filter(key => !key.endsWith(':'));
+  }
+
+  function markDuplicates(contacts) {
+    const byKey = new Map();
+    for (const contact of contacts) {
+      for (const key of contactIdentityKeys(contact)) {
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(contact);
+      }
+    }
+    for (const group of byKey.values()) {
+      if (group.length < 2) continue;
+      for (const contact of group) {
+        for (const other of group) {
+          if (other !== contact && !contact.duplicateOf.includes(other)) contact.duplicateOf.push(other);
+        }
+      }
+    }
   }
 
   function rebuildContacts() {
     state.contacts = state.rawContacts.map(normalizeContact);
+    markDuplicates(state.contacts);
   }
 
   function contactsForRecordType() {
     if (state.recordType === 'all') return state.contacts;
+    if (state.recordType === 'duplicates') return state.contacts.filter(contact => contact.duplicateOf.length);
     return state.contacts.filter(contact => contact.recordType === state.recordType);
   }
 
   function visibleContacts() {
     const query = state.search.trim().toLowerCase();
-    return contactsForRecordType().filter(contact => {
-      if (state.category !== 'all' && contact.category !== state.category) return false;
-      if (!query) return true;
-      const haystack = [
-        contact.displayName,
-        contact.company_name,
-        contact.primary_email,
-        contact.city,
-        contact.location,
-        contact.source,
-        contact.role,
-        contact.companyType,
-        ...contact.phones.map(phone => phone.number),
-        ...contact.emails.flatMap(email => [email.label, email.address]),
-        ...contact.relatedContacts.flatMap(related => [related.prefix, related.first_name, related.last_name, related.role, related.phone, related.email]),
-        ...contact.socials.flatMap(social => [social.platform, social.handle]),
-      ].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(query);
-    });
+    if (!query) return contactsForRecordType();
+    return contactsForRecordType().filter(contact => [
+      contact.displayName,
+      contact.company_name,
+      contact.legal_name,
+      contact.role,
+      contact.companyType,
+      contact.primary_email,
+      contact.city,
+      ...contact.phones.map(phone => phone.number),
+    ].filter(Boolean).join(' ').toLowerCase().includes(query));
+  }
+
+  // No preference / AI fields are stored for contacts yet; these read them if
+  // they ever appear in the contact-info bucket and otherwise render "—".
+  const PREF_CLASS = { WhatsApp: 'pref-wa', Call: 'pref-call', Email: 'pref-email' };
+
+  function contactPref(contact) {
+    return PREF_CLASS[contact.preferredChannel] ? contact.preferredChannel : '—';
+  }
+
+  function prefBadge(contact) {
+    const pref = contactPref(contact);
+    return `<span class="st ${PREF_CLASS[pref] || 'pref-none'}">${escapeHtml(pref)}</span>`;
+  }
+
+  function setKpi(id, value) {
+    $(id).textContent = value == null ? '—' : value;
   }
 
   function renderSummary() {
-    const contacts = contactsForRecordType();
-    const categories = ['client', 'prospect', 'lead', 'supplier', 'subcontractor', 'internal', 'other'];
-    $('all-count').textContent = contacts.length;
-    for (const category of categories) {
-      $(`${category}-count`).textContent = contacts.filter(contact => contact.category === category).length;
-    }
+    const all = state.contacts;
+    $('contact-total').textContent = `${all.length} records`;
+    setKpi('people-count', all.filter(contact => contact.recordType === 'person').length);
+    setKpi('company-count', all.filter(contact => contact.recordType === 'company').length);
+    setKpi('matched-count', null);
+    setKpi('duplicate-count', all.filter(contact => contact.duplicateOf.length).length);
+    setKpi('enriched-count', null);
+  }
+
+  function setToggleGroup(selector, dataKey, value) {
+    document.querySelectorAll(selector).forEach(button => {
+      const isOn = button.dataset[dataKey] === value;
+      button.classList.toggle('on', isOn);
+      button.setAttribute('aria-pressed', String(isOn));
+    });
+  }
+
+  function setRecordType(recordType) {
+    state.recordType = recordType;
+    setToggleGroup('[data-record-type]', 'recordType', recordType);
+  }
+
+  function setListMessage(message) {
+    $('contacts-table-body').innerHTML = `<div class="empty-msg">${escapeHtml(message)}</div>`;
+    $('contacts-cards').innerHTML = `<div class="empty-msg">${escapeHtml(message)}</div>`;
+  }
+
+  function duplicateFlag(contact) {
+    if (!contact.duplicateOf.length) return '';
+    const names = contact.duplicateOf.map(other => other.displayName).join(', ');
+    return ` <span title="Possible duplicate of ${escapeHtml(names)}">&#9888;</span>`;
+  }
+
+  // Role column: a person's tag, or a company's company type.
+  function contactRole(contact) {
+    return contact.recordType === 'company' ? contact.companyType : contact.role;
+  }
+
+  // Company column: a person's company, or a company's legal name.
+  function contactCompany(contact) {
+    return contact.recordType === 'company' ? (contact.legal_name || '') : (contact.company_name || '');
+  }
+
+  function linkedCode(contact) {
+    return contact.latestFile && contact.latestFile.file_number
+      ? `<span class="code" title="${escapeHtml(contact.latestFile.subject || '')}">${escapeHtml(contact.latestFile.file_number)}</span>`
+      : '<span class="mut">—</span>';
+  }
+
+  function whoMarkup(contact) {
+    return `<span class="who${contact.recordType === 'company' ? ' co' : ''}">${escapeHtml(initials(contact))}</span>`;
+  }
+
+  function contactRowMarkup(contact) {
+    const classes = ['row', contact.id === state.activeContactId ? 'sel' : '', contact.duplicateOf.length ? 'dup' : '']
+      .filter(Boolean).join(' ');
+    const mapHref = contact.city ? contactMapHref(contact) : '';
+    const city = mapHref
+      ? `<a class="city" data-map-link href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">${mapIcon()}${escapeHtml(contact.city)}</a>`
+      : '—';
+    return `<div class="${classes}" data-contact-id="${escapeHtml(contact.id)}">
+        <div>${whoMarkup(contact)}</div>
+        <div class="c-name">${escapeHtml(contact.displayName)}${duplicateFlag(contact)}</div>
+        <div class="c-sm">${escapeHtml(contactRole(contact) || '—')}</div>
+        <div class="c-sm">${escapeHtml(contactCompany(contact) || '—')}</div>
+        <div class="mut c-sm c-num">${escapeHtml(contact.primaryPhone || '—')}</div>
+        <div class="mut c-sm">${city}</div>
+        <div>${prefBadge(contact)}</div>
+        <div class="mut c-sm">${escapeHtml(contact.source || '—')}</div>
+        <div>${linkedCode(contact)}</div>
+        <div class="mut c-last">${escapeHtml(contact.lastContact ? formatDate(contact.lastContact) : '—')}</div>
+        <div class="aiN">${escapeHtml(contact.aiNote || '—')}</div>
+      </div>`;
+  }
+
+  function contactCardMarkup(contact) {
+    const classes = ['ccd', contact.id === state.activeContactId ? 'sel' : '', contact.duplicateOf.length ? 'dup' : '']
+      .filter(Boolean).join(' ');
+    return `<div class="${classes}" data-open-contact="${escapeHtml(contact.id)}">
+        <div class="ccd-head">
+          ${whoMarkup(contact)}
+          <div class="ccd-id">
+            <div class="ccd-name">${escapeHtml(contact.displayName)}${duplicateFlag(contact)}</div>
+            <div class="mut ccd-sub">${escapeHtml(contactRole(contact) || '—')} · ${escapeHtml(contactCompany(contact) || '—')}</div>
+          </div>
+          ${prefBadge(contact)}
+        </div>
+        <div class="ccd-line">
+          <span class="mut c-num">${escapeHtml(contact.primaryPhone || '—')}</span>
+          <span class="fill"></span>
+          ${linkedCode(contact)}
+        </div>
+        <div class="aiN ccd-ai">${escapeHtml(contact.aiNote || '—')}</div>
+        <div class="mut ccd-meta">last touch ${escapeHtml(contact.lastContact ? formatDate(contact.lastContact) : '—')} · via ${escapeHtml(contact.source || '—')}</div>
+      </div>`;
   }
 
   function renderTable() {
     const contacts = visibleContacts();
-    const noun = state.recordType === 'all'
-      ? 'contacts'
-      : (state.recordType === 'company' ? 'companies' : 'people');
-    const displayNoun = state.directoryStatus === 'deleted' ? `deleted ${noun}` : noun;
-    $('contact-total').textContent = `${contacts.length} ${displayNoun}`;
-    const body = $('contacts-table-body');
-    const grid = $('grid-view');
+    document.querySelectorAll('.js-shown-count').forEach(node => {
+      node.textContent = `${contacts.length} shown of ${state.contacts.length}`;
+    });
     $('list-view').hidden = state.viewMode !== 'list';
-    grid.hidden = state.viewMode !== 'grid';
+    $('grid-view').hidden = state.viewMode !== 'grid';
 
     if (!contacts.length) {
-      body.innerHTML = `<tr><td class="table-message" colspan="9">No ${escapeHtml(displayNoun)} match this view.</td></tr>`;
-      grid.innerHTML = `<div class="grid-message">No ${escapeHtml(displayNoun)} match this view.</div>`;
+      setListMessage('No contacts found.');
       return;
     }
+    // Only the visible view is rendered; switching views re-renders.
+    if (state.viewMode === 'grid') {
+      $('contacts-cards').innerHTML = contacts.map(contactCardMarkup).join('');
+    } else {
+      $('contacts-table-body').innerHTML = contacts.map(contactRowMarkup).join('');
+    }
+  }
 
-    body.innerHTML = contacts.map(contact => {
-      const mapHref = contactMapHref(contact);
-      const location = contact.location || contact.city || '-';
-      return `
-      <tr class="${contact.is_active === false ? 'is-deleted' : ''}" data-contact-id="${escapeHtml(contact.id)}">
-        <td>
-          <div class="contact-cell">
-            <span class="avatar">${escapeHtml(initials(contact))}</span>
-            <span class="truncate">
-              <span class="contact-primary">${escapeHtml(contact.displayName)}</span>
-              <span class="contact-secondary">${escapeHtml(contact.primary_email || 'No email')}</span>
-            </span>
-          </div>
-        </td>
-        <td><span class="truncate">${escapeHtml(contact.recordType === 'company' ? contact.legal_name || '-' : contact.company_name || '-')}</span></td>
-        <td><span class="category-pill category-${escapeHtml(contact.category)}">${escapeHtml(titleCase(contact.category))}</span></td>
-        <td><span class="truncate">${escapeHtml(contact.primaryPhone || '-')}</span></td>
-        <td><span class="location-cell"><span class="truncate">${escapeHtml(location)}</span>${mapHref ? `<a class="map-link-icon" data-map-link href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(contact.displayName)} in Maps" title="Open in Maps">${mapIcon()}</a>` : ''}</span></td>
-        <td>${escapeHtml(formatDate(contact.lastContact))}</td>
-        <td class="number-cell">${contact.logCount}</td>
-        <td class="number-cell">${contact.jobCount}</td>
-        <td><button class="row-open" type="button" data-open-contact="${escapeHtml(contact.id)}" aria-label="Open ${escapeHtml(contact.displayName)}">&#8250;</button></td>
-      </tr>
-    `;
-    }).join('');
-
-    grid.innerHTML = contacts.map(contact => {
-      const mapHref = contactMapHref(contact);
-      return `
-        <article class="contact-card${contact.is_active === false ? ' is-deleted' : ''}">
-          <button class="contact-card-main" type="button" data-open-contact="${escapeHtml(contact.id)}">
-            <span class="contact-card-head">
-              <span class="avatar avatar-card">${escapeHtml(initials(contact))}</span>
-              <span class="contact-card-identity"><strong>${escapeHtml(contact.displayName)}</strong><small>${escapeHtml(contact.primary_email || 'No email')}</small></span>
-              <span class="category-pill category-${escapeHtml(contact.category)}">${escapeHtml(titleCase(contact.category))}</span>
-            </span>
-            <span class="contact-card-company">${escapeHtml(contact.recordType === 'company' ? contact.legal_name || 'Company' : contact.company_name || 'Independent contact')}</span>
-            <span class="contact-card-details">
-              <span>${escapeHtml(contact.primaryPhone || 'No phone')}</span>
-              <span>${escapeHtml(contact.location || contact.city || 'No location')}</span>
-            </span>
-            <span class="contact-card-stats"><span><strong>${contact.logCount}</strong> activities</span><span><strong>${contact.jobCount}</strong> jobs</span><span>Last ${escapeHtml(formatDate(contact.lastContact))}</span></span>
-          </button>
-          <div class="contact-card-actions">
-            ${contact.is_active === false
-    ? `<button type="button" data-open-contact="${escapeHtml(contact.id)}">${restoreIcon()}<span>Review deleted contact</span></button>`
-    : `${contact.primaryPhone ? `<a href="${escapeHtml(phoneHref(contact.primaryPhone))}">Call</a>` : ''}
-            ${contact.primaryPhone ? `<a href="${escapeHtml(whatsappHref(contact.primaryPhone))}" target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp chat with ${escapeHtml(contact.displayName)}" title="Open WhatsApp">WA</a>` : ''}
-            ${contact.primary_email ? `<a href="mailto:${escapeHtml(contact.primary_email)}">Email</a>` : ''}
-            ${mapHref ? `<a data-map-link href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer">${mapIcon()}Map</a>` : ''}`}
-          </div>
-        </article>`;
-    }).join('');
+  function updateSelection() {
+    document.querySelectorAll('#contacts-table-body [data-contact-id], #contacts-cards [data-open-contact]').forEach(node => {
+      const id = node.dataset.contactId || node.dataset.openContact;
+      node.classList.toggle('sel', id === state.activeContactId);
+    });
   }
 
   function renderDirectory() {
@@ -966,21 +1039,9 @@
     renderTable();
   }
 
-  function updateDirectoryStatusControls() {
-    document.querySelectorAll('[data-directory-status]').forEach(button => {
-      const isActive = button.dataset.directoryStatus === state.directoryStatus;
-      button.classList.toggle('is-active', isActive);
-      button.setAttribute('aria-pressed', String(isActive));
-    });
-    $('deleted-count').textContent = state.contactSets.deleted.length;
-  }
-
-  function applyContactResponses(activeResponse, deletedResponse) {
-    state.contactSets.active = Array.isArray(activeResponse.items) ? activeResponse.items : [];
-    state.contactSets.deleted = Array.isArray(deletedResponse.items) ? deletedResponse.items : [];
-    state.rawContacts = state.contactSets[state.directoryStatus];
+  function applyContactResponse(response) {
+    state.rawContacts = Array.isArray(response.items) ? response.items : [];
     rebuildContacts();
-    updateDirectoryStatusControls();
     renderDirectory();
     if (state.activeContactId) {
       if (activeContact()) renderDrawer();
@@ -988,61 +1049,35 @@
     }
   }
 
-  function setDirectoryStatus(statusName) {
-    const nextStatus = statusName === 'deleted' ? 'deleted' : 'active';
-    if (nextStatus === state.directoryStatus) return;
-    if (state.activeContactId) closeDrawer();
-    state.directoryStatus = nextStatus;
-    state.rawContacts = state.contactSets[nextStatus];
-    state.category = 'all';
-    rebuildContacts();
-    updateDirectoryStatusControls();
-    document.querySelectorAll('[data-category]').forEach(item => {
-      item.classList.toggle('is-active', item.dataset.category === 'all');
-    });
-    renderDirectory();
-  }
-
   async function loadData({ silent = false } = {}) {
     if (!accessToken) {
-      $('contacts-table-body').innerHTML = '<tr><td class="table-message" colspan="9">Open the main ERP, sign in, then reload this page.</td></tr>';
+      setListMessage('Open the main ERP, sign in, then reload this page.');
       $('contact-total').textContent = 'Not signed in';
       return;
     }
 
-    if (!silent) {
-      $('contacts-table-body').innerHTML = '<tr><td class="table-message" colspan="9">Loading...</td></tr>';
-    }
+    if (!silent) setListMessage('Loading...');
 
     try {
-      const activeContactsPromise = request(ACTIVE_CONTACTS_PATH);
-      const deletedContactsPromise = request(DELETED_CONTACTS_PATH);
+      const contactsPromise = request(CONTACTS_PATH);
       const enrichmentPromise = Promise.all([
         optionalRequest('/api/v1/achi/files/?limit=1000'),
         optionalRequest('/api/v1/achi/logs/?limit=1000'),
         optionalRequest('/api/v1/projects/?limit=500&status=all'),
-        optionalRequest('/api/v1/finance/?limit=100'),
       ]);
 
-      const [activeContactsResponse, deletedContactsResponse] = await Promise.all([
-        activeContactsPromise,
-        deletedContactsPromise,
-      ]);
-      applyContactResponses(activeContactsResponse, deletedContactsResponse);
+      applyContactResponse(await contactsPromise);
 
-      const [files, logs, projects, invoicesResponse] = await enrichmentPromise;
+      const [files, logs, projects] = await enrichmentPromise;
       state.files = Array.isArray(files) ? files : [];
       state.logs = Array.isArray(logs) ? logs : (Array.isArray(logs?.items) ? logs.items : []);
       state.projects = Array.isArray(projects) ? projects : null;
-      state.invoices = invoicesResponse && Array.isArray(invoicesResponse.items)
-        ? invoicesResponse.items
-        : null;
 
       rebuildContacts();
       renderDirectory();
       if (state.activeContactId && activeContact()) renderDrawer();
     } catch (error) {
-      $('contacts-table-body').innerHTML = `<tr><td class="table-message" colspan="9">${escapeHtml(error.message)}</td></tr>`;
+      setListMessage(error.message);
       $('contact-total').textContent = 'Could not load contacts';
       showToast(error.message, true);
     }
@@ -1054,11 +1089,7 @@
     if (!accessToken || document.hidden || contactRefreshInFlight) return;
     contactRefreshInFlight = true;
     try {
-      const [activeContactsResponse, deletedContactsResponse] = await Promise.all([
-        request(ACTIVE_CONTACTS_PATH),
-        request(DELETED_CONTACTS_PATH),
-      ]);
-      applyContactResponses(activeContactsResponse, deletedContactsResponse);
+      applyContactResponse(await request(CONTACTS_PATH));
     } catch (_error) {
       // Keep the current directory visible during a transient background failure.
     } finally {
@@ -1070,34 +1101,21 @@
     return state.contacts.find(contact => contact.id === state.activeContactId) || null;
   }
 
+  // ── Detail panel ─────────────────────────────────────────────────────────
+
   function detailRow(label, value, href = '') {
-    const content = href
+    const content = value && href
       ? `<a href="${escapeHtml(href)}" target="${href.startsWith('http') ? '_blank' : '_self'}" rel="noopener noreferrer">${escapeHtml(value)}</a>`
-      : escapeHtml(value || '-');
-    return `<div class="detail-row"><dt>${escapeHtml(label)}</dt><dd>${content}</dd></div>`;
+      : escapeHtml(value || '—');
+    return `<span class="k">${escapeHtml(label)}</span><span>${content}</span>`;
   }
 
-  function renderDrawerActions(contact) {
-    if (contact.is_active === false) {
-      $('drawer-actions').innerHTML = `<button class="drawer-action drawer-action-restore" type="button" id="drawer-restore">${restoreIcon()}<span>Restore contact</span></button>`;
-      return;
-    }
-    const actions = [];
-    if (contact.primaryPhone) {
-      actions.push(`<a class="drawer-action" href="${escapeHtml(phoneHref(contact.primaryPhone))}">Call</a>`);
-      actions.push(`<a class="drawer-action" href="${escapeHtml(whatsappHref(contact.primaryPhone))}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`);
-    }
-    if (contact.primary_email) actions.push(`<a class="drawer-action" href="mailto:${escapeHtml(contact.primary_email)}">Email</a>`);
-    const mapHref = contactMapHref(contact);
-    if (mapHref) actions.push(`<a class="drawer-action" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer">${mapIcon()}Map</a>`);
-    actions.push('<button class="drawer-action" type="button" id="drawer-add-log">Add activity</button>');
-    actions.push('<button class="drawer-action" type="button" id="drawer-edit">Edit</button>');
-    actions.push(`<button class="drawer-action drawer-action-danger" type="button" id="drawer-delete">${trashIcon()}<span>Delete contact</span></button>`);
-    $('drawer-actions').innerHTML = actions.join('');
+  function emptyRow(message, colspan) {
+    return `<tr><td class="mut" colspan="${colspan}">${escapeHtml(message)}</td></tr>`;
   }
 
   async function deleteContact(contact) {
-    if (!contact || !window.confirm(`Delete ${contact.displayName}? You can restore this contact later from Deleted contacts.`)) return;
+    if (!contact || !window.confirm(`Delete ${contact.displayName}? It can be restored later by an administrator.`)) return;
     const button = $('drawer-delete');
     if (button) button.disabled = true;
     try {
@@ -1111,241 +1129,94 @@
     }
   }
 
-  async function restoreContact(contact) {
-    if (!contact) return;
-    const button = $('drawer-restore');
-    if (button) button.disabled = true;
-    try {
-      await request(`/api/v1/achi/contact-info/contacts/${encodeURIComponent(contact.id)}/restore`, { method: 'POST' });
-      closeDrawer();
-      await loadData({ silent: true });
-      showToast('Contact restored.');
-    } catch (error) {
-      showToast(error.message, true);
-      if (button) button.disabled = false;
-    }
+  // AI summary section renders only when a summary is stored for the contact.
+  function renderAiSummary(contact) {
+    const section = $('drawer-ai');
+    section.hidden = !contact.aiSummary;
+    if (!contact.aiSummary) return;
+    $('drawer-ai-when').textContent = contact.aiSummaryWhen ? ` · updated ${formatDateTime(contact.aiSummaryWhen)}` : '';
+    $('drawer-ai-text').textContent = contact.aiSummary;
   }
 
   function renderOverview(contact) {
-    const phoneRows = contact.phones.length
-      ? contact.phones.map(phone => detailRow(phone.label || 'Phone', phone.number, phoneHref(phone.number))).join('')
-      : detailRow('Phone', '-');
-    const emailRows = contact.emails.length
-      ? contact.emails.map(email => detailRow(email.label || 'Email', email.address, `mailto:${email.address}`)).join('')
-      : detailRow('Email', '-');
-    const relatedContactRows = contact.relatedContacts.map(related => {
-      const nm = [related.prefix, related.first_name, related.last_name].filter(Boolean).join(' ').trim() || 'Contact';
-      const label = related.role ? `${nm} (${related.role})` : nm;
-      const value = related.phone || related.email || '-';
-      const href = related.phone ? phoneHref(related.phone) : (related.email ? `mailto:${related.email}` : '');
-      return detailRow(label, value, href);
-    }).join('');
-    const website = safeHref(contact.website);
-    const quickLinks = contact.quickLinks
-      .map(link => ({ label: String(link.label || 'Link'), url: safeHref(link.url) }))
-      .filter(link => link.url);
-    const socials = contact.socials.map(social => ({
-      platform: String(social.platform || 'Social'),
-      handle: String(social.handle || ''),
-      url: socialHref(social.platform, social.handle),
-    })).filter(social => social.handle);
+    const role = [contactRole(contact), contactCompany(contact)].filter(Boolean).join(' · ');
+    $('drawer-overview').innerHTML = [
+      detailRow('Role', role),
+      detailRow('Mobile', contact.primaryPhone, phoneHref(contact.primaryPhone)),
+      detailRow('WhatsApp', contact.primaryPhone, whatsappHref(contact.primaryPhone)),
+      detailRow('Email', contact.primary_email, contact.primary_email ? `mailto:${contact.primary_email}` : ''),
+      detailRow('Found us via', contact.source),
+      detailRow('Address', contact.location || [contact.city, contact.country].filter(Boolean).join(', ')),
+    ].join('');
+  }
+
+  function renderJobs(contact) {
     const links = state.links[contact.id];
-    const crmCount = links
-      ? (links.crm_leads || []).length + (links.crm_opportunities || []).length
-      : 0;
-    const mapHref = contactMapHref(contact);
-
-    $('drawer-overview').innerHTML = `
-      ${contact.is_active === false ? '<div class="deleted-contact-notice">This contact is deleted. Restore it to return it to the active directory.</div>' : ''}
-      <section class="detail-section">
-        <h3>Contact details</h3>
-        <dl class="detail-list">
-          ${contact.recordType === 'person' ? detailRow('Prefix', contact.prefix || '-') : ''}
-          ${contact.recordType === 'person' && contact.middleName ? detailRow('Middle name', contact.middleName) : ''}
-          ${contact.recordType === 'person' ? detailRow('Tags', contact.role || '-') : ''}
-          ${detailRow('Company type', contact.companyType || '-')}
-          ${phoneRows}
-          ${emailRows}
-          ${detailRow('Website', contact.website || '-', website)}
-          ${detailRow('Location', contact.location || '-')}
-          ${detailRow('City', contact.city || '-')}
-          ${detailRow('Country', contact.country_code || '-')}
-          ${detailRow('Category', titleCase(contact.category))}
-          ${detailRow('Source', contact.source || '-')}
-          ${detailRow('Date & time', formatDateTime(contact.contactDate))}
-        </dl>
-      </section>
-      <section class="detail-section">
-        <h3>Additional contacts</h3>
-        ${relatedContactRows ? `<dl class="detail-list">${relatedContactRows}</dl>` : '<div class="empty-state">No additional contacts saved.</div>'}
-      </section>
-      <section class="detail-section">
-        <h3>Social handles</h3>
-        ${socials.length ? `<div class="quick-links-list">${socials.map(social => (
-          social.url
-            ? `<a class="quick-link" href="${escapeHtml(social.url)}" target="_blank" rel="noopener noreferrer"><span>${escapeHtml(social.platform)} · ${escapeHtml(social.handle)}</span><span aria-hidden="true">&#8599;</span></a>`
-            : `<div class="quick-link"><span>${escapeHtml(social.platform)} · ${escapeHtml(social.handle)}</span></div>`
-        )).join('')}</div>` : '<div class="empty-state">No social handles saved.</div>'}
-      </section>
-      ${mapHref ? `<section class="detail-section">
-        <h3>Map</h3>
-        <div class="contact-map-preview" id="contact-map-preview">
-          <div class="map-preview-status">${contact.mapsUrl ? 'Loading map preview...' : escapeHtml(contact.location || contact.city || 'Location saved')}</div>
-        </div>
-        <a class="open-map-link" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer">${mapIcon()}Open in Maps</a>
-      </section>` : ''}
-      <section class="detail-section">
-        <h3>Quick links</h3>
-        ${quickLinks.length ? `<div class="quick-links-list">${quickLinks.map(link => `
-          <a class="quick-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
-            <span>${escapeHtml(link.label)}</span><span aria-hidden="true">&#8599;</span>
-          </a>`).join('')}</div>` : '<div class="empty-state">No quick links saved.</div>'}
-      </section>
-      <section class="detail-section">
-        <h3>Notes</h3>
-        <div class="item-card"><p>${escapeHtml(contact.notes || 'No notes saved.')}</p></div>
-      </section>
-      <section class="detail-section">
-        <h3>CRM links</h3>
-        <div class="item-card"><p>${links ? `${crmCount} linked CRM record${crmCount === 1 ? '' : 's'}.` : 'Checking CRM links...'}</p></div>
-      </section>
-    `;
-    if (contact.mapsUrl) hydrateContactMap(contact);
-  }
-
-  function drawContactMap(container, coordinates) {
-    if (!container || !coordinates) return;
-    const width = Math.max(280, Math.round(container.clientWidth || 410));
-    container.innerHTML = tileMap(coordinates.lat, coordinates.lng, width, 200);
-  }
-
-  async function hydrateContactMap(contact) {
-    const container = $('contact-map-preview');
-    if (!container || state.activeContactId !== contact.id) return;
-    let coordinates = mapsCoords(contact.mapsUrl) || state.mapResolutions[contact.mapsUrl];
-    if (coordinates) {
-      drawContactMap(container, coordinates);
-      return;
-    }
-    try {
-      coordinates = await request(`/api/v1/achi/resolve-maps?url=${encodeURIComponent(contact.mapsUrl)}`);
-      state.mapResolutions[contact.mapsUrl] = coordinates;
-      if (state.activeContactId === contact.id) drawContactMap($('contact-map-preview'), coordinates);
-    } catch (_error) {
-      if (state.activeContactId === contact.id && $('contact-map-preview')) {
-        $('contact-map-preview').innerHTML = '<div class="map-preview-status">Preview unavailable. Use Open in Maps.</div>';
-      }
-    }
+    const rows = [
+      ...filesForContact(contact.id).map(file => `<tr>
+        <td><span class="code">${escapeHtml(file.file_number || 'File')}</span></td>
+        <td class="mut t-wrap">${escapeHtml([file.subject || titleCase(file.stage), titleCase(file.status)].filter(Boolean).join(' · '))}</td>
+      </tr>`),
+      ...projectsForContact(contact.id).map(project => `<tr>
+        <td><a class="code" href="/projects/${escapeHtml(project.id)}">${escapeHtml(project.project_code || 'Project')}</a></td>
+        <td class="mut t-wrap">${escapeHtml([project.name, titleCase(project.status)].filter(Boolean).join(' · '))}</td>
+      </tr>`),
+      ...((links && links.crm_leads) || []).map(lead => `<tr>
+        <td><a class="code" href="/api/v1/achi/crm/ui">CRM lead</a></td>
+        <td class="mut t-wrap">${escapeHtml([lead.contact_name, titleCase(lead.status || '')].filter(Boolean).join(' · '))}</td>
+      </tr>`),
+      ...((links && links.crm_opportunities) || []).map(opportunity => `<tr>
+        <td><a class="code" href="/api/v1/achi/crm/ui">CRM opp.</a></td>
+        <td class="mut t-wrap">${escapeHtml([opportunity.name, titleCase(opportunity.stage || '')].filter(Boolean).join(' · '))}</td>
+      </tr>`),
+    ];
+    $('drawer-jobs').innerHTML = rows.length
+      ? rows.join('')
+      : emptyRow(links === undefined ? 'Checking linked records...' : 'No linked records.', 2);
   }
 
   function renderActivity(contact) {
     const logs = logsForContact(contact.id).sort(
       (a, b) => new Date(b.occurred_at || b.created_at || 0) - new Date(a.occurred_at || a.created_at || 0),
     );
-    $('drawer-activity').innerHTML = logs.length ? `
-      <div class="item-list">${logs.map(log => `
-        <article class="item-card">
-          <div class="item-card-header">
-            <h4>${escapeHtml(titleCase(log.log_type || 'Activity'))}</h4>
-            <span class="muted">${escapeHtml(formatDateTime(log.occurred_at || log.created_at))}</span>
-          </div>
-          <p>${escapeHtml(log.description || log.updates || 'No notes')}</p>
-          <p>${escapeHtml(log.file_number || '')}${log.category ? ` | ${escapeHtml(log.category)}` : ''}</p>
-        </article>
-      `).join('')}</div>
-    ` : '<div class="empty-state">No activity has been logged for this contact.</div>';
-  }
-
-  function renderJobs(contact) {
-    const projects = projectsForContact(contact.id);
-    const files = filesForContact(contact.id);
-    let html = '';
-
-    if (state.projects === null) {
-      html += '<div class="permission-note">Project details are unavailable for this account. ACHI files are still shown below.</div>';
-    } else if (projects.length) {
-      html += `<h3 class="list-heading">Projects</h3><div class="item-list">${projects.map(project => `
-        <article class="item-card">
-          <div class="item-card-header">
-            <h4><a href="/projects/${escapeHtml(project.id)}">${escapeHtml(project.name)}</a></h4>
-            <span class="status-pill category-lead">${escapeHtml(titleCase(project.status))}</span>
-          </div>
-          <p>${escapeHtml(project.project_code || project.project_type || 'Construction project')}</p>
-        </article>
-      `).join('')}</div>`;
-    } else {
-      html += '<div class="empty-state">No linked projects.</div>';
-    }
-
-    if (files.length) {
-      html += `<h3 class="list-heading" style="margin-top:20px">ACHI files</h3><div class="item-list">${files.map(file => `
-        <article class="item-card">
-          <div class="item-card-header">
-            <h4>${escapeHtml(file.file_number || 'Contact file')}</h4>
-            <span class="status-pill category-${escapeHtml(file.stage === 'prospect' ? 'prospect' : 'lead')}">${escapeHtml(titleCase(file.status))}</span>
-          </div>
-          <p>${escapeHtml(file.subject || titleCase(file.stage))}</p>
-        </article>
-      `).join('')}</div>`;
-    }
-
-    $('drawer-jobs').innerHTML = html || '<div class="empty-state">No files or jobs are linked to this contact.</div>';
-  }
-
-  function renderInvoices(contact) {
-    if (state.invoices === null) {
-      $('drawer-invoices').innerHTML = '<div class="permission-note">Invoice details are unavailable for this account.</div>';
-      return;
-    }
-    const invoices = invoicesForContact(contact.id);
-    $('drawer-invoices').innerHTML = invoices.length ? `
-      <div class="item-list">${invoices.map(invoice => `
-        <article class="item-card">
-          <div class="item-card-header">
-            <h4><a href="/finance">${escapeHtml(invoice.invoice_number)}</a></h4>
-            <span class="status-pill category-${escapeHtml(invoice.status === 'paid' ? 'client' : 'prospect')}">${escapeHtml(titleCase(invoice.status))}</span>
-          </div>
-          <p>${escapeHtml(invoice.invoice_direction ? titleCase(invoice.invoice_direction) : 'Invoice')} | ${escapeHtml(invoice.currency_code || '')} ${escapeHtml(invoice.amount_total || '0')}</p>
-          <p>Issued ${escapeHtml(formatDate(invoice.invoice_date))}${invoice.due_date ? ` | Due ${escapeHtml(formatDate(invoice.due_date))}` : ''}</p>
-        </article>
-      `).join('')}</div>
-    ` : '<div class="empty-state">No invoices are linked to this contact or their projects.</div>';
+    $('drawer-activity').innerHTML = logs.length ? logs.map(log => `<tr>
+        <td class="mut t-date">${escapeHtml(formatDate(log.occurred_at || log.created_at))}</td>
+        <td>${escapeHtml(titleCase(log.log_type || 'Activity'))}</td>
+        <td class="t-wrap">${escapeHtml(log.description || log.updates || 'No notes')}</td>
+      </tr>`).join('') : emptyRow('No logs yet.', 3);
   }
 
   function renderDrawer() {
     const contact = activeContact();
     if (!contact) return;
-    $('drawer-avatar').textContent = initials(contact);
-    $('drawer-record-type').textContent = contact.is_active === false
-      ? `Deleted ${titleCase(contact.recordType).toLowerCase()}`
-      : titleCase(contact.recordType);
     $('drawer-name').textContent = contact.displayName;
-    $('drawer-company').textContent = contact.recordType === 'person' ? (contact.company_name || '') : (contact.legal_name || '');
-    renderDrawerActions(contact);
+    $('drawer-id').textContent = contact.id.slice(0, 8);
+    $('drawer-id').title = contact.id;
+    renderAiSummary(contact);
     renderOverview(contact);
-    renderActivity(contact);
     renderJobs(contact);
-    renderInvoices(contact);
+    renderActivity(contact);
   }
 
-  function setDrawerTab(tab) {
-    state.drawerTab = tab;
-    document.querySelectorAll('[data-drawer-tab]').forEach(button => {
-      button.classList.toggle('is-active', button.dataset.drawerTab === tab);
-    });
-    document.querySelectorAll('[data-drawer-panel]').forEach(panel => {
-      panel.hidden = panel.dataset.drawerPanel !== tab;
-    });
+  function isDrawerOpen() {
+    return !$('contact-drawer').hidden;
+  }
+
+  function setPanelWide(wide) {
+    state.panelWide = wide;
+    $('contact-drawer').classList.toggle('wide', wide);
   }
 
   async function openDrawer(contactId) {
+    if (state.activeContactId !== contactId) {
+      $('quick-log-form').reset();
+      $('quick-log-form').hidden = true;
+    }
     state.activeContactId = contactId;
-    setDrawerTab('overview');
     renderDrawer();
-    $('contact-drawer').classList.add('is-open');
-    $('contact-drawer').setAttribute('aria-hidden', 'false');
-    $('drawer-backdrop').hidden = false;
-    document.body.style.overflow = 'hidden';
+    updateSelection();
+    $('contact-drawer').hidden = false;
+    $('contact-drawer').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     if (!Object.prototype.hasOwnProperty.call(state.links, contactId)) {
       try {
@@ -1358,12 +1229,11 @@
   }
 
   function closeDrawer() {
-    $('contact-drawer').classList.remove('is-open');
-    $('contact-drawer').setAttribute('aria-hidden', 'true');
-    $('drawer-backdrop').hidden = true;
+    $('contact-drawer').hidden = true;
     $('quick-log-form').hidden = true;
-    document.body.style.overflow = '';
+    setPanelWide(false);
     state.activeContactId = null;
+    updateSelection();
   }
 
   function updateIdentityFields() {
@@ -1637,14 +1507,15 @@
     return links.slice(0, 12);
   }
 
-  function openContactModal(contact = null) {
+  function openContactModal(contact = null, recordType = null) {
     $('contact-form').reset();
     $('form-error').textContent = '';
     $('contact-id').value = contact ? contact.id : '';
-    $('contact-modal-title').textContent = contact ? 'Edit contact' : 'New contact';
-    $('record-type').value = contact
-      ? contact.recordType
-      : (state.recordType === 'company' ? 'company' : 'person');
+    const newType = recordType || (state.recordType === 'company' ? 'company' : 'person');
+    $('contact-modal-title').textContent = contact
+      ? 'Edit contact'
+      : (newType === 'company' ? 'New company' : 'New person');
+    $('record-type').value = contact ? contact.recordType : newType;
     $('contact-category').value = contact ? contact.category : 'prospect';
     renderIdentityPicklists(contact ? contact.prefix : '', contact ? contact.role : '');
     $('first-name').value = contact ? (contact.first_name || '') : '';
@@ -1686,7 +1557,7 @@
   function closeContactModal() {
     closeCountryCodeMenu();
     $('contact-modal').hidden = true;
-    if (!$('contact-drawer').classList.contains('is-open')) document.body.style.overflow = '';
+    document.body.style.overflow = '';
   }
 
   async function useCurrentLocation() {
@@ -1833,10 +1704,8 @@
           : '/api/v1/achi/contact-info/contacts',
         { method: contactId ? 'PUT' : 'POST', body: payload },
       );
-      state.recordType = recordType;
-      document.querySelectorAll('[data-record-type]').forEach(button => {
-        button.classList.toggle('is-active', button.dataset.recordType === state.recordType);
-      });
+      // Keep the current filter unless it would hide the record just saved.
+      if (state.recordType !== 'all' && state.recordType !== recordType) setRecordType(recordType);
       closeContactModal();
       await loadData({ silent: true });
       showToast(contactId ? 'Contact updated.' : 'Contact created.');
@@ -1886,7 +1755,6 @@
       $('quick-log-form').reset();
       $('quick-log-form').hidden = true;
       await loadData({ silent: true });
-      setDrawerTab('activity');
       showToast('Activity saved.');
     } catch (error) {
       showToast(error.message, true);
@@ -1895,337 +1763,9 @@
     }
   }
 
-  function parseCsv(text) {
-    const rows = [];
-    let row = [];
-    let field = '';
-    let quoted = false;
-    const source = String(text || '').replace(/^\uFEFF/, '');
-
-    for (let index = 0; index < source.length; index += 1) {
-      const character = source[index];
-      if (quoted) {
-        if (character === '"' && source[index + 1] === '"') {
-          field += '"';
-          index += 1;
-        } else if (character === '"') {
-          quoted = false;
-        } else {
-          field += character;
-        }
-      } else if (character === '"') {
-        if (field) throw new Error('CSV contains an unexpected quote.');
-        quoted = true;
-      } else if (character === ',') {
-        row.push(field);
-        field = '';
-      } else if (character === '\n') {
-        row.push(field);
-        if (row.some(value => value.trim())) rows.push(row);
-        row = [];
-        field = '';
-      } else if (character !== '\r') {
-        field += character;
-      }
-    }
-
-    if (quoted) throw new Error('CSV contains an unclosed quoted value.');
-    row.push(field);
-    if (row.some(value => value.trim())) rows.push(row);
-    return rows;
-  }
-
-  function csvHeaderKey(value) {
-    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
-  }
-
-  function csvRecord(headers, row) {
-    return headers.reduce((record, header, index) => {
-      if (header) record[header] = String(row[index] || '').trim();
-      return record;
-    }, {});
-  }
-
-  function csvValue(record, ...keys) {
-    for (const key of keys) {
-      if (record[key]) return record[key];
-    }
-    return '';
-  }
-
-  function importedPhones(value) {
-    return String(value || '').split(';').map(item => {
-      const entry = item.trim();
-      if (!entry) return null;
-      const separator = entry.includes('|') ? entry.indexOf('|') : entry.indexOf(':');
-      const label = separator >= 0 ? entry.slice(0, separator).trim() : 'Mobile';
-      const number = separator >= 0 ? entry.slice(separator + 1).trim() : entry;
-      return number ? { label: label || 'Mobile', number } : null;
-    }).filter(Boolean).slice(0, 8);
-  }
-
-  function importedEmails(value) {
-    return String(value || '').split(';').map(item => {
-      const entry = item.trim();
-      if (!entry) return null;
-      const separator = entry.includes('|') ? entry.indexOf('|') : entry.indexOf(':');
-      const label = separator >= 0 ? entry.slice(0, separator).trim() : 'Primary';
-      const address = separator >= 0 ? entry.slice(separator + 1).trim() : entry;
-      return address ? { label: label || 'Other', address } : null;
-    }).filter(Boolean).slice(0, 8);
-  }
-
-  function importedRelatedContacts(value) {
-    return String(value || '').split(';').map(item => {
-      const parts = item.split('|').map(part => part.trim());
-      if (!parts.some(Boolean)) return null;
-      return { name: parts[0] || '', tag: parts[1] || null, phone: parts[2] || '' };
-    }).filter(item => item && item.name && item.phone).slice(0, 8);
-  }
-
-  function importedSocials(value) {
-    return String(value || '').split(';').map(item => {
-      const entry = item.trim();
-      if (!entry) return null;
-      const separator = entry.includes('|') ? entry.indexOf('|') : entry.indexOf(':');
-      const platform = separator >= 0 ? entry.slice(0, separator).trim() : 'LinkedIn';
-      const handle = separator >= 0 ? entry.slice(separator + 1).trim() : entry;
-      return handle ? { platform: platform || 'LinkedIn', handle } : null;
-    }).filter(Boolean).slice(0, 12);
-  }
-
-  function importCategory(value) {
-    const normalized = String(value || 'prospect').trim().toLowerCase().replace(/[\s-]+/g, '_');
-    const aliases = {
-      customer: 'client',
-      vendor: 'supplier',
-      sub_contractor: 'subcontractor',
-      consultant: 'other',
-    };
-    const category = aliases[normalized] || normalized;
-    const allowed = ['client', 'prospect', 'lead', 'supplier', 'subcontractor', 'internal', 'other'];
-    if (!allowed.includes(category)) throw new Error(`Unsupported category: ${value}`);
-    return category;
-  }
-
-  function contactPayloadFromCsv(headers, row) {
-    const record = csvRecord(headers, row);
-    const name = csvValue(record, 'name', 'contactname');
-    const company = csvValue(record, 'company', 'companyname', 'legalname');
-    const explicitFirstName = csvValue(record, 'firstname', 'givenname');
-    const explicitLastName = csvValue(record, 'lastname', 'surname', 'familyname');
-    const middleName = csvValue(record, 'middlename', 'additionalname');
-    const rawRecordType = csvValue(record, 'recordtype', 'type').toLowerCase();
-    let recordType;
-
-    if (['company', 'business', 'organisation', 'organization'].includes(rawRecordType)) {
-      recordType = 'company';
-    } else if (['person', 'individual', 'contact'].includes(rawRecordType)) {
-      recordType = 'person';
-    } else {
-      recordType = company && !name && !explicitFirstName && !explicitLastName ? 'company' : 'person';
-    }
-
-    let firstName = explicitFirstName;
-    let lastName = explicitLastName;
-    let companyName = company;
-    if (recordType === 'company') {
-      companyName = company || name;
-      if (!companyName) throw new Error('Company name is required.');
-      firstName = '';
-      lastName = '';
-    } else if (!firstName && !lastName) {
-      const parts = name.split(/\s+/).filter(Boolean);
-      firstName = parts.shift() || '';
-      lastName = parts.join(' ');
-      if (!firstName && !lastName) throw new Error('Person name is required.');
-    }
-
-    const countryCode = csvValue(record, 'country', 'countrycode').toUpperCase();
-    if (countryCode.length > 2) throw new Error(`Country must be a two-letter code: ${countryCode}`);
-    const phones = importedPhones(csvValue(record, 'phones', 'phone', 'primaryphone', 'mobile'));
-    const primaryEmail = csvValue(record, 'email', 'primaryemail');
-    const emails = importedEmails(csvValue(record, 'emails'));
-    if (!emails.length && primaryEmail) emails.push({ label: 'Primary', address: primaryEmail });
-    const rawMapsUrl = csvValue(record, 'mapsurl', 'maplink', 'googlemaps');
-    const mapsUrl = normalizeMapsUrl(rawMapsUrl);
-    if (rawMapsUrl && !mapsUrl) throw new Error('Map URL must be a Google Maps link.');
-
-    return {
-      record_type: recordType,
-      category: importCategory(csvValue(record, 'category', 'contactcategory')),
-      first_name: firstName || null,
-      last_name: lastName || null,
-      middle_name: recordType === 'person' ? (middleName || null) : null,
-      prefix: recordType === 'person' ? (csvValue(record, 'prefix', 'title', 'salutation') || null) : null,
-      role: recordType === 'person' ? (csvValue(record, 'tags', 'tag', 'role', 'jobtitle', 'position') || null) : null,
-      company_name: companyName || null,
-      company_type: csvValue(record, 'companytype', 'organisationtype', 'organizationtype') || null,
-      primary_email: emails[0] ? emails[0].address : null,
-      emails,
-      phones,
-      related_contacts: importedRelatedContacts(csvValue(record, 'additionalcontacts', 'relatedcontacts')),
-      socials: importedSocials(csvValue(record, 'socials', 'socialhandles', 'socialmedia')),
-      website: csvValue(record, 'website', 'url') || null,
-      country_code: countryCode || null,
-      city: csvValue(record, 'city', 'locality', 'town') || null,
-      location: csvValue(record, 'location', 'address', 'street') || null,
-      maps_url: mapsUrl || null,
-      source: csvValue(record, 'source', 'leadsource') || null,
-      quick_links: [],
-      notes: csvValue(record, 'notes', 'note') || null,
-    };
-  }
-
-  function importIdentityKeys(payload) {
-    const keys = [];
-    const email = String(payload.primary_email || '').trim().toLowerCase();
-    if (email) keys.push(`email:${email}`);
-    if (payload.record_type === 'company') {
-      keys.push(`company:${String(payload.company_name || '').trim().toLowerCase()}`);
-    } else {
-      const name = [payload.first_name, payload.last_name].filter(Boolean).join(' ').trim().toLowerCase();
-      const phone = payload.phones[0] ? payload.phones[0].number.replace(/\D/g, '') : '';
-      if (name) keys.push(`person:${name}:${phone}`);
-    }
-    return keys.filter(key => !key.endsWith(':'));
-  }
-
-  function existingImportKeys() {
-    const keys = new Set();
-    for (const contact of state.contacts) {
-      const payload = {
-        record_type: contact.recordType,
-        first_name: contact.first_name,
-        last_name: contact.last_name,
-        company_name: contact.company_name,
-        primary_email: contact.primary_email,
-        phones: contact.phones,
-      };
-      for (const key of importIdentityKeys(payload)) keys.add(key);
-    }
-    return keys;
-  }
-
-  async function importCsv(file) {
-    const input = $('import-input');
-    const button = $('import-button');
-    const originalLabel = button.textContent;
-    let imported = 0;
-    let skipped = 0;
-    const errors = [];
-
-    try {
-      const rows = parseCsv(await file.text());
-      if (rows.length < 2) throw new Error('CSV must contain a header and at least one contact.');
-      if (rows.length > 501) throw new Error('Import is limited to 500 contacts at a time.');
-      const headers = rows.shift().map(csvHeaderKey);
-      if (!headers.some(header => ['name', 'contactname', 'firstname', 'company', 'companyname'].includes(header))) {
-        throw new Error('CSV needs a Name, First name, or Company column.');
-      }
-
-      const contacts = [];
-      rows.forEach((row, index) => {
-        try {
-          contacts.push({ rowNumber: index + 2, payload: contactPayloadFromCsv(headers, row) });
-        } catch (error) {
-          skipped += 1;
-          errors.push(`Row ${index + 2}: ${error.message}`);
-        }
-      });
-      if (!contacts.length) throw new Error(errors[0] || 'CSV contains no importable contacts.');
-      const confirmation = `Import ${contacts.length} contact${contacts.length === 1 ? '' : 's'}?`
-        + (skipped ? ` ${skipped} invalid row${skipped === 1 ? '' : 's'} will be skipped.` : '');
-      if (!window.confirm(confirmation)) return;
-
-      button.disabled = true;
-      input.disabled = true;
-      const knownKeys = existingImportKeys();
-      for (let index = 0; index < contacts.length; index += 1) {
-        const contact = contacts[index];
-        button.textContent = `Importing ${index + 1}/${contacts.length}`;
-        const identityKeys = importIdentityKeys(contact.payload);
-        if (identityKeys.some(key => knownKeys.has(key))) {
-          skipped += 1;
-          errors.push(`Row ${contact.rowNumber}: contact already exists.`);
-          continue;
-        }
-        try {
-          await request('/api/v1/achi/contact-info/contacts', { method: 'POST', body: contact.payload });
-          imported += 1;
-          identityKeys.forEach(key => knownKeys.add(key));
-        } catch (error) {
-          skipped += 1;
-          errors.push(`Row ${contact.rowNumber}: ${error.message}`);
-        }
-      }
-
-      if (imported) await loadData({ silent: true });
-      if (errors.length) console.warn('CSV import skipped rows:', errors);
-      const summary = `${imported} imported${skipped ? `, ${skipped} skipped` : ''}.`;
-      showToast(summary, imported === 0);
-    } catch (error) {
-      showToast(error.message, true);
-    } finally {
-      button.disabled = false;
-      input.disabled = false;
-      button.textContent = originalLabel;
-      input.value = '';
-    }
-  }
-
-  function csvCell(value) {
-    let text = String(value == null ? '' : value);
-    if (/^[=+\-@]/.test(text)) text = `'${text}`;
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-
-  function exportCsv() {
-    const contacts = visibleContacts();
-    const rows = [
-      ['Record type', 'Prefix', 'First name', 'Last name', 'Middle name', 'Tags', 'Company', 'Company type', 'Category', 'Emails', 'Phones', 'Additional contacts', 'Social handles', 'Location', 'Maps URL', 'City', 'Country', 'Source', 'Logs', 'Jobs'],
-      ...contacts.map(contact => [
-        contact.recordType,
-        contact.prefix,
-        contact.recordType === 'company' ? '' : (contact.first_name || ''),
-        contact.recordType === 'company' ? '' : (contact.last_name || ''),
-        contact.middleName,
-        contact.role,
-        contact.company_name || '',
-        contact.companyType,
-        contact.category,
-        contact.emails.map(email => `${email.label}: ${email.address}`).join('; '),
-        contact.phones.map(phone => `${phone.label}: ${phone.number}`).join('; '),
-        contact.relatedContacts.map(related => [related.first_name, related.last_name, related.role, related.phone, related.email].filter(Boolean).join('|')).join('; '),
-        contact.socials.map(social => `${social.platform}: ${social.handle}`).join('; '),
-        contact.location,
-        contact.mapsUrl,
-        contact.city,
-        contact.country_code || '',
-        contact.source,
-        contact.logCount,
-        contact.jobCount,
-      ]),
-    ];
-    const csv = rows.map(row => row.map(csvCell).join(',')).join('\r\n');
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `achi-${state.recordType}-contacts.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
-
   function bindEvents() {
-    document.querySelectorAll('[data-directory-status]').forEach(button => {
-      button.addEventListener('click', () => setDirectoryStatus(button.dataset.directoryStatus));
-    });
-
+    setToggleGroup('[data-view-mode]', 'viewMode', state.viewMode);
     document.querySelectorAll('[data-view-mode]').forEach(button => {
-      button.classList.toggle('is-active', button.dataset.viewMode === state.viewMode);
       button.addEventListener('click', () => {
         state.viewMode = button.dataset.viewMode === 'grid' ? 'grid' : 'list';
         try {
@@ -2233,27 +1773,14 @@
         } catch (_error) {
           // The selected view still works when browser storage is unavailable.
         }
-        document.querySelectorAll('[data-view-mode]').forEach(item => {
-          item.classList.toggle('is-active', item.dataset.viewMode === state.viewMode);
-        });
+        setToggleGroup('[data-view-mode]', 'viewMode', state.viewMode);
         renderTable();
       });
     });
 
     document.querySelectorAll('[data-record-type]').forEach(button => {
       button.addEventListener('click', () => {
-        state.recordType = button.dataset.recordType;
-        state.category = 'all';
-        document.querySelectorAll('[data-record-type]').forEach(item => item.classList.toggle('is-active', item === button));
-        document.querySelectorAll('[data-category]').forEach(item => item.classList.toggle('is-active', item.dataset.category === 'all'));
-        renderDirectory();
-      });
-    });
-
-    document.querySelectorAll('[data-category]').forEach(button => {
-      button.addEventListener('click', () => {
-        state.category = button.dataset.category;
-        document.querySelectorAll('[data-category]').forEach(item => item.classList.toggle('is-active', item === button));
+        setRecordType(button.dataset.recordType);
         renderTable();
       });
     });
@@ -2263,48 +1790,25 @@
       renderTable();
     });
 
-    $('contacts-table-body').addEventListener('click', event => {
-      if (event.target.closest('[data-map-link]')) return;
+    // Rows and cards open the detail panel; their own links (city map) don't.
+    const openFromDirectory = event => {
+      if (event.target.closest('a')) return;
       const target = event.target.closest('[data-contact-id], [data-open-contact]');
-      if (!target) return;
-      openDrawer(target.dataset.contactId || target.dataset.openContact);
-    });
+      if (target) openDrawer(target.dataset.contactId || target.dataset.openContact);
+    };
+    $('contacts-table-body').addEventListener('click', openFromDirectory);
+    $('contacts-cards').addEventListener('click', openFromDirectory);
 
-    $('grid-view').addEventListener('click', event => {
-      if (event.target.closest('[data-map-link]')) return;
-      const target = event.target.closest('[data-open-contact]');
-      if (target) openDrawer(target.dataset.openContact);
-    });
-
-    $('new-contact-button').addEventListener('click', () => {
-      setDirectoryStatus('active');
-      openContactModal();
-    });
-    $('import-button').addEventListener('click', () => {
-      setDirectoryStatus('active');
-      $('import-input').click();
-    });
-    $('import-input').addEventListener('change', event => {
-      const file = event.target.files && event.target.files[0];
-      if (file) importCsv(file);
-    });
-    $('export-button').addEventListener('click', exportCsv);
+    $('new-person-button').addEventListener('click', () => openContactModal(null, 'person'));
+    $('new-company-button').addEventListener('click', () => openContactModal(null, 'company'));
     $('drawer-close').addEventListener('click', closeDrawer);
-    $('drawer-backdrop').addEventListener('click', closeDrawer);
-
-    document.querySelectorAll('[data-drawer-tab]').forEach(button => {
-      button.addEventListener('click', () => setDrawerTab(button.dataset.drawerTab));
-    });
-
-    $('drawer-actions').addEventListener('click', event => {
-      if (event.target.closest('#drawer-edit')) openContactModal(activeContact());
-      if (event.target.closest('#drawer-delete')) deleteContact(activeContact());
-      if (event.target.closest('#drawer-restore')) restoreContact(activeContact());
-      if (event.target.closest('#drawer-add-log')) {
-        setDrawerTab('activity');
-        $('quick-log-form').hidden = false;
-        $('quick-log-notes').focus();
-      }
+    $('drawer-expand').addEventListener('click', () => setPanelWide(!state.panelWide));
+    $('drawer-edit').addEventListener('click', () => openContactModal(activeContact()));
+    $('drawer-delete').addEventListener('click', () => deleteContact(activeContact()));
+    $('drawer-add-log').addEventListener('click', event => {
+      event.preventDefault();
+      $('quick-log-form').hidden = false;
+      $('quick-log-notes').focus();
     });
 
     $('quick-log-form').addEventListener('submit', saveQuickLog);
@@ -2390,7 +1894,8 @@
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
       if (!$('contact-modal').hidden) closeContactModal();
-      else if ($('contact-drawer').classList.contains('is-open')) closeDrawer();
+      else if (state.panelWide) setPanelWide(false);
+      else if (isDrawerOpen()) closeDrawer();
     });
   }
 
