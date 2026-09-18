@@ -250,73 +250,59 @@ var LINKS = [
     } catch (e) { return false; }
   }
 
-  /* The non-admin ACHI sidebar intentionally exposes exactly three primary
-   * destinations. Full application navigation remains available inside OCE. */
+  /* Standalone ACHI pages use one operational navigation list for every user. */
+  /* Team Tasks is revealed separately for admins and supervisors. */
+
   function showPrimaryLinksOnly() {
     var cluster = document.querySelector('.achi-chrome .achi-cluster');
     if (cluster) cluster.style.display = 'none';
-    // Log, Contact Info and CRM are the standalone sidebar's permanent destinations.
+
     var links = document.querySelectorAll('.achi-chrome .achi-link');
     for (var i = 0; i < links.length; i++) {
       var href = (links[i].getAttribute('href') || '').split('?')[0];
-            var alwaysVisible =
-        href === '/api/v1/achi/ui' ||
-        href === '/api/v1/achi/contact-info/ui' ||
-        href === '/api/v1/achi/prospect/ui' ||
-        href === '/api/v1/achi/site-visit/ui' ||
-        href === '/api/v1/achi/crm/ui' ||
-        href === '/api/v1/achi/draw/ui' ||
-        href === '/api/v1/achi/quotation/ui' ||
-        href === '/api/v1/achi/boq/ui' ||
-        href === '/api/v1/achi/mt/ui' ||
-        href === '/api/v1/achi/resource/ui' ||
-        href === '/api/v1/achi/plan/ui' ||
-        href === '/api/v1/achi/planner/ui' ||
-        href === '/api/v1/achi/tasks/ui' ||
-        href === '/api/v1/achi/files/ui';
-      if (!alwaysVisible) links[i].style.display = 'none';
+
+           links[i].style.display = '';
     }
   }
 
-  function showTeamTasksForSupervisors() {
-  var tok;
-  try {
-    tok = localStorage.getItem('oe_access_token')
-      || sessionStorage.getItem('oe_access_token')
-      || '';
-  } catch (e) {
-    tok = '';
+  function showTeamTasksLink() {
+    var link = document.querySelector(
+      '.achi-chrome .achi-link[href="/api/v1/achi/tasks/ui"]'
+    );
+    if (link) link.style.display = '';
   }
 
-  if (!tok || isAdminUser()) return;
+  function showTeamTasksForSupervisors() {
+    var tok;
+    try {
+      tok = localStorage.getItem('oe_access_token')
+        || sessionStorage.getItem('oe_access_token')
+        || '';
+    } catch (e) {
+      tok = '';
+    }
 
-  fetch('/api/v1/achi/tasks/access/me', {
-    headers: { Authorization: 'Bearer ' + tok }
-  })
-    .then(function (response) {
-      return response.ok ? response.json() : null;
+    if (!tok || isAdminUser()) return;
+
+    fetch('/api/v1/achi/tasks/access/me', {
+      headers: { Authorization: 'Bearer ' + tok }
     })
-    .then(function (access) {
-      if (!access || !access.can_manage_team) return;
-
-      var links = document.querySelectorAll('.achi-chrome .achi-link');
-      for (var i = 0; i < links.length; i++) {
-        var href = (links[i].getAttribute('href') || '').split('?')[0];
-        if (href === '/api/v1/achi/tasks/ui') {
-          links[i].style.display = '';
-          return;
-        }
-      }
-    })
-    .catch(function () {});
-}
-
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (access) {
+        if (!access || !access.can_manage_team) return;
+        showTeamTasksLink();
+      })
+      .catch(function () {});
+  }
   function boot() {
     // Each page names itself; fall back to the document title.
     var t = document.body.getAttribute('data-achi-title') || document.title.split('·')[0].trim();
     build(t);
     applyBranding();
-    if (!isAdminUser()) {showPrimaryLinksOnly();}
+    showPrimaryLinksOnly();
+
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
