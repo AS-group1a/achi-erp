@@ -23,15 +23,24 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
 .seg button{font:inherit;font-size:11px;font-weight:700;border:0;border-right:1px solid #dbe2ed;background:transparent;padding:0 12px;cursor:pointer;color:#44546e}
 .seg button:last-child{border-right:0}
 .seg button.on{background:#284F9E;color:#fff}
-.lay{display:grid;grid-template-columns:188px minmax(0,1fr);gap:8px;align-items:start}
-@media (max-width:800px){.lay{grid-template-columns:1fr}}
-.rail{background:#fff;border:1px solid #b9c5d8;border-radius:5px;overflow:hidden}
+.lay{display:block}
+.frdd{position:relative;display:inline-block;margin-bottom:8px}
+.rail{display:none;position:absolute;top:100%;left:0;margin-top:4px;width:250px;max-height:62vh;overflow-y:auto;scrollbar-width:thin;background:#fff;border:1px solid #b9c5d8;border-radius:5px;z-index:70;box-shadow:0 12px 32px rgba(15,23,42,.2)}
+.rail.open{display:block}
 .rail .rh{background:#e6ebf3;border-bottom:1px solid #b9c5d8;padding:4px 9px;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#44546e}
 .fbt{display:flex;align-items:center;gap:6px;width:100%;font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;padding:4px 9px;cursor:pointer;color:#1d1d1f;text-align:left;border-bottom:1px solid #f4f6fa}
 .fbt:hover{background:#eaf1ff}
 .fbt.on{background:#eaf1ff;color:#1F3F80;font-weight:800}
 .fbt .n{margin-left:auto;font-size:9.5px;font-weight:800;color:#8a8f98;font-variant-numeric:tabular-nums}
 .fbt.on .n{color:#284F9E}
+.fbt .car{width:10px;flex:0 0 auto;font-size:8px;color:#8a8f98;transition:transform .12s}
+.fbt.open .car{transform:rotate(90deg)}
+.ftree{background:#fbfcff;border-bottom:1px solid #f4f6fa}
+.ftr{display:flex;align-items:center;gap:5px;width:100%;border:0;background:transparent;padding:2px 9px 2px 24px;font:inherit;font-size:10.5px;color:#1d1d1f;cursor:pointer;text-align:left}
+.ftr:hover{background:#eaf1ff}
+.ftr.on{background:#eaf1ff;color:#1F3F80;font-weight:700}
+.ftr .fx{flex:0 0 auto;min-width:24px;height:13px;border-radius:2px;font-size:7px;font-weight:800;letter-spacing:.03em;display:inline-flex;align-items:center;justify-content:center;padding:0 3px}
+.ftr .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .store{padding:8px 9px;border-top:1px solid #dbe2ed;background:#fbfcff}
 .store .sl{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#44546e}
 .store .sv{font-size:10px;color:#44546e;font-variant-numeric:tabular-nums;margin-top:3px}
@@ -123,12 +132,15 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     <input type="file" id="file-input" multiple hidden>
   </div>
   <div class="lay">
-    <div class="rail">
+    <div class="frdd">
+      <button type="button" class="mini" id="btn-folders">▦ <span id="btn-folders-label">All files</span> ▾</button>
+      <div class="rail" id="rail">
       <div class="rh">Folders</div>
       <div id="folders"></div>
       <div class="store">
         <div class="sl">Storage</div>
         <div class="sv" id="store-label">—</div>
+      </div>
       </div>
     </div>
     <div>
@@ -364,7 +376,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
 
   /* --------------------------- rendering --------------------------- */
 
-  var state = { folder: 'All files', q: '', fType: 'All types', view: 'list', sel: null };
+  var state = { folder: 'All files', q: '', fType: 'All types', view: 'list', sel: null, openFolders: {} };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -418,10 +430,23 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     }).join('');
   }
   function renderFolders() {
+    var lb = $('btn-folders-label');
+    if (lb) lb.textContent = state.folder;
     $('folders').innerHTML = folders().map(function (name) {
-      var n = name === 'All files' ? FILES.length : FILES.filter(function (f) { return f.folder === name; }).length;
-      return '<button type="button" class="fbt' + (state.folder === name ? ' on' : '') + '" data-folder="' + esc(name) + '">'
+      var inFolder = name === 'All files' ? [] : FILES.filter(function (f) { return f.folder === name; });
+      var n = name === 'All files' ? FILES.length : inFolder.length;
+      var open = !!state.openFolders[name] && n > 0;
+      var head = '<button type="button" class="fbt' + (state.folder === name ? ' on' : '') + (open ? ' open' : '') + '" data-folder="' + esc(name) + '">'
+        + (name === 'All files' ? '' : '<span class="car">' + (n ? '\u25b8' : '') + '</span>')
         + esc(name) + '<span class="n">' + n + '</span></button>';
+      if (!open) return head;
+      var rows = inFolder.slice(0, 50).map(function (f) {
+        return '<button type="button" class="ftr' + (state.sel === f.id ? ' on' : '') + '" data-fid="' + esc(f.id) + '" title="' + esc(f.name) + '">'
+          + '<span class="fx" style="' + extStyle(f.ext) + '">' + esc(f.ext) + '</span>'
+          + '<span class="fn">' + esc(f.name) + '</span></button>';
+      }).join('');
+      if (inFolder.length > 50) rows += '<div class="ftr" style="cursor:default;color:#8a8f98">\u2026 ' + (inFolder.length - 50) + ' more \u2014 use the list</div>';
+      return head + '<div class="ftree">' + rows + '</div>';
     }).join('');
   }
   function emptyHtml() {
@@ -552,18 +577,23 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     renderPanel();
   }
 
+  function activateFile(id) {
+    if (state.sel === id) {
+      // second click on the selected file (what a double-click does too):
+      // hand it to the browser/OS -- PDFs and images open in a new tab,
+      // other formats download and open with their associated software.
+      window.open(downloadUrl(id), '_blank', 'noopener');
+      return;
+    }
+    state.sel = id;
+    render();
+    var panel = $('dpanel');
+    if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
   function onItemClick(e) {
     if (e.target.closest('a')) return;
     var el = e.target.closest('[data-id]');
-    if (!el) return;
-    var id = el.getAttribute('data-id');
-    var opening = state.sel !== id;
-    state.sel = opening ? id : null;
-    render();
-    if (opening) {
-      var panel = $('dpanel');
-      if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    if (el) activateFile(el.getAttribute('data-id'));
   }
 
   function showError(msg) {
@@ -790,11 +820,25 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   $('seg-list').addEventListener('click', function () { state.view = 'list'; render(); });
   $('seg-grid').addEventListener('click', function () { state.view = 'grid'; render(); });
   $('folders').addEventListener('click', function (e) {
+    var fr = e.target.closest('.ftr');
+    if (fr && fr.getAttribute('data-fid')) { $('rail').classList.remove('open'); activateFile(fr.getAttribute('data-fid')); return; }
     var b = e.target.closest('.fbt');
-    if (b) { state.folder = b.getAttribute('data-folder'); render(); }
+    if (!b) return;
+    var name = b.getAttribute('data-folder');
+    if (name !== 'All files') state.openFolders[name] = !state.openFolders[name];
+    state.folder = name;
+    render();
   });
   $('rows').addEventListener('click', onItemClick);
   $('tiles').addEventListener('click', onItemClick);
+  $('btn-folders').addEventListener('click', function (e) {
+    e.stopPropagation();
+    $('rail').classList.toggle('open');
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('#rail') || e.target.closest('#btn-folders')) return;
+    $('rail').classList.remove('open');
+  });
 
   loadData().catch(function (e) {
     $('total-label').textContent = 'error';
