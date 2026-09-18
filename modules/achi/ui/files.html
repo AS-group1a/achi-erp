@@ -587,8 +587,6 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     }
     state.sel = id;
     render();
-    var panel = $('dpanel');
-    if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function onItemClick(e) {
     if (e.target.closest('a')) return;
