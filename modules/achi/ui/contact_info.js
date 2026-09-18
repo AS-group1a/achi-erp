@@ -115,6 +115,7 @@
     projects: null,
     links: {},
     recordType: 'all',
+    columnFilters: { role: '', company: '', city: '', source: '' },
     search: '',
     viewMode: storedViewMode(),
     activeContactId: null,
@@ -464,41 +465,57 @@
     select.value = selected || '';
   }
 
-  function refreshCountrySelect(selected) { fillGeoSelect('contact-country', COUNTRY_NAMES, selected || ''); }
-  function refreshDistrictSelect(selected) { fillGeoSelect('contact-district', districtOptions($('contact-country').value), selected || ''); }
-  function refreshCitySelect(selected) { fillGeoSelect('contact-city', cityOptions($('contact-country').value, $('contact-district').value), selected || ''); }
+  // Country / District / City cascades. The contact form's IDs are the default;
+  // the + Person popup passes its own address blocks.
+  const CONTACT_GEO = { country: 'contact-country', district: 'contact-district', city: 'contact-city', error: 'form-error' };
 
-  async function addDistrictAndSelect() {
-    const country = $('contact-country').value;
-    if (!country) { refreshDistrictSelect(''); return; }
+  function refreshCountrySelect(selected, ids = CONTACT_GEO) { fillGeoSelect(ids.country, COUNTRY_NAMES, selected || ''); }
+  function refreshDistrictSelect(selected, ids = CONTACT_GEO) { fillGeoSelect(ids.district, districtOptions($(ids.country).value), selected || ''); }
+  function refreshCitySelect(selected, ids = CONTACT_GEO) { fillGeoSelect(ids.city, cityOptions($(ids.country).value, $(ids.district).value), selected || ''); }
+
+  async function addDistrictAndSelect(ids = CONTACT_GEO) {
+    const country = $(ids.country).value;
+    if (!country) { refreshDistrictSelect('', ids); return; }
     const name = (window.prompt(`New district for ${country} (max 128 characters):`) || '').trim();
-    if (!name) { refreshDistrictSelect(''); return; }
-    if (name.length > 128) { $('form-error').textContent = 'District must be 128 characters or fewer.'; refreshDistrictSelect(''); return; }
+    if (!name) { refreshDistrictSelect('', ids); return; }
+    if (name.length > 128) { $(ids.error).textContent = 'District must be 128 characters or fewer.'; refreshDistrictSelect('', ids); return; }
     try {
       const saved = await request('/api/v1/achi/geo/districts', { method: 'POST', body: { country, district: name } });
       const list = geoCustom.districts[country] = geoCustom.districts[country] || [];
       if (!list.includes(saved.district) && !(districtsFor(country) || []).includes(saved.district)) list.push(saved.district);
-      refreshDistrictSelect(saved.district);
-      refreshCitySelect('');
-      $('form-error').textContent = '';
-    } catch (error) { $('form-error').textContent = error.message; refreshDistrictSelect(''); }
+      refreshDistrictSelect(saved.district, ids);
+      refreshCitySelect('', ids);
+      $(ids.error).textContent = '';
+    } catch (error) { $(ids.error).textContent = error.message; refreshDistrictSelect('', ids); }
   }
 
-  async function addCityAndSelect() {
-    const country = $('contact-country').value;
-    const district = $('contact-district').value;
-    if (!country || !district) { refreshCitySelect(''); return; }
+  async function addCityAndSelect(ids = CONTACT_GEO) {
+    const country = $(ids.country).value;
+    const district = $(ids.district).value;
+    if (!country || !district) { refreshCitySelect('', ids); return; }
     const name = (window.prompt(`New city for ${district} (max 128 characters):`) || '').trim();
-    if (!name) { refreshCitySelect(''); return; }
-    if (name.length > 128) { $('form-error').textContent = 'City must be 128 characters or fewer.'; refreshCitySelect(''); return; }
+    if (!name) { refreshCitySelect('', ids); return; }
+    if (name.length > 128) { $(ids.error).textContent = 'City must be 128 characters or fewer.'; refreshCitySelect('', ids); return; }
     try {
       const saved = await request('/api/v1/achi/geo/cities', { method: 'POST', body: { country, district, city: name } });
       const key = cityKey(country, district);
       const list = geoCustom.cities[key] = geoCustom.cities[key] || [];
       if (!list.includes(saved.city) && !(citiesFor(country, district) || []).includes(saved.city)) list.push(saved.city);
-      refreshCitySelect(saved.city);
-      $('form-error').textContent = '';
-    } catch (error) { $('form-error').textContent = error.message; refreshCitySelect(''); }
+      refreshCitySelect(saved.city, ids);
+      $(ids.error).textContent = '';
+    } catch (error) { $(ids.error).textContent = error.message; refreshCitySelect('', ids); }
+  }
+
+  // Wires one cascade: changing country resets district/city; "+ Add" prompts.
+  function bindGeoCascade(ids) {
+    $(ids.country).addEventListener('change', () => { refreshDistrictSelect('', ids); refreshCitySelect('', ids); });
+    $(ids.district).addEventListener('change', () => {
+      if ($(ids.district).value === DISTRICT_ADD) addDistrictAndSelect(ids);
+      else refreshCitySelect('', ids);
+    });
+    $(ids.city).addEventListener('change', () => {
+      if ($(ids.city).value === CITY_ADD) addCityAndSelect(ids);
+    });
   }
 
   // Snap a geocoded name onto an existing option instead of adding a near-duplicate.
@@ -824,6 +841,11 @@
       lastContact: contactLogs[0] ? (contactLogs[0].occurred_at || contactLogs[0].created_at) : null,
       contactDate: bucket.contact_date || raw.created_at || null,
       // Only shown when the backend stores them; nothing is inferred client-side.
+      companyContactId: bucket.company_contact_id || '',
+      industry: bucket.industry || '',
+      activity: bucket.activity || '',
+      companySize: bucket.company_size || '',
+      photo: bucket.photo || null,
       preferredChannel: bucket.preferred_channel || '',
       aiNote: bucket.ai_note || '',
       aiSummary: bucket.ai_summary || '',
@@ -877,10 +899,50 @@
     return state.contacts.filter(contact => contact.recordType === state.recordType);
   }
 
+  // The value each column filter matches on.
+  const COLUMN_VALUE = {
+    role: contact => contactRole(contact),
+    company: contact => contactCompany(contact),
+    city: contact => contact.city,
+    source: contact => contact.source,
+  };
+
+  function columnFiltered(contacts) {
+    return Object.entries(state.columnFilters).reduce((rows, [column, wanted]) => (
+      wanted ? rows.filter(contact => (COLUMN_VALUE[column](contact) || '') === wanted) : rows
+    ), contacts);
+  }
+
+  // Each picker offers the values present in the current People/Companies set,
+  // narrowed by the other pickers, so a combination can never show nothing.
+  function renderColumnFilters() {
+    const base = contactsForRecordType();
+    for (const column of Object.keys(state.columnFilters)) {
+      const others = { ...state.columnFilters, [column]: '' };
+      const pool = Object.entries(others).reduce((rows, [other, wanted]) => (
+        wanted ? rows.filter(contact => (COLUMN_VALUE[other](contact) || '') === wanted) : rows
+      ), base);
+      const values = [...new Set(pool.map(contact => COLUMN_VALUE[column](contact)).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+      const current = state.columnFilters[column];
+      // A value filtered away elsewhere stays listed so it can be cleared.
+      if (current && !values.includes(current)) values.push(current);
+      const select = $(`hf-${column}`);
+      select.innerHTML = '<option value="">All</option>'
+        + values.map(value => `<option value="${escapeHtml(value)}"${value === current ? ' selected' : ''}>${escapeHtml(value)}</option>`).join('');
+      select.value = current;
+      select.classList.toggle('on', Boolean(current));
+      const wrap = select.parentElement;
+      wrap.classList.toggle('on', Boolean(current));
+      wrap.title = current ? `Filtered: ${current}` : 'Filter';
+    }
+  }
+
   function visibleContacts() {
     const query = state.search.trim().toLowerCase();
-    if (!query) return contactsForRecordType();
-    return contactsForRecordType().filter(contact => [
+    const rows = columnFiltered(contactsForRecordType());
+    if (!query) return rows;
+    return rows.filter(contact => [
       contact.displayName,
       contact.company_name,
       contact.legal_name,
@@ -914,9 +976,7 @@
     $('contact-total').textContent = `${all.length} records`;
     setKpi('people-count', all.filter(contact => contact.recordType === 'person').length);
     setKpi('company-count', all.filter(contact => contact.recordType === 'company').length);
-    setKpi('matched-count', null);
     setKpi('duplicate-count', all.filter(contact => contact.duplicateOf.length).length);
-    setKpi('enriched-count', null);
   }
 
   function setToggleGroup(selector, dataKey, value) {
@@ -930,6 +990,11 @@
   function setRecordType(recordType) {
     state.recordType = recordType;
     setToggleGroup('[data-record-type]', 'recordType', recordType);
+    const available = contactsForRecordType();
+    for (const [column, wanted] of Object.entries(state.columnFilters)) {
+      if (wanted && !available.some(contact => (COLUMN_VALUE[column](contact) || '') === wanted)) state.columnFilters[column] = '';
+    }
+    renderColumnFilters();
   }
 
   function setListMessage(message) {
@@ -1036,6 +1101,7 @@
 
   function renderDirectory() {
     renderSummary();
+    renderColumnFilters();
     renderTable();
   }
 
@@ -1182,7 +1248,7 @@
     $('drawer-activity').innerHTML = logs.length ? logs.map(log => `<tr>
         <td class="mut t-date">${escapeHtml(formatDate(log.occurred_at || log.created_at))}</td>
         <td>${escapeHtml(titleCase(log.log_type || 'Activity'))}</td>
-        <td class="t-wrap">${escapeHtml(log.description || log.updates || 'No notes')}</td>
+        <td class="t-wrap">${escapeHtml(htmlToText(log.description || log.updates) || 'No notes')}</td>
       </tr>`).join('') : emptyRow('No logs yet.', 3);
   }
 
@@ -1763,6 +1829,1056 @@
     }
   }
 
+  // ── + Person popup ──────────────────────────────────────────────────────
+  // One form: a first-contact log (header + quick capture) and the person, with
+  // an optional linked company. Saves through the existing APIs, in order:
+  //   1. new company  → POST /contact-info/contacts (record_type company)
+  //   2. person       → POST /contact-info/contacts (linked by company_contact_id)
+  //   3. log, only when something was captured → POST /files/ + /files/{id}/logs/
+  //   4. attachments  → POST /logs/{id}/attachments
+
+  // Option vocabularies shared with the Log page (log-core.js): same values,
+  // same per-browser "+ Add New" storage keys.
+  const LOG_TYPES = ['Prospect', 'Lead', 'Client', 'Field', 'Fleet', 'Yard', 'Invoice', 'Balance', 'General'];
+  const LOG_CHANNELS = ['Inbound Call', 'Outreach', 'Site Visit', 'Referral', 'Email', 'Website', 'Instagram DM', 'Facebook DM', 'LinkedIn'];
+  const LOG_STATUSES = [
+    ['open', '#22c55e'], ['scheduled', '#f59e0b'], ['viewed', '#0ea5e9'],
+    ['cancelled', '#ef4444'], ['done', '#94a3b8'], ['transferred', '#a855f7'],
+  ];
+  const LOG_STAGES = [
+    ['prospect', 'Prospect'], ['outreach', 'Outreach'], ['follow_up', 'Follow-up'], ['first_contact', 'First Contact'],
+    ['second_follow_up', '2nd Follow-up'], ['enquiry', 'ENQ — new enquiry'], ['site_survey', 'Site Visit'],
+    ['drawing', 'Drawing'], ['takeoff', 'Takeoff'], ['boq', 'BOQ'], ['resources', 'Resources'], ['plan', 'Plan'],
+    ['costing', 'Costing'], ['pricing', 'Pricing'], ['quotation', 'Quotation'], ['negotiation', 'Negotiation'],
+    ['accepted', 'Accepted'], ['cancelled', 'Cancelled'], ['on_hold', 'On Hold'],
+  ];
+  const LOG_TAG_SEED = ['Supplier', 'Client'];
+  const LOG_TAG_KEY = 'achi_log_tags';
+  const LOG_CHANNEL_KEY = 'achi_log_references';
+  const COMPANY_TYPE_KEY = 'achi_company_types';
+  const SOURCE_KEY = 'achi_contact_sources';
+  const INDUSTRY_KEY = 'achi_company_industries';
+  const ACTIVITY_KEY = 'achi_company_activities';
+  const ADD_NEW = '__add_new__';
+  const REFERRAL_SOURCE = 'Referral — someone';
+  const SOURCES = ['Returning client', 'Advertisement', 'Social media', REFERRAL_SOURCE, 'Website', 'Walk-in'];
+  const COMPANY_TYPES = ['Contractor', 'Developer', 'Consultant', 'Architect', 'Owner'];
+  const INDUSTRIES = ['Construction', 'Real estate', 'Industrial', 'Public sector'];
+  const ACTIVITIES = ['General contracting', 'Scaffolding & formwork', 'Fit-out & finishing', 'MEP', 'Infrastructure', 'Developer / owner'];
+  const COMPANY_SIZES = ['1–10', '11–50', '51–200', '200+'];
+  const PP_PHONE_LABELS = ['Mobile', 'WhatsApp', 'Telephone', 'Fax', 'Office', 'Site', 'Home', 'Other'];
+  const PERSON_GEO = { country: 'pp-a-country', district: 'pp-a-district', city: 'pp-a-city', error: 'pp-error' };
+  const HQ_GEO = { country: 'pp-hq-country', district: 'pp-hq-district', city: 'pp-hq-city', error: 'pp-error' };
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const pp = {
+    quill: null,
+    files: [],
+    tags: [],
+    photo: null,
+    logo: null,
+    company: null,          // existing company contact picked from search
+    userLoaded: false,
+    saving: false,
+    created: { companyId: null, personId: null },
+    ac: null,               // { input, items, active, onPick }
+  };
+
+  function personModalOpen() {
+    return !$('person-modal').hidden;
+  }
+
+  function optionsHtml(values, selected, { blank = null, addLabel = null, labels = null } = {}) {
+    return (blank !== null ? `<option value="">${escapeHtml(blank)}</option>` : '')
+      + values.map(value => `<option value="${escapeHtml(value)}"${value === selected ? ' selected' : ''}>${escapeHtml(labels ? labels[value] || value : value)}</option>`).join('')
+      + (addLabel ? `<option value="${ADD_NEW}">${escapeHtml(addLabel)}</option>` : '');
+  }
+
+  function withCustom(base, key, extra = []) {
+    const seen = new Set();
+    return [...base, ...storedChoices(key), ...extra].filter(value => {
+      const clean = String(value || '').trim();
+      const lowered = clean.toLowerCase();
+      if (!clean || seen.has(lowered)) return false;
+      seen.add(lowered);
+      return true;
+    });
+  }
+
+  // A select whose last option prompts for a new value (kept per browser).
+  function fillPicklist(id, base, key, { blank = '', addLabel = '+ Add New', extra = [], selected = '' } = {}) {
+    $(id).innerHTML = optionsHtml(withCustom(base, key, extra), selected, { blank, addLabel: key ? addLabel : null });
+    $(id).dataset.storageKey = key || '';
+  }
+
+  function handlePicklistAdd(select, base, maxLength = 64) {
+    if (select.value !== ADD_NEW) return;
+    const key = select.dataset.storageKey;
+    const value = (window.prompt(`New value (max ${maxLength} characters):`) || '').trim();
+    if (!value || value.length > maxLength) {
+      if (value) $('pp-error').textContent = `Value must be ${maxLength} characters or fewer.`;
+      select.value = '';
+      return;
+    }
+    saveCustomChoice(key, value);
+    const blank = select.querySelector('option[value=""]') ? select.querySelector('option[value=""]').textContent : null;
+    select.innerHTML = optionsHtml(withCustom(base, key), value, { blank, addLabel: '+ Add New' });
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function nameInitials(...parts) {
+    const words = parts.join(' ').trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return '';
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+  }
+
+  function htmlToText(html) {
+    return new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent || '';
+  }
+
+  // ── current user ("by XX") ──
+  async function loadCurrentUser() {
+    if (pp.userLoaded) return;
+    try {
+      const me = await request('/api/v1/users/me/');
+      const name = me.full_name || me.email || '';
+      $('pp-user').textContent = nameInitials(name) || '—';
+      $('pp-user').title = name;
+      pp.userLoaded = true;
+    } catch (_error) {
+      $('pp-user').textContent = '—';
+    }
+  }
+
+  // ── notes editor (the project's vendored Quill, like the Log page) ──
+  function ensureNotesEditor() {
+    if (pp.quill || $('pp-notes-fallback')) return;
+    const placeholder = 'Write everything here — notes while on the call, WhatsApp text, dimensions... drop photos, sketches, PDFs, voice notes.';
+    if (window.Quill) {
+      pp.quill = new window.Quill('#pp-notes', { theme: 'snow', placeholder, modules: { toolbar: '#pp-format' } });
+    } else {
+      $('pp-notes').innerHTML = `<textarea id="pp-notes-fallback" rows="5" placeholder="${escapeHtml(placeholder)}"></textarea>`;
+      $('pp-format').hidden = true;
+    }
+  }
+
+  function notesHtml() {
+    if (pp.quill) {
+      const html = pp.quill.root.innerHTML;
+      return pp.quill.getText().trim() ? html : '';
+    }
+    const text = ($('pp-notes-fallback') && $('pp-notes-fallback').value.trim()) || '';
+    return text ? text.split(/\n/).map(line => `<p>${escapeHtml(line) || '<br>'}</p>`).join('') : '';
+  }
+
+  // ── attachments (uploaded to the log after it is created) ──
+  function fmtSize(bytes) {
+    return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : bytes >= 1024 ? `${Math.round(bytes / 1024)} KB` : `${bytes} B`;
+  }
+
+  function renderFiles() {
+    $('pp-files').hidden = !pp.files.length;
+    $('pp-files').innerHTML = pp.files.map((file, index) => `<span class="pp-file" title="${escapeHtml(file.name)}">
+        <span>${escapeHtml(file.name)}</span><small>${fmtSize(file.size)}</small>
+        <button type="button" class="pp-rx" data-remove-file="${index}" aria-label="Remove ${escapeHtml(file.name)}">&times;</button>
+      </span>`).join('');
+  }
+
+  function addFiles(list) {
+    for (const file of list || []) pp.files.push(file);
+    renderFiles();
+  }
+
+  // ── tags (one comma-joined string on the log, max 255) ──
+  function tagVocabulary() {
+    const inUse = state.logs.flatMap(log => String(log.tags || '').split(','));
+    return withCustom(LOG_TAG_SEED, LOG_TAG_KEY, inUse);
+  }
+
+  function renderTags() {
+    $('pp-tags').innerHTML = pp.tags.map((tag, index) => `<span class="pp-tag">${escapeHtml(tag)}<button type="button" data-remove-tag="${index}" aria-label="Remove tag ${escapeHtml(tag)}">&times;</button></span>`).join('');
+    const available = tagVocabulary().filter(tag => !pp.tags.some(chosen => chosen.toLowerCase() === tag.toLowerCase()));
+    $('pp-tag-add').innerHTML = optionsHtml(available, '', { blank: '+ tag', addLabel: '+ Add tag' });
+  }
+
+  function addTag(value) {
+    const tag = String(value || '').replace(/,/g, ' ').trim();
+    if (!tag || pp.tags.some(chosen => chosen.toLowerCase() === tag.toLowerCase())) return;
+    if ([...pp.tags, tag].join(',').length > 255) {
+      $('pp-error').textContent = 'Tags are limited to 255 characters in total.';
+      return;
+    }
+    pp.tags.push(tag);
+    renderTags();
+  }
+
+  // ── photo / logo: downscaled in the browser, stored on the contact ──
+  function readImage(file, maxSide = 256) {
+    return new Promise((resolve, reject) => {
+      if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+        reject(new Error('Choose a PNG, JPEG or WebP image.'));
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That image could not be read.')); };
+      image.src = url;
+    });
+  }
+
+  function renderPicture(kind) {
+    const isLogo = kind === 'logo';
+    const data = isLogo ? pp.logo : pp.photo;
+    const view = $(isLogo ? 'pp-logo-view' : 'pp-photo-view');
+    const initialsText = isLogo
+      ? nameInitials($('pp-co-name').value)
+      : nameInitials($('pp-first').value, $('pp-last').value);
+    view.innerHTML = data
+      ? `<img src="${escapeHtml(data)}" alt="">`
+      : `<span id="${isLogo ? 'pp-co-initials' : 'pp-initials'}">${escapeHtml(initialsText)}</span>`;
+    $(isLogo ? 'pp-logo-remove' : 'pp-photo-remove').hidden = !data || (isLogo && !!pp.company);
+    $(isLogo ? 'pp-logo-add' : 'pp-photo-add').hidden = isLogo && !!pp.company;
+  }
+
+  // ── phone rows (reuse the page's country-code picker) ──
+  function ppPhoneRow(label = 'Mobile', number = '') {
+    const parts = phoneParts(number);
+    return `<div class="pp-row pp-phone${label === 'WhatsApp' ? ' pp-wa' : ''}" data-pp-phone>
+        <select class="pp-in" data-phone-label aria-label="Number type">${optionsHtml(PP_PHONE_LABELS, label)}</select>
+        <span class="tel-wrap">
+          ${countryButtonMarkup(parts)}
+          <input class="pp-in" type="tel" data-phone-number maxlength="50" inputmode="tel" autocomplete="off" aria-label="${escapeHtml(label)} number" value="${escapeHtml(parts.national)}">
+        </span>
+        <button type="button" class="pp-rx" data-remove-row aria-label="Remove number">&times;</button>
+      </div>`;
+  }
+
+  function readPpPhones(listId) {
+    return [...$(listId).querySelectorAll('[data-pp-phone]')].map(row => ({
+      label: row.querySelector('[data-phone-label]').value || 'Mobile',
+      number: fullPhoneNumber(row),
+      iso: row.querySelector('[data-country-picker]').dataset.iso,
+    })).filter(phone => phone.number);
+  }
+
+  // ── email / website / social rows ──
+  function ppOnlineRow(kind) {
+    if (kind === 'social') {
+      return `<div class="pp-row pp-row-social" data-pp-online="social">
+          <span class="pp-olabel">Social</span>
+          <select class="pp-in" data-social-platform aria-label="Social platform">${optionsHtml(SOCIAL_PLATFORMS, 'IG')}</select>
+          <input class="pp-in" type="text" data-online-value maxlength="128" placeholder="@handle" aria-label="Social handle">
+          <button type="button" class="pp-rx" data-remove-row aria-label="Remove social handle">&times;</button>
+        </div>`;
+    }
+    const isEmail = kind === 'email';
+    return `<div class="pp-row" data-pp-online="${kind}">
+        <span class="pp-olabel">${isEmail ? 'Email' : 'Website'}</span>
+        <input class="pp-in" type="${isEmail ? 'email' : 'url'}" data-online-value maxlength="${isEmail ? 255 : 500}" placeholder="${isEmail ? 'name@company.com' : 'https://'}" aria-label="${isEmail ? 'Email' : 'Website'}">
+        <button type="button" class="pp-rx" data-remove-row aria-label="Remove ${isEmail ? 'email' : 'website'}">&times;</button>
+      </div>`;
+  }
+
+  function readPpOnline(listId) {
+    const rows = [...$(listId).querySelectorAll('[data-pp-online]')];
+    const values = kind => rows.filter(row => row.dataset.ppOnline === kind)
+      .map(row => ({ row, value: row.querySelector('[data-online-value]').value.trim() }))
+      .filter(item => item.value);
+    return {
+      emails: values('email'),
+      websites: values('website'),
+      socials: values('social').map(item => ({
+        row: item.row,
+        platform: item.row.querySelector('[data-social-platform]').value,
+        handle: item.value,
+      })),
+    };
+  }
+
+  function resetPhoneAndOnline(prefix, phoneLabels) {
+    $(`${prefix}phones`).innerHTML = phoneLabels.map(label => ppPhoneRow(label)).join('');
+    $(`${prefix}online`).innerHTML = ['email', 'website', 'social'].map(ppOnlineRow).join('');
+  }
+
+  // ── search dropdowns: duplicate people and companies, from the loaded directory ──
+  function closeAc() {
+    if (pp.ac && pp.ac.el) pp.ac.el.remove();
+    pp.ac = null;
+  }
+
+  function renderAc() {
+    const ac = pp.ac;
+    if (!ac) return;
+    const itemsHtml = ac.items.map((item, index) => `<button type="button" class="pp-ac-item${index === ac.active ? ' on' : ''}" data-ac-index="${index}">
+        <span class="who${item.recordType === 'company' ? ' co' : ''}">${escapeHtml(initials(item))}</span>
+        <span class="pp-ac-name">${escapeHtml(item.displayName)}<span class="pp-ac-sub">${escapeHtml(ac.subline(item))}</span></span>
+        <span class="pp-ac-count">${escapeHtml(ac.count(item))}</span>
+      </button>`).join('');
+    const newIndex = ac.items.length;
+    ac.el.innerHTML = (ac.head ? `<div class="pp-ac-head">${escapeHtml(ac.head)}</div>` : '')
+      + itemsHtml
+      + `<button type="button" class="pp-ac-new${ac.active === newIndex ? ' on' : ''}" data-ac-index="new">${escapeHtml(ac.newLabel)}</button>`;
+  }
+
+  function openAc(input, config) {
+    closeAc();
+    const el = document.createElement('div');
+    el.className = 'pp-ac';
+    el.setAttribute('role', 'listbox');
+    input.closest('.pp-ac-wrap').appendChild(el);
+    pp.ac = { input, el, active: -1, ...config };
+    renderAc();
+    // mousedown keeps focus in the input, so blur doesn't close before click lands.
+    el.addEventListener('mousedown', event => event.preventDefault());
+    el.addEventListener('click', event => {
+      const button = event.target.closest('[data-ac-index]');
+      if (!button || !pp.ac) return;
+      const index = button.dataset.acIndex;
+      const current = pp.ac;
+      closeAc();
+      if (index === 'new') current.onNew();
+      else current.onPick(current.items[Number(index)]);
+    });
+  }
+
+  function acKeydown(event) {
+    const ac = pp.ac;
+    if (!ac || event.target !== ac.input) return false;
+    const last = ac.items.length;   // the "+ new" row
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      ac.active = event.key === 'ArrowDown' ? (ac.active >= last ? 0 : ac.active + 1) : (ac.active <= 0 ? last : ac.active - 1);
+      renderAc();
+      return true;
+    }
+    if (event.key === 'Enter' && ac.active >= 0) {
+      event.preventDefault();
+      const current = ac;
+      closeAc();
+      if (current.active === last) current.onNew();
+      else current.onPick(current.items[current.active]);
+      return true;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeAc();
+      return true;
+    }
+    return false;
+  }
+
+  function companyPeopleCount(company) {
+    const name = String(company.company_name || '').trim().toLowerCase();
+    return state.contacts.filter(contact => contact.recordType === 'person'
+      && (contact.companyContactId === company.id || (name && String(contact.company_name || '').trim().toLowerCase() === name))).length;
+  }
+
+  function showDuplicateMatches(input) {
+    const first = $('pp-first').value.trim().toLowerCase();
+    const last = $('pp-last').value.trim().toLowerCase();
+    const typed = `${first} ${last}`.trim();
+    if (typed.length < 2) { closeAc(); return; }
+    const items = state.contacts.filter(contact => {
+      if (contact.recordType !== 'person') return false;
+      const haystack = [contact.first_name, contact.last_name, contact.displayName].filter(Boolean).join(' ').toLowerCase();
+      return (!first || haystack.includes(first)) && (!last || haystack.includes(last));
+    }).slice(0, 8);
+    if (!items.length) { closeAc(); return; }
+    openAc(input, {
+      items,
+      head: 'Already in Contacts? Open the existing record instead of creating a duplicate.',
+      newLabel: '+ New contact — keep typing',
+      subline: contact => [contactRole(contact), contactCompany(contact)].filter(Boolean).join(' · ') || contact.primaryPhone || '—',
+      count: contact => {
+        const logs = logsForContact(contact.id).length;
+        return logs ? `${logs} log${logs === 1 ? '' : 's'}` : '';
+      },
+      onPick: contact => openExistingFromPersonModal(contact),
+      onNew: () => input.focus(),
+    });
+  }
+
+  function openExistingFromPersonModal(contact) {
+    const typedSomething = $('pp-subject').value.trim() || htmlToText(notesHtml()).trim() || pp.files.length;
+    if (typedSomething && !window.confirm(`Open ${contact.displayName}? The notes typed in this form will be discarded.`)) return;
+    closePersonModal();
+    if (!visibleContacts().some(item => item.id === contact.id)) {
+      setRecordType('all');
+      state.search = '';
+      $('contact-search').value = '';
+      renderTable();
+    }
+    openDrawer(contact.id);
+  }
+
+  function showCompanyMatches(input) {
+    const query = input.value.trim().toLowerCase();
+    if (!query) { closeAc(); return; }
+    const items = state.contacts
+      .filter(contact => contact.recordType === 'company'
+        && [contact.company_name, contact.legal_name, contact.displayName].filter(Boolean).join(' ').toLowerCase().includes(query))
+      .slice(0, 8);
+    openAc(input, {
+      items,
+      newLabel: `+ Add "${input.value.trim()}" as new company`,
+      subline: company => [company.companyType, company.city].filter(Boolean).join(' · ') || '—',
+      count: company => {
+        const people = companyPeopleCount(company);
+        return people ? `${people} contact${people === 1 ? '' : 's'}` : '';
+      },
+      onPick: company => selectExistingCompany(company),
+      onNew: () => startNewCompany(input.value.trim()),
+    });
+  }
+
+  // ── company section ──
+  function setCompanyFieldsDisabled(disabled) {
+    document.querySelectorAll('#pp-company input, #pp-company select, #pp-company button').forEach(control => {
+      control.disabled = disabled;
+    });
+    ['pp-co-phone-add', 'pp-co-online-add'].forEach(id => { $(id).hidden = disabled; });
+  }
+
+  function clearCompanyFields() {
+    ['pp-co-name', 'pp-co-vat', 'pp-co-hq', 'pp-hq-maps', 'pp-hq-street', 'pp-hq-building'].forEach(id => { $(id).value = ''; });
+    fillPicklist('pp-co-type', COMPANY_TYPES, COMPANY_TYPE_KEY);
+    fillPicklist('pp-co-industry', INDUSTRIES, INDUSTRY_KEY);
+    fillPicklist('pp-co-activity', ACTIVITIES, ACTIVITY_KEY);
+    $('pp-co-size').innerHTML = optionsHtml(COMPANY_SIZES, '', { blank: '' });
+    refreshCountrySelect('', HQ_GEO);
+    refreshDistrictSelect('', HQ_GEO);
+    refreshCitySelect('', HQ_GEO);
+    $('pp-hq-detail').hidden = true;
+    resetPhoneAndOnline('pp-co-', ['Telephone', 'Mobile', 'WhatsApp']);
+    pp.logo = null;
+    $('pp-co-name-error').textContent = '';
+  }
+
+  function setFromCompany(on) {
+    $('pp-from-company').checked = on;
+    $('pp-company').hidden = !on;
+    updateCompanyTitle();
+  }
+
+  function updateCompanyTitle() {
+    const name = pp.company ? pp.company.displayName : $('pp-co-name').value.trim();
+    $('pp-company-title').textContent = name || 'new company';
+    renderPicture('logo');
+  }
+
+  function selectExistingCompany(company) {
+    pp.company = company;
+    clearCompanyFields();
+    $('pp-company-search').value = company.company_name || company.displayName;
+    $('pp-co-name').value = company.company_name || company.displayName;
+    fillPicklist('pp-co-type', COMPANY_TYPES, COMPANY_TYPE_KEY, { selected: company.companyType, extra: [company.companyType] });
+    $('pp-co-vat').value = company.vat_number || '';
+    $('pp-co-hq').value = company.location || '';
+    fillPicklist('pp-co-industry', INDUSTRIES, INDUSTRY_KEY, { selected: company.industry, extra: [company.industry] });
+    fillPicklist('pp-co-activity', ACTIVITIES, ACTIVITY_KEY, { selected: company.activity, extra: [company.activity] });
+    $('pp-co-size').innerHTML = optionsHtml([...new Set([...COMPANY_SIZES, company.companySize].filter(Boolean))], company.companySize || '', { blank: '' });
+    $('pp-co-phones').innerHTML = company.phones.map(phone => ppPhoneRow(phone.label, phone.number)).join('');
+    $('pp-co-online').innerHTML = [
+      ...company.emails.map(() => ppOnlineRow('email')),
+      ...(company.website ? [ppOnlineRow('website')] : []),
+      ...company.socials.map(() => ppOnlineRow('social')),
+    ].join('');
+    const onlineRows = [...$('pp-co-online').querySelectorAll('[data-pp-online]')];
+    let cursor = 0;
+    company.emails.forEach(email => { onlineRows[cursor++].querySelector('[data-online-value]').value = email.address; });
+    if (company.website) onlineRows[cursor++].querySelector('[data-online-value]').value = company.website;
+    company.socials.forEach(social => {
+      const row = onlineRows[cursor++];
+      row.querySelector('[data-social-platform]').innerHTML = optionsHtml([...new Set([...SOCIAL_PLATFORMS, social.platform])], social.platform);
+      row.querySelector('[data-online-value]').value = social.handle;
+    });
+    pp.logo = company.photo || null;
+    $('pp-company-note').hidden = false;
+    setCompanyFieldsDisabled(true);
+    setFromCompany(true);
+  }
+
+  function startNewCompany(name) {
+    pp.company = null;
+    clearCompanyFields();
+    $('pp-co-name').value = name;
+    $('pp-company-search').value = name;
+    $('pp-company-note').hidden = true;
+    setCompanyFieldsDisabled(false);
+    setFromCompany(true);
+    renderPicture('logo');
+  }
+
+  // ── open / close / reset ──
+  function resetPersonModal() {
+    $('pp-form').reset();
+    closeAc();
+    pp.files = [];
+    pp.tags = [];
+    pp.photo = null;
+    pp.company = null;
+    pp.created = { companyId: null, personId: null };
+    $('pp-error').textContent = '';
+    $('pp-first-error').textContent = '';
+    document.querySelectorAll('#person-modal .pp-invalid').forEach(el => el.classList.remove('pp-invalid'));
+
+    $('pp-log-type').innerHTML = optionsHtml(LOG_TYPES.filter(type => type !== 'General'), '', { blank: 'Log' });
+    fillPicklist('pp-channel', LOG_CHANNELS, LOG_CHANNEL_KEY, { blank: null, selected: 'Inbound Call' });
+    $('pp-status').innerHTML = LOG_STATUSES.map(([value]) => `<option value="${value}"${value === 'open' ? ' selected' : ''}>${value}</option>`).join('');
+    updateStatusDot();
+    $('pp-occurred').value = toDatetimeLocalValue(null);
+    $('pp-log-code').textContent = 'New Log';
+    $('pp-stage').innerHTML = LOG_STAGES.map(([value, text]) => `<option value="${value}"${value === 'enquiry' ? ' selected' : ''}>${escapeHtml(text)}</option>`).join('');
+
+    ensureNotesEditor();
+    if (pp.quill) pp.quill.setContents([]);
+    renderFiles();
+    renderTags();
+
+    $('pp-prefix').innerHTML = identityOptions(PREFIXES, PREFIX_STORAGE_KEY, '', ADD_PREFIX, '+ Add New');
+    $('pp-role').innerHTML = identityOptions(CONTACT_TAGS, TAG_STORAGE_KEY, '', ADD_TAG, '+ Add New');
+    const sourcesInUse = state.contacts.map(contact => contact.source).filter(Boolean);
+    fillPicklist('pp-source', SOURCES, SOURCE_KEY, { extra: sourcesInUse });
+    $('pp-referred-wrap').hidden = true;
+    renderPicture('photo');
+
+    resetPhoneAndOnline('pp-', ['Mobile', 'WhatsApp', 'Telephone', 'Fax']);
+
+    $('pp-address').hidden = true;
+    $('pp-address-open').hidden = false;
+    refreshCountrySelect('', PERSON_GEO);
+    refreshDistrictSelect('', PERSON_GEO);
+    refreshCitySelect('', PERSON_GEO);
+
+    clearCompanyFields();
+    $('pp-company-note').hidden = true;
+    setCompanyFieldsDisabled(false);
+    setFromCompany(false);
+    setPersonSaving(false);
+  }
+
+  function updateStatusDot() {
+    const match = LOG_STATUSES.find(([value]) => value === $('pp-status').value);
+    $('pp-status-dot').style.background = match ? match[1] : '#22c55e';
+  }
+
+  function openPersonModal() {
+    resetPersonModal();
+    $('person-modal').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('person-modal').querySelector('.pp-body').scrollTop = 0;
+    loadCurrentUser();
+    window.setTimeout(() => $('pp-subject').focus(), 0);
+  }
+
+  function closePersonModal() {
+    closeAc();
+    closeCountryCodeMenu();
+    $('person-modal').hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function setPersonSaving(saving) {
+    pp.saving = saving;
+    $('pp-save').disabled = saving;
+    $('pp-cancel').disabled = saving;
+    $('pp-save').textContent = saving ? 'Saving…' : 'Create Person';
+  }
+
+  // ── validation + payloads ──
+  function markInvalid(input, message) {
+    input.classList.add('pp-invalid');
+    return message;
+  }
+
+  function flagInvalid(input, errors) {
+    markInvalid(input);
+    errors.push(input);
+  }
+
+  function checkOnline(online, errors) {
+    for (const email of online.emails) {
+      if (!EMAIL_PATTERN.test(email.value)) flagInvalid(email.row.querySelector('[data-online-value]'), errors);
+    }
+    for (const site of online.websites) {
+      if (!safeHref(site.value)) flagInvalid(site.row.querySelector('[data-online-value]'), errors);
+    }
+  }
+
+  function collectPersonForm() {
+    document.querySelectorAll('#person-modal .pp-invalid').forEach(el => el.classList.remove('pp-invalid'));
+    $('pp-first-error').textContent = '';
+    $('pp-co-name-error').textContent = '';
+    const errors = [];
+
+    const first = $('pp-first').value.trim();
+    if (!first) {
+      $('pp-first-error').textContent = markInvalid($('pp-first'), 'First name is required.');
+      errors.push($('pp-first'));
+    }
+
+    const phones = readPpPhones('pp-phones');
+    const online = readPpOnline('pp-online');
+    checkOnline(online, errors);
+
+    const addressOpen = !$('pp-address').hidden;
+    const personMaps = addressOpen ? $('pp-a-maps').value.trim() : '';
+    if (personMaps && !normalizeMapsUrl(personMaps)) flagInvalid($('pp-a-maps'), errors);
+
+    const fromCompany = $('pp-from-company').checked;
+    let companyOnline = null;
+    let companyPhones = [];
+    if (fromCompany && !pp.company) {
+      if (!$('pp-co-name').value.trim()) {
+        $('pp-co-name-error').textContent = markInvalid($('pp-co-name'), 'Company name is required.');
+        errors.push($('pp-co-name'));
+      }
+      companyPhones = readPpPhones('pp-co-phones');
+      companyOnline = readPpOnline('pp-co-online');
+      checkOnline(companyOnline, errors);
+      const hqMaps = $('pp-hq-maps').value.trim();
+      if (hqMaps && !normalizeMapsUrl(hqMaps)) flagInvalid($('pp-hq-maps'), errors);
+    }
+
+    return { errors, first, phones, online, addressOpen, fromCompany, companyPhones, companyOnline };
+  }
+
+  function onlinePayload(online) {
+    const websites = online.websites.map(site => site.value);
+    return {
+      emails: online.emails.map((email, index) => ({ label: index ? 'Other' : 'Primary', address: email.value })).slice(0, 8),
+      primary_email: online.emails[0] ? online.emails[0].value : null,
+      website: websites[0] || null,
+      // The contact stores one website; any further ones are kept as quick links.
+      quick_links: websites.slice(1, 13).map(url => ({ label: 'Website', url })),
+      socials: online.socials.map(social => ({ platform: social.platform, handle: social.handle })).slice(0, 12),
+    };
+  }
+
+  function phonesPayload(phones) {
+    return {
+      phones: phones.map(phone => ({ label: phone.label, number: phone.number })).slice(0, 8),
+      country_code: phones[0] ? String(phones[0].iso || '').toUpperCase().slice(0, 2) || null : null,
+    };
+  }
+
+  function picklistValue(id) {
+    const value = $(id).value;
+    return value && value !== ADD_NEW && value !== ADD_PREFIX && value !== ADD_TAG ? value : null;
+  }
+
+  function composeAddress(parts) {
+    return parts.filter(Boolean).join(', ') || null;
+  }
+
+  function companyPayload(form, occurredIso) {
+    const hqOpen = !$('pp-hq-detail').hidden;
+    const country = hqOpen ? geoValue('pp-hq-country') : '';
+    const district = hqOpen ? geoValue('pp-hq-district') : '';
+    const city = hqOpen ? geoValue('pp-hq-city') : '';
+    const street = hqOpen ? $('pp-hq-street').value.trim() : '';
+    const building = hqOpen ? $('pp-hq-building').value.trim() : '';
+    const hq = $('pp-co-hq').value.trim();
+    return {
+      record_type: 'company',
+      category: 'prospect',
+      company_name: $('pp-co-name').value.trim(),
+      company_type: picklistValue('pp-co-type'),
+      vat_number: $('pp-co-vat').value.trim() || null,
+      industry: picklistValue('pp-co-industry'),
+      activity: picklistValue('pp-co-activity'),
+      company_size: $('pp-co-size').value || null,
+      photo: pp.logo,
+      location: hq || composeAddress([street, building && `Bldg ${building}`, city, district, country]),
+      country: country || null,
+      district: district || null,
+      city: city || null,
+      street: street || null,
+      site_building: building || null,
+      maps_url: hqOpen ? normalizeMapsUrl($('pp-hq-maps').value) || null : null,
+      contact_date: occurredIso,
+      ...phonesPayload(form.companyPhones),
+      ...onlinePayload(form.companyOnline),
+    };
+  }
+
+  function personPayload(form, companyId, companyName, occurredIso) {
+    const open = form.addressOpen;
+    const country = open ? geoValue('pp-a-country') : '';
+    const district = open ? geoValue('pp-a-district') : '';
+    const city = open ? geoValue('pp-a-city') : '';
+    const street = open ? $('pp-a-street').value.trim() : '';
+    const building = open ? $('pp-a-building').value.trim() : '';
+    const floor = open ? $('pp-a-floor').value.trim() : '';
+    const source = picklistValue('pp-source');
+    return {
+      record_type: 'person',
+      category: 'prospect',
+      prefix: picklistValue('pp-prefix'),
+      first_name: form.first,
+      middle_name: $('pp-middle').value.trim() || null,
+      last_name: $('pp-last').value.trim() || null,
+      father_name: $('pp-father').value.trim() || null,
+      mother_name: $('pp-mother').value.trim() || null,
+      role: picklistValue('pp-role'),
+      company_name: companyName || null,
+      company_contact_id: companyId || null,
+      source,
+      referred_by: source === REFERRAL_SOURCE ? ($('pp-referred').value.trim() || null) : null,
+      photo: pp.photo,
+      location: composeAddress([street, building && `Bldg ${building}`, floor && `Floor ${floor}`, city, district, country]),
+      country: country || null,
+      district: district || null,
+      city: city || null,
+      street: street || null,
+      site_building: building || null,
+      site_floor: floor || null,
+      maps_url: open ? normalizeMapsUrl($('pp-a-maps').value) || null : null,
+      address_notes: open ? ($('pp-a-notes').value.trim() || null) : null,
+      contact_date: occurredIso,
+      ...phonesPayload(form.phones),
+      ...onlinePayload(form.online),
+    };
+  }
+
+  function hasLogContent() {
+    return Boolean($('pp-subject').value.trim() || htmlToText(notesHtml()).trim()
+      || pp.files.length || pp.tags.length || $('pp-followup').value);
+  }
+
+  async function uploadLogAttachment(logId, file, retried = false) {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    const response = await fetch(`/api/v1/achi/logs/${encodeURIComponent(logId)}/attachments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken || ''}` },
+      body,
+    });
+    if (response.status === 401 && !retried && await refreshAccessToken()) return uploadLogAttachment(logId, file, true);
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(detail.detail || `Could not upload ${file.name}`);
+    }
+  }
+
+  async function savePerson(event) {
+    event.preventDefault();
+    if (pp.saving) return;
+    $('pp-error').textContent = '';
+    const form = collectPersonForm();
+    if (form.errors.length) {
+      $('pp-error').textContent = form.errors.length === 1 && form.errors[0] === $('pp-first')
+        ? 'First name is required.'
+        : 'Check the highlighted fields.';
+      form.errors[0].focus();
+      return;
+    }
+
+    setPersonSaving(true);
+    const occurredIso = datetimeLocalToISO($('pp-occurred').value) || new Date().toISOString();
+    let companyId = pp.company ? pp.company.id : pp.created.companyId;
+    let companyName = pp.company ? (pp.company.company_name || pp.company.displayName) : '';
+    try {
+      // 1. company (a retry after a later failure reuses the one already created)
+      if (form.fromCompany && !pp.company) {
+        companyName = $('pp-co-name').value.trim();
+        if (!companyId) {
+          const company = await request('/api/v1/achi/contact-info/contacts', { method: 'POST', body: companyPayload(form, occurredIso) });
+          companyId = company.id;
+          pp.created.companyId = companyId;
+        }
+      } else if (!form.fromCompany) {
+        companyId = null;
+        companyName = $('pp-company-search').value.trim();
+      }
+
+      // 2. person
+      const person = await request('/api/v1/achi/contact-info/contacts', {
+        method: 'POST',
+        body: personPayload(form, companyId, companyName, occurredIso),
+      });
+      pp.created.personId = person.id;
+    } catch (error) {
+      $('pp-error').textContent = pp.created.companyId
+        ? `Company saved, but the person could not be created: ${error.message}`
+        : error.message;
+      setPersonSaving(false);
+      return;
+    }
+
+    // 3–4. first log + attachments. The person exists now, so a failure here is
+    // reported without keeping the popup open (retrying would duplicate them).
+    const personId = pp.created.personId;
+    let logMessage = '';
+    let logError = '';
+    if (hasLogContent()) {
+      try {
+        const subject = $('pp-subject').value.trim();
+        const file = await request('/api/v1/achi/files/', {
+          method: 'POST',
+          body: {
+            contact_id: personId,
+            company_contact_id: companyId || null,
+            subject,
+            stage: $('pp-stage').value,
+            status: $('pp-status').value,
+          },
+        });
+        const subjectHtml = subject ? `<p class="achi-note-subject"><strong>${escapeHtml(subject)}</strong></p>` : '';
+        const log = await request(`/api/v1/achi/files/${encodeURIComponent(file.id)}/logs/`, {
+          method: 'POST',
+          body: {
+            log_type: $('pp-log-type').value || 'General',
+            reference: picklistValue('pp-channel'),
+            tags: pp.tags.join(','),
+            occurred_at: occurredIso,
+            description: subjectHtml + notesHtml(),
+            follow_up_date: $('pp-followup').value || null,
+          },
+        });
+        logMessage = file.log_code ? ` · LOG #${file.log_code}` : ` · ${file.file_number}`;
+        for (const attachment of pp.files) await uploadLogAttachment(log.id, attachment);
+      } catch (error) {
+        logError = error.message;
+      }
+    }
+
+    closePersonModal();
+    if (state.recordType !== 'all' && state.recordType !== 'person') setRecordType('person');
+    await loadData({ silent: true });
+    if (!visibleContacts().some(contact => contact.id === personId)) {
+      state.search = '';
+      $('contact-search').value = '';
+      renderTable();
+    }
+    openDrawer(personId);
+    if (logError) showToast(`Person created, but the log was not fully saved: ${logError}`, true);
+    else showToast(`Person created${logMessage}.`);
+  }
+
+  function bindPersonModal() {
+    $('new-person-button').addEventListener('click', openPersonModal);
+    $('pp-close').addEventListener('click', closePersonModal);
+    $('pp-cancel').addEventListener('click', closePersonModal);
+    $('pp-form').addEventListener('submit', savePerson);
+
+    // Enter in a single-line field must not submit the whole form.
+    $('pp-form').addEventListener('keydown', event => {
+      if (acKeydown(event)) return;
+      if (event.key === 'Enter' && event.target.matches('input:not([type="submit"])')) event.preventDefault();
+    });
+
+    $('pp-status').addEventListener('change', updateStatusDot);
+    $('pp-channel').addEventListener('change', event => handlePicklistAdd(event.target, LOG_CHANNELS));
+
+    // attachments: + / paperclip / drop onto the capture card
+    ['pp-attach-add', 'pp-attach'].forEach(id => $(id).addEventListener('click', () => $('pp-file-input').click()));
+    $('pp-file-input').addEventListener('change', event => { addFiles(event.target.files); event.target.value = ''; });
+    $('pp-files').addEventListener('click', event => {
+      const button = event.target.closest('[data-remove-file]');
+      if (!button) return;
+      pp.files.splice(Number(button.dataset.removeFile), 1);
+      renderFiles();
+    });
+    const capture = $('pp-capture');
+    // Capture phase: Quill would otherwise embed dropped images into the note.
+    capture.addEventListener('dragover', event => {
+      if (!event.dataTransfer || ![...event.dataTransfer.types].includes('Files')) return;
+      event.preventDefault();
+      capture.classList.add('pp-drop');
+    }, true);
+    capture.addEventListener('dragleave', event => {
+      if (!capture.contains(event.relatedTarget)) capture.classList.remove('pp-drop');
+    }, true);
+    capture.addEventListener('drop', event => {
+      capture.classList.remove('pp-drop');
+      if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      addFiles(event.dataTransfer.files);
+    }, true);
+
+    // tags
+    $('pp-tag-add').addEventListener('change', event => {
+      const value = event.target.value;
+      if (value === ADD_NEW) {
+        const tag = (window.prompt('New tag (max 64 characters):') || '').trim();
+        if (tag && tag.length <= 64) {
+          saveCustomChoice(LOG_TAG_KEY, tag);
+          addTag(tag);
+        }
+      } else if (value) {
+        addTag(value);
+      }
+      renderTags();
+    });
+    $('pp-tags').addEventListener('click', event => {
+      const button = event.target.closest('[data-remove-tag]');
+      if (!button) return;
+      pp.tags.splice(Number(button.dataset.removeTag), 1);
+      renderTags();
+    });
+
+    // person identity
+    $('pp-prefix').addEventListener('change', event => {
+      if (event.target.value !== ADD_PREFIX) return;
+      const value = (window.prompt('New prefix (max 16 characters):') || '').trim();
+      if (value && value.length <= 16) saveCustomChoice(PREFIX_STORAGE_KEY, value);
+      event.target.innerHTML = identityOptions(PREFIXES, PREFIX_STORAGE_KEY, value.length <= 16 ? value : '', ADD_PREFIX, '+ Add New');
+    });
+    $('pp-role').addEventListener('change', event => {
+      if (event.target.value !== ADD_TAG) return;
+      const value = (window.prompt('New role (max 64 characters):') || '').trim();
+      if (value && value.length <= 64) saveCustomChoice(TAG_STORAGE_KEY, value);
+      event.target.innerHTML = identityOptions(CONTACT_TAGS, TAG_STORAGE_KEY, value.length <= 64 ? value : '', ADD_TAG, '+ Add New');
+    });
+    ['pp-first', 'pp-last'].forEach(id => {
+      $(id).addEventListener('input', event => {
+        renderPicture('photo');
+        if (id === 'pp-first' && event.target.value.trim()) {
+          $('pp-first-error').textContent = '';
+          event.target.classList.remove('pp-invalid');
+        }
+        showDuplicateMatches(event.target);
+      });
+      $(id).addEventListener('blur', () => window.setTimeout(() => { if (pp.ac && pp.ac.input === $(id)) closeAc(); }, 120));
+    });
+    $('pp-source').addEventListener('change', event => {
+      handlePicklistAdd(event.target, SOURCES, 80);
+      $('pp-referred-wrap').hidden = event.target.value !== REFERRAL_SOURCE;
+    });
+
+    // photo / logo
+    const bindPicture = (kind, addId, inputId, removeId) => {
+      $(addId).addEventListener('click', () => $(inputId).click());
+      $(inputId).addEventListener('change', async event => {
+        const file = event.target.files && event.target.files[0];
+        event.target.value = '';
+        if (!file) return;
+        try {
+          pp[kind] = await readImage(file);
+          renderPicture(kind);
+        } catch (error) {
+          $('pp-error').textContent = error.message;
+        }
+      });
+      $(removeId).addEventListener('click', () => { pp[kind] = null; renderPicture(kind); });
+    };
+    bindPicture('photo', 'pp-photo-add', 'pp-photo-input', 'pp-photo-remove');
+    bindPicture('logo', 'pp-logo-add', 'pp-logo-input', 'pp-logo-remove');
+
+    // phones + online rows (person and company panels share handlers)
+    $('pp-phone-add').addEventListener('click', () => {
+      if ($('pp-phones').children.length >= 8) return;
+      $('pp-phones').insertAdjacentHTML('beforeend', ppPhoneRow('Mobile'));
+      $('pp-phones').lastElementChild.querySelector('[data-phone-number]').focus();
+    });
+    $('pp-co-phone-add').addEventListener('click', () => {
+      if ($('pp-co-phones').children.length >= 8) return;
+      $('pp-co-phones').insertAdjacentHTML('beforeend', ppPhoneRow('Mobile'));
+      $('pp-co-phones').lastElementChild.querySelector('[data-phone-number]').focus();
+    });
+    [['pp-online-add', 'pp-online'], ['pp-co-online-add', 'pp-co-online']].forEach(([selectId, listId]) => {
+      $(selectId).addEventListener('change', event => {
+        const kind = event.target.value;
+        event.target.value = '';
+        if (!kind) return;
+        $(listId).insertAdjacentHTML('beforeend', ppOnlineRow(kind));
+        $(listId).lastElementChild.querySelector('[data-online-value]').focus();
+      });
+    });
+    const modal = $('person-modal');
+    modal.addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-row]');
+      if (remove) { remove.closest('.pp-row').remove(); return; }
+      const picker = event.target.closest('[data-country-picker]');
+      if (picker && !picker.disabled) openCountryCodeMenu(picker);
+    });
+    modal.addEventListener('change', event => {
+      if (!event.target.matches('[data-phone-label]')) return;
+      event.target.closest('.pp-row').classList.toggle('pp-wa', event.target.value === 'WhatsApp');
+    });
+    modal.addEventListener('paste', event => {
+      if (event.target.matches('[data-phone-number]')) window.setTimeout(() => normalizePhoneInput(event.target), 0);
+    });
+    modal.addEventListener('focusout', event => {
+      if (event.target.matches('[data-phone-number]')) normalizePhoneInput(event.target);
+    });
+
+    // personal address
+    $('pp-address-open').addEventListener('click', () => {
+      $('pp-address').hidden = false;
+      $('pp-address-open').hidden = true;
+      $('pp-a-maps').focus();
+    });
+    $('pp-address-close').addEventListener('click', () => {
+      ['pp-a-maps', 'pp-a-street', 'pp-a-building', 'pp-a-floor', 'pp-a-notes'].forEach(id => { $(id).value = ''; });
+      refreshCountrySelect('', PERSON_GEO);
+      refreshDistrictSelect('', PERSON_GEO);
+      refreshCitySelect('', PERSON_GEO);
+      $('pp-address').hidden = true;
+      $('pp-address-open').hidden = false;
+    });
+    bindGeoCascade(PERSON_GEO);
+    bindGeoCascade(HQ_GEO);
+
+    // company
+    $('pp-company-search').addEventListener('input', event => {
+      const name = event.target.value.trim();
+      if (pp.company && name !== (pp.company.company_name || pp.company.displayName)) {
+        // Typing over a picked company unlinks it.
+        pp.company = null;
+        clearCompanyFields();
+        $('pp-company-note').hidden = true;
+        setCompanyFieldsDisabled(false);
+      }
+      if (!pp.company) $('pp-co-name').value = name;
+      updateCompanyTitle();
+      showCompanyMatches(event.target);
+    });
+    $('pp-company-search').addEventListener('focus', event => { if (event.target.value.trim() && !pp.company) showCompanyMatches(event.target); });
+    $('pp-company-search').addEventListener('blur', () => window.setTimeout(() => { if (pp.ac && pp.ac.input === $('pp-company-search')) closeAc(); }, 120));
+    $('pp-from-company').addEventListener('change', event => {
+      setFromCompany(event.target.checked);
+      if (event.target.checked && !pp.company) {
+        $('pp-co-name').value = $('pp-company-search').value.trim();
+        updateCompanyTitle();
+        $('pp-co-name').focus();
+      }
+    });
+    $('pp-co-name').addEventListener('input', event => {
+      if (pp.company) return;
+      $('pp-company-search').value = event.target.value;
+      if (event.target.value.trim()) {
+        $('pp-co-name-error').textContent = '';
+        event.target.classList.remove('pp-invalid');
+      }
+      updateCompanyTitle();
+    });
+    $('pp-co-type').addEventListener('change', event => handlePicklistAdd(event.target, COMPANY_TYPES));
+    $('pp-co-industry').addEventListener('change', event => handlePicklistAdd(event.target, INDUSTRIES));
+    $('pp-co-activity').addEventListener('change', event => handlePicklistAdd(event.target, ACTIVITIES));
+    $('pp-hq-toggle').addEventListener('click', () => {
+      $('pp-hq-detail').hidden = !$('pp-hq-detail').hidden;
+      $('pp-hq-toggle').textContent = $('pp-hq-detail').hidden ? '+ Detail' : '− Detail';
+    });
+  }
+
   function bindEvents() {
     setToggleGroup('[data-view-mode]', 'viewMode', state.viewMode);
     document.querySelectorAll('[data-view-mode]').forEach(button => {
@@ -1774,6 +2890,14 @@
           // The selected view still works when browser storage is unavailable.
         }
         setToggleGroup('[data-view-mode]', 'viewMode', state.viewMode);
+        renderTable();
+      });
+    });
+
+    document.querySelectorAll('[data-column-filter]').forEach(select => {
+      select.addEventListener('change', () => {
+        state.columnFilters[select.dataset.columnFilter] = select.value;
+        renderColumnFilters();
         renderTable();
       });
     });
@@ -1799,6 +2923,7 @@
     $('contacts-table-body').addEventListener('click', openFromDirectory);
     $('contacts-cards').addEventListener('click', openFromDirectory);
 
+    bindPersonModal();
     $('new-person-button').addEventListener('click', () => openContactModal(null, 'person'));
     $('new-company-button').addEventListener('click', () => openContactModal(null, 'company'));
     $('drawer-close').addEventListener('click', closeDrawer);
@@ -1860,14 +2985,7 @@
     });
     $('use-current-location').addEventListener('click', useCurrentLocation);
     $('maps-url').addEventListener('input', updateModalMapPreview);
-    $('contact-country').addEventListener('change', () => { refreshDistrictSelect(''); refreshCitySelect(''); });
-    $('contact-district').addEventListener('change', () => {
-      if ($('contact-district').value === DISTRICT_ADD) addDistrictAndSelect();
-      else refreshCitySelect('');
-    });
-    $('contact-city').addEventListener('change', () => {
-      if ($('contact-city').value === CITY_ADD) addCityAndSelect();
-    });
+    bindGeoCascade(CONTACT_GEO);
     $('contact-datetime').addEventListener('input', refreshContactWhenLabel);
     $('contact-form').addEventListener('submit', saveContact);
     $('contact-form').addEventListener('click', event => {
@@ -1893,6 +3011,12 @@
 
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
+      if (personModalOpen()) {
+        if (countryCodeMenu && !countryCodeMenu.hidden) closeCountryCodeMenu();
+        else if (pp.ac) closeAc();
+        else if (!pp.saving) closePersonModal();
+        return;
+      }
       if (!$('contact-modal').hidden) closeContactModal();
       else if (state.panelWide) setPanelWide(false);
       else if (isDrawerOpen()) closeDrawer();

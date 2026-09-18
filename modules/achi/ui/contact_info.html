@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contacts | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=14">
+  <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
+  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=15">
 </head>
 <body data-achi-title="Contacts">
   <main class="pg" data-screen-label="Contacts">
@@ -59,12 +60,12 @@
       <div class="hd">
         <span></span>
         <span>Name</span>
-        <span>Role</span>
-        <span>Company</span>
+        <span>Role<span class="hfw"><select class="hf" id="hf-role" data-column-filter="role" aria-label="Filter by role"></select></span></span>
+        <span>Company<span class="hfw"><select class="hf" id="hf-company" data-column-filter="company" aria-label="Filter by company"></select></span></span>
         <span>Mobile</span>
-        <span>City</span>
+        <span>City<span class="hfw"><select class="hf" id="hf-city" data-column-filter="city" aria-label="Filter by city"></select></span></span>
         <span>Prefers</span>
-        <span>Found us via</span>
+        <span>Found us via<span class="hfw"><select class="hf" id="hf-source" data-column-filter="source" aria-label="Filter by source"></select></span></span>
         <span>Linked to</span>
         <span>Last touch</span>
         <span>AI note</span>
@@ -305,9 +306,215 @@
     </section>
   </div>
 
+  <!-- + PERSON: first-contact log + person (+ optional company) in one form -->
+  <div class="pp-backdrop" id="person-modal" hidden>
+    <form class="pp" id="pp-form" role="dialog" aria-modal="true" aria-labelledby="pp-title" novalidate>
+      <header class="pp-head">
+        <span class="pp-new" id="pp-title">New</span>
+        <select class="pp-hin" id="pp-log-type" aria-label="Log type"></select>
+        <span class="pp-code" id="pp-log-code" title="The log number is assigned when it is saved">New Log</span>
+        <input class="pp-hin pp-hdate" type="datetime-local" id="pp-occurred" aria-label="Log date and time">
+        <select class="pp-hin" id="pp-channel" aria-label="Channel"></select>
+        <span class="pp-status">
+          <span class="pp-dot" id="pp-status-dot" aria-hidden="true"></span>
+          <select class="pp-hin" id="pp-status" aria-label="Log status"></select>
+        </span>
+        <label class="pp-fu">
+          <span>Follow up</span>
+          <input class="pp-hin pp-hdate" type="date" id="pp-followup" aria-label="Follow-up date">
+        </label>
+        <span class="pp-by">by <b id="pp-user" title="">…</b></span>
+        <span class="fill"></span>
+        <button type="button" class="pp-x" id="pp-close" title="Close" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="pp-body">
+        <div class="pp-regarding">
+          <span class="pp-lbl">Regarding</span>
+          <select class="pp-in" id="pp-regarding" aria-label="Regarding">
+            <option value="new">New — first contact</option>
+          </select>
+          <span class="pp-hint">First contact — log saves in the Log module; promote it to ENQ any time.</span>
+        </div>
+
+        <!-- Quick capture -->
+        <div class="pp-capture" id="pp-capture">
+          <div class="pp-subject-row">
+            <input class="pp-in" type="text" id="pp-subject" maxlength="255" placeholder="Short subject / summary...">
+            <select class="pp-in" id="pp-stage" aria-label="Log output"></select>
+          </div>
+          <div class="pp-notes" id="pp-notes"></div>
+          <div class="pp-files" id="pp-files" hidden></div>
+          <div class="pp-toolbar" id="pp-toolbar">
+            <button type="button" class="pp-tb pp-tb-add" id="pp-attach-add" title="Attach files" aria-label="Attach files">+</button>
+            <span class="pp-tb-group" id="pp-format">
+              <button type="button" class="ql-bold" title="Bold"></button>
+              <button type="button" class="ql-italic" title="Italic"></button>
+              <button type="button" class="ql-underline" title="Underline"></button>
+              <button type="button" class="ql-strike" title="Strikethrough"></button>
+              <button type="button" class="ql-list" value="ordered" title="Numbered list"></button>
+              <button type="button" class="ql-list" value="bullet" title="Bullet list"></button>
+              <button type="button" class="ql-blockquote" title="Quote"></button>
+            </span>
+            <button type="button" class="pp-tb" id="pp-attach" title="Attach photos, PDFs, voice notes…" aria-label="Attach media">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <span class="pp-tags" id="pp-tags"></span>
+            <select class="pp-tag-add" id="pp-tag-add" aria-label="Add tag"></select>
+            <span class="fill"></span>
+            <span class="pp-ai-hint">drafts contact · site · drawing · 3D/4D · take-off</span>
+            <button type="button" class="pp-draft" id="pp-draft" disabled title="AI drafting is not connected yet">&#10022; Draft it</button>
+          </div>
+          <input type="file" id="pp-file-input" multiple hidden>
+        </div>
+
+        <!-- Person -->
+        <section class="pp-sec">
+          <div class="pp-idrow">
+            <div class="pp-pic">
+              <div class="pp-pic-t">Photo</div>
+              <div class="pp-pic-box" id="pp-photo-view"><span id="pp-initials"></span></div>
+              <button type="button" class="pp-addlink" id="pp-photo-add">+ Add photo</button>
+              <button type="button" class="pp-addlink pp-remove" id="pp-photo-remove" hidden>Remove</button>
+              <input type="file" id="pp-photo-input" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+            <div class="pp-grid">
+              <label class="pp-f"><span>Pre</span><select class="pp-in" id="pp-prefix"></select></label>
+              <div class="pp-f pp-ac-wrap">
+                <label for="pp-first">First <i>*</i></label>
+                <input class="pp-in" type="text" id="pp-first" maxlength="255" autocomplete="off" data-dup-search>
+                <span class="pp-err" id="pp-first-error"></span>
+              </div>
+              <label class="pp-f"><span>Middle</span><input class="pp-in" type="text" id="pp-middle" maxlength="255" autocomplete="off"></label>
+              <div class="pp-f pp-ac-wrap">
+                <label for="pp-last">Last</label>
+                <input class="pp-in" type="text" id="pp-last" maxlength="255" autocomplete="off" data-dup-search>
+              </div>
+              <label class="pp-f"><span>Father's name</span><input class="pp-in" type="text" id="pp-father" maxlength="128" autocomplete="off"></label>
+              <label class="pp-f"><span>Mother's name</span><input class="pp-in" type="text" id="pp-mother" maxlength="128" autocomplete="off"></label>
+              <label class="pp-f"><span>Role</span><select class="pp-in" id="pp-role"></select></label>
+              <div class="pp-f pp-ac-wrap">
+                <label for="pp-company-search">Company</label>
+                <input class="pp-in" type="text" id="pp-company-search" maxlength="255" autocomplete="off" placeholder="Type to search companies...">
+              </div>
+              <label class="pp-f"><span>Found us via</span><select class="pp-in" id="pp-source"></select></label>
+              <label class="pp-f pp-f-wide" id="pp-referred-wrap" hidden><span>Referred by</span><input class="pp-in" type="text" id="pp-referred" maxlength="255" placeholder="Who gave them our number? name / company"></label>
+            </div>
+          </div>
+
+          <div class="pp-two">
+            <div class="pp-panel">
+              <div class="pp-panel-t">Phone numbers</div>
+              <div class="pp-rows" id="pp-phones"></div>
+              <button type="button" class="pp-addlink" id="pp-phone-add">+ Add Number</button>
+            </div>
+            <div class="pp-panel">
+              <div class="pp-panel-t">Email &amp; online</div>
+              <div class="pp-rows" id="pp-online"></div>
+              <select class="pp-addsel" id="pp-online-add" aria-label="Add email, website or social">
+                <option value="">+ Add...</option>
+                <option value="email">Email</option>
+                <option value="website">Website</option>
+                <option value="social">Social handle</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="button" class="pp-addbtn" id="pp-address-open">+ Add Address</button>
+          <div class="pp-panel pp-address" id="pp-address" hidden>
+            <div class="pp-panel-t">Address — personal <button type="button" class="pp-rx" id="pp-address-close" title="Remove address" aria-label="Remove address">&times;</button></div>
+            <div class="pp-agrid">
+              <label class="pp-f pp-f-wide"><span>Maps link</span><input class="pp-in" type="url" id="pp-a-maps" maxlength="2048" placeholder="https://maps.app.goo.gl/…"></label>
+              <label class="pp-f"><span>Country</span><select class="pp-in" id="pp-a-country"></select></label>
+              <label class="pp-f"><span>District</span><select class="pp-in" id="pp-a-district"></select></label>
+              <label class="pp-f"><span>City</span><select class="pp-in" id="pp-a-city"></select></label>
+              <label class="pp-f"><span>Street</span><input class="pp-in" type="text" id="pp-a-street" maxlength="255"></label>
+              <label class="pp-f"><span>Building</span><input class="pp-in" type="text" id="pp-a-building" maxlength="64"></label>
+              <label class="pp-f"><span>Floor</span><input class="pp-in" type="text" id="pp-a-floor" maxlength="32"></label>
+              <label class="pp-f pp-f-wide"><span>Notes</span><input class="pp-in" type="text" id="pp-a-notes" maxlength="1000"></label>
+            </div>
+          </div>
+
+          <label class="pp-check"><input type="checkbox" id="pp-from-company"> From a company</label>
+        </section>
+
+        <!-- Company -->
+        <section class="pp-sec pp-company" id="pp-company" hidden>
+          <div class="pp-sec-t">Company — <span id="pp-company-title">new company</span></div>
+          <div class="pp-info" id="pp-company-note" hidden>Existing company — the person is linked to it; its saved details are shown for reference and are not changed.</div>
+          <div class="pp-idrow">
+            <div class="pp-pic">
+              <div class="pp-pic-t">Logo</div>
+              <div class="pp-pic-box pp-pic-co" id="pp-logo-view"><span id="pp-co-initials"></span></div>
+              <button type="button" class="pp-addlink" id="pp-logo-add">+ Add logo</button>
+              <button type="button" class="pp-addlink pp-remove" id="pp-logo-remove" hidden>Remove</button>
+              <input type="file" id="pp-logo-input" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+            <div class="pp-grid" id="pp-company-fields">
+              <div class="pp-f">
+                <label for="pp-co-name">Name <i>*</i></label>
+                <input class="pp-in" type="text" id="pp-co-name" maxlength="255" autocomplete="off">
+                <span class="pp-err" id="pp-co-name-error"></span>
+              </div>
+              <label class="pp-f"><span>Type</span><select class="pp-in" id="pp-co-type"></select></label>
+              <label class="pp-f"><span>VAT / MOF no.</span><input class="pp-in" type="text" id="pp-co-vat" maxlength="50"></label>
+              <div class="pp-f">
+                <label for="pp-co-hq">HQ address</label>
+                <span class="pp-inline">
+                  <input class="pp-in" type="text" id="pp-co-hq" maxlength="500">
+                  <button type="button" class="pp-mini" id="pp-hq-toggle">+ Detail</button>
+                </span>
+              </div>
+              <label class="pp-f"><span>Industry</span><select class="pp-in" id="pp-co-industry"></select></label>
+              <label class="pp-f"><span>Activity</span><select class="pp-in" id="pp-co-activity"></select></label>
+              <label class="pp-f"><span>Size</span><select class="pp-in" id="pp-co-size"></select></label>
+            </div>
+          </div>
+
+          <div class="pp-panel pp-hq" id="pp-hq-detail" hidden>
+            <div class="pp-agrid">
+              <label class="pp-f pp-f-wide"><span>Maps link</span><input class="pp-in" type="url" id="pp-hq-maps" maxlength="2048" placeholder="https://maps.app.goo.gl/…"></label>
+              <label class="pp-f"><span>Country</span><select class="pp-in" id="pp-hq-country"></select></label>
+              <label class="pp-f"><span>District</span><select class="pp-in" id="pp-hq-district"></select></label>
+              <label class="pp-f"><span>City</span><select class="pp-in" id="pp-hq-city"></select></label>
+              <label class="pp-f"><span>Street</span><input class="pp-in" type="text" id="pp-hq-street" maxlength="255"></label>
+              <label class="pp-f"><span>Building</span><input class="pp-in" type="text" id="pp-hq-building" maxlength="64"></label>
+            </div>
+          </div>
+
+          <div class="pp-two">
+            <div class="pp-panel">
+              <div class="pp-panel-t">Phone numbers</div>
+              <div class="pp-rows" id="pp-co-phones"></div>
+              <button type="button" class="pp-addlink" id="pp-co-phone-add">+ Add Number</button>
+            </div>
+            <div class="pp-panel">
+              <div class="pp-panel-t">Email &amp; online</div>
+              <div class="pp-rows" id="pp-co-online"></div>
+              <select class="pp-addsel" id="pp-co-online-add" aria-label="Add company email, website or social">
+                <option value="">+ Add...</option>
+                <option value="email">Email</option>
+                <option value="website">Website</option>
+                <option value="social">Social handle</option>
+              </select>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="pp-foot">
+        <span class="pp-error" id="pp-error" role="alert"></span>
+        <span class="fill"></span>
+        <button type="button" class="pp-btn" id="pp-cancel">Cancel</button>
+        <button type="submit" class="pp-btn pp-btn-primary" id="pp-save">Create Person</button>
+      </footer>
+    </form>
+  </div>
+
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script src="/api/v1/achi/contact-info/contact_info.js?v=17"></script>
-<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
+  <script src="/api/v1/achi/ui/quill.js"></script>
+  <script src="/api/v1/achi/contact-info/contact_info.js?v=18"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=38"></script>
 </body>
 </html>
