@@ -2924,6 +2924,7 @@
     $('contacts-cards').addEventListener('click', openFromDirectory);
 
     bindPersonModal();
+    $('new-person-button').addEventListener('click', () => openContactModal(null, 'person'));
     $('new-company-button').addEventListener('click', () => openContactModal(null, 'company'));
     $('drawer-close').addEventListener('click', closeDrawer);
     $('drawer-expand').addEventListener('click', () => setPanelWide(!state.panelWide));

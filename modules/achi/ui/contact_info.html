@@ -41,13 +41,18 @@
     <div class="ai">
       <span class="badge">ARARA AI</span>
       <input type="text" id="ai-query" placeholder="Ask the directory… “who is the procurement contact at Zerock?” · “which clients went quiet for 60 days?”" autocomplete="off">
+      <button type="button" class="chip" disabled>Draft follow-ups for quiet leads</button>
+      <button type="button" class="chip" disabled>Merge duplicate suspects</button>
+      <button type="button" class="chip" disabled>Enrich from last 20 calls</button>
     </div>
 
-    <!-- KPI CHIPS -->
+    <!-- KPI CHIPS ("—" where the backend has no data for the metric yet) -->
     <div class="kchips">
       <span class="kc"><b id="people-count">—</b> people</span>
       <span class="kc"><b id="company-count">—</b> companies</span>
+      <span class="kc"><b id="matched-count">—</b> inbound calls auto-matched</span>
       <span class="kc"><b id="duplicate-count">—</b> duplicate suspects</span>
+      <span class="kc"><b id="enriched-count">—</b> enriched by AI this week</span>
     </div>
 
     <!-- LIST VIEW -->

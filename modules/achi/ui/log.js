@@ -20,7 +20,7 @@ async function rxSaveAll(keepOpen){
   if(!r){ st.textContent='Row not loaded'; st.className='rx-status bad'; return; }
   const changed=fields.filter(el=>{
     if(el.dataset.k==='reference') return String(r.reference||'')!==rxFieldValue(el);
-    const c=COLS.find(x=>x.k===el.dataset.k);
+    const c=FORM_COLS.find(x=>x.k===el.dataset.k);
     return c&&c.edit&&String(c.edit.val(r)??'')!==rxFieldValue(el);
   });
   const extrasChanged=rxExtrasChanged(r);
@@ -51,7 +51,7 @@ async function rxSaveAll(keepOpen){
     if(!keepOpen) setTimeout(closeExpandedRow,450);
   }
 }
-function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); $('rx').hidden=true; rxRowId=null; }
+function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); rxCloseAddSectionMenu(); rxCloseTakeoffPicker(); $('rx').hidden=true; rxRowId=null; }
 
 /* Field saves go through the SAME endpoints as the grid's inline editors, keyed
    off each column's own edit.target — so nothing here can save to a different
@@ -65,7 +65,7 @@ async function rxSave(el){
     row.reference=value;
     return;
   }
-  const c=COLS.find(x=>x.k===el.dataset.k); if(!c||!c.edit||!rxRowId) return;
+  const c=FORM_COLS.find(x=>x.k===el.dataset.k); if(!c||!c.edit||!rxRowId) return;
   const r=ROWS.find(x=>x.id===rxRowId); if(!r) return;
   const note=$(el.id+'-note'), field=c.edit.field, target=c.edit.target;
   const setNote=(t,cls)=>{ if(note){ note.textContent=t; note.className='rx-note '+(cls||''); } };
@@ -173,6 +173,12 @@ function contactPrefix(c){
   for(const v of Object.values(c.custom_properties||{}))if(v&&typeof v==='object'&&v.prefix)return v.prefix;
   return '';
 }
+function contactInfoData(c){
+  for(const value of Object.values(c&&c.custom_properties||{})){
+    if(value&&typeof value==='object'&&(value.phones||value.emails||value.related_contacts||value.socials||value.prefix||value.middle_name)) return value;
+  }
+  return {};
+}
 function contactPhoneParts(phone){
   const raw=String(phone||'').trim();
   const found=[...COUNTRIES].sort((a,b)=>b[2].length-a[2].length).find(c=>raw.startsWith(c[2]));
@@ -216,7 +222,7 @@ function fillDraftFromContact(dp,c){
   setTimeout(()=>{delete st.__choosingContact;},0);
 }
 function fillRxFromContact(c){
-  const body=$('rx-body'), phone=contactPhoneParts(c.primary_phone), address=contactAddress(c);
+  const body=$('rx-body'), info=contactInfoData(c), address=contactAddress(c);
   const set=(key,value)=>{
     const el=body.querySelector(`[data-k="${key}"]`);
     if(!el) return;
@@ -230,7 +236,17 @@ function fillRxFromContact(c){
   set('first',c.first_name);
   set('last',c.last_name);
   set('company',c.company_name);
-  set('email',c.primary_email);
+  if(info.source) set('reference',info.source);
+  const middle=body.querySelector('[data-rx-contact-middle]'); if(middle) middle.value=info.middle_name||'';
+  const website=body.querySelector('#rx-website-list input'); if(website) website.value=c.website||'';
+  const phones=Array.isArray(info.phones)&&info.phones.length?info.phones:(c.primary_phone?[{label:'Mobile',number:c.primary_phone}]:[]);
+  const phoneList=body.querySelector('#rx-phone-list');
+  if(phoneList) phoneList.innerHTML=(phones.length?phones:[{label:'Mobile',number:''}]).map((item,index)=>rxPhoneRow(item,index>0)).join('');
+  const emails=Array.isArray(info.emails)&&info.emails.length?info.emails:(c.primary_email?[{label:'Primary',address:c.primary_email}]:[]);
+  const emailList=body.querySelector('#rx-email-list');
+  if(emailList) emailList.innerHTML=(emails.length?emails:[{label:'Primary',address:''}]).map((item,index)=>rxEmailRow(item,index>0)).join('');
+  const socialList=body.querySelector('#rx-social-list');
+  if(socialList){ const socials=Array.isArray(info.socials)&&info.socials.length?info.socials:[{platform:'IG',handle:''}]; socialList.innerHTML=socials.map(s=>rxReferenceSocialRow(s.platform,s.handle,'main')).join(''); }
   const contactCountry=rxSetGeoValue(
   'country',
   COUNTRY_NAMES,
@@ -255,28 +271,40 @@ function fillRxFromContact(c){
     syncDistrictFromCity();
   }
   set('street',address.street||address.address_line_1);
-  const mobile=body.querySelector('[data-k="mobile"]');
-  if(mobile){
-    mobile.value=phone.mobilenum;
-    const button=mobile.closest('.tel-wrap')?.querySelector('.tel-cc');
-    const img=button?.querySelector('img'), dial=button?.querySelector('.cc');
-    if(img) img.src=flagSrc(phone.iso);
-    if(dial) dial.textContent=phone.dial;
-  }
+  rxSetCompanyPanel(!!c.company_name);
+  const companyName=body.querySelector('[data-rx-company-name]'); if(companyName) companyName.value=c.company_name||'';
+  rxUpdateContactIdentity();
+  const note=body.querySelector('#rx-contact-match-note');
+  if(note) note.textContent=`✓ Matched existing contact — ${contactName(c)}${c.company_name?' · '+c.company_name:''}`;
   /* Keep the user in the name workflow after choosing a saved contact. Focus
      before closing so closeContactMatches also cancels the focus-triggered
      autocomplete timer; otherwise the same surname list immediately reopens. */
   body.querySelector('[data-k="last"]')?.focus();
   closeContactMatches();
 }
+function fillRelatedFromContact(input,c){
+  const card=input.closest('[data-rx-related-row]'); if(!card) return;
+  const info=contactInfoData(c),phone=contactPhoneParts(c.primary_phone);
+  const set=(selector,value)=>{ const el=card.querySelector(selector); if(el) el.value=String(value||''); };
+  set('[data-rc-prefix]',contactPrefix(c)); set('[data-rc-first]',c.first_name); set('[data-rc-middle]',info.middle_name);
+  set('[data-rc-last]',c.last_name); set('[data-rc-company]',c.company_name); set('[data-rc-email]',c.primary_email);
+  const mobile=card.querySelector('[data-rc-phone]'); if(mobile){ mobile.value=phone.mobilenum; setTelCountry(mobile.closest('.tel-wrap'),phone.iso,phone.dial); }
+  const initials=card.querySelector('[data-rx-photo-initials]'); if(initials) initials.textContent=rxContactInitials(c.first_name,c.last_name,c.company_name);
+  let status=card.querySelector('.rx-related-match');
+  if(!status){ status=document.createElement('div'); status.className='rx-related-match'; card.appendChild(status); }
+  status.textContent=`✓ Matched existing contact — ${contactName(c)}`;
+  closeContactMatches();
+  card.querySelector('[data-rc-last]')?.focus();
+}
 function pickContactMatch(input,c){
-  if(input.closest('#rx-body')) fillRxFromContact(c);
+  if(input.closest('[data-rx-related-row]')) fillRelatedFromContact(input,c);
+  else if(input.closest('#rx-body')) fillRxFromContact(c);
   else fillDraftFromContact(input.dataset.dp,c);
 }
 function placeContactMatches(){
   if(!contactMatchDrop||!contactMatchInput)return;
   const r=contactMatchInput.getBoundingClientRect();
-  const w=contactMatchInput.closest('#rx-body')?r.width:Math.max(300,r.width);
+  const w=contactMatchInput.closest('#rx-body')?Math.max(300,r.width):Math.max(300,r.width);
   contactMatchDrop.style.left=Math.max(8,Math.min(r.left,innerWidth-w-8))+'px';
   contactMatchDrop.style.top=Math.min(innerHeight-8,r.bottom+2)+'px';
   contactMatchDrop.style.width=w+'px';
@@ -284,6 +312,10 @@ function placeContactMatches(){
 function renderContactMatches(){
   if(!contactMatchDrop)return;
   contactMatchDrop.innerHTML='';
+  if(contactMatchInput?.closest('#rx-body')){
+    const head=document.createElement('div'); head.className='rx-contact-match-head'; head.innerHTML='<span>Contacts database</span><span>Choose an existing contact</span>';
+    contactMatchDrop.appendChild(head);
+  }
   contactMatchItems.forEach((c,i)=>{
     const item=document.createElement('div');item.className='pg-ac-item contact-match'+(i===contactMatchActive?' pg-ac-active':'');
     const main=document.createElement('span');main.className='contact-match-main';main.textContent=contactName(c);
@@ -291,6 +323,10 @@ function renderContactMatches(){
     item.append(main,meta);item.onmousedown=e=>{e.preventDefault();pickContactMatch(contactMatchInput,c);};
     contactMatchDrop.appendChild(item);
   });
+  if(contactMatchInput?.closest('#rx-body')){
+    const foot=document.createElement('div'); foot.className='rx-contact-match-foot'; foot.textContent='＋ New contact — keep typing';
+    contactMatchDrop.appendChild(foot);
+  }
   contactMatchDrop.style.display='block';
   placeContactMatches();
 }
@@ -522,7 +558,7 @@ $('qv-collapse').addEventListener('click',()=>{ qvHidden=true; $('qv').hidden=tr
 // Arrow-function wrappers: wiring a handler directly passes the click Event as
 // the first argument — openExpandedRow(Event) and rxSaveAll(Event) both misread
 // that truthy Event as "explicit id" / "keep open".
-$('expand-row').addEventListener('click',()=>openExpandedRow());
+$('expand-row').addEventListener('click',()=>openExpandedRow(null));
 /* Detect the double-click from pointer-downs instead of the browser's `dblclick`
    event. Editable cells replace their contents after the first click, and some
    browsers then consider the second click to have a different target and never
@@ -541,6 +577,7 @@ $('rows').addEventListener('pointerdown',e=>{
 $('rx-close').addEventListener('click',closeExpandedRow);
 $('rx-cancel').addEventListener('click',closeExpandedRow);
 $('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
+$('rx-save-cont')?.addEventListener('click',()=>rxSaveAll(true));   // save + keep editing
 $('rx-when').addEventListener('change',e=>{ $('rx-when-label').textContent=fmtHeaderDT(e.target.value); });
 $('rx-state-btn').addEventListener('click',()=>{
   const menu=$('rx-state-menu'), btn=$('rx-state-btn');
@@ -561,21 +598,312 @@ document.addEventListener('mousedown',e=>{
   if(picker&&!picker.contains(e.target)) closeRxState();
   if(rxSelectMenu&&!rxSelectMenu.contains(e.target)&&!(rxSelectButton&&rxSelectButton.contains(e.target))) closeRxSelect();
   if(contactMatchDrop&&!contactMatchDrop.contains(e.target)&&e.target!==contactMatchInput) closeContactMatches();
+  const addMenu=$('rx-add-section-menu'),addButton=$('rx-add-section-toggle');
+  if(addMenu&&!addMenu.hidden&&!addMenu.contains(e.target)&&!addButton?.contains(e.target)) rxCloseAddSectionMenu();
 });
 
-// Open the shared note workspace for this row and jump straight to a tool, so
-// Files lands on the file picker and Drawing on the canvas — not the notes text.
-function rxOpenWorkspace(action){
-  if(!rxRowId){ fail('Save the entry first, then add files or a drawing.'); return; }
-  const td=document.querySelector(`tr[data-log="${rxRowId}"] td[data-field="description"]`);
+// Tools attach to a persisted log id. For a brand-new Add Log form, create the
+// record first and keep the form open; validation messages stay in the form if
+// creation cannot proceed.
+async function rxEnsureToolLog(){
+  if(rxRowId) return rxRowId;
+  return await rxCreateNew(true);
+}
+
+// Open the shared note workspace for this row and jump straight to Files or the
+// drawing canvas. New logs are persisted first so every saved sketch has a real
+// log id to PATCH and remains linked when the form closes.
+async function rxOpenWorkspace(action){
+  const logId=await rxEnsureToolLog();
+  if(!logId) return;
+  const td=document.querySelector(`tr[data-log="${CSS.escape(String(logId))}"] td[data-field="description"]`);
   const col=COLS.find(c=>c.k==='desc');
   if(!td||!col){ fail('Open the row in the table first, then reopen.'); return; }
   openNoteWorkspace(td,col);                    // owns upload/list/download/drawing
   const btn=document.querySelector('.pg-note-workspace '+(action==='draw'?'.pg-note-drawing':'.pg-note-upload'));
-  if(btn) btn.click();                          // synchronous: keeps the user gesture
+  if(btn) btn.click();
 }
-// Name line <-> three inline boxes; Files / Drawing open the shared workspace.
+
+const RX_TAKEOFF_EXTENSIONS=new Set(['pdf','dwg','dxf','rvt','ifc']);
+const rxAttachmentName=f=>String((f&&(f.filename||f.file_name||f.name))||'');
+const rxAttachmentId=f=>f&&(f.id??f.attachment_id);
+const rxTakeoffExtension=f=>rxAttachmentName(f).split('.').pop().toLowerCase();
+const rxTakeoffFiles=files=>(Array.isArray(files)?files:[]).filter(f=>RX_TAKEOFF_EXTENSIONS.has(rxTakeoffExtension(f))&&rxAttachmentId(f)!=null);
+
+function rxCloseTakeoffPicker(){
+  document.querySelector('.rx-mt-picker')?.remove();
+}
+function rxWriteToolWindow(w,message){
+  if(!w) return;
+  try{
+    w.document.open();
+    w.document.write(`<p style="font:14px -apple-system,Segoe UI,sans-serif;color:#44546e;padding:26px">${esc(message)}</p>`);
+    w.document.close();
+  }catch(_){}
+}
+async function rxUploadTakeoffSource(logId,file,retried){
+  const fd=new FormData(); fd.append('file',file,file.name);
+  const r=await fetch(`${API}/logs/${logId}/attachments`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+  if(r.status===401&&!retried&&await refreshToken()) return rxUploadTakeoffSource(logId,file,true);
+  const body=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(body.detail||`Could not upload ${file.name}`);
+  const direct=body.attachment||body.item||body;
+  if(rxAttachmentId(direct)!=null) return direct;
+  const all=await api(`/logs/${logId}/attachments`);
+  const matches=rxTakeoffFiles(all).filter(f=>rxAttachmentName(f)===file.name);
+  if(matches.length) return matches[matches.length-1];
+  throw new Error('The file uploaded, but its attachment record could not be opened.');
+}
+function rxShowTakeoffPicker(logId,files){
+  rxCloseTakeoffPicker();
+  const eligible=rxTakeoffFiles(files);
+  const ov=document.createElement('div');
+  ov.className='rx-mt-picker';
+  ov.setAttribute('role','dialog');
+  ov.setAttribute('aria-modal','true');
+  ov.setAttribute('aria-labelledby','rx-mt-picker-title');
+  const rows=eligible.length
+    ? eligible.map(f=>`<button type="button" class="rx-mt-source" data-rx-mt-source="${esc(String(rxAttachmentId(f)))}"><span>${esc(rxAttachmentName(f))}</span><b>${esc(rxTakeoffExtension(f).toUpperCase())}</b></button>`).join('')
+    : '<div class="rx-mt-empty">No supported drawing or model is attached to this log yet.</div>';
+  ov.innerHTML=`<div class="rx-mt-picker-box">
+    <div class="rx-mt-picker-head"><div><strong id="rx-mt-picker-title">Open M/T tool</strong><span>Choose a source file for measurement takeoff</span></div><button type="button" class="rx-mt-picker-close" aria-label="Close">&times;</button></div>
+    <div class="rx-mt-picker-body"><div class="rx-mt-source-list">${rows}</div><div class="rx-mt-upload-status" role="status"></div><input type="file" class="rx-mt-file" accept=".pdf,.dwg,.dxf,.rvt,.ifc" hidden></div>
+    <div class="rx-mt-picker-foot"><span>PDF · DWG · DXF · RVT · IFC</span><button type="button" class="rx-mini rx-mt-upload">Upload source file</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const status=ov.querySelector('.rx-mt-upload-status');
+  const input=ov.querySelector('.rx-mt-file');
+  ov.addEventListener('mousedown',e=>{ if(e.target===ov) rxCloseTakeoffPicker(); });
+  ov.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagation(); rxCloseTakeoffPicker(); } });
+  ov.addEventListener('click',e=>{
+    if(e.target.closest('.rx-mt-picker-close')){ rxCloseTakeoffPicker(); return; }
+    const source=e.target.closest('[data-rx-mt-source]');
+    if(source){
+      const f=eligible.find(x=>String(rxAttachmentId(x))===source.dataset.rxMtSource);
+      if(f){ rxCloseTakeoffPicker(); openInTakeoff(rxAttachmentId(f),rxAttachmentName(f)); }
+      return;
+    }
+    if(e.target.closest('.rx-mt-upload')) input.click();
+  });
+  input.addEventListener('change',async()=>{
+    const file=input.files&&input.files[0];
+    if(!file) return;
+    const ext=file.name.split('.').pop().toLowerCase();
+    if(!RX_TAKEOFF_EXTENSIONS.has(ext)){ status.textContent='Choose a PDF, DWG, DXF, RVT or IFC file.'; return; }
+    const preparedWindow=window.open('','_blank');
+    rxWriteToolWindow(preparedWindow,'Uploading the source file…');
+    ov.querySelectorAll('button').forEach(b=>b.disabled=true);
+    status.textContent=`Uploading ${file.name}…`;
+    try{
+      const attachment=await rxUploadTakeoffSource(logId,file);
+      const all=await api(`/logs/${logId}/attachments`);
+      const row=ROWS.find(r=>r.id===logId); if(row) row.attachment_count=Array.isArray(all)?all.length:(row.attachment_count||0)+1;
+      const td=document.querySelector(`tr[data-log="${CSS.escape(String(logId))}"] td[data-field="description"]`);
+      if(td) refreshCell(td);
+      rxCloseTakeoffPicker();
+      await openInTakeoff(rxAttachmentId(attachment),rxAttachmentName(attachment)||file.name,preparedWindow);
+    }catch(err){
+      if(preparedWindow){ try{ preparedWindow.close(); }catch(_){} }
+      status.textContent=err.message||'Could not upload the source file.';
+      ov.querySelectorAll('button').forEach(b=>b.disabled=false);
+      input.value='';
+    }
+  });
+  requestAnimationFrame(()=>ov.querySelector(eligible.length?'.rx-mt-source':'.rx-mt-upload')?.focus());
+}
+async function rxOpenTakeoffPicker(){
+  const button=$('rx-mt'),status=$('rx-mt-status');
+  if(button) button.disabled=true;
+  if(status) status.textContent='Loading attached files…';
+  try{
+    const logId=await rxEnsureToolLog();
+    if(!logId) return;
+    const files=await api(`/logs/${logId}/attachments`);
+    rxShowTakeoffPicker(logId,files);
+    const currentStatus=$('rx-mt-status'); if(currentStatus) currentStatus.textContent='';
+  }catch(err){
+    const currentStatus=$('rx-mt-status'); if(currentStatus) currentStatus.textContent=err.message||'Could not load the M/T tool.';
+  }finally{
+    const currentButton=$('rx-mt'); if(currentButton) currentButton.disabled=false;
+  }
+}
+let rxAddSectionMenuHome=null;
+function rxPositionAddSectionMenu(){
+  const menu=$('rx-add-section-menu'),button=$('rx-add-section-toggle');
+  if(!menu||!button||menu.hidden) return;
+  const inset=4,gap=4,buttonRect=button.getBoundingClientRect();
+  const width=Math.min(290,Math.max(180,window.innerWidth-inset*2));
+  menu.style.width=width+'px';
+  menu.style.maxHeight='none';
+  const naturalHeight=Math.min(menu.scrollHeight,470);
+  const spaceAbove=Math.max(0,buttonRect.top-gap-inset);
+  const spaceBelow=Math.max(0,window.innerHeight-buttonRect.bottom-gap-inset);
+  const above=spaceAbove>=naturalHeight||spaceAbove>spaceBelow;
+  const available=Math.max(96,above?spaceAbove:spaceBelow);
+  const height=Math.min(naturalHeight,available);
+  const left=Math.min(
+    Math.max(inset,buttonRect.left+(buttonRect.width-width)/2),
+    Math.max(inset,window.innerWidth-width-inset)
+  );
+  const top=above?Math.max(inset,buttonRect.top-gap-height):Math.min(window.innerHeight-inset-height,buttonRect.bottom+gap);
+  menu.style.left=Math.round(left)+'px';
+  menu.style.top=Math.round(top)+'px';
+  menu.style.maxHeight=Math.round(height)+'px';
+  menu.dataset.placement=above?'above':'below';
+}
+function rxHandleAddSectionMenuClick(e){
+  const option=e.target.closest('[data-rx-add-section]');
+  if(!option||option.disabled) return;
+  rxSetSectionVisible(option.dataset.rxAddSection,true);
+  rxCloseAddSectionMenu();
+}
+function rxOpenAddSectionMenu(){
+  const menu=$('rx-add-section-menu'),button=$('rx-add-section-toggle'),overlay=$('rx');
+  if(!menu||!button||!overlay) return;
+  rxAddSectionMenuHome=menu.parentNode;
+  overlay.appendChild(menu);                 // escape .rx-body overflow clipping
+  menu.onclick=rxHandleAddSectionMenuClick;
+  menu.hidden=false;
+  button.setAttribute('aria-expanded','true');
+  rxPositionAddSectionMenu();
+}
+function rxCloseAddSectionMenu(){
+  const menu=$('rx-add-section-menu'),button=$('rx-add-section-toggle');
+  if(menu){
+    menu.hidden=true;
+    menu.onclick=null;
+    menu.removeAttribute('data-placement');
+    menu.style.cssText='';
+    if(rxAddSectionMenuHome?.isConnected) rxAddSectionMenuHome.appendChild(menu);
+  }
+  rxAddSectionMenuHome=null;
+  if(button) button.setAttribute('aria-expanded','false');
+}
+window.addEventListener('resize',rxPositionAddSectionMenu);
+$('rx-body').addEventListener('scroll',rxPositionAddSectionMenu,{passive:true});
+function rxSetSectionVisible(key,visible){
+  const section=$('rx-body').querySelector(`[data-rx-section="${CSS.escape(key)}"]`);
+  if(section) section.hidden=!visible;
+  const option=$('rx-body').querySelector(`[data-rx-add-section="${CSS.escape(key)}"]`);
+  if(option){
+    option.disabled=visible;
+    const check=option.querySelector('.rx-add-check');
+    if(check) check.textContent=visible?'✓':'';
+  }
+  if(visible&&key==='site'){
+    const country=$('rx-body').querySelector('[data-geo-input="country"]');
+    if(country&&!country.value.trim()){
+      country.value='Lebanon';
+      if(typeof rxApplyCountryValue==='function') rxApplyCountryValue('Lebanon');
+    }
+  }
+  if(visible) section?.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+let rxOnlineMatches=[];
+function rxSetCompanyPanel(show){
+  const panel=$('rx-company-panel'),toggle=$('rx-company-toggle'),hint=$('rx-company-toggle-hint');
+  if(panel) panel.hidden=!show;
+  if(toggle) toggle.checked=!!show;
+  if(hint) hint.textContent=show?'company section below':'tick to add company details';
+}
+function rxUpdateContactIdentity(){
+  const body=$('rx-body'); if(!body) return;
+  const first=body.querySelector('[data-k="first"]')?.value||'';
+  const last=body.querySelector('[data-k="last"]')?.value||'';
+  const company=body.querySelector('[data-k="company"]')?.value||'';
+  const personInitials=body.querySelector('.rx-contact-reference > .rx-contact-identity [data-rx-photo-initials]');
+  if(personInitials) personInitials.textContent=rxContactInitials(first,last,company);
+  const logo=body.querySelector('#rx-company-panel [data-rx-photo-initials]'); if(logo) logo.textContent=rxContactInitials('','',company||'Company');
+  const title=$('rx-company-title'); if(title) title.textContent=company.trim()||'new company';
+}
+function rxPreviewContactPhoto(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  if(!file.type.startsWith('image/')){ fail('Choose an image file for the contact photo.'); input.value=''; return; }
+  const card=input.closest('[data-rx-photo-card]'),drop=card?.querySelector('.rx-contact-photo-drop'); if(!drop) return;
+  drop.querySelector('.rx-contact-photo-preview')?.remove();
+  const url=URL.createObjectURL(file),img=document.createElement('img');
+  img.className='rx-contact-photo-preview'; img.alt=card.dataset.rxPhotoCard==='company'?'Company logo preview':'Contact photo preview'; img.src=url;
+  img.onload=()=>URL.revokeObjectURL(url);
+  const placeholder=drop.querySelector('.rx-contact-photo-placeholder'); if(placeholder) placeholder.hidden=true;
+  drop.appendChild(img);
+  card.classList.add('has-photo');
+}
+function rxAddOnlineRow(select){
+  const kind=select.value; if(!kind) return;
+  const related=select.closest('[data-rx-related-row]');
+  const company=select.hasAttribute('data-rx-company-add-online');
+  const scope=related?'related':company?'company':'main';
+  const list=related?related.querySelector('.rx-related-online-list'):company?$('rx-company-panel')?.querySelector('.rx-company-online-list'):(kind==='email'?$('rx-email-list'):kind==='website'?$('rx-website-list'):$('rx-social-list'));
+  if(!list) return;
+  let html='';
+  if(kind==='email'){
+    if(scope==='main') html=rxEmailRow({label:'Other',address:''},true);
+    else if(scope==='related'&&!related.querySelector('[data-rc-email]')) html='<div class="rx-ref-line"><span class="rx-ref-line-label">Email</span><input class="rx-in" data-rc-email inputmode="email" placeholder="name@company.com"><button type="button" class="rx-ref-remove" data-rx-ref-remove>×</button></div>';
+    else html=rxReferenceOnlineRow('Email','',scope,'name@company.com');
+  }else if(kind==='website') html=rxReferenceOnlineRow('Website','',scope,'company.com');
+  else html=rxReferenceSocialRow('IG','',scope);
+  list.insertAdjacentHTML('beforeend',html);
+  select.value='';
+  list.lastElementChild?.querySelector('input')?.focus();
+}
+async function rxFindOnlineContact(){
+  const button=$('rx-find-online'),result=$('rx-online-result'); if(!button||!result) return;
+  const q=[...$('rx-body').querySelectorAll('[data-k="first"],[data-k="last"],[data-k="company"]')].map(el=>el.value.trim()).filter(Boolean).join(' ');
+  if(!q){ result.hidden=false; result.textContent='Enter a contact or company name first.'; return; }
+  button.disabled=true; button.textContent='Searching…'; result.hidden=false; result.textContent='Searching the contacts database…';
+  try{
+    rxOnlineMatches=await searchContacts(q);
+    if(!rxOnlineMatches.length){ result.textContent='No existing contact was found. You can continue creating a new contact.'; }
+    else{
+      const c=rxOnlineMatches[0];
+      result.innerHTML=`<span>✓ Found: <b>${esc(contactName(c))}</b>${c.company_name?' · '+esc(c.company_name):''}</span><button type="button" class="rx-ref-mini" data-rx-apply-online="0">Apply contact</button>`;
+    }
+  }catch(err){ result.textContent=err.message||'The contact search could not be completed.'; }
+  finally{ button.disabled=false; button.textContent='🔍 Find online'; }
+}
+
+// Reference-design section menu plus the existing form actions.
 $('rx-body').addEventListener('click',e=>{
+  const toggle=e.target.closest('#rx-add-section-toggle');
+  if(toggle){
+    const menu=$('rx-add-section-menu'),opening=!!menu&&menu.hidden;
+    if(opening) rxOpenAddSectionMenu();
+    else rxCloseAddSectionMenu();
+    return;
+  }
+  const addSection=e.target.closest('[data-rx-add-section]');
+  if(addSection&&!addSection.disabled){
+    rxSetSectionVisible(addSection.dataset.rxAddSection,true);
+    rxCloseAddSectionMenu();
+    return;
+  }
+  const removeSection=e.target.closest('[data-rx-remove-section]');
+  if(removeSection){
+    rxSetSectionVisible(removeSection.dataset.rxRemoveSection,false);
+    return;
+  }
+  if(e.target.closest('#rx-notes-attach-btn')){
+    rxSetSectionVisible('attachments',true);
+  }
+  if(e.target.closest('#rx-find-online')){ rxFindOnlineContact(); return; }
+  const applyOnline=e.target.closest('[data-rx-apply-online]');
+  if(applyOnline){ const contact=rxOnlineMatches[+applyOnline.dataset.rxApplyOnline]; if(contact) fillRxFromContact(contact); return; }
+  const addressToggle=e.target.closest('[data-rx-address-toggle]');
+  if(addressToggle){ const panel=$('rx-body').querySelector(`[data-rx-address-panel="${CSS.escape(addressToggle.dataset.rxAddressToggle)}"]`); if(panel) panel.hidden=!panel.hidden; return; }
+  const addressClose=e.target.closest('[data-rx-address-close]');
+  if(addressClose){ const panel=$('rx-body').querySelector(`[data-rx-address-panel="${CSS.escape(addressClose.dataset.rxAddressClose)}"]`); if(panel) panel.hidden=true; return; }
+  if(e.target.closest('[data-rx-company-address-toggle]')){ const panel=$('rx-body').querySelector('[data-rx-company-address-panel]'); if(panel) panel.hidden=!panel.hidden; return; }
+  if(e.target.closest('[data-rx-company-address-close]')){ const panel=$('rx-body').querySelector('[data-rx-company-address-panel]'); if(panel) panel.hidden=true; return; }
+  const relatedAddress=e.target.closest('[data-rx-related-address-toggle]');
+  if(relatedAddress){ const panel=relatedAddress.closest('[data-rx-related-row]')?.querySelector('[data-rx-related-address-panel]'); if(panel) panel.hidden=!panel.hidden; return; }
+  const relatedAddressClose=e.target.closest('[data-rx-related-address-close]');
+  if(relatedAddressClose){ const panel=relatedAddressClose.closest('[data-rx-related-row]')?.querySelector('[data-rx-related-address-panel]'); if(panel) panel.hidden=true; return; }
+  const refRemove=e.target.closest('[data-rx-ref-remove]');
+  if(refRemove){ refRemove.closest('.rx-ref-line')?.remove(); return; }
+  if(e.target.closest('[data-rx-company-add-phone]')){ const list=$('rx-company-panel')?.querySelector('.rx-company-phone-list'); if(list){ list.insertAdjacentHTML('beforeend',rxReferenceTelRow('Mobile','','company')); list.lastElementChild?.querySelector('input')?.focus(); } return; }
+  const relatedAddPhone=e.target.closest('[data-rx-related-add-phone]');
+  if(relatedAddPhone){ const list=relatedAddPhone.closest('[data-rx-related-row]')?.querySelector('.rx-related-phone-list'); if(list){ list.insertAdjacentHTML('beforeend',rxReferenceTelRow('Mobile','','related')); list.lastElementChild?.querySelector('input')?.focus(); } return; }
   const removeHandle=e.target.closest('.rx-social-remove');
   if(removeHandle){ closeRxSelect(); removeHandle.closest('.rx-social')?.remove(); return; }
   if(e.target.closest('#rx-add-handle')){ addRxSocialRow(); return; }
@@ -606,7 +934,8 @@ $('rx-body').addEventListener('click',e=>{
   if(e.target.closest('#rx-add-related')){
     const wrap=$('rx-related-wrap'), list=$('rx-related-list');
     if(wrap) wrap.classList.remove('rx-related-empty');
-    if(list){ list.insertAdjacentHTML('beforeend', rxRelatedRow({})); rxRenumberPersons();
+    const company=$('rx-body').querySelector('[data-k="company"]')?.value||'';
+    if(list){ list.insertAdjacentHTML('beforeend', rxRelatedRow({company_name:company})); rxRenumberPersons();
       list.lastElementChild?.querySelector('[data-rc-first]')?.focus(); }
     return;
   }
@@ -617,11 +946,12 @@ $('rx-body').addEventListener('click',e=>{
   if(e.target.closest('#rx-name-toggle')){ const w=$('rx-name-wrap'); if(w){ w.classList.add('on'); const f=$('rx-first'); if(f) f.focus(); } return; }
   if(e.target.closest('#rx-files')){ rxOpenWorkspace('files'); return; }
   if(e.target.closest('#rx-draw')){ rxOpenWorkspace('draw'); return; }
+  if(e.target.closest('#rx-mt')){ rxOpenTakeoffPicker(); return; }
 });
 // Enter advances to the next field, like Tab (Tab still works natively). Skips
 // textareas so notes can hold line breaks, and lets selects open normally.
 $('rx-body').addEventListener('keydown',e=>{
-  if((e.target.dataset.k==='first'||e.target.dataset.k==='last')&&contactMatchKey(e)) return;
+  if((e.target.dataset.k==='first'||e.target.dataset.k==='last'||e.target.dataset.k==='company'||e.target.dataset.rcFirst!==undefined||e.target.dataset.rcLast!==undefined)&&contactMatchKey(e)) return;
   if(e.key!=='Enter'||e.shiftKey) return;
   const t=e.target;
   if(t.tagName==='TEXTAREA') return;
@@ -648,7 +978,7 @@ $('rx-body').addEventListener('focusout',e=>{
   },0);
 });
 $('rx-body').addEventListener('focusin',e=>{
-  if(e.target.dataset.k==='first'||e.target.dataset.k==='last') queueContactMatches(e.target);
+  if(e.target.dataset.k==='first'||e.target.dataset.k==='last'||e.target.dataset.k==='company'||e.target.dataset.rcFirst!==undefined||e.target.dataset.rcLast!==undefined) queueContactMatches(e.target);
 });
 /* Paste a number into the Add Log phone field: if it carries a country code,
    switch the picker to that country and drop the code from the field, then flag
@@ -677,6 +1007,13 @@ $('rx-body').addEventListener('click',e=>{
 });
 $('rx-body').addEventListener('change',e=>{
   const el=e.target;
+  if(el.matches('[data-rx-photo-input]')){ rxPreviewContactPhoto(el); return; }
+  if(el.id==='rx-company-toggle'){ rxSetCompanyPanel(el.checked); return; }
+  if(el.id==='rx-add-online'||el.matches('[data-rx-company-add-online],[data-rx-related-add-online]')){ rxAddOnlineRow(el); return; }
+  if(el.dataset.k==='reference'){
+    const referral=el.value==='Referral — someone';
+    $('rx-body').querySelectorAll('.rx-referral-label,.rx-referral-input').forEach(node=>node.hidden=!referral);
+  }
   const customPicklist=el.dataset.rxSelect==='role'&&el.value===ROLE_ADD
     ? {sentinel:ROLE_ADD,add:addRole}
     : el.dataset.rxSelect==='subject'&&el.value===SUBJECT_ADD
@@ -746,7 +1083,21 @@ $('rx-body').addEventListener('change',e=>{
   if(el.id&&el.id.startsWith('rx-q-')){ rxTotals(); }
 });
 $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWith('rx-q-')) rxTotals();
-  if(e.target.dataset&&(e.target.dataset.k==='first'||e.target.dataset.k==='last')) queueContactMatches(e.target);
+  if(e.target.dataset&&(e.target.dataset.k==='first'||e.target.dataset.k==='last'||e.target.dataset.k==='company'||e.target.dataset.rcFirst!==undefined||e.target.dataset.rcLast!==undefined)) queueContactMatches(e.target);
+  if(e.target.dataset&&(e.target.dataset.k==='first'||e.target.dataset.k==='last')) rxUpdateContactIdentity();
+  if(e.target.dataset&&e.target.dataset.k==='company'){
+    const mirror=$('rx-body').querySelector('[data-rx-company-name]'); if(mirror&&mirror!==e.target) mirror.value=e.target.value;
+    if(e.target.value.trim()) rxSetCompanyPanel(true);
+    rxUpdateContactIdentity();
+  }
+  if(e.target.matches('[data-rx-company-name]')){
+    const main=$('rx-body').querySelector('[data-k="company"]'); if(main) main.value=e.target.value;
+    rxUpdateContactIdentity();
+  }
+  if(e.target.dataset&&(e.target.dataset.rcFirst!==undefined||e.target.dataset.rcLast!==undefined||e.target.dataset.rcCompany!==undefined)){
+    const card=e.target.closest('[data-rx-related-row]'),initials=card?.querySelector('[data-rx-photo-initials]');
+    if(initials) initials.textContent=rxContactInitials(card.querySelector('[data-rc-first]')?.value,card.querySelector('[data-rc-last]')?.value,card.querySelector('[data-rc-company]')?.value);
+  }
   if(e.target.dataset&&(e.target.dataset.k==='email'||e.target.dataset.rxEmail!==undefined)){
     const valid=validEmail(e.target.value);
     e.target.classList.toggle('email-invalid', !!e.target.value.trim()&&!valid);
@@ -754,6 +1105,21 @@ $('rx-body').addEventListener('input',e=>{ if(e.target.id&&e.target.id.startsWit
     if(button) button.hidden=!(valid&&e.target.value.trim());
   }
   if(e.target.dataset&&e.target.dataset.k==='maps') rxUpdateMapPreview(); });
+$('rx-body').addEventListener('dragover',e=>{
+  if(e.target.closest('.rx-attachment-drop')){
+    e.preventDefault();
+    e.dataTransfer.dropEffect='copy';
+  }
+});
+$('rx-body').addEventListener('drop',e=>{
+  const zone=e.target.closest('.rx-attachment-drop');
+  if(!zone) return;
+  e.preventDefault();
+  const input=$('rx-notes-file-input'),files=e.dataTransfer&&e.dataTransfer.files;
+  if(!input||!files||!files.length) return;
+  try{ input.files=files; }catch(_){}
+  input.dispatchEvent(new Event('change',{bubbles:true}));
+});
 $('rx-body').addEventListener('click',e=>{
   if(e.target.closest('#rx-use-location')){rxUseCurrentLocation();return;}
   if(e.target.closest('#rx-q-draft')) rxDraftQuotation();
@@ -1129,6 +1495,7 @@ function readLogColumnFilter(key){
 
 async function applyLogColumnFilter(key){
   setLogColumnFilter(key,readLogColumnFilter(key));
+  logOffset=0;
   selectedRows.clear();
   refreshSelectionButton();
   refreshDeleteButton();
@@ -1148,6 +1515,7 @@ async function applyLogColumnFilter(key){
 
 async function clearLogColumnFilterFromPopover(key){
   clearLogColumnFilter(key);
+  logOffset=0;
   selectedRows.clear();
   refreshSelectionButton();
   refreshDeleteButton();
@@ -1941,6 +2309,7 @@ function openNoteWorkspace(td,col){
         const row=ROWS.find(r=>r.id===logId); if(row) row.has_drawing=hasShapes?1:0;
         drawBtn.classList.toggle('has-content',!!hasShapes);
         statusEl.textContent=hasShapes?'Drawing saved.':'Drawing cleared.';
+        refreshCell(td);
       },
       onClose(){
         if(!ov.isConnected) return;
@@ -2030,8 +2399,10 @@ function openCommAddMenu(btn){
   setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
 /* General Log-style workspaces can declare ACHI_LOG_FILTER before this script.
-   The same query-string format is shared by both the table and KPI requests. */
-function logFilteredPath(basePath){
+   Immutable workspace scope is shared by the table and KPIs. User search and
+   column filters narrow only the table; KPI counts always describe the full
+   workspace. */
+function logFilteredPath(basePath,{includeTableFilters=true,includeOpenOnly=false}={}){
   const separator=basePath.indexOf('?');
   const path=separator===-1
     ? basePath
@@ -2073,17 +2444,29 @@ function logFilteredPath(basePath){
   if(origins.length) params.set('origins',origins.join(','));
   if(scope.include_legacy_origins) params.set('include_legacy_origins','true');
   if(legacyLogType.length) params.set('legacy_log_type',legacyLogType.join(','));
-  const queryText=$('q')?.value.trim()||'';
+  if(includeTableFilters){
+    const queryText=$('q')?.value.trim()||'';
 
-  if(queryText) params.set('q',queryText);
-  appendLogColumnFilterParams(params);
+    if(queryText) params.set('q',queryText);
+    appendLogColumnFilterParams(params);
+  }
+
+  // Open Logs is the only KPI card that narrows the table. Override any
+  // separate Status-column selection while the card is active.
+  if(includeOpenOnly&&openOnly){
+    params.delete('status');
+    params.append('status','open');
+  }
 
   const query=params.toString();
 
   return query?`${path}?${query}`:path;
 }
 function logListPath(){
-  const base=logFilteredPath('/logs/');
+  const base=logFilteredPath('/logs/',{
+    includeTableFilters:true,
+    includeOpenOnly:true,
+  });
   const url=new URL(base,window.location.origin);
   url.searchParams.set('limit',String(LOG_PAGE_SIZE));
   url.searchParams.set('offset',String(logOffset));
@@ -2114,7 +2497,10 @@ function logListPath(){
 }
 
 function logStatsPath(){
-  return logFilteredPath('/logs/stats');
+  return logFilteredPath('/logs/stats',{
+    includeTableFilters:false,
+    includeOpenOnly:false,
+  });
 }
 
 async function load(){
@@ -2263,13 +2649,22 @@ tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dat
 let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('show',outer.scrollTop>200); if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
 $('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
 window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
-$('k-open-card').onclick=()=>{ openOnly=!openOnly; $('k-open-card').classList.toggle('on',openOnly); render(); };
+$('k-open-card').onclick=async()=>{
+  if(deletedView) return;
+
+  openOnly=!openOnly;
+  logOffset=0;
+  $('k-open-card').classList.toggle('on',openOnly);
+  await load();
+};
 let logSearchTimer=null;
 
 $('q').oninput=()=>{
   clearTimeout(logSearchTimer);
 
   logSearchTimer=setTimeout(async()=>{
+    logOffset=0;
+
     if(
       deletedView
       &&typeof window.reloadDeletedLogs==='function'
@@ -2288,6 +2683,7 @@ $('btn-clear-filters').onclick=async()=>{
 
   $('q').value='';
   openOnly=false;
+  logOffset=0;
   $('k-open-card').classList.remove('on');
 
   selectedRows.clear();
@@ -2306,6 +2702,22 @@ $('btn-clear-filters').onclick=async()=>{
   await load();
 };
 
+
+/* Open the full Add Log form for the compact summary cells that previously
+   opened the docked detail panel. The form receives the clicked row's real log
+   id, so it edits that exact record and appears in the existing centered modal. */
+const LOG_FORM_TRIGGER_COLS=new Set(['contact','role','linked_to','when','owner']);
+$('rows').addEventListener('click',e=>{
+  if(deletedView) return;
+  if(e.target.closest('a,button,.tel-cc,select,input')) return;
+  const cell=e.target.closest('td[data-k]');
+  if(!cell||cell.hasAttribute('data-edit')) return;
+  if(!LOG_FORM_TRIGGER_COLS.has(cell.dataset.k)) return;
+  const tr=cell.closest('tr.data[data-log]');
+  if(!tr) return;
+  e.preventDefault();
+  openExpandedRow(tr.dataset.log);
+});
 /* bottom drag strip resizes table height (persisted) */
 (function(){
   const saved=+localStorage.getItem('achi_bh'); if(saved>160) outer.style.setProperty('--bh',saved+'px');
@@ -2325,3 +2737,109 @@ $('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="e
 loadColWidths(); buildHead(); wireColResize(); ensureLogSortControl(); setActivePill(0); stats(); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
 else { load(); loadCustomCities(); loadCustomDistricts(); }
+
+
+/* ── Intent dropdown — "Copy Log → Stage" menu ────────────────────────────
+   Opens on the Intent column's pill (see compactLogIntent in log-core.js).
+   Picking an option PATCHes `intent` on the SAME log record (never creates a
+   new one) — persistence across refresh, and any resulting cross-module
+   visibility (CRM etc.), are backend responsibilities; see the note at the
+   end of this file's accompanying explanation for what's still needed there. */
+let intentMenuEl=null, intentMenuLogId=null, intentMenuTrigger=null;
+
+function closeIntentMenu(){
+  if(!intentMenuEl) return;
+  document.removeEventListener('mousedown',intentMenuOutside,true);
+  const trigger=intentMenuTrigger;
+  intentMenuEl.remove();
+  intentMenuEl=null; intentMenuLogId=null; intentMenuTrigger=null;
+  if(trigger) trigger.setAttribute('aria-expanded','false');
+}
+function intentMenuOutside(e){
+  if(!intentMenuEl) return;
+  if(intentMenuEl.contains(e.target)) return;
+  if(e.target.closest && e.target.closest('[data-intent-trigger]')===intentMenuTrigger) return;  // let the trigger's own click toggle it
+  closeIntentMenu();
+}
+function positionIntentMenu(trigger){
+  if(!intentMenuEl) return;
+  const r=trigger.getBoundingClientRect();
+  const w=Math.min(290,window.innerWidth-16);
+  intentMenuEl.style.width=w+'px';
+  intentMenuEl.style.left=Math.max(8,Math.min(r.left,window.innerWidth-w-8))+'px';
+  intentMenuEl.style.top=(r.bottom+4)+'px';
+  const mh=intentMenuEl.offsetHeight;
+  if(r.bottom+4+mh>window.innerHeight-8) intentMenuEl.style.top=Math.max(8,r.top-mh-4)+'px';
+}
+function openIntentMenu(trigger,logId){
+  if(intentMenuEl && intentMenuLogId===logId){ closeIntentMenu(); return; }   // second click on the same pill toggles it closed
+  closeIntentMenu();
+  const r=ROWS.find(x=>x.id===logId); if(!r) return;
+  intentMenuLogId=logId; intentMenuTrigger=trigger;
+  trigger.setAttribute('aria-expanded','true');
+  const menu=document.createElement('div');
+  menu.className='intent-menu'; menu.tabIndex=-1;
+  menu.setAttribute('role','listbox'); menu.setAttribute('aria-label','Copy log to a stage');
+  menu.innerHTML=
+      `<div class="intent-menu-head"><span>Copy Log &rarr; Stage</span><span class="intent-menu-note">+ ENQ in CRM, always</span></div>`
+    + `<div class="intent-menu-body">${renderIntentGroupsHTML(r.intent)}</div>`
+    + `<div class="intent-menu-foot">This carries contact, site and notes into the target module &middot; the entry always links back to this Log.</div>`;
+  document.body.appendChild(menu);
+  intentMenuEl=menu;
+  positionIntentMenu(trigger);
+  menu.addEventListener('click',e=>{
+    const opt=e.target.closest('.intent-option'); if(!opt) return;
+    pickIntent(r,opt.dataset.code);
+  });
+  menu.addEventListener('keydown',e=>{
+    const options=[...menu.querySelectorAll('.intent-option')];
+    const current=options.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();
+      options[(current+(e.key==='ArrowDown'?1:-1)+options.length)%options.length]?.focus();
+    }else if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();
+      const opt=options[current]||options[0];
+      if(opt) pickIntent(r,opt.dataset.code);
+    }else if(e.key==='Escape'){
+      e.preventDefault(); e.stopPropagation();
+      closeIntentMenu(); trigger.focus();
+    }
+  });
+  const options=[...menu.querySelectorAll('.intent-option')];
+  (menu.querySelector('.intent-option[aria-selected="true"]')||options[0])?.focus();
+  setTimeout(()=>document.addEventListener('mousedown',intentMenuOutside,true),0);
+}
+async function pickIntent(r,code){
+  closeIntentMenu();
+  if(!code||r.intent===code) return;
+  const prev=r.intent;
+  r.intent=code;
+  const findCell=k=>{ const tr=$('rows').querySelector(`tr[data-log="${CSS.escape(String(r.id))}"]`); return tr&&tr.querySelector(`td[data-k="${k}"]`); };
+  let td=findCell('intent'); if(td) refreshCell(td);            // optimistic paint
+  try{
+    const res=await api('/logs/'+r.id,{method:'PATCH',body:JSON.stringify({intent:code})});
+    const updated=(res&&res.log)?res.log:res;
+    if(updated&&typeof updated==='object'){
+      if('intent' in updated) r.intent=updated.intent;
+      // Only applied if/when the backend actually returns a resulting link —
+      // never fabricated here.
+      if('linked_to' in updated) r.linked_to=updated.linked_to;
+      if('linked_url' in updated) r.linked_url=updated.linked_url;
+      if('linked_code' in updated) r.linked_code=updated.linked_code;
+    }
+    clearErr();
+  }catch(e){
+    r.intent=prev;
+    fail((e&&e.message)||'Could not save this Log’s intent — the backend may not support the "intent" field yet.');
+  }
+  td=findCell('intent'); if(td){ refreshCell(td); td.querySelector('[data-intent-trigger]')?.focus(); }
+  const linkedTd=findCell('linked_to'); if(linkedTd) refreshCell(linkedTd);
+}
+$('rows').addEventListener('click',e=>{
+  const trigger=e.target.closest('[data-intent-trigger]');
+  if(!trigger) return;
+  if(deletedView) return;
+  const tr=trigger.closest('tr.data[data-log]'); if(!tr) return;
+  openIntentMenu(trigger,tr.dataset.log);
+});
