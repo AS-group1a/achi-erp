@@ -392,35 +392,10 @@ async def _contact_info_shared_contact(
     return contact
 
 
-# Bucket keys only the + Person popup sends. When an update omits one (the edit
-# form predates them), the stored value is kept rather than cleared.
-CONTACT_INFO_KEEP_WHEN_OMITTED = (
-    "father_name", "mother_name", "referred_by", "address_notes",
-    "company_contact_id", "industry", "activity", "company_size", "photo",
-)
-
-
-async def _check_company_link(session: SessionDep, data: ContactInfoContactIn) -> None:
-    """A person may only link to an active company in the ACHI directory."""
-
-    if not data.company_contact_id:
-        return
-    company = await session.get(Contact, data.company_contact_id)
-    bucket = (company.custom_properties or {}).get(_CONTACT_INFO_TAG) or {} if company else {}
-    if (
-        company is None
-        or not company.is_active
-        or not _is_contact_info_contact(company)
-        or bucket.get("record_type") != "company"
-    ):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Linked company not found")
-
-
 def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
     """Write canonical fields to Contact and ACHI-only fields to our bucket."""
 
     payload = data.model_dump(mode="json")
-    previous = dict((contact.custom_properties or {}).get(_CONTACT_INFO_TAG) or {})
     phones = payload["phones"]
     primary_phone = phones[0]["number"] if phones else None
 
@@ -433,8 +408,6 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
     contact.website = data.website
     contact.country_code = data.country_code
     contact.notes = data.notes
-    if "vat_number" in data.model_fields_set:
-        contact.vat_number = data.vat_number
 
     address = dict(contact.address or {})
     if data.city:
@@ -489,12 +462,6 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
         "contact_date": payload["contact_date"],
         "quick_links": payload["quick_links"],
     }
-    bucket = properties[_CONTACT_INFO_TAG]
-    for key in CONTACT_INFO_KEEP_WHEN_OMITTED:
-        if key in data.model_fields_set:
-            bucket[key] = payload[key]
-        elif key in previous:
-            bucket[key] = previous[key]
     contact.custom_properties = properties
 
 
@@ -588,7 +555,6 @@ async def create_contact_info_contact(
         created_by=str(user_id),
         is_active=True,
     )
-    await _check_company_link(session, data)
     _apply_contact_info(contact, data)
     session.add(contact)
     await session.commit()
@@ -607,7 +573,6 @@ async def update_contact_info_contact(
     _user_id: CurrentUserId,
 ) -> dict:
     contact = await _contact_info_shared_contact(session, contact_id)
-    await _check_company_link(session, data)
     _apply_contact_info(contact, data)
     await session.commit()
     return {"id": str(contact.id)}
