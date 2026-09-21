@@ -1616,7 +1616,7 @@ const STANDARD_LOG_TABLE_COLS=[
   {k:'num',       h:'LOG-number',            tab:null, cls:'num pg-f-num',  w:96},
   {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',     w:112},
   {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',     w:112, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
-  {k:'contact',   h:'Contact',               tab:null,                     w:190},
+  {k:'contact',   h:'Contact',               tab:null, cls:'log-contact-col', w:190},
   {k:'mobile',    h:'Mobile / WA',           tab:null,                     w:165, edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
   {k:'email',     h:'Email',                 tab:null,                     w:200, edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
   {k:'role',      h:'Role',                  tab:null,                     w:135},
@@ -1656,9 +1656,11 @@ function formatBusinessCode(r,rowNumber){
   const displayNumber=String(rowNumber);
   if(!r) return displayNumber;
 
-  /* The compact standard Log shows the permanent code. Older rows without one
-     retain a stable-looking visual fallback instead of rendering blank. */
-  if(!GENERAL_LOG){
+  /* The compact standard Log always shows LOG-number. Key this behavior to
+     the selected column layout, rather than a page flag that another script
+     may set before this file loads on the main website. Older rows without a
+     permanent code retain a stable-looking visual fallback. */
+  if(COMPACT_STANDARD_LOG){
     const raw=String(r.log_code||'').trim();
     if(!raw) return 'LOG-'+displayNumber;
     const compact=raw.replace(/^LOG[-\s]*/i,'').replace(/^#/,'').trim();
@@ -2017,14 +2019,7 @@ function compactLogContact(r){
     ||[r.prefix,r.first_name,r.last_name].filter(Boolean).join(' ').trim()
     ||String(r.company_name||'').trim()
     ||'New contact';
-  const source=[r.channel,r.communication,r.log_type,r.reference]
-    .filter(Boolean).join(' ').toLowerCase();
-  const icon=source.includes('email')
-    ?SVG.mailOutline
-    :(source.includes('whatsapp')||source.includes('message')||source.includes('sms')||source.includes('dm')||source.includes('instagram')||source.includes('facebook')||source.includes('linkedin'))
-      ?SVG.chat
-      :SVG.phone;
-  return `<span class="log-contact-cell"><span class="log-contact-icon" aria-hidden="true">${icon}</span><strong>${esc(name)}</strong></span>`;
+  return `<span class="log-contact-cell"><strong>${esc(name)}</strong></span>`;
 }
 function compactLogCity(r){
   const city=String(r.city||'').trim();
@@ -3726,7 +3721,8 @@ return {
 };
 }
 
-/* bottom drag strip resizes table height (persisted) */
+/* Shared workspaces may still render a bottom drag strip. The Log page no
+   longer renders #vrz and instead fits its table to the viewport in log.js. */
 (function(){
   const saved=+localStorage.getItem('achi_bh'); if(saved>160) outer.style.setProperty('--bh',saved+'px');
   $('vrz').addEventListener('pointerdown',e=>{
@@ -3736,21 +3732,6 @@ return {
       localStorage.setItem('achi_bh',Math.round(outer.getBoundingClientRect().height)); };
     window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
   });
-})();
-
-/* Optional "TABLE SIZE" stepper (general_log.html). Reads/writes the SAME
-   --bh custom property and achi_bh storage key as the drag strip above, so
-   dragging and clicking always agree. A page without the buttons — any other
-   workspace sharing this script — simply has nothing to wire. */
-(function(){
-  const smaller=$('log-size-smaller'), bigger=$('log-size-bigger'), compact=$('log-size-compact');
-  if(!smaller&&!bigger&&!compact) return;
-  const clamp=h=>Math.max(140,Math.min(1400,h));
-  const currentH=()=>{ const v=parseFloat(getComputedStyle(outer).getPropertyValue('--bh')); return isNaN(v)?(+localStorage.getItem('achi_bh')||420):v; };
-  const setH=h=>{ h=clamp(h); outer.style.setProperty('--bh',h+'px'); try{ localStorage.setItem('achi_bh',Math.round(h)); }catch(e){} };
-  if(smaller) smaller.addEventListener('click',()=>setH(currentH()-60));
-  if(bigger) bigger.addEventListener('click',()=>setH(currentH()+60));
-  if(compact) compact.addEventListener('click',()=>setH(180));
 })();
 
 /* boot */

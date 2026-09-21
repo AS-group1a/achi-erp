@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · ARARA ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=34">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=37">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <!-- Renamed from log.html to general_log.html per the redesign request. This
@@ -88,17 +88,6 @@
     <div class="tscroll" id="touter">
       <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
     </div>
-    <div class="vrz" id="vrz" title="Drag to resize table height"></div>
-  </div>
-
-  <!-- Compact "table size" stepper, ported from the new design. Reads/writes
-       the same --bh custom property and achi_bh storage key as the drag strip
-       above (wired in log-core.js), so the two controls always agree. -->
-  <div class="log-size-ctl">
-    <span class="log-size-lbl">TABLE SIZE</span>
-    <button class="szb" id="log-size-smaller" type="button" title="Smaller — see more of the details">−</button>
-    <button class="szb" id="log-size-bigger" type="button" title="Bigger — see more logs">+</button>
-    <button class="szb" id="log-size-compact" type="button" title="Compact view">Compact</button>
   </div>
 
   <!-- Add/Edit Log dialog. log-core.js supplies the form sections at runtime;
@@ -206,8 +195,8 @@
      STANDARD_LOG_TABLE_COLS list (now including "By"). FORM_COLS still builds
      the full Add/Edit form, unchanged. -->
 
-<script src="/api/v1/achi/ui/log-core.js?v=34"></script>
-<script src="/api/v1/achi/ui/log.js?v=24"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=36"></script>
+<script src="/api/v1/achi/ui/log.js?v=25"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=38"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>

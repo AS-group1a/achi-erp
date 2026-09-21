@@ -1444,12 +1444,15 @@ body.log-page .kpi-deleted svg{ width:12px; height:12px; }
 body.log-page .kpi-deleted.on{ border-color:#284F9E; background:#284F9E!important; color:#fff; box-shadow:none; }
 
 /* ── Table shell + dense grid look ──────────────────────────────────────── */
-body.log-page .shell{ margin:0; overflow:hidden; border:1px solid #b9c5d8; border-radius:5px; background:#fff; box-shadow:none; }
+body.log-page .shell{ width:100%; margin:0; overflow:hidden; border:1px solid #b9c5d8; border-radius:5px; background:#fff; box-shadow:none; }
 body.log-page .nav{ display:flex; align-items:center; justify-content:flex-end; min-height:34px; padding:5px 10px; background:#284F9E; }
 body.log-page:not(.deleted-view) .nav:not(:has(.tb-del.on)):not(:has(.tb-email.on)){ display:none; }
 body.log-page .nav-actions{ display:flex; align-items:center; justify-content:flex-end; gap:7px; width:100%; }
 body.log-page .pt, body.log-page .nav-right, body.log-page #add-row, body.log-page #log-sort-control{ display:none!important; }
-body.log-page .tscroll{ height:var(--bh,420px); min-height:200px; overflow:auto; scrollbar-color:#8f99a7 #edf1f5; scrollbar-width:thin; }
+body.log-page .tscroll{
+  width:100%; height:var(--log-table-fit-height,calc(100dvh - 210px)); min-height:200px; overflow:auto;
+  scrollbar-color:#8f99a7 #edf1f5; scrollbar-width:thin;
+}
 body.log-page table{ width:max-content; min-width:100%; background:#fff; color:#1d2b45; font-size:11.5px; }
 body.log-page thead tr{ background:#e6ebf3; }
 body.log-page thead th, body.log-page thead th.pg-f{
@@ -1483,9 +1486,11 @@ body.log-page .badge.log-status-pill{
 }
 body.log-page .log-pill-arrow{ display:inline-flex; flex:0 0 auto; opacity:.7; }
 body.log-page .log-pill-arrow svg{ display:block; }
-body.log-page .log-contact-cell{ display:flex; align-items:center; justify-content:center; gap:6px; min-width:0; max-width:100%; }
-body.log-page .log-contact-cell strong{ overflow:hidden; color:#1d2b45; font-size:10.5px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
-body.log-page .log-contact-icon{ display:inline-flex; flex:0 0 auto; color:#284F9E; }
+body.log-page th.log-contact-col, body.log-page td.log-contact-col{ text-align:center; }
+body.log-page th.log-contact-col .log-col-head{ justify-content:center; }
+body.log-page th.log-contact-col .log-col-head-label{ padding-right:0; text-align:center; }
+body.log-page .log-contact-cell{ display:flex; align-items:center; justify-content:center; width:100%; min-width:0; max-width:100%; text-align:center; }
+body.log-page .log-contact-cell strong{ overflow:hidden; color:#1d2b45; font-size:10.5px; font-weight:800; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
 body.log-page .email-btn, body.log-page .ph{ color:#44546e; font-size:10px; }
 body.log-page .email-btn svg{ width:12px; height:12px; }
 body.log-page .sent-ic svg{ width:12px; height:12px; }
@@ -1621,15 +1626,11 @@ body.log-page #log-pagination{
 }
 body.log-page .log-pagination-button{ min-width:66px; height:25px; padding:0 8px; border-radius:5px; font-size:9px; }
 body.log-page .log-pagination-button span{ font-size:14px; }
-body.log-page .vrz{ height:8px; border-top:1px solid #dbe2ed; background:#f4f6fa; }
-body.log-page .vrz::after{ width:34px; height:2px; background:#aeb8c6; }
-
 @media(max-width:1000px){
   body.log-page .log-overview-top{ align-items:flex-start; flex-direction:column; gap:8px; }
   body.log-page .log-overview-copy{ width:100%; }
   body.log-page .log-overview-actions{ width:100%; }
   body.log-page .log-overview-actions .search{ flex:1 1 auto; width:auto; }
-  body.log-page .tscroll{ height:var(--bh,360px); }
 }
 @media(max-width:640px){
   body.log-page .log-overview-copy{ align-items:flex-start; flex-wrap:wrap; gap:6px 8px; white-space:normal; }
@@ -1638,17 +1639,6 @@ body.log-page .vrz::after{ width:34px; height:2px; background:#aeb8c6; }
   body.log-page .log-ai-brand{ padding:0 12px; font-size:11px; }
   body.log-page .log-ai-summary{ display:none; }
 }
-
-/* ── Table-size stepper ("TABLE SIZE − + Compact") ────────────────────────
-   Shares the SAME --bh custom property and achi_bh storage key as the bottom
-   drag strip (wired in log-core.js), so dragging and clicking always agree. */
-.log-size-ctl{ display:flex; align-items:center; gap:6px; margin-top:6px; }
-.log-size-lbl{ font-size:9px; font-weight:800; letter-spacing:.06em; color:#8a8f98; }
-.szb{
-  min-width:22px; height:22px; border:1px solid #b9c5d8; border-radius:4px; background:#fff;
-  color:#284F9E; font:inherit; font-weight:800; font-size:12px; cursor:pointer; padding:0 6px;
-}
-.szb:hover{ background:#eaf1ff; }
 
 /* ========================================================================
    Reference Add Log dialog
@@ -1663,7 +1653,12 @@ body.log-page .vrz::after{ width:34px; height:2px; background:#aeb8c6; }
 }
 .rx-reference .rx-box{
   width:min(980px,calc(100vw - 36px));
-  height:min(860px,calc(100vh - 36px));
+  /* Start as a compact quick-capture dialog. Because height is content-driven,
+     revealing a section with the + menu grows the dialog naturally; removing
+     sections shrinks it again. Once the viewport limit is reached, .rx-body
+     keeps the form usable with its existing internal scrollbar. */
+  height:auto;
+  min-height:min(460px,calc(100vh - 36px));
   max-height:calc(100vh - 36px);
   border:1px solid #b9c5d8;
   border-radius:8px;
@@ -1782,6 +1777,7 @@ body.log-page .vrz::after{ width:34px; height:2px; background:#aeb8c6; }
 .rx-reference .rx-body{
   padding:9px 10px;
   gap:8px;
+  min-height:0;
   background:#f4f6fa;
   box-shadow:none;
   scrollbar-width:thin;
