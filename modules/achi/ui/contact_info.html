@@ -372,6 +372,7 @@
               <button type="button" class="pp-addlink" id="pp-photo-add">+ Add photo</button>
               <button type="button" class="pp-addlink pp-remove" id="pp-photo-remove" hidden>Remove</button>
               <input type="file" id="pp-photo-input" accept="image/png,image/jpeg,image/webp" hidden>
+              <button type="button" class="pf-btn" id="pp-find-btn">🔍 Find online</button>
             </div>
             <div class="pp-grid">
               <label class="pp-f"><span>Pre</span><select class="pp-in" id="pp-prefix"></select></label>
@@ -397,6 +398,8 @@
             </div>
           </div>
 
+          <div class="pf" id="pp-find" hidden></div>
+
           <div class="pp-two">
             <div class="pp-panel">
               <div class="pp-panel-t">Phone numbers</div>
@@ -416,21 +419,33 @@
           </div>
 
           <button type="button" class="pp-addbtn" id="pp-address-open">+ Add Address</button>
-          <div class="pp-panel pp-address" id="pp-address" hidden>
-            <div class="pp-panel-t">Address — personal <button type="button" class="pp-rx" id="pp-address-close" title="Remove address" aria-label="Remove address">&times;</button></div>
-            <div class="pp-agrid">
-              <label class="pp-f pp-f-wide"><span>Maps link</span><input class="pp-in" type="url" id="pp-a-maps" maxlength="2048" placeholder="https://maps.app.goo.gl/…"></label>
-              <label class="pp-f"><span>Country</span><select class="pp-in" id="pp-a-country"></select></label>
-              <label class="pp-f"><span>District</span><select class="pp-in" id="pp-a-district"></select></label>
-              <label class="pp-f"><span>City</span><select class="pp-in" id="pp-a-city"></select></label>
-              <label class="pp-f"><span>Street</span><input class="pp-in" type="text" id="pp-a-street" maxlength="255"></label>
-              <label class="pp-f"><span>Building</span><input class="pp-in" type="text" id="pp-a-building" maxlength="64"></label>
-              <label class="pp-f"><span>Floor</span><input class="pp-in" type="text" id="pp-a-floor" maxlength="32"></label>
-              <label class="pp-f pp-f-wide"><span>Notes</span><input class="pp-in" type="text" id="pp-a-notes" maxlength="1000"></label>
+          <div class="ppa" id="pp-address" hidden>
+            <div class="ppa-head">
+              <span class="ppa-t">Address — personal</span>
+              <span class="ppa-hint">where the person lives — the site address stays on the log</span>
+              <button type="button" class="ppa-x" id="pp-address-close" title="Remove address" aria-label="Remove address">&times;</button>
             </div>
+            <div class="ppa-grid">
+              <label class="ppa-f"><span>Maps link</span><input class="pp-in" type="url" id="pp-a-maps" maxlength="2048" placeholder="https://maps.app.goo.gl/…"></label>
+              <label class="ppa-f"><span>Country</span><select class="pp-in" id="pp-a-country"></select></label>
+              <label class="ppa-f"><span>District</span><input class="pp-in" type="text" id="pp-a-district" maxlength="128" list="pp-a-district-list" autocomplete="off" placeholder="Type or select district"></label>
+              <label class="ppa-f"><span>City</span><input class="pp-in" type="text" id="pp-a-city" maxlength="128" list="pp-a-city-list" autocomplete="off" placeholder="Type or select city"></label>
+              <label class="ppa-f"><span>Street</span><input class="pp-in" type="text" id="pp-a-street" maxlength="255" placeholder="Street name"></label>
+              <label class="ppa-f"><span>Building</span><input class="pp-in" type="text" id="pp-a-building" maxlength="64" placeholder="Building / villa"></label>
+              <label class="ppa-f"><span>Floor</span><input class="pp-in" type="text" id="pp-a-floor" maxlength="32" placeholder="Floor / unit"></label>
+              <label class="ppa-f"><span>Notes</span><input class="pp-in" type="text" id="pp-a-notes" maxlength="1000" placeholder="landmark, gate code..."></label>
+            </div>
+            <datalist id="pp-a-district-list"></datalist>
+            <datalist id="pp-a-city-list"></datalist>
           </div>
 
           <label class="pp-check"><input type="checkbox" id="pp-from-company"> From a company</label>
+
+          <div class="ppx-wrap" id="pp-extra" hidden>
+            <div class="ppx-head">Additional contacts — same company<span class="ppx-hint">saved together with this contact / log</span></div>
+            <div id="pp-extra-list"></div>
+          </div>
+          <button type="button" class="pp-mini ppx-add" id="pp-add-person">+ Person — add another contact</button>
         </section>
 
         <!-- Company -->

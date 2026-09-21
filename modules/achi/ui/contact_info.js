@@ -1839,11 +1839,21 @@
 
   // Option vocabularies shared with the Log page (log-core.js): same values,
   // same per-browser "+ Add New" storage keys.
-  const LOG_TYPES = ['Prospect', 'Lead', 'Client', 'Field', 'Fleet', 'Yard', 'Invoice', 'Balance', 'General'];
-  const LOG_CHANNELS = ['Inbound Call', 'Outreach', 'Site Visit', 'Referral', 'Email', 'Website', 'Instagram DM', 'Facebook DM', 'LinkedIn'];
-  const LOG_STATUSES = [
-    ['open', '#22c55e'], ['scheduled', '#f59e0b'], ['viewed', '#0ea5e9'],
-    ['cancelled', '#ef4444'], ['done', '#94a3b8'], ['transferred', '#a855f7'],
+  // The header's three pickers. log_type and reference are free text on the API,
+  // so the label is stored as-is ("Log" keeps the API default, General).
+  const RECORD_TYPES = ['Log', 'PROSP', 'Enquiry', 'Site Visit', 'Drawing', 'M/T', 'BOQ', 'Quotation',
+    'Job', 'Invoice', 'Payment', 'Balance', 'Delivery Slip'];
+  const LOG_CHANNELS = ['Inbound Call', 'Outbound Call', 'Meeting', 'WhatsApp', 'Email'];
+  // The file's status column only accepts the codes in schemas.STATUSES, so each
+  // label carries the code it saves as. "CLOSED — LOST" and "CANCELLED" are two
+  // labels over the one code the API has for them.
+  const STATUS_OPTIONS = [
+    { key: 'open', label: 'OPEN', status: 'open', color: '#22c55e' },
+    { key: 'scheduled', label: 'FOLLOW-UP SET', status: 'scheduled', color: '#f59e0b' },
+    { key: 'viewed', label: 'WAITING CLIENT', status: 'viewed', color: '#0ea5e9' },
+    { key: 'done', label: 'CLOSED — WON', status: 'done', color: '#15803d' },
+    { key: 'closed_lost', label: 'CLOSED — LOST', status: 'cancelled', color: '#ef4444' },
+    { key: 'cancelled', label: 'CANCELLED', status: 'cancelled', color: '#b91c1c' },
   ];
   const LOG_STAGES = [
     ['prospect', 'Prospect'], ['outreach', 'Outreach'], ['follow_up', 'Follow-up'], ['first_contact', 'First Contact'],
@@ -1854,7 +1864,6 @@
   ];
   const LOG_TAG_SEED = ['Supplier', 'Client'];
   const LOG_TAG_KEY = 'achi_log_tags';
-  const LOG_CHANNEL_KEY = 'achi_log_references';
   const COMPANY_TYPE_KEY = 'achi_company_types';
   const SOURCE_KEY = 'achi_contact_sources';
   const INDUSTRY_KEY = 'achi_company_industries';
@@ -1867,7 +1876,29 @@
   const ACTIVITIES = ['General contracting', 'Scaffolding & formwork', 'Fit-out & finishing', 'MEP', 'Infrastructure', 'Developer / owner'];
   const COMPANY_SIZES = ['1–10', '11–50', '51–200', '200+'];
   const PP_PHONE_LABELS = ['Mobile', 'WhatsApp', 'Telephone', 'Fax', 'Office', 'Site', 'Home', 'Other'];
+  // Country is still a select; District/City are free text with a datalist of
+  // the shared lists, so a value outside them can simply be typed.
   const PERSON_GEO = { country: 'pp-a-country', district: 'pp-a-district', city: 'pp-a-city', error: 'pp-error' };
+
+  function fillDatalist(id, values) {
+    $(id).innerHTML = values.map(value => `<option value="${escapeHtml(value)}"></option>`).join('');
+  }
+
+  function refreshPersonDistrictList() {
+    fillDatalist('pp-a-district-list', districtsMerged($('pp-a-country').value) || []);
+  }
+
+  function refreshPersonCityList() {
+    fillDatalist('pp-a-city-list', mergedCities($('pp-a-country').value, $('pp-a-district').value) || []);
+  }
+
+  function resetPersonAddressFields() {
+    ['pp-a-maps', 'pp-a-district', 'pp-a-city', 'pp-a-street', 'pp-a-building', 'pp-a-floor', 'pp-a-notes']
+      .forEach(id => { $(id).value = ''; });
+    refreshCountrySelect('', PERSON_GEO);
+    refreshPersonDistrictList();
+    refreshPersonCityList();
+  }
   const HQ_GEO = { country: 'pp-hq-country', district: 'pp-hq-district', city: 'pp-hq-city', error: 'pp-error' };
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -1878,9 +1909,10 @@
     photo: null,
     logo: null,
     company: null,          // existing company contact picked from search
+    extras: [],             // additional contacts, each with its own card + state
     userLoaded: false,
     saving: false,
-    created: { companyId: null, personId: null },
+    created: { companyId: null, personId: null, logSaved: false },
     ac: null,               // { input, items, active, onPick }
   };
 
@@ -2067,8 +2099,8 @@
       </div>`;
   }
 
-  function readPpPhones(listId) {
-    return [...$(listId).querySelectorAll('[data-pp-phone]')].map(row => ({
+  function readPpPhones(list) {
+    return [...(typeof list === 'string' ? $(list) : list).querySelectorAll('[data-pp-phone]')].map(row => ({
       label: row.querySelector('[data-phone-label]').value || 'Mobile',
       number: fullPhoneNumber(row),
       iso: row.querySelector('[data-country-picker]').dataset.iso,
@@ -2093,8 +2125,8 @@
       </div>`;
   }
 
-  function readPpOnline(listId) {
-    const rows = [...$(listId).querySelectorAll('[data-pp-online]')];
+  function readPpOnline(list) {
+    const rows = [...(typeof list === 'string' ? $(list) : list).querySelectorAll('[data-pp-online]')];
     const values = kind => rows.filter(row => row.dataset.ppOnline === kind)
       .map(row => ({ row, value: row.querySelector('[data-online-value]').value.trim() }))
       .filter(item => item.value);
@@ -2189,8 +2221,11 @@
   }
 
   function showDuplicateMatches(input) {
-    const first = $('pp-first').value.trim().toLowerCase();
-    const last = $('pp-last').value.trim().toLowerCase();
+    const scope = input.closest('.ppx');
+    const firstEl = scope ? scope.querySelector('[data-x-first]') : $('pp-first');
+    const lastEl = scope ? scope.querySelector('[data-x-last]') : $('pp-last');
+    const first = firstEl.value.trim().toLowerCase();
+    const last = lastEl.value.trim().toLowerCase();
     const typed = `${first} ${last}`.trim();
     if (typed.length < 2) { closeAc(); return; }
     const items = state.contacts.filter(contact => {
@@ -2279,6 +2314,7 @@
     const name = pp.company ? pp.company.displayName : $('pp-co-name').value.trim();
     $('pp-company-title').textContent = name || 'new company';
     renderPicture('logo');
+    syncExtraCompanies();
   }
 
   function selectExistingCompany(company) {
@@ -2324,22 +2360,534 @@
     renderPicture('logo');
   }
 
+  // ── additional contacts: one card per extra person, independent state ──
+  let extraSeq = 0;
+
+  function extraCardMarkup(key) {
+    const geoIds = { country: `ppx-${key}-country`, district: `ppx-${key}-district`, city: `ppx-${key}-city` };
+    return `<div class="ppx" data-extra-card data-key="${key}">
+        <div class="ppx-t"><span data-x-number>Contact</span>
+          <button type="button" class="ppx-rm" data-x-remove>&times; Remove</button>
+        </div>
+        <div class="pp-idrow">
+          <div class="pp-pic">
+            <div class="pp-pic-t">Photo</div>
+            <div class="pp-pic-box" data-x-photo><span></span></div>
+            <button type="button" class="pp-addlink" data-x-photo-add>+ Add photo</button>
+            <button type="button" class="pp-addlink pp-remove" data-x-photo-remove hidden>Remove</button>
+            <input type="file" accept="image/png,image/jpeg,image/webp" data-x-photo-input hidden>
+            <button type="button" class="pf-btn" data-x-find-btn>🔍 Find online</button>
+          </div>
+          <div class="pp-grid">
+            <label class="pp-f"><span>Pre</span><select class="pp-in" data-x-prefix></select></label>
+            <div class="pp-f pp-ac-wrap">
+              <label>First <i>*</i></label>
+              <input class="pp-in" type="text" maxlength="255" autocomplete="off" data-x-first>
+              <span class="pp-err" data-x-first-error></span>
+            </div>
+            <label class="pp-f"><span>Middle</span><input class="pp-in" type="text" maxlength="255" autocomplete="off" data-x-middle></label>
+            <div class="pp-f pp-ac-wrap">
+              <label>Last</label>
+              <input class="pp-in" type="text" maxlength="255" autocomplete="off" data-x-last>
+            </div>
+            <label class="pp-f"><span>Father's name</span><input class="pp-in" type="text" maxlength="128" autocomplete="off" data-x-father></label>
+            <label class="pp-f"><span>Mother's name</span><input class="pp-in" type="text" maxlength="128" autocomplete="off" data-x-mother></label>
+            <label class="pp-f"><span>Role</span><select class="pp-in" data-x-role></select></label>
+            <label class="pp-f"><span>Company</span><input class="pp-in" type="text" data-x-company readonly title="Additional contacts are saved under the company chosen for the main contact."></label>
+            <label class="pp-f"><span>Found us via</span><select class="pp-in" data-x-source></select></label>
+            <label class="pp-f pp-f-wide" data-x-referred-wrap hidden><span>Referred by</span><input class="pp-in" type="text" maxlength="255" data-x-referred placeholder="Who gave them our number? name / company"></label>
+          </div>
+        </div>
+
+        <div class="pf" data-x-find hidden></div>
+
+        <div class="pp-two">
+          <div class="pp-panel">
+            <div class="pp-panel-t">Phone numbers</div>
+            <div class="pp-rows" data-x-phones></div>
+            <button type="button" class="pp-addlink" data-x-phone-add>+ Add Number</button>
+          </div>
+          <div class="pp-panel">
+            <div class="pp-panel-t">Email &amp; online</div>
+            <div class="pp-rows" data-x-online></div>
+            <select class="pp-addsel" data-x-online-add aria-label="Add email, website or social">
+              <option value="">+ Add...</option>
+              <option value="email">Email</option>
+              <option value="website">Website</option>
+              <option value="social">Social handle</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" class="pp-addbtn" data-x-address-open>+ Add Address</button>
+        <div class="ppa" data-x-address hidden>
+          <div class="ppa-head">
+            <span class="ppa-t">Address — personal</span>
+            <span class="ppa-hint">where the person lives — the site address stays on the log</span>
+            <button type="button" class="ppa-x" data-x-address-close title="Remove address" aria-label="Remove address">&times;</button>
+          </div>
+          <div class="ppa-grid">
+            <label class="ppa-f"><span>Maps link</span><input class="pp-in" type="url" maxlength="2048" data-x-maps placeholder="https://maps.app.goo.gl/…"></label>
+            <label class="ppa-f"><span>Country</span><select class="pp-in" id="${geoIds.country}" data-x-country></select></label>
+            <label class="ppa-f"><span>District</span><input class="pp-in" type="text" maxlength="128" id="${geoIds.district}" data-x-district list="ppx-${key}-dl-district" autocomplete="off" placeholder="Type or select district"></label>
+            <label class="ppa-f"><span>City</span><input class="pp-in" type="text" maxlength="128" id="${geoIds.city}" data-x-city list="ppx-${key}-dl-city" autocomplete="off" placeholder="Type or select city"></label>
+            <label class="ppa-f"><span>Street</span><input class="pp-in" type="text" maxlength="255" data-x-street placeholder="Street name"></label>
+            <label class="ppa-f"><span>Building</span><input class="pp-in" type="text" maxlength="64" data-x-building placeholder="Building / villa"></label>
+            <label class="ppa-f"><span>Floor</span><input class="pp-in" type="text" maxlength="32" data-x-floor placeholder="Floor / unit"></label>
+            <label class="ppa-f"><span>Notes</span><input class="pp-in" type="text" maxlength="1000" data-x-notes placeholder="landmark, gate code..."></label>
+          </div>
+          <datalist id="ppx-${key}-dl-district"></datalist>
+          <datalist id="ppx-${key}-dl-city"></datalist>
+        </div>
+      </div>`;
+  }
+
+  function renderExtraPhoto(entry) {
+    const box = entry.card.querySelector('[data-x-photo]');
+    const initialsText = nameInitials(entry.card.querySelector('[data-x-first]').value, entry.card.querySelector('[data-x-last]').value);
+    box.innerHTML = entry.photo ? `<img src="${escapeHtml(entry.photo)}" alt="">` : `<span>${escapeHtml(initialsText)}</span>`;
+    entry.card.querySelector('[data-x-photo-remove]').hidden = !entry.photo;
+  }
+
+  function renumberExtras() {
+    pp.extras.forEach((entry, index) => { entry.card.querySelector('[data-x-number]').textContent = `Contact ${index + 2}`; });
+    $('pp-extra').hidden = pp.extras.length === 0;
+  }
+
+  // The company always follows the main contact's choice.
+  function syncExtraCompanies() {
+    const name = pp.company ? (pp.company.company_name || pp.company.displayName) : $('pp-company-search').value.trim();
+    pp.extras.forEach(entry => { entry.card.querySelector('[data-x-company]').value = name; });
+  }
+
+  function removeExtra(entry) {
+    entry.card.remove();
+    pp.extras = pp.extras.filter(item => item !== entry);
+    renumberExtras();
+  }
+
+  function addExtraContact() {
+    const key = `x${extraSeq += 1}`;
+    $('pp-extra-list').insertAdjacentHTML('beforeend', extraCardMarkup(key));
+    const card = $('pp-extra-list').lastElementChild;
+    const entry = { key, card, photo: null, savedId: null };
+    pp.extras.push(entry);
+    const q = selector => card.querySelector(selector);
+
+    q('[data-x-prefix]').innerHTML = identityOptions(PREFIXES, PREFIX_STORAGE_KEY, '', ADD_PREFIX, '+ Add New');
+    q('[data-x-role]').innerHTML = identityOptions(CONTACT_TAGS, TAG_STORAGE_KEY, '', ADD_TAG, '+ Add New');
+    q('[data-x-source]').innerHTML = optionsHtml(withCustom(SOURCES, SOURCE_KEY, state.contacts.map(contact => contact.source).filter(Boolean)), '', { blank: '', addLabel: '+ Add New' });
+    q('[data-x-source]').dataset.storageKey = SOURCE_KEY;
+    q('[data-x-phones]').innerHTML = ['Mobile', 'WhatsApp', 'Telephone'].map(label => ppPhoneRow(label)).join('');
+    q('[data-x-online]').innerHTML = ['email', 'website', 'social'].map(ppOnlineRow).join('');
+    refreshCountrySelect('', { country: `ppx-${key}-country` });
+    renderExtraPhoto(entry);
+    renumberExtras();
+    syncExtraCompanies();
+
+    q('[data-x-find-btn]').addEventListener('click', () => findOnline(personScope(card)));
+    q('[data-x-remove]').addEventListener('click', () => removeExtra(entry));
+    ['[data-x-first]', '[data-x-last]'].forEach(selector => {
+      q(selector).addEventListener('input', event => {
+        renderExtraPhoto(entry);
+        if (selector === '[data-x-first]' && event.target.value.trim()) {
+          q('[data-x-first-error]').textContent = '';
+          event.target.classList.remove('pp-invalid');
+        }
+        showDuplicateMatches(event.target);
+      });
+      q(selector).addEventListener('blur', () => window.setTimeout(() => { if (pp.ac && pp.ac.input === q(selector)) closeAc(); }, 120));
+    });
+    q('[data-x-prefix]').addEventListener('change', event => {
+      if (event.target.value !== ADD_PREFIX) return;
+      const value = (window.prompt('New prefix (max 16 characters):') || '').trim();
+      if (value && value.length <= 16) saveCustomChoice(PREFIX_STORAGE_KEY, value);
+      event.target.innerHTML = identityOptions(PREFIXES, PREFIX_STORAGE_KEY, value.length <= 16 ? value : '', ADD_PREFIX, '+ Add New');
+    });
+    q('[data-x-role]').addEventListener('change', event => {
+      if (event.target.value !== ADD_TAG) return;
+      const value = (window.prompt('New role (max 64 characters):') || '').trim();
+      if (value && value.length <= 64) saveCustomChoice(TAG_STORAGE_KEY, value);
+      event.target.innerHTML = identityOptions(CONTACT_TAGS, TAG_STORAGE_KEY, value.length <= 64 ? value : '', ADD_TAG, '+ Add New');
+    });
+    q('[data-x-source]').addEventListener('change', event => {
+      handlePicklistAdd(event.target, SOURCES, 80);
+      q('[data-x-referred-wrap]').hidden = event.target.value !== REFERRAL_SOURCE;
+    });
+    q('[data-x-photo-add]').addEventListener('click', () => q('[data-x-photo-input]').click());
+    q('[data-x-photo-input]').addEventListener('change', async event => {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      try {
+        entry.photo = await readImage(file);
+        renderExtraPhoto(entry);
+      } catch (error) {
+        $('pp-error').textContent = error.message;
+      }
+    });
+    q('[data-x-photo-remove]').addEventListener('click', () => { entry.photo = null; renderExtraPhoto(entry); });
+    q('[data-x-phone-add]').addEventListener('click', () => {
+      const list = q('[data-x-phones]');
+      if (list.children.length >= 8) return;
+      list.insertAdjacentHTML('beforeend', ppPhoneRow('Mobile'));
+      list.lastElementChild.querySelector('[data-phone-number]').focus();
+    });
+    q('[data-x-online-add]').addEventListener('change', event => {
+      const kind = event.target.value;
+      event.target.value = '';
+      if (!kind) return;
+      const list = q('[data-x-online]');
+      list.insertAdjacentHTML('beforeend', ppOnlineRow(kind));
+      list.lastElementChild.querySelector('[data-online-value]').focus();
+    });
+    q('[data-x-address-open]').addEventListener('click', () => {
+      q('[data-x-address]').hidden = false;
+      q('[data-x-address-open]').hidden = true;
+      q('[data-x-maps]').focus();
+    });
+    q('[data-x-address-close]').addEventListener('click', () => {
+      ['[data-x-maps]', '[data-x-district]', '[data-x-city]', '[data-x-street]', '[data-x-building]', '[data-x-floor]', '[data-x-notes]']
+        .forEach(selector => { q(selector).value = ''; });
+      refreshCountrySelect('', { country: `ppx-${key}-country` });
+      q('[data-x-address]').hidden = true;
+      q('[data-x-address-open]').hidden = false;
+    });
+    const refreshCardDistricts = () => fillDatalist(`ppx-${key}-dl-district`, districtsMerged(q('[data-x-country]').value) || []);
+    const refreshCardCities = () => fillDatalist(`ppx-${key}-dl-city`, mergedCities(q('[data-x-country]').value, q('[data-x-district]').value) || []);
+    q('[data-x-country]').addEventListener('change', () => {
+      q('[data-x-district]').value = '';
+      q('[data-x-city]').value = '';
+      refreshCardDistricts();
+      refreshCardCities();
+    });
+    q('[data-x-district]').addEventListener('input', refreshCardCities);
+    refreshCardDistricts();
+    refreshCardCities();
+
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    q('[data-x-first]').focus();
+    return entry;
+  }
+
+  function collectExtraContact(entry, errors) {
+    const q = selector => entry.card.querySelector(selector);
+    q('[data-x-first-error]').textContent = '';
+    const first = q('[data-x-first]').value.trim();
+    if (!first) {
+      q('[data-x-first-error]').textContent = markInvalid(q('[data-x-first]'), 'First name is required.');
+      errors.push(q('[data-x-first]'));
+    }
+    const online = readPpOnline(q('[data-x-online]'));
+    checkOnline(online, errors);
+    const maps = q('[data-x-maps]').value.trim();
+    if (maps && !normalizeMapsUrl(maps)) flagInvalid(q('[data-x-maps]'), errors);
+    return { entry, first, phones: readPpPhones(q('[data-x-phones]')), online, addressOpen: !q('[data-x-address]').hidden };
+  }
+
+  function extraPayload(form, companyId, companyName, occurredIso) {
+    const q = selector => form.entry.card.querySelector(selector);
+    const open = form.addressOpen;
+    const value = selector => (open ? q(selector).value.trim() : '');
+    const country = value('[data-x-country]');
+    const district = value('[data-x-district]');
+    const city = value('[data-x-city]');
+    const street = value('[data-x-street]');
+    const building = value('[data-x-building]');
+    const floor = value('[data-x-floor]');
+    const source = q('[data-x-source]').value && q('[data-x-source]').value !== ADD_NEW ? q('[data-x-source]').value : null;
+    const pick = selector => (q(selector).value && ![ADD_NEW, ADD_PREFIX, ADD_TAG].includes(q(selector).value) ? q(selector).value : null);
+    return {
+      record_type: 'person',
+      category: 'prospect',
+      prefix: pick('[data-x-prefix]'),
+      first_name: form.first,
+      middle_name: q('[data-x-middle]').value.trim() || null,
+      last_name: q('[data-x-last]').value.trim() || null,
+      father_name: q('[data-x-father]').value.trim() || null,
+      mother_name: q('[data-x-mother]').value.trim() || null,
+      role: pick('[data-x-role]'),
+      company_name: companyName || null,
+      company_contact_id: companyId || null,
+      source,
+      referred_by: source === REFERRAL_SOURCE ? (q('[data-x-referred]').value.trim() || null) : null,
+      photo: form.entry.photo,
+      location: composeAddress([street, building && `Bldg ${building}`, floor && `Floor ${floor}`, city, district, country]),
+      country: country || null,
+      district: district || null,
+      city: city || null,
+      street: street || null,
+      site_building: building || null,
+      site_floor: floor || null,
+      maps_url: open ? normalizeMapsUrl(q('[data-x-maps]').value) || null : null,
+      address_notes: open ? (q('[data-x-notes]').value.trim() || null) : null,
+      contact_date: occurredIso,
+      ...phonesPayload(form.phones),
+      ...onlinePayload(form.online),
+    };
+  }
+
+  // ── Find online ─────────────────────────────────────────────────────────
+  // Looks a person up through the app's contact-lookup endpoint and offers the
+  // result for review before anything is written into the form.
+  //
+  // This project has no web-search / enrichment / profile-lookup API, so the
+  // feature stays inert: nothing is invented client-side. Point
+  // window.ACHI_CONTACT_LOOKUP at a real endpoint (POST {first_name, last_name,
+  // company, city, phone, email} -> the shape normaliseLookup() reads) and the
+  // button starts working, for the main contact and every additional card.
+  const lookupEndpoint = () => (typeof window.ACHI_CONTACT_LOOKUP === 'string' ? window.ACHI_CONTACT_LOOKUP.trim() : '');
+
+  // One adapter for both the main person block and an additional-contact card,
+  // so a card's search can never touch another person's fields.
+  function personScope(card) {
+    const pick = (id, selector) => (card ? card.querySelector(selector) : $(id));
+    return {
+      card,
+      first: pick('pp-first', '[data-x-first]'),
+      last: pick('pp-last', '[data-x-last]'),
+      role: pick('pp-role', '[data-x-role]'),
+      company: pick('pp-company-search', '[data-x-company]'),
+      phones: pick('pp-phones', '[data-x-phones]'),
+      online: pick('pp-online', '[data-x-online]'),
+      find: pick('pp-find', '[data-x-find]'),
+      button: pick('pp-find-btn', '[data-x-find-btn]'),
+      getPhoto: () => (card ? pp.extras.find(entry => entry.card === card).photo : pp.photo),
+      setPhoto: value => {
+        if (!card) {
+          pp.photo = value;
+          renderPicture('photo');
+          return;
+        }
+        const entry = pp.extras.find(item => item.card === card);
+        entry.photo = value;
+        renderExtraPhoto(entry);
+      },
+    };
+  }
+
+  function lookupQuery(scope) {
+    const phone = readPpPhones(scope.phones)[0];
+    const email = readPpOnline(scope.online).emails[0];
+    return {
+      first_name: scope.first.value.trim(),
+      last_name: scope.last.value.trim(),
+      company: scope.company.value.trim(),
+      city: scope.card ? '' : ($('pp-address').hidden ? '' : $('pp-a-city').value.trim()),
+      phone: phone ? phone.number : '',
+      email: email ? email.value : '',
+    };
+  }
+
+  // Everything the panel shows comes from here; missing pieces stay missing.
+  function normaliseLookup(raw) {
+    const data = raw && typeof raw === 'object' ? raw : {};
+    const text = (value, max = 255) => String(value == null ? '' : value).trim().slice(0, max);
+    const httpUrl = value => (/^https:\/\/|^http:\/\//i.test(String(value || '').trim()) ? String(value).trim() : '');
+    const image = value => {
+      const url = String(value || '').trim();
+      return /^data:image\/(png|jpeg|webp);base64,/.test(url) || /^https:\/\//i.test(url) ? url : '';
+    };
+    const socials = (Array.isArray(data.socials) ? data.socials : [])
+      .map(item => ({ platform: text(item && item.platform, 32), handle: text(item && item.handle, 128), url: httpUrl(item && item.url) }))
+      .filter(item => item.platform && item.handle)
+      .slice(0, 12);
+    return {
+      name: text(data.name || [data.first_name, data.last_name].filter(Boolean).join(' ')),
+      role: text(data.role, 64),
+      company: text(data.company),
+      why: text(data.match_note || data.why, 140),
+      photo: image(data.photo || data.profile_photo),
+      companyLogo: image(data.company_logo),
+      email: text(data.email, 255),
+      website: httpUrl(data.website),
+      socials,
+    };
+  }
+
+  function lookupIsEmpty(found) {
+    return !found.photo && !found.role && !found.company && !found.email && !found.website
+      && !found.socials.length && !found.companyLogo;
+  }
+
+  function clearFind(scope) {
+    scope.find.hidden = true;
+    scope.find.innerHTML = '';
+  }
+
+  function findNote(scope, message, isError = false) {
+    scope.find.hidden = false;
+    scope.find.innerHTML = `<div class="pf-note${isError ? ' pf-bad' : ''}">${escapeHtml(message)}</div>`;
+  }
+
+  function findBusy(scope, query) {
+    const who = [query.first_name, query.last_name].filter(Boolean).join(' ') || query.company;
+    scope.find.hidden = false;
+    scope.find.innerHTML = `<div class="pf-busy"><span class="pf-spin"></span>
+        <span>Searching the web &amp; socials for “${escapeHtml(who)}”${query.phone ? ` ${escapeHtml(query.phone)}` : ''}…
+          <small>LinkedIn · Instagram · company site</small></span>
+      </div>`;
+  }
+
+  function renderFindResult(scope, found) {
+    const chips = [
+      ...found.socials.map(social => `${social.platform} ✓`),
+      found.email ? '✉ email' : '',
+      found.website ? '🌐 website' : '',
+      found.photo ? '📷 profile photo' : '',
+      found.companyLogo ? '🏷 company logo' : '',
+    ].filter(Boolean);
+    const heading = [found.name || [scope.first.value.trim(), scope.last.value.trim()].filter(Boolean).join(' '),
+      [found.role, found.company].filter(Boolean).join(' @ ')].filter(Boolean).join(' — ');
+    scope.find.hidden = false;
+    scope.find.innerHTML = `<div class="pf-res">
+        <div class="pf-res-h">🔍 Found online — review before applying
+          <button type="button" class="pf-x" data-find-close title="Close" aria-label="Close">&times;</button>
+        </div>
+        <div class="pf-body">
+          <span class="pf-pic">${found.photo
+    ? `<img src="${escapeHtml(found.photo)}" alt="">`
+    : escapeHtml(nameInitials(scope.first.value, scope.last.value))}</span>
+          <span>
+            <span class="pf-name">${escapeHtml(heading || '—')}</span>
+            ${found.why ? `<span class="pf-why">· ${escapeHtml(found.why)}</span>` : ''}
+            ${chips.length ? `<span class="pf-chips">${chips.map(chip => `<span class="pf-chip">${escapeHtml(chip)}</span>`).join('')}</span>` : ''}
+          </span>
+          <span class="pf-acts">
+            <button type="button" class="pf-apply" data-find-apply>✓ Apply all</button>
+            <button type="button" class="pf-photo-only" data-find-photo${found.photo ? '' : ' disabled'}>Photo only</button>
+          </span>
+        </div>
+      </div>`;
+    const panel = scope.find.querySelector('.pf-res');
+    panel.querySelector('[data-find-close]').addEventListener('click', () => clearFind(scope));
+    panel.querySelector('[data-find-apply]').addEventListener('click', () => applyFound(scope, found, panel, false));
+    const photoOnly = panel.querySelector('[data-find-photo]');
+    if (found.photo) photoOnly.addEventListener('click', () => applyFound(scope, found, panel, true));
+  }
+
+  // Only empty fields are filled, so nothing the user typed is overwritten.
+  function applyFound(scope, found, panel, photoOnly) {
+    const applied = [];
+
+    if (found.photo && !scope.getPhoto()) {
+      scope.setPhoto(found.photo);
+      applied.push('photo');
+    }
+
+    if (!photoOnly) {
+      if (found.role && !scope.role.value) {
+        if (![...scope.role.options].some(option => option.value === found.role)) {
+          scope.role.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(found.role)}">${escapeHtml(found.role)}</option>`);
+        }
+        scope.role.value = found.role;
+        applied.push('role');
+      }
+      // A card's company follows the main contact, and a linked company is never touched.
+      if (found.company && !scope.card && !pp.company && !scope.company.value.trim()) {
+        scope.company.value = found.company;
+        scope.company.dispatchEvent(new Event('input', { bubbles: true }));
+        applied.push('company');
+      }
+      if (found.email) {
+        const row = [...scope.online.querySelectorAll('[data-pp-online="email"]')]
+          .find(item => !item.querySelector('[data-online-value]').value.trim());
+        if (row) {
+          row.querySelector('[data-online-value]').value = found.email;
+          applied.push('email');
+        }
+      }
+      if (found.website) {
+        const row = [...scope.online.querySelectorAll('[data-pp-online="website"]')]
+          .find(item => !item.querySelector('[data-online-value]').value.trim());
+        if (row) {
+          row.querySelector('[data-online-value]').value = found.website;
+          applied.push('website');
+        }
+      }
+      const addedSocials = found.socials.filter(social => {
+        const rows = [...scope.online.querySelectorAll('[data-pp-online="social"]')];
+        if (rows.some(row => row.querySelector('[data-online-value]').value.trim() === social.handle)) return false;
+        let row = rows.find(item => !item.querySelector('[data-online-value]').value.trim());
+        if (!row) {
+          scope.online.insertAdjacentHTML('beforeend', ppOnlineRow('social'));
+          row = scope.online.lastElementChild;
+        }
+        const platform = row.querySelector('[data-social-platform]');
+        if (![...platform.options].some(option => option.value === social.platform)) {
+          platform.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(social.platform)}">${escapeHtml(social.platform)}</option>`);
+        }
+        platform.value = social.platform;
+        row.querySelector('[data-online-value]').value = social.handle;
+        return true;
+      });
+      if (addedSocials.length) applied.push('socials');
+
+      // Only for a company being created here, and only when it has no logo yet.
+      if (found.companyLogo && !scope.card && !pp.company && $('pp-from-company').checked && !pp.logo) {
+        pp.logo = found.companyLogo;
+        renderPicture('logo');
+        applied.push('company logo');
+      }
+    }
+
+    const old = panel.querySelector('.pf-done');
+    if (old) old.remove();
+    const summary = applied.length
+      ? `✓ Applied — ${applied.join(', ')} filled; everything stays editable`
+      : '✓ Nothing to apply — the fields already have values; everything stays editable';
+    panel.insertAdjacentHTML('beforeend', `<div class="pf-done">${escapeHtml(summary)}</div>`);
+  }
+
+  async function findOnline(scope) {
+    const query = lookupQuery(scope);
+    if (!query.first_name && !query.last_name && !query.phone && !query.email && !query.company) {
+      findNote(scope, 'Enter a name, phone or company first.');
+      return;
+    }
+    const endpoint = lookupEndpoint();
+    if (!endpoint) {
+      findNote(scope, 'Online lookup is not connected to this app yet.');
+      return;
+    }
+
+    scope.button.disabled = true;
+    scope.button.textContent = 'Searching…';
+    findBusy(scope, query);
+    try {
+      const found = normaliseLookup(await request(endpoint, { method: 'POST', body: query }));
+      if (lookupIsEmpty(found)) findNote(scope, 'No useful online match found. Try adding a mobile number, email or company.');
+      else renderFindResult(scope, found);
+    } catch (error) {
+      findNote(scope, `Could not find reliable online information. ${error.message}`, true);
+    } finally {
+      scope.button.disabled = false;
+      scope.button.textContent = '🔍 Find online';
+    }
+  }
+
   // ── open / close / reset ──
   function resetPersonModal() {
     $('pp-form').reset();
     closeAc();
     pp.files = [];
     pp.tags = [];
+    pp.extras = [];
+    clearFind(personScope(null));
+    $('pp-extra-list').innerHTML = '';
+    $('pp-extra').hidden = true;
     pp.photo = null;
     pp.company = null;
-    pp.created = { companyId: null, personId: null };
+    pp.created = { companyId: null, personId: null, logSaved: false };
     $('pp-error').textContent = '';
     $('pp-first-error').textContent = '';
     document.querySelectorAll('#person-modal .pp-invalid').forEach(el => el.classList.remove('pp-invalid'));
 
-    $('pp-log-type').innerHTML = optionsHtml(LOG_TYPES.filter(type => type !== 'General'), '', { blank: 'Log' });
-    fillPicklist('pp-channel', LOG_CHANNELS, LOG_CHANNEL_KEY, { blank: null, selected: 'Inbound Call' });
-    $('pp-status').innerHTML = LOG_STATUSES.map(([value]) => `<option value="${value}"${value === 'open' ? ' selected' : ''}>${value}</option>`).join('');
+    // "Log" is the default record type and keeps the API's own default log_type.
+    $('pp-log-type').innerHTML = optionsHtml(RECORD_TYPES.filter(type => type !== 'Log'), '', { blank: 'Log' });
+    $('pp-channel').innerHTML = optionsHtml(LOG_CHANNELS, 'Inbound Call');
+    $('pp-status').innerHTML = STATUS_OPTIONS
+      .map(option => `<option value="${option.key}"${option.key === 'open' ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('');
     updateStatusDot();
     $('pp-occurred').value = toDatetimeLocalValue(null);
     $('pp-log-code').textContent = 'New Log';
@@ -2361,9 +2909,7 @@
 
     $('pp-address').hidden = true;
     $('pp-address-open').hidden = false;
-    refreshCountrySelect('', PERSON_GEO);
-    refreshDistrictSelect('', PERSON_GEO);
-    refreshCitySelect('', PERSON_GEO);
+    resetPersonAddressFields();
 
     clearCompanyFields();
     $('pp-company-note').hidden = true;
@@ -2372,12 +2918,17 @@
     setPersonSaving(false);
   }
 
+  function selectedStatus() {
+    return STATUS_OPTIONS.find(option => option.key === $('pp-status').value) || STATUS_OPTIONS[0];
+  }
+
   function updateStatusDot() {
-    const match = LOG_STATUSES.find(([value]) => value === $('pp-status').value);
-    $('pp-status-dot').style.background = match ? match[1] : '#22c55e';
+    $('pp-status-dot').style.background = selectedStatus().color;
   }
 
   function openPersonModal() {
+    window.clearTimeout(closeTimer);
+    $('person-modal').classList.remove('pp-closing');
     resetPersonModal();
     $('person-modal').hidden = false;
     document.body.style.overflow = 'hidden';
@@ -2386,11 +2937,24 @@
     window.setTimeout(() => $('pp-subject').focus(), 0);
   }
 
+  let closeTimer = null;
+
   function closePersonModal() {
     closeAc();
     closeCountryCodeMenu();
-    $('person-modal').hidden = true;
+    const modal = $('person-modal');
     document.body.style.overflow = '';
+    window.clearTimeout(closeTimer);
+    // Let the close animation run, unless the viewer asked for less motion.
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      modal.hidden = true;
+      return;
+    }
+    modal.classList.add('pp-closing');
+    closeTimer = window.setTimeout(() => {
+      modal.classList.remove('pp-closing');
+      modal.hidden = true;
+    }, 130);
   }
 
   function setPersonSaving(saving) {
@@ -2455,7 +3019,8 @@
       if (hqMaps && !normalizeMapsUrl(hqMaps)) flagInvalid($('pp-hq-maps'), errors);
     }
 
-    return { errors, first, phones, online, addressOpen, fromCompany, companyPhones, companyOnline };
+    const extras = pp.extras.map(entry => collectExtraContact(entry, errors));
+    return { errors, first, phones, online, addressOpen, fromCompany, companyPhones, companyOnline, extras };
   }
 
   function onlinePayload(online) {
@@ -2607,16 +3172,29 @@
         companyName = $('pp-company-search').value.trim();
       }
 
-      // 2. person
-      const person = await request('/api/v1/achi/contact-info/contacts', {
-        method: 'POST',
-        body: personPayload(form, companyId, companyName, occurredIso),
-      });
-      pp.created.personId = person.id;
+      // 2. main person
+      if (!pp.created.personId) {
+        const person = await request('/api/v1/achi/contact-info/contacts', {
+          method: 'POST',
+          body: personPayload(form, companyId, companyName, occurredIso),
+        });
+        pp.created.personId = person.id;
+      }
+
+      // 3. additional contacts, under the same company. Each remembers its own
+      // id, so a retry after a later failure never creates it twice.
+      for (const extra of form.extras) {
+        if (extra.entry.savedId) continue;
+        const saved = await request('/api/v1/achi/contact-info/contacts', {
+          method: 'POST',
+          body: extraPayload(extra, companyId, companyName, occurredIso),
+        });
+        extra.entry.savedId = saved.id;
+      }
     } catch (error) {
-      $('pp-error').textContent = pp.created.companyId
-        ? `Company saved, but the person could not be created: ${error.message}`
-        : error.message;
+      $('pp-error').textContent = pp.created.personId
+        ? `The main contact was saved, but an additional contact failed: ${error.message}`
+        : (pp.created.companyId ? `Company saved, but the person could not be created: ${error.message}` : error.message);
       setPersonSaving(false);
       return;
     }
@@ -2626,7 +3204,7 @@
     const personId = pp.created.personId;
     let logMessage = '';
     let logError = '';
-    if (hasLogContent()) {
+    if (hasLogContent() && !pp.created.logSaved) {
       try {
         const subject = $('pp-subject').value.trim();
         const file = await request('/api/v1/achi/files/', {
@@ -2636,7 +3214,7 @@
             company_contact_id: companyId || null,
             subject,
             stage: $('pp-stage').value,
-            status: $('pp-status').value,
+            status: selectedStatus().status,
           },
         });
         const subjectHtml = subject ? `<p class="achi-note-subject"><strong>${escapeHtml(subject)}</strong></p>` : '';
@@ -2653,6 +3231,7 @@
         });
         logMessage = file.log_code ? ` · LOG #${file.log_code}` : ` · ${file.file_number}`;
         for (const attachment of pp.files) await uploadLogAttachment(log.id, attachment);
+        pp.created.logSaved = true;
       } catch (error) {
         logError = error.message;
       }
@@ -2667,8 +3246,10 @@
       renderTable();
     }
     openDrawer(personId);
-    if (logError) showToast(`Person created, but the log was not fully saved: ${logError}`, true);
-    else showToast(`Person created${logMessage}.`);
+    const saved = 1 + pp.extras.filter(entry => entry.savedId).length;
+    const people = saved === 1 ? 'Person created' : `${saved} people created`;
+    if (logError) showToast(`${people}, but the log was not fully saved: ${logError}`, true);
+    else showToast(`${people}${logMessage}.`);
   }
 
   function bindPersonModal() {
@@ -2684,7 +3265,6 @@
     });
 
     $('pp-status').addEventListener('change', updateStatusDot);
-    $('pp-channel').addEventListener('change', event => handlePicklistAdd(event.target, LOG_CHANNELS));
 
     // attachments: + / paperclip / drop onto the capture card
     ['pp-attach-add', 'pp-attach'].forEach(id => $(id).addEventListener('click', () => $('pp-file-input').click()));
@@ -2827,14 +3407,17 @@
       $('pp-a-maps').focus();
     });
     $('pp-address-close').addEventListener('click', () => {
-      ['pp-a-maps', 'pp-a-street', 'pp-a-building', 'pp-a-floor', 'pp-a-notes'].forEach(id => { $(id).value = ''; });
-      refreshCountrySelect('', PERSON_GEO);
-      refreshDistrictSelect('', PERSON_GEO);
-      refreshCitySelect('', PERSON_GEO);
+      resetPersonAddressFields();
       $('pp-address').hidden = true;
       $('pp-address-open').hidden = false;
     });
-    bindGeoCascade(PERSON_GEO);
+    $('pp-a-country').addEventListener('change', () => {
+      $('pp-a-district').value = '';
+      $('pp-a-city').value = '';
+      refreshPersonDistrictList();
+      refreshPersonCityList();
+    });
+    $('pp-a-district').addEventListener('input', refreshPersonCityList);
     bindGeoCascade(HQ_GEO);
 
     // company
@@ -2849,6 +3432,7 @@
       }
       if (!pp.company) $('pp-co-name').value = name;
       updateCompanyTitle();
+      syncExtraCompanies();
       showCompanyMatches(event.target);
     });
     $('pp-company-search').addEventListener('focus', event => { if (event.target.value.trim() && !pp.company) showCompanyMatches(event.target); });
@@ -2870,6 +3454,8 @@
       }
       updateCompanyTitle();
     });
+    $('pp-find-btn').addEventListener('click', () => findOnline(personScope(null)));
+    $('pp-add-person').addEventListener('click', addExtraContact);
     $('pp-co-type').addEventListener('change', event => handlePicklistAdd(event.target, COMPANY_TYPES));
     $('pp-co-industry').addEventListener('change', event => handlePicklistAdd(event.target, INDUSTRIES));
     $('pp-co-activity').addEventListener('change', event => handlePicklistAdd(event.target, ACTIVITIES));

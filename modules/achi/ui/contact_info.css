@@ -1558,6 +1558,31 @@ table.t {
   place-items: center;
   padding: 20px;
   background: rgba(15, 23, 42, .55);
+  animation: pp-fade .16s ease both;
+}
+
+.pp-backdrop.pp-closing {
+  animation: pp-fade .13s ease both reverse;
+}
+
+.pp-backdrop.pp-closing .pp {
+  animation: pp-rise .13s ease both reverse;
+}
+
+@keyframes pp-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pp-rise {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Cards and the address block slide in where they are inserted. */
+@keyframes pp-slide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
 }
 
 .pp {
@@ -1572,6 +1597,7 @@ table.t {
   box-shadow: 0 24px 60px rgba(15, 23, 42, .35);
   color: #1d1d1f;
   font-size: 12px;
+  animation: pp-rise .2s cubic-bezier(.2, .7, .3, 1) both;
 }
 
 .pp-in,
@@ -1586,6 +1612,23 @@ table.t {
   background: #fff;
   color: #1d1d1f;
   font-size: 12px;
+}
+
+.pp-in,
+.pp-addsel,
+.pp-tag-add,
+.pp-btn,
+.pp-mini,
+.pp-addbtn,
+.pp-addlink,
+.pp-tb,
+.pp-rx,
+.pp-x,
+.ppa-x,
+.ppx-rm,
+.pp-file,
+.hfw {
+  transition: border-color .12s ease, background-color .12s ease, color .12s ease, box-shadow .12s ease, opacity .12s ease;
 }
 
 .pp-in:focus,
@@ -1737,6 +1780,7 @@ table.t {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scroll-behavior: smooth;
   scrollbar-width: thin;
 }
 
@@ -1840,6 +1884,7 @@ table.t {
 }
 
 .pp-file {
+  animation: pp-slide .14s ease both;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1933,6 +1978,7 @@ table.t {
 }
 
 .pp-tag {
+  animation: pp-slide .14s ease both;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -2313,9 +2359,84 @@ table.t {
   cursor: pointer;
 }
 
-.pp-address,
 .pp-hq {
   margin-top: 8px;
+}
+
+/* Address — personal: a lighter, more compact block than the panels around it. */
+.ppa {
+  animation: pp-slide .16s ease both;
+  margin-top: 5px;
+  padding: 6px 8px;
+  border: 1px solid #dbe2ed;
+  border-radius: 4px;
+  background: #fbfcff;
+}
+
+.ppa-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ppa-t {
+  color: #284f9e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ppa-hint {
+  margin-left: 8px;
+  color: #8a8f98;
+  font-size: 9.5px;
+}
+
+.ppa-x {
+  height: 18px;
+  margin-left: auto;
+  padding: 0 7px;
+  border: 1px solid #dca8a8;
+  border-radius: 3px;
+  background: #fbeaea;
+  color: #b91c1c;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ppa-x:hover {
+  background: #f7dcdc;
+}
+
+.ppa-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 18px;
+}
+
+.ppa-f {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 0 6px;
+  min-width: 0;
+}
+
+.ppa-f > span {
+  color: #44546e;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .ppa-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .pp-agrid {
@@ -2323,6 +2444,297 @@ table.t {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 5px 12px;
   padding-top: 6px;
+}
+
+/* ── Find online: lookup button in the photo panel, status/result below the
+   identity row. Inert until a lookup endpoint is configured (see contact_info.js). */
+.pf-btn {
+  width: 100%;
+  height: 22px;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  background: #eaf1ff;
+  color: #284f9e;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .12s ease, background-color .12s ease, color .12s ease;
+}
+
+.pf-btn:hover:not(:disabled) {
+  background: #dce9ff;
+}
+
+.pf-btn:disabled {
+  cursor: progress;
+  opacity: .7;
+}
+
+.pf-note {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px solid #dbe2ed;
+  border-radius: 4px;
+  background: #fbfcff;
+  color: #44546e;
+  font-size: 11px;
+  animation: pp-slide .16s ease both;
+}
+
+.pf-note.pf-bad {
+  border-color: #eccaca;
+  background: #fbeaea;
+  color: #b91c1c;
+}
+
+.pf-busy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px solid #dbe2ed;
+  border-radius: 4px;
+  background: #fbfcff;
+  color: #284f9e;
+  font-size: 11px;
+  font-weight: 700;
+  animation: pp-slide .16s ease both;
+}
+
+.pf-spin {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border: 2px solid #c7dbfb;
+  border-top-color: #284f9e;
+  border-radius: 50%;
+  animation: pf-spin .7s linear infinite;
+}
+
+@keyframes pf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pf-busy small {
+  color: #8a95a8;
+  font-weight: 400;
+}
+
+.pf-res {
+  margin-top: 6px;
+  overflow: hidden;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  background: #f6f9ff;
+  animation: pp-slide .16s ease both;
+}
+
+.pf-res-h {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid #93c5fd;
+  background: #eaf1ff;
+  color: #284f9e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.pf-x {
+  margin-left: auto;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: #284f9e;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pf-body {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.pf-pic {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #eaf1ff;
+  color: #284f9e;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pf-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pf-name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pf-why {
+  color: #8a95a8;
+  font-size: 10px;
+}
+
+.pf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.pf-chip {
+  padding: 1px 8px;
+  border: 1px solid #dbe2ed;
+  border-radius: 99px;
+  background: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.pf-acts {
+  display: flex;
+  gap: 5px;
+}
+
+.pf-apply,
+.pf-photo-only {
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid #b9c5d8;
+  border-radius: 4px;
+  background: #fff;
+  color: #1f3f80;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .12s ease, background-color .12s ease;
+}
+
+.pf-apply {
+  border-color: #1f3f80;
+  background: #284f9e;
+  color: #fff;
+}
+
+.pf-apply:hover {
+  background: #1f3f80;
+}
+
+.pf-photo-only:hover {
+  background: #eaf1ff;
+}
+
+.pf-done {
+  padding: 4px 8px;
+  border-top: 1px solid #dbe6f7;
+  color: #0f6d31;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-note,
+  .pf-busy,
+  .pf-res {
+    animation: none;
+  }
+
+  .pf-spin {
+    animation-duration: 2s;
+  }
+}
+
+/* Additional contacts: repeatable cards inside the same popup. */
+.ppx-wrap {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px dashed #c9d2e0;
+}
+
+.ppx-head {
+  margin-bottom: 5px;
+  color: #8a95a8;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ppx-hint {
+  margin-left: 8px;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ppx-add {
+  margin-top: 7px;
+}
+
+.ppx {
+  animation: pp-slide .16s ease both;
+  margin-bottom: 5px;
+  padding: 5px 7px;
+  border: 1px solid #dbe2ed;
+  border-radius: 4px;
+  background: #fbfcff;
+}
+
+.ppx-t {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  color: #486077;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.ppx-rm {
+  height: 18px;
+  margin-left: auto;
+  padding: 0 7px;
+  border: 1px solid #dca8a8;
+  border-radius: 3px;
+  background: #fbeaea;
+  color: #b91c1c;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ppx-rm:hover {
+  background: #f7dcdc;
+}
+
+.ppx .pp-two {
+  margin-top: 6px;
 }
 
 .pp-check {
@@ -2483,6 +2895,23 @@ table.t {
 .pp-btn:disabled {
   cursor: wait;
   opacity: .6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-backdrop,
+  .pp-backdrop.pp-closing,
+  .pp-backdrop.pp-closing .pp,
+  .pp,
+  .ppa,
+  .ppx,
+  .pp-file,
+  .pp-tag {
+    animation: none;
+  }
+
+  .pp-body {
+    scroll-behavior: auto;
+  }
 }
 
 @media (max-width: 760px) {
