@@ -168,6 +168,7 @@
     takeoff: 'Takeoff (M/T)', boq: 'BOQ', resources: 'Resources',
     plan: 'Plan', costing: 'Costing', pricing: 'Pricing',
     quotation: 'Quotation', negotiation: 'Negotiation', accepted: 'Confirmed',
+    quotation: 'Quotation', negotiation: 'Negotiation', accepted: 'Won',
     cancelled: 'Cancelled', on_hold: 'On hold',
   };
   const STAGE_KEYS = Object.keys(STAGE_LABEL);
@@ -196,6 +197,7 @@
   const state = {
     view: 'list',            // list | board
     colOrder: null,          // filled right below (loadColOrder reads storage)
+    seg: 'all',              // all | act | due | won | hold | closed
     chips: new Set(),        // stuck | quiet | quo
     q: '',
     fSt: '',                 // status column filter
@@ -343,6 +345,7 @@
     [/\bstuck\b|\bneed(s)? action\b|\boverdue\b/, f => isHot(f)],
     [/\bquiet\b|\bgone quiet\b/, f => isQuiet(f)],
     [/\bquotation\b|\bclos(e|ing)\b/, f => colId(f) === 'quo'],
+    [/\bquotation\b|\bclos(e|ing)\b/, f => f.step === 5],
     [/\bwon\b|\baccepted\b/, f => f.stage === 'accepted'],
     [/\bon hold\b/, f => f.stage === 'on_hold'],
   ];
@@ -455,7 +458,7 @@
       + `<span class="srt" data-sort="recv">Received<i class="sarr2">${arrow('recv')}</i></span>`
       + '<span>Client</span>'
       + '<span>Subject / site</span>'
-      + '<span>Stage</span>'
+      + '<span>Stage E·S·D·M·B·Q·W</span>'
       + '<span>Docs</span>'
       + '<span>Next action</span>'
       + '<span>Own</span>'
@@ -853,6 +856,14 @@
     else if (act === 'wide') { state.wide = !state.wide; renderPanel(); }
     else if (act === 'smaller') { state.tIdx = Math.max(0, state.tIdx - 1); applyLayout(); }
     else if (act === 'bigger') { state.tIdx = Math.min(HS.length - 1, state.tIdx + 1); applyLayout(); }
+  });
+
+  $('seg-filters').addEventListener('click', event => {
+    const btn = event.target.closest('button[data-seg]');
+    if (!btn) return;
+    state.seg = btn.dataset.seg;
+    [...$('seg-filters').children].forEach(b => b.classList.toggle('on', b === btn));
+    renderViews();
   });
 
   $('seg-view').addEventListener('click', event => {
