@@ -1,36 +1,73 @@
 <!doctype html>
-<!-- General Log page: company-wide log view (see commit "create a new page called general-log") -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Log · Achi Scaffolding ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=22">
+<title>Log · ARARA ERP</title>
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=34">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
-<body data-achi-title="Log">
+<!-- Renamed from log.html to general_log.html per the redesign request. This
+     still runs as the compact "Log" page (data-achi-title="Log", no
+     ACHI_GENERAL_LOG flag) — the fuller multi-tab layout used by the actual
+     General Log workspace is untouched. Asset URLs below are server routes,
+     unrelated to this file's own name, so they are unchanged apart from the
+     version bumps that reflect today's edits. -->
+<body class="log-page" data-achi-title="Log">
 <main>
   <div class="err" id="err"></div>
 
-  <div class="kpis">
-    <div class="kpi k1"><div class="n" id="k-total">0</div><div class="l">Total Logs</div><div class="s">all time</div></div>
-    <div class="kpi k2 btn" id="k-open-card"><div class="n" id="k-open">0</div><div class="l">Open</div><div class="s">click to filter</div></div>
-    <div class="kpi k3"><div class="n" id="k-month">0</div><div class="l">This Month</div><div class="s">log entries</div></div>
-    <div class="kpi k4"><div class="n" id="k-done">0</div><div class="l">Done</div><div class="s">completed</div></div>
-    <button class="kpi-deleted" id="btn-deleted" type="button" title="Show deleted logs — restore them or delete them permanently">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-      <span>Deleted Logs</span>
-    </button>
-  </div>
+  <!-- Existing IDs are preserved for search, statistics, filtering and Add Log. -->
+  <section class="log-overview" aria-labelledby="log-overview-title">
+    <div class="log-overview-top">
+      <div class="log-overview-copy">
+        <h1 id="log-overview-title">Log — every communication</h1>
+        <span class="log-volume"><strong id="k-total">0</strong> logs · digital + paper</span>
+        <span class="log-explainer">Calls, WhatsApp and email land here first — ARARA AI matches, transcribes, files and suggests the next step.</span>
+      </div>
+
+      <div class="log-overview-actions">
+        <label class="sr-only" for="q">Search logs</label>
+        <input class="search" id="q" placeholder="Search caller, company, words said…">
+        <button class="log-clear-filters" id="btn-clear-filters" type="button">Clear filters</button>
+        <button class="tb-exp" id="expand-row" type="button" title="Open the full Add Log form">
+          <span class="tb-add-plus">+</span> Add Log
+        </button>
+      </div>
+    </div>
+
+    <!-- Visual placeholder; ARARA AI service integration is a later task. -->
+    <div class="log-ai-bar" aria-label="ARARA AI log assistant">
+      <span class="log-ai-brand">ARARA AI</span>
+      <label class="sr-only" for="log-ai-query">Ask ARARA AI about the log</label>
+      <input
+        class="log-ai-query"
+        id="log-ai-query"
+        type="text"
+        placeholder="Ask the log… “what did Zerock ask for this month?” · “any complaints this week?” · “which calls mention netting?”"
+        title="ARARA AI connection will be added in a later step"
+        disabled
+      >
+      <button class="log-ai-summary" type="button" title="ARARA AI connection will be added in a later step" disabled>Summarize today</button>
+    </div>
+
+    <div class="kpis" aria-label="Log summary">
+      <button class="kpi k2 btn" id="k-open-card" type="button" title="Filter to open logs">
+        <strong class="n" id="k-open">0</strong><span class="l">open logs</span>
+      </button>
+      <div class="kpi k3"><strong class="n" id="k-month">0</strong><span class="l">logs this month</span></div>
+      <div class="kpi k4"><strong class="n" id="k-done">0</strong><span class="l">done</span></div>
+      <button class="kpi-deleted" id="btn-deleted" type="button" title="Show deleted logs — restore them or delete them permanently">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        <span>Deleted Logs</span>
+      </button>
+    </div>
+  </section>
 
   <div class="shell">
     <div class="nav">
       <div class="nav-actions">
         <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
-        <button class="tb-exp" id="expand-row" type="button" title="Open the full form — a selected row to edit, or blank for a new entry">
-            <span class="tb-add-plus">+</span>
-          Add Log
-        </button>
         <button class="tb-del" id="btn-del" type="button" title="Delete selected rows">Delete <span class="tb-cnt" id="del-count">0</span></button>
         <button class="tb-email" id="btn-email" type="button" title="Email the selected rows (same message to everyone)">Email <span class="tb-cnt" id="email-count">0</span></button>
         <!-- Shown only while the Deleted Logs filter is active (body.deleted-view). -->
@@ -47,16 +84,6 @@
         <button class="pill-tab" data-tab="2">Site</button>
         <button class="pill-tab" data-tab="3">Notes &amp; Outcome</button>
       </div>
-      <div class="nav-right">
-        <input class="search" id="q" placeholder="Search name, file, city, text…">
-        <button
-  class="log-clear-filters"
-  id="btn-clear-filters"
-  type="button"
->
-  Clear filters
-</button>
-      </div>
     </div>
     <div class="tscroll" id="touter">
       <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
@@ -64,13 +91,25 @@
     <div class="vrz" id="vrz" title="Drag to resize table height"></div>
   </div>
 
-  <!-- Expanded row. Built by JS from COLS so it cannot drift from the table:
-       add a column there and it appears here too. -->
-  <div class="rx" id="rx" hidden>
+  <!-- Compact "table size" stepper, ported from the new design. Reads/writes
+       the same --bh custom property and achi_bh storage key as the drag strip
+       above (wired in log-core.js), so the two controls always agree. -->
+  <div class="log-size-ctl">
+    <span class="log-size-lbl">TABLE SIZE</span>
+    <button class="szb" id="log-size-smaller" type="button" title="Smaller — see more of the details">−</button>
+    <button class="szb" id="log-size-bigger" type="button" title="Bigger — see more logs">+</button>
+    <button class="szb" id="log-size-compact" type="button" title="Compact view">Compact</button>
+  </div>
+
+  <!-- Add/Edit Log dialog. log-core.js supplies the form sections at runtime;
+       these stable IDs keep the existing API, validation and upload behavior. -->
+  <div class="rx rx-reference" id="rx" hidden>
     <div class="rx-box" role="dialog" aria-modal="true" aria-labelledby="rx-title">
       <div class="rx-head">
-        <h2 id="rx-title">Add Log</h2>
-        <span class="rx-chip" id="rx-num">Log</span>
+        <h2 id="rx-title">New</h2>
+        <span class="rx-chip" id="rx-num">LOG</span>
+        <label class="sr-only" for="rx-header-type">Log type</label>
+        <select class="rx-head-select" id="rx-header-type" data-rx-native aria-label="Log type"></select>
         <span class="rx-when-wrap">
           <span class="rx-when-display"><span id="rx-when-label"></span>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M5 2v3M11 2v3M2.5 6.5h11"/></svg>
@@ -85,7 +124,12 @@
           </button>
           <div class="rx-state-menu" id="rx-state-menu" role="listbox" aria-label="Log status" hidden></div>
         </div>
-        <p class="rx-tag" id="rx-sub">fill while you're on the call — everything prices itself live</p>
+        <label class="rx-head-followup" for="rx-header-followup">
+          <span>FOLLOW UP</span>
+          <input type="date" id="rx-header-followup" aria-label="Follow-up date">
+        </label>
+        <span class="rx-by" id="rx-by">by —</span>
+        <p class="rx-tag" id="rx-sub">Quick capture</p>
         <button type="button" class="rx-x" id="rx-close" aria-label="Close">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
         </button>
@@ -100,6 +144,7 @@
         <span class="rx-status" id="rx-status"></span>
         <div class="rx-foot-btns">
           <button type="button" class="rx-cancel" id="rx-cancel">Cancel</button>
+          <button type="button" class="rx-save-cont" id="rx-save-cont">Save &amp; continue</button>
           <button type="button" class="rx-save" id="rx-save">Save Log</button>
         </div>
       </div>
@@ -157,42 +202,13 @@
 <!-- the canvas drawing tool behind the popup's Drawing button; served by our own router -->
 <script src="/api/v1/achi/ui/drawing.js?v=2"></script>
 <script src="/api/v1/achi/ui/log-mail.js?v=1"></script>
-<!-- General Log = the Log page with a different column set. These globals are
-     read by log-core.js (COLS + which columns freeze); everything else is shared. -->
-<script>
-  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
-  window.ACHI_FIXED_KEYS = [];   // no frozen columns
-  window.ACHI_LOG_COLS = [
-    {k:'num',          h:'#',              tab:null, w:92},
-    {k:'when',         h:'Date & Time',    tab:null, w:150},
-    {k:'status',       h:'Status',         tab:null, w:110, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
-    {k:'type', h:'Log Type', tab:null, w:140, draft:'select', edit:{kind:'type',target:'log',field:'log_type',val:r=>r.log_type}},
-    {k:'prefix',       h:'Pre',            tab:null, w:70,  draft:'select', edit:{kind:'prefix',target:'contact',field:'prefix',val:r=>r.prefix||''}},
-    {k:'first',        h:'First',          tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'first_name',val:r=>r.first_name||''}},
-    {k:'last',         h:'Last',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'contact',field:'last_name',val:r=>r.last_name||''}},
-    {k:'company',      h:'Company',        tab:null, w:160, draft:'text', edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
-    {k:'owner',        h:'Owner',          tab:null, w:80},
-    {k:'mobile',       h:'Mobile',         tab:null, w:215, draft:'tel', edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
-    {k:'email',        h:'Email',          tab:null, w:200, draft:'text', edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
-    {k:'maps',         h:'Maps',           tab:null, w:120, draft:'text', edit:{kind:'text',target:'file',field:'maps_url',val:r=>r.maps_url||''}},
-    {k:'desc',         h:'description',    tab:null, w:300, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
-    {k:'stage',        h:'Stage',          tab:null, w:176, edit:{kind:'stage',target:'file',field:'stage',val:r=>glStageKey(r.stage)}},
-    {k:'communication',h:'Communication',  tab:null, w:188},
-    {k:'last_touch', h:'Last Touch', tab:null, w:200},
-    {k:'deliverables', h:'Deliverables',   tab:null, w:250},
-    {k:'tags',         h:'Tags',           tab:null, w:170, draft:'select', edit:{kind:'tags',target:'log',field:'tags',val:r=>r.tags||''}},
-    {k:'updates',      h:'Updates',        tab:null, w:280, wide:true, note:true, draft:'text', edit:{kind:'text',target:'log',field:'updates',val:r=>r.updates||''}},
-    {k:'followup',     h:'Follow up date', tab:null, w:150, draft:'date', edit:{kind:'date',target:'log',field:'follow_up_date',val:r=>r.follow_up_date||''}},
-    {k:'country',      h:'Country',        tab:null, w:110, draft:'text', edit:{kind:'country',target:'file',field:'country',val:r=>r.country||''}},
-    {k:'district',     h:'District',       tab:null, w:120, draft:'text', edit:{kind:'district',target:'file',field:'district',val:r=>r.district||''}},
-    {k:'city',         h:'City',           tab:null, w:120, draft:'text', edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
-    {k:'street',       h:'Street',         tab:null, w:140, draft:'text', edit:{kind:'text',target:'file',field:'street',val:r=>r.street||''}},
-  ];
-</script>
+<!-- With no page-level column override, log-core.js uses the compact
+     STANDARD_LOG_TABLE_COLS list (now including "By"). FORM_COLS still builds
+     the full Add/Edit form, unchanged. -->
 
-<script src="/api/v1/achi/ui/log-core.js?v=25"></script>
-<script src="/api/v1/achi/ui/log.js?v=16"></script>
-<script src="/api/v1/achi/ui/chrome.js?v=38"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=34"></script>
+<script src="/api/v1/achi/ui/log.js?v=24"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>

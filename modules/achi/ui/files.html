@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Files · ACHI Scaffolding ERP</title>
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=22">
+<style>
+body{background:#f4f6f9 !important;margin:0;font:13px/1.45 Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#1d1d1f}
+a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
+.pg{padding:10px 12px 30px;max-width:1500px}
+.bar{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.bar h1{margin:0;font-size:15px;font-weight:800}
+.hint{font-size:10.5px;color:#44546e}
+.err{display:none;background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:8px 12px;border-radius:6px;margin-bottom:8px;font-size:12px}
+.srch{font:inherit;font-size:12px;border:1px solid #b9c5d8;border-radius:4px;padding:3px 8px;height:26px;box-sizing:border-box;background:#fff}
+.mini{display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:11px;font-weight:700;color:#284F9E;background:#eaf1ff;border:1px solid #93c5fd;border-radius:4px;padding:3px 9px;cursor:pointer;height:26px;box-sizing:border-box;text-decoration:none}
+.mini:hover{background:#dce9ff}
+.mini.pri{background:#284F9E;color:#fff;border-color:#1F3F80}
+.mini.pri:hover{background:#1F3F80}
+.mini:disabled{opacity:.55;cursor:not-allowed}
+.seg{display:inline-flex;border:1px solid #b9c5d8;border-radius:4px;overflow:hidden;background:#fff;height:26px}
+.seg button{font:inherit;font-size:11px;font-weight:700;border:0;border-right:1px solid #dbe2ed;background:transparent;padding:0 12px;cursor:pointer;color:#44546e}
+.seg button:last-child{border-right:0}
+.seg button.on{background:#284F9E;color:#fff}
+.lay{display:block}
+.frdd{position:relative;display:inline-block;margin-bottom:8px}
+.rail{display:none;position:absolute;top:100%;left:0;margin-top:4px;width:250px;max-height:62vh;overflow-y:auto;scrollbar-width:thin;background:#fff;border:1px solid #b9c5d8;border-radius:5px;z-index:70;box-shadow:0 12px 32px rgba(15,23,42,.2)}
+.rail.open{display:block}
+.rail .rh{background:#e6ebf3;border-bottom:1px solid #b9c5d8;padding:4px 9px;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#44546e}
+.fbt{display:flex;align-items:center;gap:6px;width:100%;font:inherit;font-size:11.5px;font-weight:600;border:0;background:transparent;padding:4px 9px;cursor:pointer;color:#1d1d1f;text-align:left;border-bottom:1px solid #f4f6fa}
+.fbt:hover{background:#eaf1ff}
+.fbt.on{background:#eaf1ff;color:#1F3F80;font-weight:800}
+.fbt .n{margin-left:auto;font-size:9.5px;font-weight:800;color:#8a8f98;font-variant-numeric:tabular-nums}
+.fbt.on .n{color:#284F9E}
+.fbt .car{width:10px;flex:0 0 auto;font-size:8px;color:#8a8f98;transition:transform .12s}
+.fbt.open .car{transform:rotate(90deg)}
+.ftree{background:#fbfcff;border-bottom:1px solid #f4f6fa}
+.ftr{display:flex;align-items:center;gap:5px;width:100%;border:0;background:transparent;padding:2px 9px 2px 24px;font:inherit;font-size:10.5px;color:#1d1d1f;cursor:pointer;text-align:left}
+.ftr:hover{background:#eaf1ff}
+.ftr.on{background:#eaf1ff;color:#1F3F80;font-weight:700}
+.ftr .fx{flex:0 0 auto;min-width:24px;height:13px;border-radius:2px;font-size:7px;font-weight:800;letter-spacing:.03em;display:inline-flex;align-items:center;justify-content:center;padding:0 3px}
+.ftr .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.store{padding:8px 9px;border-top:1px solid #dbe2ed;background:#fbfcff}
+.store .sl{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#44546e}
+.store .sv{font-size:10px;color:#44546e;font-variant-numeric:tabular-nums;margin-top:3px}
+.wrap{background:#fff;border:1px solid #b9c5d8;border-radius:5px;overflow-x:auto;scrollbar-width:thin}
+.drop{margin:8px;border:1.5px dashed #b9c5d8;border-radius:4px;padding:8px;text-align:center;color:#44546e;font-size:11px;background:#fbfcff;cursor:pointer}
+.drop b{color:#284F9E}
+.drop.hot{border-color:#284F9E;background:#eaf1ff;color:#1F3F80}
+.hd,.row{min-width:980px}
+.hd{display:grid;grid-template-columns:minmax(240px,1.5fr) 92px 110px 160px 64px 76px 76px 88px;background:#e6ebf3;border-bottom:1px solid #b9c5d8;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#44546e}
+.hd span{padding:4px 8px;box-shadow:inset -1px 0 0 #dbe2ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd span:last-child{box-shadow:none}
+.row{display:grid;grid-template-columns:minmax(240px,1.5fr) 92px 110px 160px 64px 76px 76px 88px;align-items:center;border-bottom:1px solid #eef2f8;font-size:11.5px;cursor:pointer}
+.row>div{padding:3px 8px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row:hover{background:#eaf1ff}
+.row.sel{background:#eaf1ff}
+.empty{padding:22px 12px;text-align:center;color:#44546e;font-size:11.5px}
+.ext{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:16px;border-radius:3px;font-size:8px;font-weight:800;letter-spacing:.04em;padding:0 4px;margin-right:7px;flex:0 0 auto}
+.code{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;color:#284F9E}
+.st{font-size:8.5px;font-weight:800;letter-spacing:.05em;border-radius:3px;padding:1px 6px;white-space:nowrap}
+.kd{display:inline-flex;align-items:center;border-radius:3px;background:#eef2f8;color:#44546e;font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 5px;margin-right:3px}
+.num{width:auto;font-variant-numeric:tabular-nums;text-align:right}
+.mut{color:#44546e}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:8px;padding:10px}
+.tile{border:1px solid #dbe2ed;border-radius:5px;background:#fbfcff;padding:8px;cursor:pointer;text-align:center}
+.tile:hover{border-color:#284F9E;box-shadow:0 3px 10px rgba(40,79,158,.13)}
+.tile .bx{width:46px;height:52px;border-radius:5px;margin:2px auto 6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;letter-spacing:.04em}
+.tile .nm{font-size:10.5px;font-weight:700;line-height:1.3;height:27px;overflow:hidden}
+.tile .mt{font-size:9px;color:#8a8f98;margin-top:3px;font-variant-numeric:tabular-nums}
+.foot{display:flex;align-items:center;gap:10px;padding:5px 8px;border-top:1px solid #dbe2ed;background:#f4f6fa;font-size:10.5px;color:#44546e;min-width:980px}
+.dpanel{position:fixed;top:56px;right:12px;bottom:12px;width:min(400px,calc(100vw - 24px));background:#f4f6fa;border:1px solid #b9c5d8;border-radius:8px;box-shadow:-10px 0 30px rgba(15,23,42,.22);display:flex;flex-direction:column;overflow:hidden;z-index:80}
+.dpanel[hidden]{display:none}
+.dph{display:flex;align-items:center;gap:8px;background:linear-gradient(#305FB8,#284F9E);color:#fff;padding:6px 10px;flex:0 0 auto}
+.dph b{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dpx{width:22px;height:22px;border:1px solid rgba(255,255,255,.4);border-radius:4px;background:rgba(255,255,255,.1);color:#fff;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:0 0 auto}
+.dpx:hover{background:rgba(255,255,255,.22)}
+.dpb{overflow-y:auto;flex:1 1 auto;min-height:0;padding:8px;display:grid;grid-template-columns:1fr;gap:7px;align-items:start;align-content:start;scrollbar-width:thin}
+.sec{border:1px solid #b9c5d8;border-radius:4px;background:#fff;overflow:hidden;flex:0 0 auto}
+.sech{display:flex;align-items:center;gap:6px;background:#eef2f8;border-bottom:1px solid #dbe2ed;padding:3px 8px;font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#486077}
+.kv{display:grid;grid-template-columns:88px 1fr;gap:2px 8px;padding:6px 8px;font-size:11px}
+.kv .k{color:#44546e;font-weight:700;font-size:10px;text-align:right}
+.kv span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prev{margin:8px;border:1px solid #dbe2ed;border-radius:4px;background:#fff;min-height:120px;max-height:280px;padding:6px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:0 0 auto;overflow:hidden}
+.prev img{max-width:100%;max-height:260px;object-fit:contain}
+.prev iframe{width:100%;height:260px;border:0}
+.pvload{font-size:10.5px;color:#8a8f98}
+.prev .bx{width:58px;height:66px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.04em}
+.up{position:fixed;inset:0;z-index:2147482500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,35,75,.5)}
+.up[hidden]{display:none}
+.upbox{width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 24px 70px rgba(15,35,75,.35)}
+.uph{display:flex;align-items:center;gap:8px;background:linear-gradient(#305FB8,#284F9E);color:#fff;padding:9px 12px}
+.uph b{font-size:13px;font-weight:800}
+.upb{overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.upl{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#44546e;margin-bottom:4px}
+.uprow{display:flex;align-items:center;gap:8px;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff;padding:4px 8px;font-size:11.5px;margin-bottom:4px}
+.uprow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.uprow .sz{color:#8a8f98;font-size:10px;font-variant-numeric:tabular-nums}
+.uprow button{border:0;background:transparent;color:#9aa4b2;cursor:pointer;font-size:13px;line-height:1;padding:0}
+.uprow button:hover{color:#ba0517}
+.pick{border:1px solid #b9c5d8;border-radius:4px;max-height:190px;overflow-y:auto;background:#fff}
+.pkr{display:flex;align-items:center;gap:8px;width:100%;border:0;border-bottom:1px solid #f0f3f8;background:#fff;padding:5px 8px;font:inherit;font-size:11.5px;text-align:left;cursor:pointer}
+.pkr:hover{background:#eaf1ff}
+.pkr.on{background:#284F9E;color:#fff}
+.pkr.on .code,.pkr.on .mut{color:#fff}
+.pkr .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pkempty{padding:12px;text-align:center;color:#44546e;font-size:11px}
+.kinds{display:flex;flex-wrap:wrap;gap:10px}
+.kinds label{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#44546e;cursor:pointer}
+.upf{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid #e3e9f3;background:#f7f9fd}
+.upstat{flex:1;font-size:11px;color:#44546e;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upstat.ok{color:#15803d;font-weight:700}
+.upstat.bad{color:#ba0517;font-weight:700}
+</style>
+</head>
+<body data-achi-title="Files">
+<main class="pg" data-screen-label="Files">
+  <div class="err" id="err"></div>
+  <div class="bar">
+    <h1>Files</h1>
+    <span class="st" style="background:#eaf1ff;color:#284F9E" id="total-label">loading…</span>
+    <span class="hint">Files attached to ARARA records — linked to their business code</span>
+    <span style="flex:1"></span>
+    <input class="srch" style="width:230px" id="q" placeholder="Search file, code, client…">
+    <select class="srch" id="ftype"><option>All types</option></select>
+    <div class="seg">
+      <button type="button" id="seg-list" class="on">List</button>
+      <button type="button" id="seg-grid">Grid</button>
+    </div>
+    <button type="button" class="mini pri" id="btn-upload">⭱ Upload</button>
+    <input type="file" id="file-input" multiple hidden>
+  </div>
+  <div class="lay">
+    <div class="frdd">
+      <button type="button" class="mini" id="btn-folders">▦ <span id="btn-folders-label">All files</span> ▾</button>
+      <div class="rail" id="rail">
+      <div class="rh">Folders</div>
+      <div id="folders"></div>
+      <div class="store">
+        <div class="sl">Storage</div>
+        <div class="sv" id="store-label">—</div>
+      </div>
+      </div>
+    </div>
+    <div>
+      <div class="wrap">
+        <div class="drop" id="drop">Drop files here to upload — <b>they attach to the record you pick</b> and land in its folder</div>
+        <div id="list-view">
+          <div class="hd"><span>Name</span><span>Folder</span><span>Linked to</span><span>Client / site</span><span style="text-align:right">Size</span><span>Kind</span><span>By</span><span>Modified</span></div>
+          <div id="rows"><div class="empty">Loading files…</div></div>
+        </div>
+        <div id="grid-view" hidden>
+          <div class="tiles" id="tiles"></div>
+        </div>
+        <div class="foot"><span id="count-label"></span><span style="flex:1"></span><span>sorted by upload date — newest first</span></div>
+      </div>
+    </div>
+  </div>
+  <aside class="dpanel" id="dpanel" hidden></aside>
+
+  <div class="up" id="up" hidden>
+    <div class="upbox">
+      <div class="uph"><b>Upload files</b><span style="flex:1"></span>
+        <button type="button" class="dpx" id="up-close" title="Close">✕</button></div>
+      <div class="upb">
+        <div>
+          <div class="upl">Files</div>
+          <div id="up-files"></div>
+          <button type="button" class="mini" id="up-add">+ Add files</button>
+        </div>
+        <div>
+          <div class="upl">Attach to code</div>
+          <input class="srch" style="width:100%;margin-bottom:5px" id="up-q" placeholder="Search code, client, subject…">
+          <div class="pick" id="up-pick"><div class="pkempty">Loading records…</div></div>
+        </div>
+        <div>
+          <div class="upl">Kind (optional)</div>
+          <div class="kinds" id="up-kinds">
+            <label><input type="checkbox" value="srv">SRV</label>
+            <label><input type="checkbox" value="dwg">DWG</label>
+            <label><input type="checkbox" value="mt">MT</label>
+            <label><input type="checkbox" value="boq">BOQ</label>
+            <label><input type="checkbox" value="cst">CST</label>
+            <label><input type="checkbox" value="qte">QTE</label>
+          </div>
+        </div>
+      </div>
+      <div class="upf">
+        <span class="upstat" id="up-stat"></span>
+        <button type="button" class="mini" id="up-cancel">Cancel</button>
+        <button type="button" class="mini pri" id="up-go" disabled>Upload</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ACHI Files page — live data + upload + delete.
+ * List: GET /files/manager (one call, everything joined).
+ * Upload: pick a record from GET /logs/, then POST /logs/{id}/attachments
+ * (multipart) — the exact endpoint the log popups use — then optionally
+ * PATCH /attachments/{id}/deliverables with the Kind tags.
+ * Delete: DELETE /attachments/{id}. Auth follows log-core.js: token scanned
+ * from storage, one refresh-and-retry on 401, downloads via ?token=. */
+(function () {
+  'use strict';
+
+  var API = '/api/v1/achi';
+
+  function getStored(key) {
+    try { return localStorage.getItem(key) || sessionStorage.getItem(key) || ''; }
+    catch (e) { return ''; }
+  }
+  var TOKEN = getStored('oe_access_token');
+
+  var refreshing = null;
+  function refreshToken() {
+    if (refreshing) return refreshing;
+    var rt = getStored('oe_refresh_token');
+    if (!rt) return Promise.resolve(false);
+    refreshing = fetch('/api/v1/users/auth/refresh/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: rt })
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.access_token) {
+          TOKEN = d.access_token;
+          try {
+            localStorage.setItem('oe_access_token', TOKEN);
+            if (d.refresh_token) localStorage.setItem('oe_refresh_token', d.refresh_token);
+          } catch (e) {}
+          return true;
+        }
+        return false;
+      })
+      .catch(function () { return false; })
+      .finally(function () { refreshing = null; });
+    return refreshing;
+  }
+
+  var EXPIRED = 'Session expired — open the main app on this exact host, sign in, then reload.';
+  function authFetch(path, opts, retried) {
+    opts = opts || {};
+    var headers = { Authorization: 'Bearer ' + TOKEN };
+    if (opts.headers) for (var k in opts.headers) headers[k] = opts.headers[k];
+    return fetch(API + path, { method: opts.method || 'GET', headers: headers, body: opts.body }).then(function (r) {
+      if (r.status === 401) {
+        if (!retried) return refreshToken().then(function (ok) {
+          if (ok) return authFetch(path, opts, true);
+          throw new Error(EXPIRED);
+        });
+        throw new Error(EXPIRED);
+      }
+      return r;
+    });
+  }
+  function api(path, opts) {
+    return authFetch(path, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (body) {
+        if (!r.ok) {
+          var d = body && body.detail;
+          throw new Error(Array.isArray(d) ? d.map(function (x) { return x.msg; }).join('; ') : (d || ('HTTP ' + r.status)));
+        }
+        return body;
+      });
+    });
+  }
+
+  function downloadUrl(id) {
+    return API + '/attachments/' + encodeURIComponent(id) + '/download?token=' + encodeURIComponent(TOKEN);
+  }
+
+  /* ---------------- mapping real rows to the page model ---------------- */
+
+  var EXTC = { PDF: 'background:#fbeaea;color:#b91c1c', DWG: 'background:#eaf1ff;color:#1F3F80', DXF: 'background:#eaf1ff;color:#1F3F80',
+    RVT: 'background:#f3edfb;color:#5b21b6', IFC: 'background:#f3edfb;color:#5b21b6',
+    XLSX: 'background:#dcefe2;color:#14532d', XLS: 'background:#dcefe2;color:#14532d', CSV: 'background:#dcefe2;color:#14532d',
+    DOCX: 'background:#e0f5f5;color:#0a5f76', DOC: 'background:#e0f5f5;color:#0a5f76',
+    JPG: 'background:#fff4e0;color:#8a5a08', JPEG: 'background:#fff4e0;color:#8a5a08', PNG: 'background:#fff4e0;color:#8a5a08',
+    ZIP: 'background:#f4f6f9;color:#44546e' };
+  var EXTC_DEFAULT = 'background:#eef2f8;color:#44546e';
+  function extStyle(ext) { return EXTC[ext] || EXTC_DEFAULT; }
+  function extOf(name) {
+    var m = /\.([A-Za-z0-9]{1,5})$/.exec(String(name || ''));
+    return m ? m[1].toUpperCase() : 'FILE';
+  }
+
+  var MODULE_HREF = { log: '/api/v1/achi/ui', 'call-log': '/api/v1/achi/ui', call_log: '/api/v1/achi/ui',
+    general: '/api/v1/achi/general-log/ui', 'general-log': '/api/v1/achi/general-log/ui', general_log: '/api/v1/achi/general-log/ui',
+    crm: '/api/v1/achi/crm/ui', prospect: '/api/v1/achi/prospect/ui',
+    survey: '/api/v1/achi/site-visit/ui', 'site-visit': '/api/v1/achi/site-visit/ui', site_visit: '/api/v1/achi/site-visit/ui',
+    quotation: '/api/v1/achi/quotation/ui', boq: '/api/v1/achi/boq/ui', mt: '/api/v1/achi/mt/ui',
+    draw: '/api/v1/achi/draw/ui', resource: '/api/v1/achi/resource/ui', plan: '/api/v1/achi/plan/ui' };
+  var PREFIX_HREF = { LOG: '/api/v1/achi/ui', ENQ: '/api/v1/achi/ui', GEN: '/api/v1/achi/general-log/ui',
+    CRM: '/api/v1/achi/crm/ui', PROSP: '/api/v1/achi/prospect/ui',
+    SV: '/api/v1/achi/site-visit/ui', SUR: '/api/v1/achi/site-visit/ui',
+    QUO: '/api/v1/achi/quotation/ui', QTE: '/api/v1/achi/quotation/ui',
+    BOQ: '/api/v1/achi/boq/ui', MT: '/api/v1/achi/mt/ui',
+    DWG: '/api/v1/achi/draw/ui', DRAW: '/api/v1/achi/draw/ui',
+    RES: '/api/v1/achi/resource/ui', PLAN: '/api/v1/achi/plan/ui' };
+
+   var FOLDER_NAME = { ENQ: 'Enquiries', LOG: 'Enquiries', GEN: 'Enquiries', CRM: 'Enquiries', PROSP: 'Enquiries',
+    SV: 'Site visits', SUR: 'Site visits', DWG: 'Drawings', DRAW: 'Drawings', MT: 'M/T', BOQ: 'BOQ',
+    QUO: 'Quotations', QTE: 'Quotations', JOB: 'Jobs', DJO: 'Jobs', DS: 'Delivery slips',
+    INV: 'Invoices', CL: 'Contracts', RES: 'Resource', PLAN: 'Plan' };
+  var MODULE_FOLDER = { log: 'Call Log', 'call-log': 'Call Log', call_log: 'Call Log',
+    general: 'Call Log', 'general-log': 'Call Log', general_log: 'Call Log',
+    crm: 'CRM', prospect: 'Prospects',
+    survey: 'Site visits', 'site-visit': 'Site visits', site_visit: 'Site visits',
+    quotation: 'Quotations', boq: 'BOQ', mt: 'M/T', draw: 'Drawings',
+    resource: 'Resource', plan: 'Plan' };
+  var FOLDERS = ['Call Log', 'CRM', 'Prospects', 'Site visits', 'Quotations', 'BOQ', 'M/T',
+    'Drawings', 'Resource', 'Plan'];
+  function folderOf(mod, code) {
+    var m = MODULE_FOLDER[String(mod || '').toLowerCase()];
+    if (m) return m;
+    var p = prefixOf(code);
+    if (FOLDER_NAME[p]) return FOLDER_NAME[p];
+    if (p && !/^\d+$/.test(p)) return p;   // reviewer's rule: named prefixes get their own folder
+    return 'Call Log';                      // numeric / codeless records live in the root log
+  }
+
+
+  function prefixOf(code) { return String(code || '').split('-')[0].toUpperCase(); }
+  function displayCode(code) {
+    code = String(code || '');
+    if (/^\d+$/.test(code)) return '#' + code;
+    return code.replace(/^MT(?=-)/, 'M/T');
+  }
+  function recordHref(f) {
+    var mod = String(f.origin_module || '').toLowerCase();
+    return MODULE_HREF[mod] || PREFIX_HREF[prefixOf(f.codeRaw)] || null;
+  }
+  function fmtSize(b) {
+    b = Number(b) || 0;
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(b < 10240 ? 1 : 0) + ' KB';
+    if (b < 1073741824) return (b / 1048576).toFixed(1) + ' MB';
+    return (b / 1073741824).toFixed(2) + ' GB';
+  }
+  function fmtDate(s) {
+    var d = new Date(s);
+    if (isNaN(d)) return String(s || '').slice(0, 10);
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+
+  var FILES = [];
+  function adopt(items) {
+    FILES = (items || []).map(function (r) {
+      var codeRaw = r.log_code || r.file_number || '';
+      return {
+        id: r.id,
+        name: r.filename || 'file',
+        ext: extOf(r.filename),
+        codeRaw: codeRaw,
+        code: displayCode(codeRaw),
+        origin_module: r.origin_module,
+        folder: folderOf(r.origin_module, codeRaw),
+        client: [r.client, r.site].filter(Boolean).join(' · '),
+        clientOnly: r.client || '',
+        site: r.site || '',
+        subject: r.subject || '',
+        size: fmtSize(r.size_bytes),
+        size_bytes: Number(r.size_bytes) || 0,
+        kinds: (r.deliverables || []).map(function (k) { return String(k).toUpperCase(); }),
+        by: r.uploaded_by || '',
+        date: fmtDate(r.created_at),
+        content_type: r.content_type || ''
+      };
+    });
+  }
+
+  /* --------------------------- rendering --------------------------- */
+
+  var state = { folder: 'All files', q: '', fType: 'All types', view: 'grid', sel: null, openFolders: {} };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function codeHtml(f) {
+    if (!f.codeRaw) return '<span class="mut">—</span>';
+    var h = recordHref(f);
+    return h
+      ? '<a class="code" href="' + h + '">' + esc(f.code) + '</a>'
+      : '<span class="code">' + esc(f.code) + '</span>';
+  }
+  function kindsHtml(f) {
+    if (!f.kinds.length) return '<span class="mut">—</span>';
+    return f.kinds.map(function (k) { return '<span class="kd">' + esc(k) + '</span>'; }).join('');
+  }
+  function fileById(id) {
+    for (var i = 0; i < FILES.length; i++) if (FILES[i].id === id) return FILES[i];
+    return null;
+  }
+  function folders() {
+    var list = ['All files'].concat(FOLDERS);
+    FILES.forEach(function (f) { if (list.indexOf(f.folder) === -1) list.push(f.folder); });
+    return list;
+  }
+  function filtered() {
+    var list = FILES.slice();
+    if (state.folder !== 'All files') list = list.filter(function (f) { return f.folder === state.folder; });
+    if (state.fType !== 'All types') list = list.filter(function (f) { return f.ext === state.fType; });
+    var q = state.q.trim().toLowerCase();
+    if (q) list = list.filter(function (f) {
+      return (f.name + ' ' + f.code + ' ' + f.codeRaw + ' ' + f.client + ' ' + f.subject + ' ' + f.by).toLowerCase().indexOf(q) !== -1;
+    });
+    return list;
+  }
+
+  function setTotals() {
+    var total = FILES.reduce(function (s, f) { return s + f.size_bytes; }, 0);
+    var n = FILES.length + ' file' + (FILES.length === 1 ? '' : 's');
+    $('total-label').textContent = n + ' · ' + fmtSize(total);
+    $('store-label').textContent = fmtSize(total) + ' across ' + n;
+  }
+  function renderTypeOptions() {
+    var exts = [];
+    FILES.forEach(function (f) { if (exts.indexOf(f.ext) === -1) exts.push(f.ext); });
+    exts.sort();
+    if (exts.indexOf(state.fType) === -1) state.fType = 'All types';
+    $('ftype').innerHTML = '<option>All types</option>' + exts.map(function (e) {
+      return '<option' + (state.fType === e ? ' selected' : '') + '>' + esc(e) + '</option>';
+    }).join('');
+  }
+  function renderFolders() {
+    var lb = $('btn-folders-label');
+    if (lb) lb.textContent = state.folder;
+    $('folders').innerHTML = folders().map(function (name) {
+      var inFolder = name === 'All files' ? [] : FILES.filter(function (f) { return f.folder === name; });
+      var n = name === 'All files' ? FILES.length : inFolder.length;
+      var open = !!state.openFolders[name] && n > 0;
+      var head = '<button type="button" class="fbt' + (state.folder === name ? ' on' : '') + (open ? ' open' : '') + '" data-folder="' + esc(name) + '">'
+        + (name === 'All files' ? '' : '<span class="car">' + (n ? '\u25b8' : '') + '</span>')
+        + esc(name) + '<span class="n">' + n + '</span></button>';
+      if (!open) return head;
+      var rows = inFolder.slice(0, 50).map(function (f) {
+        return '<button type="button" class="ftr' + (state.sel === f.id ? ' on' : '') + '" data-fid="' + esc(f.id) + '" title="' + esc(f.name) + '">'
+          + '<span class="fx" style="' + extStyle(f.ext) + '">' + esc(f.ext) + '</span>'
+          + '<span class="fn">' + esc(f.name) + '</span></button>';
+      }).join('');
+      if (inFolder.length > 50) rows += '<div class="ftr" style="cursor:default;color:#8a8f98">\u2026 ' + (inFolder.length - 50) + ' more \u2014 use the list</div>';
+      return head + '<div class="ftree">' + rows + '</div>';
+    }).join('');
+  }
+  function emptyHtml() {
+    return '<div class="empty">' + (FILES.length
+      ? 'Nothing matches these filters.'
+      : 'No files yet — hit Upload, or attach a file to any log.') + '</div>';
+  }
+  function renderList(list) {
+    if (!list.length) { $('rows').innerHTML = emptyHtml(); return; }
+    $('rows').innerHTML = list.map(function (f) {
+      return '<div class="row' + (state.sel === f.id ? ' sel' : '') + '" data-id="' + esc(f.id) + '">'
+        + '<div style="display:flex;align-items:center"><span class="ext" style="' + extStyle(f.ext) + '">' + esc(f.ext) + '</span>'
+        + '<span style="font-weight:600;overflow:hidden;text-overflow:ellipsis">' + esc(f.name) + '</span></div>'
+        + '<div class="mut" style="font-size:10.5px">' + esc(f.folder) + '</div>'
+        + '<div>' + codeHtml(f) + '</div>'
+        + '<div style="font-size:10.5px">' + esc(f.client) + '</div>'
+        + '<div class="num">' + esc(f.size) + '</div>'
+        + '<div>' + kindsHtml(f) + '</div>'
+        + '<div style="font-size:10.5px">' + esc(f.by) + '</div>'
+        + '<div class="num mut" style="font-size:10px">' + esc(f.date) + '</div>'
+        + '</div>';
+    }).join('');
+  }
+  function renderGrid(list) {
+    $('tiles').innerHTML = list.length ? list.map(function (f) {
+      return '<div class="tile" data-id="' + esc(f.id) + '">'
+        + '<div class="bx" style="' + extStyle(f.ext) + '">' + esc(f.ext) + '</div>'
+        + '<div class="nm">' + esc(f.name) + '</div>'
+        + '<div class="mt">' + esc(f.size) + ' · ' + esc(f.date) + '</div>'
+        + '<div style="margin-top:3px">' + codeHtml(f) + '</div>'
+        + '</div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">' + (FILES.length
+        ? 'Nothing matches these filters.'
+        : 'No files yet — hit Upload, or attach a file to any log.') + '</div>';
+  }
+  var previewUrl = null;
+  function revokePreview() {
+    if (previewUrl) { try { URL.revokeObjectURL(previewUrl); } catch (e) {} previewUrl = null; }
+  }
+  var IMG_EXT = { JPG: 1, JPEG: 1, PNG: 1, GIF: 1, WEBP: 1, BMP: 1, SVG: 1 };
+  function loadPreview(sf, panel) {
+    var prev = panel.querySelector('.prev');
+    var isImg = !!IMG_EXT[sf.ext], isPdf = sf.ext === 'PDF', isCad = sf.ext === 'DWG' || sf.ext === 'DXF';
+    if (!prev || (!isImg && !isPdf && !isCad)) return;     // others keep the type box
+    var mine = {};
+    prev.__req = mine;
+    prev.innerHTML = '<div class="pvload">Loading preview…</div>';
+    var path = isCad
+      ? '/attachments/' + encodeURIComponent(sf.id) + '/render'
+      : '/attachments/' + encodeURIComponent(sf.id) + '/download';
+    authFetch(path).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (b) {
+      if (prev.__req !== mine) return;                     // a newer selection took over
+      revokePreview();
+      previewUrl = URL.createObjectURL(b);
+      prev.innerHTML = isPdf
+        ? '<iframe src="' + previewUrl + '" title="preview"></iframe>'
+        : '<img src="' + previewUrl + '" alt="">';
+    }).catch(function () {
+      if (prev.__req !== mine) return;
+      prev.innerHTML = '<div class="bx" style="' + extStyle(sf.ext) + '">' + esc(sf.ext) + '</div>';
+    });
+  }
+  function renderPanel() {
+    var panel = $('dpanel');
+    var sf = state.sel ? fileById(state.sel) : null;
+    if (!sf) { revokePreview(); panel.hidden = true; panel.innerHTML = ''; return; }
+    var href = recordHref(sf);
+    panel.innerHTML =
+      '<div class="dph"><b>' + esc(sf.name) + '</b><span style="flex:1"></span>'
+      + '<button type="button" class="dpx" id="dp-close" title="Close">✕</button></div>'
+      + '<div class="prev"><div class="bx" style="' + extStyle(sf.ext) + '">' + esc(sf.ext) + '</div></div>'
+      + '<div style="display:flex;gap:6px;padding:0 8px 2px">'
+      + '<a class="mini" style="flex:1;justify-content:center" href="' + downloadUrl(sf.id) + '" target="_blank" rel="noopener">⭳ Download</a>'
+      + (href ? '<a class="mini" style="flex:1;justify-content:center" href="' + href + '">Open ' + esc(sf.folder) + '</a>' : '')
+      + '<button type="button" class="mini" style="flex:0 0 auto;color:#ba0517;border-color:#f5a0a0;background:#fde8e8" id="dp-del">🗑 Delete</button>'
+      + '</div>'
+      + '<div class="dpb">'
+      + '<div class="sec"><div class="sech">Details</div><div class="kv">'
+      + '<span class="k">Type</span><span>' + esc(sf.ext) + ' · ' + esc(sf.folder) + '</span>'
+      + '<span class="k">Size</span><span>' + esc(sf.size) + '</span>'
+      + '<span class="k">Kind</span><span>' + (sf.kinds.length ? esc(sf.kinds.join(', ')) : '—') + '</span>'
+      + '<span class="k">Uploaded by</span><span>' + (esc(sf.by) || '—') + '</span>'
+      + '<span class="k">Uploaded</span><span>' + esc(sf.date) + '</span>'
+      + '<span class="k">Client</span><span>' + (esc(sf.clientOnly) || '—') + '</span>'
+      + '<span class="k">Site</span><span>' + (esc(sf.site) || '—') + '</span>'
+      + '</div></div>'
+      + '<div class="sec"><div class="sech">Linked record</div><div class="kv">'
+      + '<span class="k">Code</span><span>' + codeHtml(sf) + '</span>'
+      + '<span class="k">Subject</span><span>' + (esc(sf.subject) || '—') + '</span>'
+      + '<span class="k">Module</span><span>' + (esc(sf.origin_module) || '—') + '</span>'
+      + '</div></div>'
+      + '</div>';
+    panel.hidden = false;
+    $('dp-close').addEventListener('click', function () { state.sel = null; render(); });
+    $('dp-del').addEventListener('click', function () {
+      if (!window.confirm('Delete "' + sf.name + '" permanently? This cannot be undone.')) return;
+      var btn = $('dp-del');
+      btn.disabled = true; btn.textContent = 'Deleting…';
+      authFetch('/attachments/' + encodeURIComponent(sf.id), { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok && r.status !== 204) throw new Error('HTTP ' + r.status);
+          FILES = FILES.filter(function (x) { return x.id !== sf.id; });
+          state.sel = null;
+          setTotals(); renderTypeOptions(); render();
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = '🗑 Delete';
+          showError('Delete failed: ' + (e && e.message ? e.message : e));
+        });
+    });
+    loadPreview(sf, panel);
+  }
+  function render() {
+    var list = filtered();
+    renderFolders();
+    if (state.view === 'list') {
+      $('list-view').hidden = false; $('grid-view').hidden = true; renderList(list);
+    } else {
+      $('list-view').hidden = true; $('grid-view').hidden = false; renderGrid(list);
+    }
+    $('seg-list').className = state.view === 'list' ? 'on' : '';
+    $('seg-grid').className = state.view === 'grid' ? 'on' : '';
+    $('count-label').textContent = list.length + ' file' + (list.length === 1 ? '' : 's')
+      + (state.folder !== 'All files' ? ' in ' + state.folder : '');
+    renderPanel();
+  }
+
+  function activateFile(id) {
+    if (state.sel === id) {
+      // second click on the selected file (what a double-click does too):
+      // hand it to the browser/OS -- PDFs and images open in a new tab,
+      // other formats download and open with their associated software.
+      window.open(downloadUrl(id), '_blank', 'noopener');
+      return;
+    }
+    state.sel = id;
+    render();
+  }
+  function onItemClick(e) {
+    if (e.target.closest('a')) return;
+    var el = e.target.closest('[data-id]');
+    if (el) activateFile(el.getAttribute('data-id'));
+  }
+
+  function showError(msg) {
+    var el = $('err');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function loadData() {
+    return api('/files/manager').then(function (data) {
+      adopt(data.items);
+      $('err').style.display = 'none';
+      setTotals();
+      renderTypeOptions();
+      render();
+    });
+  }
+
+  /* ----------------------------- upload ----------------------------- */
+
+  var up = { files: [], logId: null, records: [], allRecords: [], busy: false };
+
+  function upFilesHtml() {
+    if (!up.files.length) return '<div class="pkempty">No files chosen yet.</div>';
+    return up.files.map(function (f, i) {
+      return '<div class="uprow"><span class="nm">' + esc(f.name) + '</span>'
+        + '<span class="sz">' + fmtSize(f.size) + '</span>'
+        + '<button type="button" data-rm="' + i + '" title="Remove">✕</button></div>';
+    }).join('');
+  }
+  function upRecordsHtml() {
+    if (!up.records.length) {
+      return '<div class="pkempty">' + (up.allRecords.length
+        ? 'Nothing matches this search.'
+        : 'No records yet — files attach to a business code. Create a record in Call Log / CRM first, then upload here.') + '</div>';
+    }
+    return up.records.map(function (r) {
+      var code = displayCode(r.code);
+      var extra = [r.who, r.city].filter(Boolean).join(' · ');
+      return '<button type="button" class="pkr' + (up.logId === r.logId ? ' on' : '') + '" data-log="' + esc(r.logId) + '">'
+        + '<span class="code">' + esc(code || '—') + '</span>'
+        + '<span class="who">' + esc(extra) + (r.subject ? ' — ' + esc(r.subject) : '') + '</span>'
+        + '<span class="kd">' + esc(r.folder) + '</span>'
+        + '</button>';
+    }).join('');
+  }
+  function upSync() {
+    $('up-files').innerHTML = upFilesHtml();
+    $('up-pick').innerHTML = upRecordsHtml();
+    $('up-go').disabled = up.busy || !up.files.length || !up.logId;
+    $('up-go').textContent = up.busy ? 'Uploading…'
+      : 'Upload' + (up.files.length ? ' ' + up.files.length + ' file' + (up.files.length === 1 ? '' : 's') : '');
+    var stat = $('up-stat');
+    if (!up.busy && stat.className === 'upstat') {
+      var sel = null;
+      for (var ri = 0; ri < up.allRecords.length; ri++) {
+        if (up.allRecords[ri].logId === up.logId) { sel = up.allRecords[ri]; break; }
+      }
+      stat.textContent = !up.files.length ? 'Add at least one file.'
+        : (!sel ? 'Now click a code above so Upload turns blue.'
+          : 'Uploads to ' + displayCode(sel.code) + ' — lands in the ' + sel.folder + ' folder.');
+    }
+  }
+  function upGroupRecords(items) {
+    var seen = {}, out = [];
+    (items || []).forEach(function (r) {
+      var key = r.file_id || r.id;
+      if (seen[key]) return;
+      seen[key] = 1;
+      var code = r.log_code || r.file_number || '';
+      out.push({
+        logId: r.id,
+        code: code,
+        folder: folderOf(r.origin_module, code),
+        who: r.contact_name || r.company_name || '',
+        city: r.city || '',
+        subject: r.subject || ''
+      });
+    });
+    return out;
+  }
+  function upFilterRecords() {
+    var t = String($('up-q').value || '').trim().toLowerCase();
+    up.records = !t ? up.allRecords.slice(0, 80) : up.allRecords.filter(function (r) {
+      return (r.code + ' ' + r.who + ' ' + r.city + ' ' + r.subject).toLowerCase().indexOf(t) !== -1;
+    }).slice(0, 80);
+    if (up.logId && !up.records.some(function (r) { return r.logId === up.logId; })) up.logId = null;
+    upSync();
+  }
+  function upFetchRecords(selectLogId) {
+    return api('/logs/?limit=1000&sort_by=created_at&sort_dir=desc').then(function (data) {
+      up.allRecords = upGroupRecords(data && data.items);
+      if (selectLogId) up.logId = selectLogId;
+      upFilterRecords();
+      if (selectLogId) up.logId = selectLogId;
+      upSync();
+    }).catch(function (e) {
+      $('up-pick').innerHTML = '<div class="pkempty">' + esc(e && e.message ? e.message : 'Could not load records.') + '</div>';
+    });
+  }
+  function openUpload(files) {
+    if (files && files.length) {
+      for (var i = 0; i < files.length; i++) up.files.push(files[i]);
+    }
+    $('up').hidden = false;
+    $('up-stat').textContent = ''; $('up-stat').className = 'upstat';
+    upSync();
+    upFetchRecords();
+  }
+  function closeUpload() {
+    if (up.busy) return;
+    $('up').hidden = true;
+    up.files = []; up.logId = null;
+    $('up-q').value = '';
+    var cbs = $('up-kinds').querySelectorAll('input');
+    for (var i = 0; i < cbs.length; i++) cbs[i].checked = false;
+  }
+  function doUpload() {
+    if (up.busy || !up.files.length || !up.logId) return;
+    var kinds = [];
+    var cbs = $('up-kinds').querySelectorAll('input:checked');
+    for (var i = 0; i < cbs.length; i++) kinds.push(cbs[i].value);
+    up.busy = true; upSync();
+    var stat = $('up-stat');
+    stat.className = 'upstat';
+    var done = 0, failed = [], kindFailed = [];
+    var queue = up.files.slice();
+    function next() {
+      if (!queue.length) {
+        up.busy = false;
+        if (failed.length) {
+          stat.className = 'upstat bad';
+          stat.textContent = done + ' uploaded, ' + failed.length + ' failed: ' + failed.join(', ')
+            + (kindFailed.length ? ' — Kind tags also failed for: ' + kindFailed.join(', ') : '');
+          up.files = up.files.filter(function (f) { return failed.indexOf(f.name) !== -1; });
+          upSync();
+        } else if (kindFailed.length) {
+          stat.className = 'upstat bad';
+          stat.textContent = 'Uploaded ' + done + ' file' + (done === 1 ? '' : 's')
+            + ', but setting the Kind tags FAILED for: ' + kindFailed.join(', ')
+            + ' — the files are saved; set their Kind from the record\'s log.';
+          up.files = [];
+          upSync();
+        } else {
+          stat.className = 'upstat ok';
+          stat.textContent = 'Uploaded ' + done + ' file' + (done === 1 ? '' : 's') + '.';
+          up.files = [];
+          upSync();
+          setTimeout(closeUpload, 900);
+        }
+        loadData().catch(function () {});
+        return;
+      }
+      var f = queue.shift();
+      stat.textContent = 'Uploading ' + (done + failed.length + 1) + '/' + up.files.length + ' — ' + f.name + '…';
+      var fd = new FormData();
+      fd.append('file', f, f.name);
+      authFetch('/logs/' + encodeURIComponent(up.logId) + '/attachments', { method: 'POST', body: fd })
+        .then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (body) {
+            if (!r.ok) {
+              var d = body && body.detail;
+              throw new Error(typeof d === 'string' ? d : ('HTTP ' + r.status));
+            }
+            return body;
+          });
+        })
+        .then(function (att) {
+          done++;
+          if (kinds.length && att && att.id) {
+            return authFetch('/attachments/' + encodeURIComponent(att.id) + '/deliverables', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ deliverables: kinds })
+            }).then(function (r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+            }).catch(function () { kindFailed.push(f.name); });
+          }
+        })
+        .catch(function (e) { failed.push(f.name); })
+        .then(next);
+    }
+    next();
+  }
+
+  $('btn-upload').addEventListener('click', function () { openUpload(); });
+  $('up-add').addEventListener('click', function () { $('file-input').click(); });
+  $('drop').addEventListener('click', function () { $('file-input').click(); });
+  $('file-input').addEventListener('change', function (e) {
+    if ($('up').hidden) openUpload(e.target.files);
+    else { for (var i = 0; i < e.target.files.length; i++) up.files.push(e.target.files[i]); upSync(); }
+    e.target.value = '';
+  });
+  $('up-close').addEventListener('click', closeUpload);
+  $('up-cancel').addEventListener('click', closeUpload);
+  $('up-go').addEventListener('click', doUpload);
+  $('up-files').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rm]');
+    if (!b || up.busy) return;
+    up.files.splice(Number(b.getAttribute('data-rm')), 1);
+    upSync();
+  });
+  $('up-pick').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-log]');
+    if (!b || up.busy) return;
+    up.logId = b.getAttribute('data-log');
+    upSync();
+  });
+  $('up-q').addEventListener('input', function () { upFilterRecords(); });
+  ['dragover', 'dragenter'].forEach(function (ev) {
+    $('drop').addEventListener(ev, function (e) { e.preventDefault(); $('drop').classList.add('hot'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    $('drop').addEventListener(ev, function (e) { e.preventDefault(); $('drop').classList.remove('hot'); });
+  });
+  $('drop').addEventListener('drop', function (e) {
+    var fs = e.dataTransfer && e.dataTransfer.files;
+    if (fs && fs.length) openUpload(fs);
+  });
+
+  /* ------------------------------ boot ------------------------------ */
+
+  $('q').addEventListener('input', function (e) { state.q = e.target.value; render(); });
+  $('ftype').addEventListener('change', function (e) { state.fType = e.target.value; render(); });
+  $('seg-list').addEventListener('click', function () { state.view = 'list'; render(); });
+  $('seg-grid').addEventListener('click', function () { state.view = 'grid'; render(); });
+  $('folders').addEventListener('click', function (e) {
+    var fr = e.target.closest('.ftr');
+    if (fr && fr.getAttribute('data-fid')) { $('rail').classList.remove('open'); activateFile(fr.getAttribute('data-fid')); return; }
+    var b = e.target.closest('.fbt');
+    if (!b) return;
+    var name = b.getAttribute('data-folder');
+    if (name !== 'All files') state.openFolders[name] = !state.openFolders[name];
+    state.folder = name;
+    render();
+  });
+  $('rows').addEventListener('click', onItemClick);
+  $('tiles').addEventListener('click', onItemClick);
+  $('btn-folders').addEventListener('click', function (e) {
+    e.stopPropagation();
+    $('rail').classList.toggle('open');
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('#rail') || e.target.closest('#btn-folders')) return;
+    $('rail').classList.remove('open');
+  });
+
+  loadData().catch(function (e) {
+    $('total-label').textContent = 'error';
+    $('rows').innerHTML = '<div class="empty">Could not load files.</div>';
+    showError(e && e.message ? e.message : 'Could not load files.');
+  });
+})();
+</script>
+<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
+</body>
+</html>
