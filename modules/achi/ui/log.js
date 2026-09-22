@@ -2764,7 +2764,7 @@ $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="d
 $('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="email-count">0</span>';
 loadColWidths(); buildHead(); wireColResize(); ensureLogSortControl(); setActivePill(0); stats(); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
-else { load(); loadCustomCities(); loadCustomDistricts(); }
+else { load(); loadCustomCities(); loadCustomDistricts(); loadIntentNextCodes(); }
 
 
 /* ── Intent dropdown — "Copy Log → Stage" menu ────────────────────────────

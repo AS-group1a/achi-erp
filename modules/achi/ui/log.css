@@ -1374,32 +1374,72 @@ h1,h2,h3,h4{font-family:'Barlow Condensed',Barlow,sans-serif;font-weight:600;let
 
 /* ── Top bar ────────────────────────────────────────────────────────────── */
 body.log-page{ background:#eef1f6; font-size:12px; color:#1d2b45; }
-body.log-page main{ margin:0; padding:10px 12px 30px; max-width:none; width:100% }
+body.log-page > header,
+body.log-page #achi-log-hero{
+  display:none!important;
+}
+body.log-page main{
+  margin:0;
+  padding:0 12px 30px;
+  max-width:none;
+  width:100%;
+}
 body.log-page .err{ margin:0 0 10px; }
 body.log-page .log-overview{ padding:0; border:0; background:transparent; margin-bottom:7px; }
-body.log-page .log-overview-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+body.log-page .log-overview-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; margin-bottom:8px }
 body.log-page .log-overview-copy{ display:flex; align-items:center; gap:8px; white-space:nowrap; flex-wrap:wrap; }
-body.log-page .log-overview-copy h1{ margin:0; font-size:15px; font-weight:800; color:#1d1d1f; }
-body.log-page .log-volume{ min-height:0; padding:1px 7px; border-radius:3px; background:#eaf1ff; color:#284F9E; font-size:10px; font-weight:700; }
-body.log-page .log-volume strong{ font-size:11px; }
+body.log-page .log-overview-copy h1{ margin:0 0 0 8px; font-size:22px; font-weight:800; color:#1d1d1f; }
 body.log-page .log-explainer{ font-size:10.5px; color:#44546e; white-space:normal; }
-body.log-page .log-overview-actions{ gap:6px; }
+body.log-page .log-overview-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  margin-left:auto;
+}
 body.log-page .log-overview-actions .search{
   height:26px; width:230px; border:1px solid #b9c5d8; border-radius:4px;
   background:#fff; color:#1d2b45; font-size:12px; box-shadow:none;
 }
 body.log-page .log-overview-actions .search::placeholder{ color:#8a94a6; }
+
 body.log-page .log-overview-actions .log-clear-filters{
-  height:26px; border:1px solid #b9c5d8; border-radius:4px; background:#fff; color:#44546e; font-size:10.5px;
+  width:82px;
+  height:26px;
+  padding:0 8px;
+  border:1px solid #b9c5d8;
+  border-radius:4px;
+  background:#fff;
+  color:#44546e;
+  font-size:10.5px;
 }
+
+body.log-page .log-overview-actions .tb-exp{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  width:82px;
+  height:26px;
+  padding:0 8px;
+  border:1px solid #1F3F80;
+  border-radius:4px;
+  background:#284F9E;
+  color:#fff;
+  font-size:10.5px;
+  font-weight:700;
+  box-shadow:none;
+}
+
+body.log-page .log-overview-actions .tb-exp .tb-add-plus{
+  font-size:13px;
+}
+
 body.log-page .log-overview-actions .log-clear-filters:hover,
 body.log-page .log-overview-actions .log-clear-filters:focus-visible{
   outline:0; border-color:#284F9E; color:#284F9E; background:#eaf1ff;
 }
-body.log-page .log-overview-actions .tb-exp{
-  height:26px; padding:0 12px; border:1px solid #1F3F80; border-radius:4px;
-  background:#284F9E; color:#fff; font-size:11px; font-weight:800; box-shadow:none;
-}
+
 body.log-page .log-overview-actions .tb-exp:hover{ border-color:#1F3F80; background:#1F3F80; }
 
 /* ── ARARA AI bar — visual placeholder only, no AI feature implemented ────── */
@@ -1412,21 +1452,59 @@ body.log-page .log-ai-bar>.sr-only{
   clip:rect(0,0,0,0); white-space:nowrap; border:0;
 }
 body.log-page .log-ai-brand{
-  display:inline-flex; align-items:center; justify-content:center; height:30px; flex:0 0 auto;
-  padding:0 20px; border-radius:4px; background:#93c5fd; color:#0d2b31; font-size:13px; font-weight:900; letter-spacing:.08em;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:30px;
+  flex:0 0 auto;
+  padding:0 8px 0 0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#fff;
+  font-size:13px;
+  font-weight:900;
+  letter-spacing:.08em;
 }
 body.log-page .log-ai-query{
-  flex:1 1 0; width:auto; min-width:0; height:30px; border:1px solid rgba(255,255,255,.3); border-radius:4px;
-  background:rgba(255,255,255,.12); color:#fff; font-size:12px; opacity:1;
+  flex:1 1 0;
+  width:auto;
+  min-width:0;
+  height:30px;
+  padding-left:12px;
+  border:1px solid rgba(255,255,255,.3);
+  border-radius:4px;
+  background:rgba(255,255,255,.12);
+  color:#fff;
+  font-size:12px;
+  opacity:1;
 }
-body.log-page .log-ai-query::placeholder{ color:#b9c9e8; }
+
+body.log-page .log-ai-query::placeholder{
+  color:#b9c9e8;
+}
+
 body.log-page .log-ai-summary{
-  flex:0 0 auto; height:30px; padding:0 12px; border-radius:99px; border:1px solid rgba(255,255,255,.35);
-  background:transparent; color:#dce7fa; font-size:10px; font-weight:700; cursor:not-allowed;
+  flex:0 0 auto;
+  height:30px;
+  padding:0 12px;
+  border-radius:99px;
+  border:1px solid rgba(255,255,255,.35);
+  background:transparent;
+  color:#dce7fa;
+  font-size:10px;
+  font-weight:700;
+  cursor:not-allowed;
 }
 
 /* ── KPI row -> small chips ─────────────────────────────────────────────── */
-body.log-page .kpis{ display:flex; align-items:center; gap:6px; margin:0 0 8px; flex-wrap:wrap; }
+body.log-page .kpis{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0 0 8px;
+  flex-wrap:nowrap;
+}
 body.log-page .kpi, body.log-page .kpi-deleted{
   display:inline-flex; align-items:center; gap:6px; flex:0 0 auto; min-height:0;
   padding:3px 10px; border:1px solid #dbe2ed; border-radius:4px;
@@ -1435,6 +1513,13 @@ body.log-page .kpi, body.log-page .kpi-deleted{
 body.log-page .kpi.btn, body.log-page .kpi-deleted{ cursor:pointer; }
 body.log-page .kpi:hover, body.log-page .kpi-deleted:hover{
   border-color:#284F9E; color:#284F9E; background:#eaf1ff!important; transform:none;
+}
+body.log-page .kpi{
+  flex:0 0 auto;
+  width:auto;
+  height:24px;
+  padding:2px 7px;
+  justify-content:flex-start;
 }
 body.log-page .kpi .n{ color:#1d1d1f; font-size:12.5px; font-weight:900; line-height:1; }
 body.log-page .kpi .l{ margin:0; color:inherit; font-size:10.5px; font-weight:500; letter-spacing:0; text-transform:none; }
@@ -1453,60 +1538,96 @@ body.log-page .tscroll{
   width:100%; height:var(--log-table-fit-height,calc(100dvh - 210px)); min-height:200px; overflow:auto;
   scrollbar-color:#8f99a7 #edf1f5; scrollbar-width:thin;
 }
-body.log-page table{ width:max-content; min-width:100%; background:#fff; color:#1d2b45; font-size:11.5px; }
+body.log-page table{
+  width:max-content; min-width:100%; background:#fff; color:#1d2b45;
+  font-family:'Barlow Condensed',Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:10px;
+}
 body.log-page thead tr{ background:#e6ebf3; }
 body.log-page thead th, body.log-page thead th.pg-f{
-  height:26px; padding:0 8px; border-right:1px solid #dbe2ed; border-bottom:1px solid #b9c5d8;
-  background:#e6ebf3; color:#44546e; font-size:8px; font-weight:800; letter-spacing:.06em; text-align:center;
+  height:21px; padding:0 7px; border-right:1px solid #dbe2ed; border-bottom:1px solid #b9c5d8;
+  background:#e6ebf3; color:#44546e; font-size:7.5px; font-weight:700; letter-spacing:.075em; text-align:left;
 }
 body.log-page thead th.num-head:hover, body.log-page thead th.num-head.on{ background:#dbe4f2; color:#1F3F80; }
-body.log-page .log-col-head{ position:relative; justify-content:center; height:25px; gap:4px; }
-body.log-page .log-col-head-label{ width:100%; padding:0 18px; text-align:center; }
-body.log-page .log-col-filter-btn{ position:absolute; right:-3px; width:16px; height:16px; margin:0; color:#7f95b8; }
+body.log-page .log-col-head{ position:relative; justify-content:flex-start; height:20px; gap:2px; }
+body.log-page .log-col-head-label{
+  width:100%; min-width:0; padding:0 12px 0 0; overflow:hidden;
+  text-align:left; text-overflow:ellipsis; white-space:nowrap;
+}
+body.log-page .log-col-filter-btn{
+  position:absolute; right:-2px; width:11px; height:11px; margin:0; padding:0;
+  border-radius:2px; color:#6f86aa; opacity:.72;
+}
+body.log-page .log-col-filter-btn svg{ display:none; }
+body.log-page .log-col-filter-btn::after{
+  content:""; display:block; width:0; height:0; margin:auto;
+  border-left:2.5px solid transparent; border-right:2.5px solid transparent;
+  border-top:3.5px solid currentColor;
+}
 body.log-page .log-col-filter-btn:hover, body.log-page .log-col-filter-btn:focus-visible{ background:#c9d5ea; color:#1F3F80; }
 body.log-page .log-col-filter-btn.is-active{ background:#284F9E; color:#fff; }
 body.log-page .rz:hover, body.log-page .rz.rz-active{ background:#8ba6cc; }
 body.log-page tbody td, body.log-page tbody td.pg-f{
-  height:32px; padding:0 8px; border-right:1px solid #eef2f8; border-bottom:1px solid #eef2f8;
-  background:#fff; color:#1d2b45; font-size:11.5px; text-align:center;
+  height:27px; padding:0 7px; border-right:1px solid #eef2f8; border-bottom:1px solid #eef2f8;
+  background:#fff; color:#1d2b45; font-size:10px; font-weight:400; text-align:left;
 }
-body.log-page tbody tr.data:nth-child(even) td, body.log-page tbody tr.data:nth-child(even) td.pg-f{ background:#fbfcfe; }
+body.log-page tbody tr.data:nth-child(even) td, body.log-page tbody tr.data:nth-child(even) td.pg-f{ background:#fff; }
+body.log-page tbody tr.log-row-status-open td,
+body.log-page tbody tr.log-row-status-open td.pg-f{ background:#fff8f6; }
 body.log-page tbody tr.data:hover td, body.log-page tbody tr.data:hover td.pg-f{ background:#eaf1ff; }
-body.log-page .pg-f-shadow{ box-shadow:3px 0 8px -5px rgba(30,55,92,.5); }
-body.log-page tbody tr.selectable-row td.num{ padding:0 8px; text-align:center; }
+body.log-page .pg-f-shadow{ box-shadow:3px 0 7px -5px rgba(30,55,92,.36); }
+body.log-page tbody tr.selectable-row td.num{ padding:0 7px; text-align:left; }
 body.log-page .rn, body.log-page tbody tr.selectable-row:hover .rn, body.log-page tbody tr.selectable-row.row-selected .rn{
   display:inline; width:auto; height:auto; padding:0; border:0; border-radius:0; background:transparent;
-  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:10px; font-weight:700;
+  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:9px; font-weight:700;
 }
 body.log-page tbody tr.selectable-row.row-selected td{ background:#dfeafa!important; }
-body.log-page .dt{ color:#44546e; font-size:10.5px; }
+body.log-page .dt, body.log-page .lt-date{ color:#44546e; font-size:9.5px; font-weight:400; }
 body.log-page .badge.log-status-pill{
-  display:inline-flex; align-items:center; gap:4px; max-width:100%; padding:1px 6px; border:0; border-radius:3px;
-  font-size:8.5px; font-weight:850; line-height:1.25; text-transform:uppercase;
+  display:inline-flex; align-items:center; gap:3px; max-width:100%; padding:1px 5px; border:0; border-radius:3px;
+  font-size:7.5px; font-weight:700; line-height:1.25; text-transform:uppercase;
 }
+body.log-page .badge.log-status-pill .log-pill-arrow svg{ width:7px; height:7px; }
+body.log-page .b-open{ background:#e5f0ff; color:#164f8d; }
+body.log-page .b-scheduled{ background:#dff3f4; color:#096775; }
+body.log-page .b-viewed{ background:#dff3f4; color:#096775; }
+body.log-page .b-done{ background:#dff3e7; color:#12633c; }
+body.log-page .b-transferred{ background:#f2e8fb; color:#6525a3; }
+body.log-page .b-on-going, body.log-page .b-ongoing{ background:#fff2d7; color:#8a5a08; }
+body.log-page .b-paper-verification{ background:#fff0cf; color:#8a5a08; }
 body.log-page .log-pill-arrow{ display:inline-flex; flex:0 0 auto; opacity:.7; }
 body.log-page .log-pill-arrow svg{ display:block; }
-body.log-page th.log-contact-col, body.log-page td.log-contact-col{ text-align:center; }
-body.log-page th.log-contact-col .log-col-head{ justify-content:center; }
-body.log-page th.log-contact-col .log-col-head-label{ padding-right:0; text-align:center; }
-body.log-page .log-contact-cell{ display:flex; align-items:center; justify-content:center; width:100%; min-width:0; max-width:100%; text-align:center; }
-body.log-page .log-contact-cell strong{ overflow:hidden; color:#1d2b45; font-size:10.5px; font-weight:800; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
-body.log-page .email-btn, body.log-page .ph{ color:#44546e; font-size:10px; }
-body.log-page .email-btn svg{ width:12px; height:12px; }
+body.log-page th.log-contact-col, body.log-page td.log-contact-col{ text-align:left; }
+body.log-page th.log-contact-col .log-col-head{ justify-content:flex-start; }
+body.log-page th.log-contact-col .log-col-head-label{ padding-right:12px; text-align:left; }
+body.log-page .log-contact-cell{
+  display:flex; align-items:center; justify-content:flex-start; gap:5px;
+  width:100%; min-width:0; max-width:100%; text-align:left;
+}
+body.log-page .log-contact-channel{ display:inline-flex; flex:0 0 auto; color:#284F9E; }
+body.log-page .log-contact-channel.is-message{ color:#176b43; }
+body.log-page .log-contact-channel svg{ display:block; width:11px; height:11px; }
+body.log-page .log-contact-cell strong{
+  min-width:0; overflow:hidden; color:#111827; font-size:10px; font-weight:600;
+  text-align:left; text-overflow:ellipsis; white-space:nowrap;
+}
+body.log-page .email-btn, body.log-page .ph{ color:#44546e; font-size:9.5px; font-weight:400; }
+body.log-page .email-btn.compact-email{ color:#284F9E; }
+body.log-page .email-btn svg{ width:11px; height:11px; }
 body.log-page .sent-ic svg{ width:12px; height:12px; }
-body.log-page .log-city-link{ gap:4px; overflow:hidden; color:#44546e; font-size:10px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
+body.log-page .log-city-link{ gap:3px; overflow:hidden; color:#44546e; font-size:9.5px; font-weight:400; text-overflow:ellipsis; white-space:nowrap; }
 body.log-page .log-city-link svg{ color:#284F9E; }
-body.log-page .email-cell{ justify-content:center; }
-body.log-page td.notecell{ padding-right:46px; padding-left:46px; }
-body.log-page .log-notes-cell{ display:flex; align-items:center; justify-content:center; gap:6px; min-width:0; max-width:100%; overflow:hidden; }
+body.log-page .email-cell{ justify-content:flex-start; }
+body.log-page td.notecell{ padding-right:24px; padding-left:7px; }
+body.log-page .log-notes-cell{ display:flex; align-items:center; justify-content:flex-start; gap:5px; min-width:0; max-width:100%; overflow:hidden; }
 body.log-page .log-note-source{
-  display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; min-width:31px; height:15px;
-  padding:0 4px; border-radius:3px; background:#eef2f6; color:#44546e; font-size:7px; font-weight:900; letter-spacing:.06em;
+  display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; min-width:27px; height:12px;
+  padding:0 3px; border-radius:2px; background:#eef2f6; color:#44546e; font-size:6px; font-weight:700; letter-spacing:.06em;
 }
 body.log-page .log-note-source.is-ai{ background:#eee5fb; color:#5b21b6; }
-body.log-page .log-note-text{ min-width:0; overflow:hidden; color:#44546e; text-overflow:ellipsis; white-space:nowrap; }
-body.log-page .cellmarks{ top:9px; right:7px; gap:5px; }
-body.log-page .cellmark svg{ width:12px; height:12px; }
+body.log-page .log-note-text{ min-width:0; overflow:hidden; color:#44546e; font-size:9.5px; text-overflow:ellipsis; white-space:nowrap; }
+body.log-page .cellmarks{ top:7px; right:6px; gap:4px; }
+body.log-page .cellmark svg{ width:11px; height:11px; }
 /* Intent pill — now an interactive trigger for the "Copy Log → Stage" menu
    below, instead of a static free-text category chip. The old tone-based
    classes (log-intent-new-enquiry / -commercial / -logistics / -complaint)
@@ -1519,15 +1640,15 @@ body.log-page .log-intent-pill{
   align-items:center;
   gap:4px;
   max-width:100%;
-  padding:1px 6px;
+  padding:1px 5px;
   border:0;
   overflow:hidden;
   border-radius:3px;
   background:#f4f6f9;
   color:#8a8f98;
   font:inherit;
-  font-size:8.5px;
-  font-weight:800;
+  font-size:7.5px;
+  font-weight:700;
   text-overflow:ellipsis;
   white-space:nowrap;
   cursor:pointer;
@@ -1618,7 +1739,7 @@ body.log-page .intent-label{ flex:1 1 auto; min-width:0; overflow:hidden; text-o
 body.log-page .intent-next{ margin-left:auto; font-size:9px; color:#8a8f98; white-space:nowrap; flex:0 0 auto; }
 body.log-page .intent-menu-foot{ padding:6px 10px; font-size:9.5px; color:#44546e; background:#f7f9fc; }
 body.log-page .log-linked-code, body.log-page .enq-ref{
-  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:9px; font-weight:850; text-decoration:none;
+  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:8.5px; font-weight:700; text-decoration:none;
 }
 body.log-page a.log-linked-code:hover{ text-decoration:underline; }
 body.log-page #log-pagination{

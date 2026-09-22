@@ -205,7 +205,9 @@ var LINKS = [
     style.textContent = CSS;
     document.head.appendChild(style);
     document.body.insertBefore(side, document.body.firstChild);
-    document.body.insertBefore(top, side.nextSibling);
+    if (!document.body.classList.contains('log-page')) {
+      document.body.insertBefore(top, side.nextSibling);
+}
   }
 
   /* The ACHI logo is not a file. apply-branding.sh PUTs it to /api/v1/branding/
