@@ -98,15 +98,18 @@ a:hover {
   gap: 6px;
 }
 
+/* The title row sits on its own white banner, title left, search right. */
+.bar-title {
+  padding: 6px 10px;
+  border: 1px solid #b9c5d8;
+  border-radius: 5px;
+  background: #fff;
+}
+
 .bar h1 {
   margin: 0;
   font-size: 15px;
   font-weight: 800;
-}
-
-.hint {
-  font-size: 10.5px;
-  color: #44546e;
 }
 
 .srch {
@@ -469,11 +472,6 @@ a:hover {
   font-weight: 800;
   letter-spacing: .05em;
   white-space: nowrap;
-}
-
-.st-count {
-  background: #eaf1ff;
-  color: #284f9e;
 }
 
 .pref-wa { background: #dcefe2; color: #14532d; }
