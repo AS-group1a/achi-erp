@@ -858,13 +858,6 @@
     else if (act === 'bigger') { state.tIdx = Math.min(HS.length - 1, state.tIdx + 1); applyLayout(); }
   });
 
-  $('seg-filters').addEventListener('click', event => {
-    const btn = event.target.closest('button[data-seg]');
-    if (!btn) return;
-    state.seg = btn.dataset.seg;
-    [...$('seg-filters').children].forEach(b => b.classList.toggle('on', b === btn));
-    renderViews();
-  });
 
   $('seg-view').addEventListener('click', event => {
     const btn = event.target.closest('button[data-view]');
