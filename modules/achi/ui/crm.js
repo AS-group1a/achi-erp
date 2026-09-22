@@ -118,17 +118,48 @@
   // ── Domain constants (mirror schemas.py — STAGES / STATUSES) ──────────────
   // The 7 visual pipeline steps of the dot strip and the board. Every backend
   // stage value maps into one step; on_hold / cancelled are parked, not steps.
-  const PIPE = [
-    { key: 'enq', label: 'Enquiry',    stages: ['prospect', 'outreach', 'follow_up', 'first_contact', 'second_follow_up', 'enquiry'] },
-    { key: 'sv',  label: 'Site visit', stages: ['site_survey'] },
-    { key: 'dwg', label: 'Drawing',    stages: ['drawing'] },
-    { key: 'mt',  label: 'M/T',        stages: ['takeoff'] },
-    { key: 'boq', label: 'BOQ',        stages: ['boq', 'resources', 'plan'] },
-    { key: 'quo', label: 'Quotation',  stages: ['costing', 'pricing', 'quotation', 'negotiation'] },
-    { key: 'won', label: 'Won → JOB',  stages: ['accepted'] },
+  // Board columns = the pipeline. Order is a per-user preference (drag a
+  // column header to move it; saved in this browser). Dropping a card on a
+  // column applies that column's patch via PATCH /files/{id}.
+  const COLS = [
+    { id: 'enq',  label: 'Enquiry',     stages: ['prospect', 'outreach', 'first_contact', 'second_follow_up', 'enquiry'], patch: { stage: 'enquiry' } },
+    { id: 'sv',   label: 'Site visit',  stages: ['site_survey'], patch: { stage: 'site_survey' } },
+    { id: 'dwg',  label: 'Drawing',     stages: ['drawing'], patch: { stage: 'drawing' } },
+    { id: 'mt',   label: 'M/T',         stages: ['takeoff'], patch: { stage: 'takeoff' } },
+    { id: 'boq',  label: 'BOQ',         stages: ['boq', 'resources', 'plan'], patch: { stage: 'boq' } },
+    { id: 'quo',  label: 'Quotation',   stages: ['costing', 'pricing', 'quotation'], patch: { stage: 'quotation' } },
+    { id: 'fup',  label: 'Follow-up',   stages: ['follow_up'], patch: { stage: 'follow_up' } },
+    { id: 'neg',  label: 'Negotiation', stages: ['negotiation'], patch: { stage: 'negotiation' } },
+    { id: 'conf', label: 'Confirmed',   stages: ['accepted'], patch: { stage: 'accepted' } },
+    { id: 'job',  label: 'JOB',         stages: [], patch: { stage: 'accepted', status: 'transferred' } },
+    { id: 'hold', label: 'On hold',     stages: ['on_hold'], parked: true, patch: { stage: 'on_hold' } },
+    { id: 'canc', label: 'Cancelled',   stages: ['cancelled'], parked: true, patch: { stage: 'cancelled' } },
   ];
-  const STEP_OF = {};
-  PIPE.forEach((p, i) => p.stages.forEach(s => { STEP_OF[s] = i; }));
+  const COL_BY_ID = {};
+  const STAGE_COL = {};
+  COLS.forEach(c => { COL_BY_ID[c.id] = c; c.stages.forEach(s => { STAGE_COL[s] = c.id; }); });
+
+  // Confirmed vs JOB both live on stage "accepted": JOB = handed over
+  // (status "transferred"), Confirmed = accepted but not yet transferred.
+  const colId = f => (f.stage === 'accepted'
+    ? (f.status === 'transferred' ? 'job' : 'conf')
+    : (STAGE_COL[f.stage] || 'enq'));
+  const isDone = f => f.stage === 'accepted';
+
+  const ORDER_KEY = 'achi.crm.colOrder';
+  function loadColOrder() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null'); } catch (_e) { saved = null; }
+    const order = Array.isArray(saved) ? saved.filter(id => COL_BY_ID[id]) : [];
+    COLS.forEach(c => { if (!order.includes(c.id)) order.push(c.id); });
+    return order;
+  }
+  function saveColOrder() {
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(state.colOrder)); } catch (_e) { /* private mode */ }
+  }
+  // The stage-dot strip follows the user's column order (parked columns and
+  // JOB excluded — JOB shares Confirmed's spot in the flow).
+  const flowIds = () => state.colOrder.filter(id => !COL_BY_ID[id].parked && id !== 'job');
 
   const STAGE_LABEL = {
     prospect: 'Prospect', outreach: 'Outreach', follow_up: 'Follow-up',
@@ -136,6 +167,7 @@
     enquiry: 'Enquiry', site_survey: 'Site visit', drawing: 'Drawing',
     takeoff: 'Takeoff (M/T)', boq: 'BOQ', resources: 'Resources',
     plan: 'Plan', costing: 'Costing', pricing: 'Pricing',
+    quotation: 'Quotation', negotiation: 'Negotiation', accepted: 'Confirmed',
     quotation: 'Quotation', negotiation: 'Negotiation', accepted: 'Won',
     cancelled: 'Cancelled', on_hold: 'On hold',
   };
@@ -164,6 +196,7 @@
   // ── State ──────────────────────────────────────────────────────────────────
   const state = {
     view: 'list',            // list | board
+    colOrder: null,          // filled right below (loadColOrder reads storage)
     seg: 'all',              // all | act | due | won | hold | closed
     chips: new Set(),        // stuck | quiet | quo
     q: '',
@@ -174,6 +207,7 @@
     wide: false,
     tIdx: 2,                 // table height step while panel docked below
   };
+  state.colOrder = loadColOrder();
   const HS = [168, 280, 400, 560, 720];
 
   let RAW = [];              // log rows as returned by /logs/
@@ -248,7 +282,6 @@
         for (const item of (l.deliverables || [])) deliverables.add(String(item));
       }
 
-      const step = STEP_OF[lead.stage];
       files.push({
         fid: f.fid,
         code: lead.file_number || '',
@@ -256,7 +289,6 @@
         origin: lead.origin_module || null,
         stage: lead.stage,
         status: lead.status,
-        step: step == null ? null : step,
         parked: lead.stage === 'on_hold' || lead.stage === 'cancelled',
         subject: lead.subject || '',
         category: lead.category || null,
@@ -293,29 +325,17 @@
   // ── Derived flags + filtering ──────────────────────────────────────────────
   const isHot = f => Boolean(f.fu && f.fu.overdue) || Boolean(f.fu && f.fu.date === todayYmd());
   const isQuiet = f => {
-    if (f.step === 6 || f.parked) return false;
+    if (isDone(f) || f.parked) return false;
     const t = f.lastTouchAt || f.lastLogAt;
     return !t || (Date.now() - t) > 7 * DAY;
   };
-  const isOpenPipe = f => !f.parked && f.step !== 6 && ['open', 'scheduled', 'viewed'].includes(f.status);
-  const isWaiting = f => !f.parked && f.step !== 6 && ['viewed', 'scheduled'].includes(f.status);
-  const isCold = f => f.parked || (f.stage !== 'accepted' && ['done', 'cancelled', 'transferred'].includes(f.status));
-
-  function segMatch(f) {
-    switch (state.seg) {
-      case 'act':  return isOpenPipe(f) && f.status === 'open';
-      case 'wait': return isWaiting(f);
-      case 'won':  return f.stage === 'accepted';
-      case 'cold': return isCold(f);
-      default:     return true;
-    }
-  }
+  const isOpenPipe = f => !f.parked && !isDone(f) && ['open', 'scheduled', 'viewed'].includes(f.status);
 
   function chipMatch(f) {
     if (!state.chips.size) return true;
     if (state.chips.has('stuck') && !isHot(f)) return false;
     if (state.chips.has('quiet') && !isQuiet(f)) return false;
-    if (state.chips.has('quo') && f.step !== 5) return false;
+    if (state.chips.has('quo') && colId(f) !== 'quo') return false;
     return true;
   }
 
@@ -324,6 +344,7 @@
   const MAGIC = [
     [/\bstuck\b|\bneed(s)? action\b|\boverdue\b/, f => isHot(f)],
     [/\bquiet\b|\bgone quiet\b/, f => isQuiet(f)],
+    [/\bquotation\b|\bclos(e|ing)\b/, f => colId(f) === 'quo'],
     [/\bquotation\b|\bclos(e|ing)\b/, f => f.step === 5],
     [/\bwon\b|\baccepted\b/, f => f.stage === 'accepted'],
     [/\bon hold\b/, f => f.stage === 'on_hold'],
@@ -344,7 +365,7 @@
   }
 
   function visibleFiles() {
-    let list = FILES.filter(f => segMatch(f) && chipMatch(f) && textMatch(f));
+    let list = FILES.filter(f => chipMatch(f) && textMatch(f));
     if (state.fSt) list = list.filter(f => f.status === state.fSt);
     const dir = state.sort.dir === 'asc' ? 1 : -1;
     const key = state.sort.k === 'age'
@@ -359,13 +380,15 @@
 
   // ── Cell renderers ─────────────────────────────────────────────────────────
   function stageDots(f) {
-    if (f.parked || f.step == null) {
-      const grey = PIPE.map(() => '<span></span>').join('');
+    const flow = flowIds();
+    if (f.parked) {
+      const grey = flow.map(() => '<span></span>').join('');
       return `<div class="stage">${grey}</div><span class="stage-badge">${esc((STAGE_LABEL[f.stage] || f.stage).toUpperCase())}</span>`;
     }
-    const won = f.step === 6;
-    const dots = PIPE.map((_, i) => {
-      const cls = won ? 'won' : i < f.step ? 'on' : i === f.step ? 'cur' : '';
+    const idx = flow.indexOf(colId(f) === 'job' ? 'conf' : colId(f));
+    const done = isDone(f);
+    const dots = flow.map((_, i) => {
+      const cls = done ? 'won' : i < idx ? 'on' : i === idx ? 'cur' : '';
       return `<span class="${cls}"></span>`;
     }).join('');
     return `<div class="stage" title="${esc(STAGE_LABEL[f.stage] || f.stage)}">${dots}</div>`;
@@ -473,14 +496,12 @@
     $('foot').innerHTML = `<span>${list.length} shown</span><span>·</span>`
       + `<span>${FILES.length} enquiries, ${TOTAL_LOGS} log entries</span>`
       + '<span style="flex:1"></span><span>click a line for the full picture — stage and status change inline</span>';
-    const pill = $('total-pill');
-    if (pill) pill.textContent = `${FILES.length} enquiries`;
   }
 
   // ── Board ──────────────────────────────────────────────────────────────────
   function boardCard(f) {
     const meta = statusMeta(f.status);
-    return `<div class="bcard${state.sel === f.fid ? ' sel' : ''}" data-fid="${esc(f.fid)}">`
+    return `<div class="bcard${state.sel === f.fid ? ' sel' : ''}" draggable="true" data-fid="${esc(f.fid)}">`
       + `<div class="bc-top"><span class="code">${esc(f.code)}</span>${ageCell(f)}</div>`
       + `<div class="bc-client">${esc(f.contact.company || f.contact.name || '—')}</div>`
       + (f.subject ? `<div class="bc-subj">${esc(f.subject)}</div>` : '')
@@ -491,18 +512,77 @@
 
   function renderBoard() {
     const list = visibleFiles();
-    const cols = PIPE.map((p, i) => ({ label: p.label, items: list.filter(f => !f.parked && f.step === i) }));
-    cols.push({ label: 'On hold / Lost', items: list.filter(f => f.parked) });
-    $('board').innerHTML = cols.map(col =>
-      `<div class="bcol"><div class="bch">${esc(col.label)}<span class="n2">${col.items.length}</span></div>`
-      + (col.items.length ? col.items.map(boardCard).join('') : '<div class="bempty">—</div>')
-      + '</div>').join('');
+    const board = $('board');
+    board.style.gridTemplateColumns = `repeat(${state.colOrder.length}, minmax(168px, 1fr))`;
+    board.style.minWidth = `${state.colOrder.length * 176}px`;
+    board.innerHTML = state.colOrder.map(id => {
+      const col = COL_BY_ID[id];
+      const items = list.filter(f => colId(f) === id);
+      return `<div class="bcol" data-col="${id}">`
+        + `<div class="bch" draggable="true" data-col="${id}" title="Drag to reorder columns">⠿ ${esc(col.label)}<span class="n2">${items.length}</span></div>`
+        + (items.length ? items.map(boardCard).join('') : '<div class="bempty">drop here</div>')
+        + '</div>';
+    }).join('');
   }
+
+  // ── Drag & drop: cards move enquiries between stages, headers reorder ──────
+  let dragging = null;      // { kind: 'card', fid } | { kind: 'col', id }
+  let dropCol = null;
+  function clearDrop() { if (dropCol && dropCol.classList) dropCol.classList.remove('drop'); dropCol = null; }
+  const boardEl = $('board');
+
+  boardEl.addEventListener('dragstart', event => {
+    const head = event.target.closest('.bch[data-col]');
+    const card = head ? null : event.target.closest('.bcard[data-fid]');
+    if (head) dragging = { kind: 'col', id: head.dataset.col };
+    else if (card) dragging = { kind: 'card', fid: card.dataset.fid };
+    else return;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      try { event.dataTransfer.setData('text/plain', ''); } catch (_e) { /* old engines */ }
+    }
+    if (card && card.classList) card.classList.add('dragging');
+  });
+
+  boardEl.addEventListener('dragover', event => {
+    if (!dragging) return;
+    const col = event.target.closest('.bcol[data-col]');
+    if (!col) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    if (col !== dropCol) { clearDrop(); dropCol = col; if (col.classList) col.classList.add('drop'); }
+  });
+
+  boardEl.addEventListener('drop', event => {
+    const col = event.target.closest('.bcol[data-col]');
+    if (!col || !dragging) return;
+    event.preventDefault();
+    const targetId = col.dataset.col;
+    const d = dragging;
+    dragging = null;
+    clearDrop();
+    if (d.kind === 'col') {
+      if (d.id === targetId) return;
+      const order = state.colOrder.filter(id => id !== d.id);
+      order.splice(order.indexOf(targetId), 0, d.id);
+      state.colOrder = order;
+      saveColOrder();
+      renderBoard();
+      return;
+    }
+    const f = FILES.find(x => x.fid === d.fid);
+    if (!f || colId(f) === targetId) return;
+    const patch = { ...COL_BY_ID[targetId].patch };
+    if (targetId === 'conf' && f.status === 'transferred') patch.status = 'open';
+    patchFile(d.fid, patch, 'Stage');
+  });
+
+  boardEl.addEventListener('dragend', () => { dragging = null; clearDrop(); });
 
   // ── KPI chips ──────────────────────────────────────────────────────────────
   function renderKchips() {
     const open = FILES.filter(isOpenPipe).length;
-    const quo = FILES.filter(f => f.step === 5).length;
+    const quo = FILES.filter(f => colId(f) === 'quo').length;
     const won = FILES.filter(f => f.stage === 'accepted').length;
     const due = FILES.filter(isHot).length;
     const quiet = FILES.filter(isQuiet).length;
@@ -720,10 +800,10 @@
     try {
       await request(`${API}/logs/`, { method: 'POST', body: payload });
       closeProspect();
-      showToast('Prospect added.');
+      showToast('Enquiry added.');
       await load();
     } catch (error) {
-      $('prospect-error').textContent = error.message || 'Could not add prospect.';
+      $('prospect-error').textContent = error.message || 'Could not add the enquiry.';
     } finally {
       save.disabled = false;
       save.textContent = label;

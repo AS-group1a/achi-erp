@@ -134,7 +134,12 @@ select.stover { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: p
 
 /* ── Board ───────────────────────────────────────────────────────────── */
 .wrap.bmode { padding: 8px; }
-.bwrap { display: grid; grid-template-columns: repeat(8, minmax(168px, 1fr)); gap: 8px; min-width: 1420px; }
+.bwrap { display: grid; gap: 8px; } /* columns + min-width set by JS from the user's column order */
+.bch { cursor: grab; user-select: none; }
+.bch:active { cursor: grabbing; }
+.bcard { cursor: grab; }
+.bcard.dragging { opacity: .45; }
+.bcol.drop { outline: 2px dashed var(--navy); outline-offset: -2px; background: var(--blue-soft); }
 .bcol { background: #f4f6fa; border: 1px solid var(--line-soft); border-radius: 5px; padding: 6px; min-height: 140px; }
 .bch { display: flex; align-items: center; gap: 6px; font-size: 8.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #486077; padding: 2px 4px 5px; }
 .bch .n2 { margin-left: auto; font-size: 9px; font-weight: 800; color: var(--navy); background: var(--blue-soft); border-radius: 99px; padding: 0 7px; font-variant-numeric: tabular-nums; }
