@@ -14,11 +14,10 @@
     <div class="bar">
       <div class="bar-title">
         <h1>Contacts</h1>
-        <span class="st st-count" id="contact-total">Loading…</span>
-        <span class="hint">one directory for people &amp; companies — humans and the AI work the same records</span>
         <span class="fill"></span>
         <input class="srch" type="search" id="contact-search" placeholder="Search name, phone, company…" autocomplete="off">
-
+      </div>
+      <div class="bar-actions">
         <div class="seg" role="group" aria-label="Contact type">
           <button type="button" class="on" data-record-type="all">All</button>
           <button type="button" data-record-type="person">People</button>
@@ -30,10 +29,8 @@
           <button type="button" class="on" data-view-mode="list">&#9776; List</button>
           <button type="button" data-view-mode="grid">&#9638; Cards</button>
         </div>
-      </div>
-      <div class="bar-actions">
-        <button type="button" class="mini mini-primary" id="new-person-button">+ Person</button>
-        <button type="button" class="mini" id="new-company-button">+ Company</button>
+
+        <button type="button" class="mini mini-primary" id="new-person-button">+ contact</button>
       </div>
     </div>
 
@@ -48,6 +45,7 @@
       <span class="kc"><b id="people-count">—</b> people</span>
       <span class="kc"><b id="company-count">—</b> companies</span>
       <span class="kc"><b id="duplicate-count">—</b> duplicate suspects</span>
+      <span class="kc"><b id="contact-total">—</b> records</span>
     </div>
 
     <!-- LIST VIEW -->
@@ -71,7 +69,6 @@
       <div class="foot">
         <span><span class="js-shown-count"></span> — search hits name, phone, company</span>
         <span class="fill"></span>
-        <span>the AI matches every inbound call/WhatsApp to a contact and pre-fills the log · unknown numbers become PROSP suggestions</span>
       </div>
     </div>
 

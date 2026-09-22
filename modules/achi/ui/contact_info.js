@@ -962,8 +962,9 @@
     return PREF_CLASS[contact.preferredChannel] ? contact.preferredChannel : '—';
   }
 
-  function prefBadge(contact) {
+  function prefBadge(contact, placeholder = true) {
     const pref = contactPref(contact);
+    if (!PREF_CLASS[pref] && !placeholder) return '';
     return `<span class="st ${PREF_CLASS[pref] || 'pref-none'}">${escapeHtml(pref)}</span>`;
   }
 
@@ -973,7 +974,7 @@
 
   function renderSummary() {
     const all = state.contacts;
-    $('contact-total').textContent = `${all.length} records`;
+    setKpi('contact-total', all.length);
     setKpi('people-count', all.filter(contact => contact.recordType === 'person').length);
     setKpi('company-count', all.filter(contact => contact.recordType === 'company').length);
     setKpi('duplicate-count', all.filter(contact => contact.duplicateOf.length).length);
@@ -1018,10 +1019,9 @@
     return contact.recordType === 'company' ? (contact.legal_name || '') : (contact.company_name || '');
   }
 
-  function linkedCode(contact) {
-    return contact.latestFile && contact.latestFile.file_number
-      ? `<span class="code" title="${escapeHtml(contact.latestFile.subject || '')}">${escapeHtml(contact.latestFile.file_number)}</span>`
-      : '<span class="mut">—</span>';
+  function linkedCode(contact, placeholder = true) {
+    if (!contact.latestFile || !contact.latestFile.file_number) return placeholder ? '<span class="mut">—</span>' : '';
+    return `<span class="code" title="${escapeHtml(contact.latestFile.subject || '')}">${escapeHtml(contact.latestFile.file_number)}</span>`;
   }
 
   function whoMarkup(contact) {
@@ -1034,19 +1034,19 @@
     const mapHref = contact.city ? contactMapHref(contact) : '';
     const city = mapHref
       ? `<a class="city" data-map-link href="${escapeHtml(mapHref)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">${mapIcon()}${escapeHtml(contact.city)}</a>`
-      : '—';
+      : '';
     return `<div class="${classes}" data-contact-id="${escapeHtml(contact.id)}">
         <div>${whoMarkup(contact)}</div>
         <div class="c-name">${escapeHtml(contact.displayName)}${duplicateFlag(contact)}</div>
-        <div class="c-sm">${escapeHtml(contactRole(contact) || '—')}</div>
-        <div class="c-sm">${escapeHtml(contactCompany(contact) || '—')}</div>
-        <div class="mut c-sm c-num">${escapeHtml(contact.primaryPhone || '—')}</div>
+        <div class="c-sm">${escapeHtml(contactRole(contact))}</div>
+        <div class="c-sm">${escapeHtml(contactCompany(contact))}</div>
+        <div class="mut c-sm c-num">${escapeHtml(contact.primaryPhone)}</div>
         <div class="mut c-sm">${city}</div>
-        <div>${prefBadge(contact)}</div>
-        <div class="mut c-sm">${escapeHtml(contact.source || '—')}</div>
-        <div>${linkedCode(contact)}</div>
-        <div class="mut c-last">${escapeHtml(contact.lastContact ? formatDate(contact.lastContact) : '—')}</div>
-        <div class="aiN">${escapeHtml(contact.aiNote || '—')}</div>
+        <div>${prefBadge(contact, false)}</div>
+        <div class="mut c-sm">${escapeHtml(contact.source)}</div>
+        <div>${linkedCode(contact, false)}</div>
+        <div class="mut c-last">${escapeHtml(contact.lastContact ? formatDate(contact.lastContact) : '')}</div>
+        <div class="aiN">${escapeHtml(contact.aiNote)}</div>
       </div>`;
   }
 
@@ -1118,7 +1118,7 @@
   async function loadData({ silent = false } = {}) {
     if (!accessToken) {
       setListMessage('Open the main ERP, sign in, then reload this page.');
-      $('contact-total').textContent = 'Not signed in';
+      setKpi('contact-total', null);
       return;
     }
 
@@ -1144,7 +1144,7 @@
       if (state.activeContactId && activeContact()) renderDrawer();
     } catch (error) {
       setListMessage(error.message);
-      $('contact-total').textContent = 'Could not load contacts';
+      setKpi('contact-total', null);
       showToast(error.message, true);
     }
   }
@@ -3510,7 +3510,6 @@
     $('contacts-cards').addEventListener('click', openFromDirectory);
 
     bindPersonModal();
-    $('new-company-button').addEventListener('click', () => openContactModal(null, 'company'));
     $('drawer-close').addEventListener('click', closeDrawer);
     $('drawer-expand').addEventListener('click', () => setPanelWide(!state.panelWide));
     $('drawer-edit').addEventListener('click', () => openContactModal(activeContact()));
