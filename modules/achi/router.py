@@ -214,10 +214,20 @@ def prospect_ui() -> HTMLResponse:
     summary="ACHI Contact Info UI",
 )
 def contact_info_ui() -> HTMLResponse:
-    """Serve the custom ACHI Contact Info page."""
+    """Serve the custom ACHI Contact Info page.
 
+    The + contact popup lives in its own file, add_contact_popup.html, and is
+    inlined here at its marker so the browser still receives one page and
+    contact_info.js finds every popup element at load, exactly as before.
+    """
+
+    page = (_UI_DIR / "contact_info.html").read_text(encoding="utf-8")
+    popup = (_UI_DIR / "add_contact_popup.html").read_text(encoding="utf-8")
+    marker = "  <!-- @include add_contact_popup.html — the + contact popup; router.py inserts it here -->\n"
+    if marker not in page:
+        raise RuntimeError("contact_info.html is missing the add_contact_popup.html include marker")
     return HTMLResponse(
-        (_UI_DIR / "contact_info.html").read_text(encoding="utf-8"),
+        page.replace(marker, popup, 1),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
