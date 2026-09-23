@@ -235,7 +235,7 @@ def crm_ui() -> HTMLResponse:
     CRM-specific filtering will be added later after the workflow is approved.
     """
     return HTMLResponse(
-        (_UI_DIR / "crm_general_log.html").read_text(encoding="utf-8"),
+        (_UI_DIR / "crm.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -392,10 +392,35 @@ async def _contact_info_shared_contact(
     return contact
 
 
+# Bucket keys only the + Person popup sends. When an update omits one (the edit
+# form predates them), the stored value is kept rather than cleared.
+CONTACT_INFO_KEEP_WHEN_OMITTED = (
+    "father_name", "mother_name", "referred_by", "address_notes",
+    "company_contact_id", "industry", "activity", "company_size", "photo",
+)
+
+
+async def _check_company_link(session: SessionDep, data: ContactInfoContactIn) -> None:
+    """A person may only link to an active company in the ACHI directory."""
+
+    if not data.company_contact_id:
+        return
+    company = await session.get(Contact, data.company_contact_id)
+    bucket = (company.custom_properties or {}).get(_CONTACT_INFO_TAG) or {} if company else {}
+    if (
+        company is None
+        or not company.is_active
+        or not _is_contact_info_contact(company)
+        or bucket.get("record_type") != "company"
+    ):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Linked company not found")
+
+
 def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
     """Write canonical fields to Contact and ACHI-only fields to our bucket."""
 
     payload = data.model_dump(mode="json")
+    previous = dict((contact.custom_properties or {}).get(_CONTACT_INFO_TAG) or {})
     phones = payload["phones"]
     primary_phone = phones[0]["number"] if phones else None
 
@@ -408,6 +433,8 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
     contact.website = data.website
     contact.country_code = data.country_code
     contact.notes = data.notes
+    if "vat_number" in data.model_fields_set:
+        contact.vat_number = data.vat_number
 
     address = dict(contact.address or {})
     if data.city:
@@ -462,6 +489,12 @@ def _apply_contact_info(contact: Contact, data: ContactInfoContactIn) -> None:
         "contact_date": payload["contact_date"],
         "quick_links": payload["quick_links"],
     }
+    bucket = properties[_CONTACT_INFO_TAG]
+    for key in CONTACT_INFO_KEEP_WHEN_OMITTED:
+        if key in data.model_fields_set:
+            bucket[key] = payload[key]
+        elif key in previous:
+            bucket[key] = previous[key]
     contact.custom_properties = properties
 
 
@@ -555,6 +588,7 @@ async def create_contact_info_contact(
         created_by=str(user_id),
         is_active=True,
     )
+    await _check_company_link(session, data)
     _apply_contact_info(contact, data)
     session.add(contact)
     await session.commit()
@@ -573,6 +607,7 @@ async def update_contact_info_contact(
     _user_id: CurrentUserId,
 ) -> dict:
     contact = await _contact_info_shared_contact(session, contact_id)
+    await _check_company_link(session, data)
     _apply_contact_info(contact, data)
     await session.commit()
     return {"id": str(contact.id)}
@@ -1017,6 +1052,97 @@ async def _out(svc: ContactFileService, f) -> ContactFileOut:
     o.contact_name = (await svc.name_for(f.contact_id)) if f.contact_id else (
         " ".join(x for x in (f.lead_first_name, f.lead_last_name) if x).strip() or f.lead_company or None)
     return o
+
+
+@router.get(
+    "/files/manager",
+    include_in_schema=False,
+    summary="Everything the Files page needs in one call",
+)
+async def files_manager(
+    session: SessionDep,
+    _user_id: CurrentUserId,
+    limit: int = Query(default=1000, ge=1, le=5000),
+) -> dict:
+    """Every attachment in the system, joined to its log and ContactFile so the
+    Files page can render name/size/date/uploader plus the business code,
+    module, client and site — one query, newest first. Soft-deleted logs are
+    excluded so trashed entries take their files out of the manager too."""
+    from .models import ContactFile, FileLog, LogAttachment
+
+    rows = (
+        await session.execute(
+            select(LogAttachment, FileLog, ContactFile)
+            .join(FileLog, LogAttachment.log_id == FileLog.id)
+            .join(ContactFile, FileLog.file_id == ContactFile.id)
+            .where(FileLog.deleted_at.is_(None))
+            .order_by(LogAttachment.created_at.desc())
+            .limit(limit)
+        )
+    ).all()
+
+    # Uploader ids -> display names, one query. The User model's name fields
+    # vary between builds, so probe the common ones instead of assuming.
+    user_ids = {a.uploaded_by for a, _l, _f in rows if a.uploaded_by}
+    user_names: dict[str, str] = {}
+    if user_ids:
+        for u in (await session.execute(select(User).where(User.id.in_(user_ids)))).scalars():
+            user_names[u.id] = (
+                getattr(u, "full_name", None)
+                or " ".join(
+                    x for x in (getattr(u, "first_name", None), getattr(u, "last_name", None)) if x
+                ).strip()
+                or getattr(u, "username", None)
+                or getattr(u, "email", None)
+                or u.id
+            )
+
+    # Client names: bridged Contact when the file has one, else the typed-in
+    # lead fields — same fallback order the log grid uses.
+    contact_ids = {f.contact_id for _a, _l, f in rows if f.contact_id}
+    contact_names: dict[str, str] = {}
+    if contact_ids:
+        for c in (await session.execute(select(Contact).where(Contact.id.in_(contact_ids)))).scalars():
+            contact_names[c.id] = (
+                " ".join(x for x in (c.first_name, c.last_name) if x).strip()
+                or (c.company_name or "")
+            )
+
+    items = []
+    for a, log, f in rows:
+        client = (
+            (contact_names.get(f.contact_id) if f.contact_id else None)
+            or " ".join(x for x in (f.lead_first_name, f.lead_last_name) if x).strip()
+            or f.lead_company
+            or ""
+        )
+        items.append(
+            {
+                "id": a.id,
+                "filename": a.filename,
+                "content_type": a.content_type,
+                "size_bytes": a.size_bytes or 0,
+                "deliverables": [d.strip() for d in (a.deliverables or "").split(",") if d.strip()],
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+                "uploaded_by": user_names.get(a.uploaded_by) or "",
+                "log_id": a.log_id,
+                "log_code": f.log_code,
+                "file_number": f.file_number,
+                "origin_module": f.origin_module,
+                "subject": f.subject or "",
+                "client": client,
+                "site": f.city or f.site_location or "",
+            }
+        )
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/files/ui", response_class=HTMLResponse, include_in_schema=False)
+def files_ui() -> HTMLResponse:
+    return HTMLResponse(
+        (_UI_DIR / "files.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 
 @router.post(

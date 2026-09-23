@@ -94,6 +94,8 @@ class ContactFileCreate(BaseModel):
     stage: str = Field(default="enquiry", pattern="^(%s)$" % "|".join(STAGES))
     status: str = Field(default="open", pattern="^(%s)$" % "|".join(STATUSES))
     origin_module: OriginModule | None = None
+    # The company the file's person was calling from (a contact id), if any.
+    company_contact_id: str | None = Field(default=None, max_length=36)
 
     country: str | None = Field(default=None, max_length=64)
     district: str | None = Field(default=None, max_length=128)
@@ -1280,6 +1282,31 @@ class ContactInfoContactIn(BaseModel):
     # When the contact was logged. Mirrors the Add Log popup's date/time; defaults
     # to "now" on the client, but is editable and stored so it can be shown back.
     contact_date: datetime | None = None
+
+    # Fields captured by the + Person popup. All optional; an update that omits
+    # them (e.g. the older edit form) keeps the stored values instead of wiping
+    # them - see CONTACT_INFO_KEEP_WHEN_OMITTED in router._apply_contact_info.
+    father_name: str | None = Field(default=None, max_length=128)
+    mother_name: str | None = Field(default=None, max_length=128)
+    referred_by: str | None = Field(default=None, max_length=255)
+    address_notes: str | None = Field(default=None, max_length=1000)
+    # A person's link to the company contact they work for (a real contact id).
+    company_contact_id: str | None = Field(default=None, max_length=36)
+    vat_number: str | None = Field(default=None, max_length=50)
+    industry: str | None = Field(default=None, max_length=64)
+    activity: str | None = Field(default=None, max_length=64)
+    company_size: str | None = Field(default=None, max_length=16)
+    # Person photo / company logo: a small, client-downscaled image data URL.
+    photo: str | None = Field(default=None, max_length=300_000)
+
+    @field_validator("photo")
+    @classmethod
+    def _image_data_url(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        if not value.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
+            raise ValueError("photo must be a JPEG, PNG or WebP image")
+        return value
 
     @field_validator("maps_url")
     @classmethod
