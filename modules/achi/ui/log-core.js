@@ -2185,7 +2185,7 @@ function cellHTML(c,r,i){switch(c.k){
 const ROW_CACHE_KEY=
   `achi_log_rows_v2:${window.location.pathname}`;
 const LOG_PAGE_SIZE=100;
-let ROWS=[], logSummaryFilter='total', activeTab=0, logOffset=0, logTotal=0;
+let ROWS=[], openOnly=false, activeTab=0, logOffset=0, logTotal=0;
 let logSortBy='', logSortDir='';
 function sortDirectionLabels(field){
   if(field==='stage') return ['Pipeline order','Reverse pipeline order'];
@@ -2637,11 +2637,8 @@ function revealSavedRow(logId){
   // so "Save" always lands on the actual saved row instead of leaving it lost.
   if(!$('rows').querySelector(selector)){
     $('q').value='';
-    logSummaryFilter='total';
-
-    if(typeof syncLogSummaryCards==='function'){
-      syncLogSummaryCards();
-    }
+    openOnly=false;
+    $('k-open-card').classList.remove('on');
     render();
   }
   revealGridRow(selector);
