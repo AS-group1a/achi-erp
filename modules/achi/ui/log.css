@@ -1373,22 +1373,34 @@ h1,h2,h3,h4{font-family:'Barlow Condensed',Barlow,sans-serif;font-weight:600;let
    ============================================================================ */
 
 /* ── Top bar ────────────────────────────────────────────────────────────── */
-body.log-page{ background:#eef1f6; font-size:12px; color:#1d2b45; }
+/* Page shell mirrors the Contacts page (contact_info.css): same background,
+   Barlow at 13px/1.45, same text colour. */
+body.log-page{
+  background:#f4f6f9;
+  font:13px/1.45 Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  color:#1d1d1f;
+}
 body.log-page > header,
 body.log-page #achi-log-hero{
   display:none!important;
 }
 body.log-page main{
   margin:0;
-  padding:0 12px 30px;
+  padding:10px 12px 30px;
   max-width:none;
   width:100%;
 }
 body.log-page .err{ margin:0 0 10px; }
 body.log-page .log-overview{ padding:0; border:0; background:transparent; margin-bottom:7px; }
-body.log-page .log-overview-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; margin-bottom:8px }
+/* Title row = the Contacts .bar-title white banner. */
+body.log-page .log-overview-top{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 7px;
+  padding:6px 10px; border:1px solid #b9c5d8; border-radius:5px; background:#fff;
+}
 body.log-page .log-overview-copy{ display:flex; align-items:center; gap:8px; white-space:nowrap; flex-wrap:wrap; }
-body.log-page .log-overview-copy h1{ margin:0 0 0 8px; font-size:22px; font-weight:800; color:#1d1d1f; }
+body.log-page .log-overview-copy h1{
+  margin:0; font-family:inherit; font-size:15px; font-weight:800; letter-spacing:0; line-height:1.45; color:#1d1d1f;
+}
 body.log-page .log-explainer{ font-size:10.5px; color:#44546e; white-space:normal; }
 body.log-page .log-overview-actions{
   display:flex;
@@ -1398,80 +1410,91 @@ body.log-page .log-overview-actions{
   margin-left:auto;
 }
 body.log-page .log-overview-actions .search{
-  height:26px; width:230px; border:1px solid #b9c5d8; border-radius:4px;
-  background:#fff; color:#1d2b45; font-size:12px; box-shadow:none;
+  height:26px; width:220px; padding:3px 8px; border:1px solid #b9c5d8; border-radius:4px;
+  background:#fff; color:#1d1d1f; font-size:12px; box-shadow:none;
 }
 body.log-page .log-overview-actions .search::placeholder{ color:#8a94a6; }
+body.log-page .log-overview-actions .search:focus{ outline:none; border-color:#284F9E; }
 
+/* Clear filters = Contacts .mini; Add Log = Contacts .mini.mini-primary. */
 body.log-page .log-overview-actions .log-clear-filters{
-  width:82px;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  width:auto;
   height:26px;
-  padding:0 8px;
-  border:1px solid #b9c5d8;
+  padding:3px 9px;
+  border:1px solid #93c5fd;
   border-radius:4px;
-  background:#fff;
-  color:#44546e;
-  font-size:10.5px;
+  background:#eaf1ff;
+  color:#284F9E;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:pointer;
 }
 
 body.log-page .log-overview-actions .tb-exp{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:4px;
-  width:82px;
+  gap:5px;
+  width:auto;
   height:26px;
-  padding:0 8px;
+  padding:3px 9px;
   border:1px solid #1F3F80;
   border-radius:4px;
   background:#284F9E;
   color:#fff;
-  font-size:10.5px;
+  font-size:11px;
   font-weight:700;
+  white-space:nowrap;
   box-shadow:none;
+  transform:none;
 }
 
 body.log-page .log-overview-actions .tb-exp .tb-add-plus{
-  font-size:13px;
+  font-size:inherit;
 }
 
 body.log-page .log-overview-actions .log-clear-filters:hover,
 body.log-page .log-overview-actions .log-clear-filters:focus-visible{
-  outline:0; border-color:#284F9E; color:#284F9E; background:#eaf1ff;
+  outline:0; background:#dce9ff;
 }
 
 body.log-page .log-overview-actions .tb-exp:hover{ border-color:#1F3F80; background:#1F3F80; }
 
 /* ── ARARA AI bar — visual placeholder only, no AI feature implemented ────── */
 body.log-page .log-ai-bar{
-  display:flex; align-items:center; gap:6px; min-height:0; margin:0 0 8px; padding:4px 8px;
-  border-radius:6px; background:linear-gradient(90deg,#1d2440,#284F9E); box-shadow:none; flex-wrap:nowrap;
+  display:flex; align-items:center; gap:8px; min-height:0; margin:0 0 8px; padding:6px 10px;
+  border:1px solid #1F3F80; border-radius:6px; background:linear-gradient(90deg,#1d2440,#284F9E); box-shadow:none; flex-wrap:wrap;
 }
 body.log-page .log-ai-bar>.sr-only{
   position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
   clip:rect(0,0,0,0); white-space:nowrap; border:0;
 }
+/* Same badge as the Contacts AI bar (.ai .badge). */
 body.log-page .log-ai-brand{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  height:30px;
+  height:auto;
   flex:0 0 auto;
-  padding:0 8px 0 0;
+  padding:1px 7px;
   border:0;
-  border-radius:0;
-  background:transparent;
-  color:#fff;
-  font-size:13px;
-  font-weight:900;
-  letter-spacing:.08em;
+  border-radius:3px;
+  background:#93c5fd;
+  color:#0d2b31;
+  font-size:8.5px;
+  font-weight:800;
+  letter-spacing:.07em;
 }
 body.log-page .log-ai-query{
   flex:1 1 0;
   width:auto;
-  min-width:0;
-  height:30px;
-  padding-left:12px;
+  min-width:220px;
+  height:auto;
+  padding:4px 10px;
   border:1px solid rgba(255,255,255,.3);
   border-radius:4px;
   background:rgba(255,255,255,.12);
@@ -1486,14 +1509,15 @@ body.log-page .log-ai-query::placeholder{
 
 body.log-page .log-ai-summary{
   flex:0 0 auto;
-  height:30px;
-  padding:0 12px;
-  border-radius:99px;
-  border:1px solid rgba(255,255,255,.35);
-  background:transparent;
+  height:26px;
+  padding:0 9px;
+  border-radius:4px;
+  border:1px solid rgba(255,255,255,.3);
+  background:rgba(255,255,255,.12);
   color:#dce7fa;
-  font-size:10px;
+  font-size:11px;
   font-weight:700;
+  white-space:nowrap;
   cursor:not-allowed;
 }
 
@@ -1503,7 +1527,7 @@ body.log-page .kpis{
   align-items:center;
   gap:6px;
   margin:0 0 8px;
-  flex-wrap:nowrap;
+  flex-wrap:wrap;
 }
 body.log-page .kpi, body.log-page .kpi-deleted{
   display:inline-flex; align-items:center; gap:6px; flex:0 0 auto; min-height:0;
@@ -1511,20 +1535,23 @@ body.log-page .kpi, body.log-page .kpi-deleted{
   background:#fff!important; color:#44546e; font:inherit; box-shadow:none; transform:none;
 }
 body.log-page .kpi.btn, body.log-page .kpi-deleted{ cursor:pointer; }
-body.log-page .kpi:hover, body.log-page .kpi-deleted:hover{
+/* Only the clickable chips react to hover; plain counters stay still, like the
+   Contacts .kc chips. */
+body.log-page .kpi.btn:hover, body.log-page .kpi-deleted:hover{
   border-color:#284F9E; color:#284F9E; background:#eaf1ff!important; transform:none;
 }
 body.log-page .kpi{
   flex:0 0 auto;
   width:auto;
-  height:24px;
-  padding:2px 7px;
+  height:auto;
+  padding:3px 10px;
   justify-content:flex-start;
+  font-size:10.5px;
 }
-body.log-page .kpi .n{ color:#1d1d1f; font-size:12.5px; font-weight:900; line-height:1; }
+body.log-page .kpi .n{ color:#1d1d1f; font-size:12.5px; font-weight:700; line-height:1.45; font-variant-numeric:tabular-nums; }
 body.log-page .kpi .l{ margin:0; color:inherit; font-size:10.5px; font-weight:500; letter-spacing:0; text-transform:none; }
 body.log-page .kpi.on{ outline:0; border-color:#284F9E; background:#eaf1ff!important; color:#1F3F80; }
-body.log-page .kpi-deleted{ margin-left:auto; font-size:10.5px; font-weight:650; }
+body.log-page .kpi-deleted{ margin-left:auto; font-size:10.5px; font-weight:700; }
 body.log-page .kpi-deleted svg{ width:12px; height:12px; }
 body.log-page .kpi-deleted.on{ border-color:#284F9E; background:#284F9E!important; color:#fff; box-shadow:none; }
 
@@ -1534,58 +1561,73 @@ body.log-page .nav{ display:flex; align-items:center; justify-content:flex-end; 
 body.log-page:not(.deleted-view) .nav:not(:has(.tb-del.on)):not(:has(.tb-email.on)){ display:none; }
 body.log-page .nav-actions{ display:flex; align-items:center; justify-content:flex-end; gap:7px; width:100%; }
 body.log-page .pt, body.log-page .nav-right, body.log-page #add-row, body.log-page #log-sort-control{ display:none!important; }
+/* Selection toolbar buttons use the Contacts button box (26px, radius 4, 11px
+   bold) while keeping their on-blue colours. */
+body.log-page .tb-del.on, body.log-page .tb-email.on, body.log-page .tb-restore, body.log-page .tb-perma{
+  height:26px; padding:0 9px; border-width:1px; border-radius:4px; font-size:11px; font-weight:700;
+}
+body.log-page .tb-cnt{ min-width:16px; height:16px; border-radius:3px; font-size:9.5px; }
+body.log-page .dl-acts-label{ font-size:9.5px; }
 body.log-page .tscroll{
   width:100%; height:var(--log-table-fit-height,calc(100dvh - 210px)); min-height:200px; overflow:auto;
   scrollbar-color:#8f99a7 #edf1f5; scrollbar-width:thin;
 }
 body.log-page table{
-  width:max-content; min-width:100%; background:#fff; color:#1d2b45;
-  font-family:'Barlow Condensed',Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  font-size:10px;
+  width:max-content; min-width:100%; background:#fff; color:#1d1d1f;
+  font-family:inherit;
+  font-size:11.5px;
 }
+/* Header = Contacts .hd: 8.5px heavy uppercase on #e6ebf3, 26px tall. */
 body.log-page thead tr{ background:#e6ebf3; }
 body.log-page thead th, body.log-page thead th.pg-f{
-  height:21px; padding:0 7px; border-right:1px solid #dbe2ed; border-bottom:1px solid #b9c5d8;
-  background:#e6ebf3; color:#44546e; font-size:7.5px; font-weight:700; letter-spacing:.075em; text-align:left;
+  height:26px; padding:0 8px; border-right:1px solid #dbe2ed; border-bottom:1px solid #b9c5d8;
+  background:#e6ebf3; color:#44546e; font-size:8.5px; font-weight:800; letter-spacing:.06em; text-align:left;
 }
 body.log-page thead th.num-head:hover, body.log-page thead th.num-head.on{ background:#dbe4f2; color:#1F3F80; }
-body.log-page .log-col-head{ position:relative; justify-content:flex-start; height:20px; gap:2px; }
+body.log-page .log-col-head{ position:relative; justify-content:flex-start; height:24px; gap:4px; }
 body.log-page .log-col-head-label{
-  width:100%; min-width:0; padding:0 12px 0 0; overflow:hidden;
+  width:100%; min-width:0; padding:0 18px 0 0; overflow:hidden;
   text-align:left; text-overflow:ellipsis; white-space:nowrap;
 }
+/* Column filter trigger = Contacts .hfw: 14px white box with a caret, solid
+   blue once a filter is set. */
 body.log-page .log-col-filter-btn{
-  position:absolute; right:-2px; width:11px; height:11px; margin:0; padding:0;
-  border-radius:2px; color:#6f86aa; opacity:.72;
+  position:absolute; right:0; display:inline-flex; align-items:center; justify-content:center;
+  width:14px; height:14px; margin:0; padding:0;
+  border:1px solid #b9c5d8; border-radius:3px; background:#fff; color:#44546e; opacity:1;
 }
 body.log-page .log-col-filter-btn svg{ display:none; }
 body.log-page .log-col-filter-btn::after{
   content:""; display:block; width:0; height:0; margin:auto;
-  border-left:2.5px solid transparent; border-right:2.5px solid transparent;
-  border-top:3.5px solid currentColor;
+  border-left:3px solid transparent; border-right:3px solid transparent;
+  border-top:4px solid currentColor;
 }
-body.log-page .log-col-filter-btn:hover, body.log-page .log-col-filter-btn:focus-visible{ background:#c9d5ea; color:#1F3F80; }
-body.log-page .log-col-filter-btn.is-active{ background:#284F9E; color:#fff; }
+body.log-page .log-col-filter-btn:hover, body.log-page .log-col-filter-btn:focus-visible{ outline:none; border-color:#284F9E; background:#fff; color:#284F9E; }
+body.log-page .log-col-filter-btn.is-active{ border-color:#1F3F80; background:#284F9E; color:#fff; }
 body.log-page .rz:hover, body.log-page .rz.rz-active{ background:#8ba6cc; }
+/* Rows = Contacts .row: 11.5px, 3px 8px cells, #eef2f8 rules. */
 body.log-page tbody td, body.log-page tbody td.pg-f{
-  height:27px; padding:0 7px; border-right:1px solid #eef2f8; border-bottom:1px solid #eef2f8;
-  background:#fff; color:#1d2b45; font-size:10px; font-weight:400; text-align:left;
+  height:26px; padding:3px 8px; border-right:1px solid #eef2f8; border-bottom:1px solid #eef2f8;
+  background:#fff; color:#1d1d1f; font-size:11.5px; font-weight:400; text-align:left;
 }
 body.log-page tbody tr.data:nth-child(even) td, body.log-page tbody tr.data:nth-child(even) td.pg-f{ background:#fff; }
 body.log-page tbody tr.log-row-status-open td,
 body.log-page tbody tr.log-row-status-open td.pg-f{ background:#fff8f6; }
 body.log-page tbody tr.data:hover td, body.log-page tbody tr.data:hover td.pg-f{ background:#eaf1ff; }
 body.log-page .pg-f-shadow{ box-shadow:3px 0 7px -5px rgba(30,55,92,.36); }
-body.log-page tbody tr.selectable-row td.num{ padding:0 7px; text-align:left; }
+body.log-page tbody tr.selectable-row td.num{ padding:3px 8px; text-align:left; }
+/* Log code = Contacts .code. */
 body.log-page .rn, body.log-page tbody tr.selectable-row:hover .rn, body.log-page tbody tr.selectable-row.row-selected .rn{
   display:inline; width:auto; height:auto; padding:0; border:0; border-radius:0; background:transparent;
-  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:9px; font-weight:700;
+  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:10px; font-weight:700;
 }
-body.log-page tbody tr.selectable-row.row-selected td{ background:#dfeafa!important; }
-body.log-page .dt, body.log-page .lt-date{ color:#44546e; font-size:9.5px; font-weight:400; }
+body.log-page tbody tr.selectable-row.row-selected td{ background:#eaf1ff!important; }
+/* Dates = Contacts .c-last. */
+body.log-page .dt, body.log-page .lt-date{ color:#44546e; font-size:10px; font-weight:400; font-variant-numeric:tabular-nums; }
+/* Status pill = Contacts .st badge. */
 body.log-page .badge.log-status-pill{
-  display:inline-flex; align-items:center; gap:3px; max-width:100%; padding:1px 5px; border:0; border-radius:3px;
-  font-size:7.5px; font-weight:700; line-height:1.25; text-transform:uppercase;
+  display:inline-flex; align-items:center; gap:3px; max-width:100%; padding:1px 6px; border:0; border-radius:3px;
+  font-size:8.5px; font-weight:800; letter-spacing:.05em; line-height:1.45; text-transform:uppercase;
 }
 body.log-page .badge.log-status-pill .log-pill-arrow svg{ width:7px; height:7px; }
 body.log-page .b-open{ background:#e5f0ff; color:#164f8d; }
@@ -1608,24 +1650,26 @@ body.log-page .log-contact-channel{ display:inline-flex; flex:0 0 auto; color:#2
 body.log-page .log-contact-channel.is-message{ color:#176b43; }
 body.log-page .log-contact-channel svg{ display:block; width:11px; height:11px; }
 body.log-page .log-contact-cell strong{
-  min-width:0; overflow:hidden; color:#111827; font-size:10px; font-weight:600;
+  min-width:0; overflow:hidden; color:#1d1d1f; font-size:11.5px; font-weight:700;
   text-align:left; text-overflow:ellipsis; white-space:nowrap;
 }
-body.log-page .email-btn, body.log-page .ph{ color:#44546e; font-size:9.5px; font-weight:400; }
+/* Secondary cell text = Contacts .c-sm (10.5px). */
+body.log-page .email-btn, body.log-page .ph{ color:#44546e; font-size:10.5px; font-weight:400; }
 body.log-page .email-btn.compact-email{ color:#284F9E; }
 body.log-page .email-btn svg{ width:11px; height:11px; }
 body.log-page .sent-ic svg{ width:12px; height:12px; }
-body.log-page .log-city-link{ gap:3px; overflow:hidden; color:#44546e; font-size:9.5px; font-weight:400; text-overflow:ellipsis; white-space:nowrap; }
-body.log-page .log-city-link svg{ color:#284F9E; }
+/* City = Contacts .city: brand-blue text with a 10px pin. */
+body.log-page .log-city-link{ gap:3px; overflow:hidden; color:#284F9E; font-size:10.5px; font-weight:400; text-overflow:ellipsis; white-space:nowrap; }
+body.log-page .log-city-link svg{ width:10px; height:10px; color:#284F9E; }
 body.log-page .email-cell{ justify-content:flex-start; }
-body.log-page td.notecell{ padding-right:24px; padding-left:7px; }
+body.log-page td.notecell{ padding-right:24px; padding-left:8px; }
 body.log-page .log-notes-cell{ display:flex; align-items:center; justify-content:flex-start; gap:5px; min-width:0; max-width:100%; overflow:hidden; }
 body.log-page .log-note-source{
-  display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; min-width:27px; height:12px;
-  padding:0 3px; border-radius:2px; background:#eef2f6; color:#44546e; font-size:6px; font-weight:700; letter-spacing:.06em;
+  display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; min-width:30px; height:14px;
+  padding:0 4px; border-radius:3px; background:#f4f6f9; color:#44546e; font-size:7.5px; font-weight:800; letter-spacing:.05em;
 }
-body.log-page .log-note-source.is-ai{ background:#eee5fb; color:#5b21b6; }
-body.log-page .log-note-text{ min-width:0; overflow:hidden; color:#44546e; font-size:9.5px; text-overflow:ellipsis; white-space:nowrap; }
+body.log-page .log-note-source.is-ai{ background:#f3edfb; color:#5b21b6; }
+body.log-page .log-note-text{ min-width:0; overflow:hidden; color:#44546e; font-size:10.5px; text-overflow:ellipsis; white-space:nowrap; }
 body.log-page .cellmarks{ top:7px; right:6px; gap:4px; }
 body.log-page .cellmark svg{ width:11px; height:11px; }
 /* Intent pill — now an interactive trigger for the "Copy Log → Stage" menu
@@ -1640,15 +1684,16 @@ body.log-page .log-intent-pill{
   align-items:center;
   gap:4px;
   max-width:100%;
-  padding:1px 5px;
+  padding:1px 6px;
   border:0;
   overflow:hidden;
   border-radius:3px;
   background:#f4f6f9;
   color:#8a8f98;
   font:inherit;
-  font-size:7.5px;
-  font-weight:700;
+  font-size:8.5px;
+  font-weight:800;
+  letter-spacing:.05em;
   text-overflow:ellipsis;
   white-space:nowrap;
   cursor:pointer;
@@ -1739,14 +1784,71 @@ body.log-page .intent-label{ flex:1 1 auto; min-width:0; overflow:hidden; text-o
 body.log-page .intent-next{ margin-left:auto; font-size:9px; color:#8a8f98; white-space:nowrap; flex:0 0 auto; }
 body.log-page .intent-menu-foot{ padding:6px 10px; font-size:9.5px; color:#44546e; background:#f7f9fc; }
 body.log-page .log-linked-code, body.log-page .enq-ref{
-  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:8.5px; font-weight:700; text-decoration:none;
+  color:#284F9E; font-family:ui-monospace,Menlo,monospace; font-size:10px; font-weight:700; text-decoration:none;
 }
 body.log-page a.log-linked-code:hover{ text-decoration:underline; }
+/* Pager = Contacts .foot strip; its buttons use the .seg/.mini box. */
 body.log-page #log-pagination{
-  min-height:30px; padding:5px 8px; border-top:1px solid #dbe2ed; background:#f4f6fa; color:#44546e; font-size:9.5px;
+  display:flex; align-items:center; gap:10px;
+  min-height:30px; padding:5px 8px; border-top:1px solid #dbe2ed; background:#f4f6fa; color:#44546e; font-size:10.5px;
 }
-body.log-page .log-pagination-button{ min-width:66px; height:25px; padding:0 8px; border-radius:5px; font-size:9px; }
-body.log-page .log-pagination-button span{ font-size:14px; }
+body.log-page .log-pagination-actions{ display:flex; align-items:center; gap:6px; margin-left:auto; }
+body.log-page .log-pagination-button{
+  display:inline-flex; align-items:center; justify-content:center; gap:4px;
+  min-width:66px; height:26px; padding:0 9px; border:1px solid #b9c5d8; border-radius:4px;
+  background:#fff; color:#44546e; font:inherit; font-size:11px; font-weight:700; cursor:pointer;
+}
+body.log-page .log-pagination-button:hover:not(:disabled){ border-color:#284F9E; background:#eaf1ff; color:#284F9E; }
+body.log-page .log-pagination-button:disabled{ opacity:.5; cursor:default; }
+body.log-page .log-pagination-button span{ font-size:14px; line-height:1; }
+
+/* ── Quick quotation — no Contacts equivalent, so it takes the Contacts panel
+   language: white card, #eef2f8 title strip, 26px inputs, .mini-primary. ── */
+body.log-page .qv{
+  margin:8px 0; padding:0; overflow:hidden;
+  border:1px solid #b9c5d8; border-radius:5px; background:#fff;
+}
+body.log-page .qv-head{
+  align-items:center; margin:0; padding:4px 8px;
+  border-bottom:1px solid #dbe2ed; background:#eef2f8;
+}
+body.log-page .qv-head>div{ display:flex; align-items:baseline; gap:8px; min-width:0; flex-wrap:wrap; }
+body.log-page .qv-head h2{
+  margin:0; font-family:inherit; color:#486077; font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+}
+body.log-page .qv-for{ margin:0; color:#284F9E; font-size:11px; font-weight:700; }
+body.log-page .qv-x{ padding:3px; border-radius:4px; color:#44546e; }
+body.log-page .qv-x:hover{ background:#dce9ff; color:#284F9E; }
+body.log-page .qv-x svg{ width:12px; height:12px; }
+body.log-page .qv>.qv-grid, body.log-page .qv-more{ margin-left:8px; margin-right:8px; }
+body.log-page .qv>.qv-grid{ margin-top:8px; }
+body.log-page .qv-grid{ gap:5px 8px; }
+body.log-page .qv-grid-wide{ margin-top:5px; }
+body.log-page .qv-f{ gap:2px; }
+body.log-page .qv-f>span{ color:#44546e; font-size:10.5px; font-weight:700; letter-spacing:0; text-transform:none; }
+body.log-page .qv-f input, body.log-page .qv-f textarea{
+  padding:2px 7px; border:1px solid #b9c5d8; border-radius:4px; color:#1d1d1f; font-size:12px;
+}
+body.log-page .qv-f input{ height:26px; }
+body.log-page .qv-f input:focus, body.log-page .qv-f textarea:focus{
+  outline:none; border-color:#284F9E; box-shadow:0 0 0 2px rgba(40,79,158,.14);
+}
+body.log-page .qv-more{ margin-top:6px; }
+body.log-page .qv-more summary{ color:#284F9E; font-size:11px; font-weight:700; }
+body.log-page .qv-foot{ margin-top:8px; padding:5px 8px; border-top:1px solid #dbe2ed; background:#f4f6fa; }
+body.log-page .qv-totals{ gap:12px; color:#44546e; font-size:10.5px; }
+body.log-page .qv-totals b{ color:#1d1d1f; font-size:12.5px; font-variant-numeric:tabular-nums; }
+body.log-page .qv-total, body.log-page .qv-total b{ color:#284F9E; }
+body.log-page .qv-total b{ font-size:13px; font-weight:800; }
+body.log-page .qv-msg{ color:#44546e; font-size:11px; }
+body.log-page .qv-draft{
+  height:26px; padding:3px 9px; border:1px solid #1F3F80; border-radius:4px;
+  background:#284F9E; color:#fff; font-size:11px; font-weight:700;
+}
+body.log-page .qv-draft:hover{ background:#1F3F80; }
+
+/* Back-to-top keeps its job, with the Contacts button radius. */
+body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px; }
 @media(max-width:1000px){
   body.log-page .log-overview-top{ align-items:flex-start; flex-direction:column; gap:8px; }
   body.log-page .log-overview-copy{ width:100%; }
@@ -1757,7 +1859,7 @@ body.log-page .log-pagination-button span{ font-size:14px; }
   body.log-page .log-overview-copy{ align-items:flex-start; flex-wrap:wrap; gap:6px 8px; white-space:normal; }
   body.log-page .log-explainer{ flex-basis:100%; white-space:normal; }
   body.log-page .kpi-deleted{ margin-left:0; }
-  body.log-page .log-ai-brand{ padding:0 12px; font-size:11px; }
+  body.log-page .log-ai-query{ min-width:0; }
   body.log-page .log-ai-summary{ display:none; }
 }
 
@@ -1767,10 +1869,12 @@ body.log-page .log-pagination-button span{ font-size:14px; }
    to .rx-reference so the shared log controls and other workspaces keep their
    existing appearance.
    ======================================================================== */
+/* Box, header, inputs and footer follow the Contacts "+ contact" popup
+   (.pp-* in contact_info.css) so both dialogs read as one design system. */
 .rx-reference{
-  padding:18px;
-  background:rgba(15,23,42,.54);
-  backdrop-filter:blur(3px);
+  padding:20px;
+  background:rgba(15,23,42,.55);
+  backdrop-filter:none;
 }
 .rx-reference .rx-box{
   width:min(980px,calc(100vw - 36px));
@@ -1781,71 +1885,90 @@ body.log-page .log-pagination-button span{ font-size:14px; }
   height:auto;
   min-height:min(460px,calc(100vh - 36px));
   max-height:calc(100vh - 36px);
-  border:1px solid #b9c5d8;
-  border-radius:8px;
-  background:#f4f6fa;
-  box-shadow:0 18px 50px rgba(15,23,42,.26);
+  border:1px solid #1F3F80;
+  border-radius:6px;
+  background:#f4f6f9;
+  box-shadow:0 24px 60px rgba(15,23,42,.35);
+  color:#1d1d1f;
+  font-size:12px;
 }
 .rx-reference .rx-head{
-  min-height:38px;
-  padding:7px 12px;
-  gap:6px 8px;
+  min-height:46px;
+  padding:6px 8px 6px 12px;
+  gap:6px;
   flex-wrap:wrap;
-  background:linear-gradient(#305FB8,#284F9E);
-  border-radius:7px 7px 0 0;
+  background:#284F9E;
+  border-radius:5px 5px 0 0;
 }
 .rx-reference .rx-head h2{
-  margin:0;
-  font-size:13px;
+  margin:0 2px 0 0;
+  font-family:inherit;
+  font-size:15px;
   font-weight:800;
-  letter-spacing:.02em;
+  letter-spacing:0;
 }
-.rx-reference .rx-chip,
+/* Log number = Contacts .pp-code. */
+.rx-reference .rx-chip{
+  display:inline-flex!important;
+  align-items:center;
+  height:26px;
+  box-sizing:border-box;
+  padding:3px 8px;
+  border:1px dashed rgba(255,255,255,.45);
+  border-radius:4px;
+  background:transparent;
+  color:#dce7fa;
+  font:700 11px/1 ui-monospace,Menlo,monospace;
+  white-space:nowrap;
+}
+/* "by …" = Contacts .pp-by. */
 .rx-reference .rx-by{
   display:inline-flex!important;
   align-items:center;
-  height:22px;
-  box-sizing:border-box;
-  padding:2px 8px;
-  border:1px solid rgba(255,255,255,.3);
-  border-radius:4px;
-  background:rgba(255,255,255,.16);
-  color:#fff;
-  font:600 10.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#dce7fa;
+  font-size:11px;
   white-space:nowrap;
 }
+/* Header controls = Contacts .pp-hin (26px, translucent on the blue bar). */
 .rx-reference .rx-head-select{
-  height:22px;
-  max-width:142px;
-  padding:2px 5px;
+  height:26px;
+  max-width:160px;
+  padding:2px 7px;
   border:1px solid rgba(255,255,255,.35);
   border-radius:4px;
-  background:rgba(255,255,255,.14);
+  background:rgba(255,255,255,.12);
   color:#fff;
   font:inherit;
-  font-size:10.5px;
+  font-size:12px;
   font-weight:700;
   cursor:pointer;
 }
+.rx-reference .rx-head-select:focus{outline:none;border-color:#fff}
 .rx-reference .rx-head-select option{color:#1d1d1f;background:#fff}
-.rx-reference .rx-when-wrap{height:22px}
+.rx-reference .rx-when-wrap{height:26px}
 .rx-reference .rx-when-display{
-  height:22px;
-  min-width:138px;
-  padding:0 6px;
+  height:26px;
+  min-width:150px;
+  padding:0 7px;
   gap:6px;
   border-radius:4px;
-  font-size:10.5px;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
 }
 .rx-reference .rx-when-display svg{width:12px;height:12px;margin-left:auto}
 .rx-reference .rx-state-btn{
-  min-width:96px;
-  height:22px;
+  min-width:100px;
+  height:26px;
   padding:0 7px;
   gap:5px;
   border-radius:4px;
-  background:rgba(255,255,255,.14);
-  font-size:9.5px;
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.35);
+  font-size:12px;
+  text-transform:uppercase;
 }
 .rx-reference .rx-state-btn:hover,
 .rx-reference .rx-state-btn[aria-expanded="true"]{background:rgba(255,255,255,.24)}
@@ -1856,65 +1979,73 @@ body.log-page .log-pagination-button span{ font-size:14px; }
   display:inline-flex;
   align-items:center;
   gap:5px;
-  height:22px;
-  padding:0 6px;
+  height:26px;
+  padding:0 7px;
   box-sizing:border-box;
-  border:1px solid rgba(255,255,255,.3);
+  border:1px solid rgba(255,255,255,.35);
   border-radius:4px;
   background:rgba(255,255,255,.12);
   color:#fff;
-  font-size:8.5px;
+  font-size:9.5px;
   font-weight:800;
-  letter-spacing:.05em;
+  letter-spacing:.06em;
   white-space:nowrap;
 }
 .rx-reference .rx-head-followup input{
-  width:96px;
+  width:108px;
   padding:0;
   border:0;
   background:transparent;
   color:#fff;
   color-scheme:dark;
   font:inherit;
-  font-size:10px;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:0;
+  font-variant-numeric:tabular-nums;
 }
 .rx-reference .rx-tag{
   min-width:0;
   margin:0;
   overflow:hidden;
   text-overflow:ellipsis;
-  font-size:10px;
+  color:#dce7fa;
+  font-size:11px;
   font-style:italic;
-  opacity:.75;
+  opacity:1;
 }
+/* Close = Contacts .pp-x. */
 .rx-reference .rx-x{
-  width:24px;
-  height:24px;
-  border:1px solid rgba(255,255,255,.4);
-  border-radius:5px;
-  background:rgba(255,255,255,.1);
+  width:34px;
+  height:34px;
+  border:1px solid rgba(255,255,255,.45);
+  border-radius:4px;
+  background:transparent;
 }
-.rx-reference .rx-cols{background:#f4f6fa;min-height:0}
+.rx-reference .rx-x:hover{background:rgba(255,255,255,.15)}
+.rx-reference .rx-x svg{width:14px;height:14px}
+.rx-reference .rx-cols{background:#f4f6f9;min-height:0}
 .rx-reference .rx-body{
-  padding:9px 10px;
-  gap:8px;
+  padding:14px;
+  gap:12px;
   min-height:0;
-  background:#f4f6fa;
+  background:#f4f6f9;
   box-shadow:none;
   scrollbar-width:thin;
 }
+/* Quick capture = Contacts .pp-capture. */
 .rx-reference .rx-capture{
   border:1px solid #b9c5d8;
   border-radius:6px;
   background:#fff;
   overflow:hidden;
-  box-shadow:0 1px 3px rgba(15,35,75,.06);
+  box-shadow:none;
 }
 .rx-reference .rx-capture-top{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(150px,190px);
-  gap:5px;
-  padding:7px 8px 0;
+  grid-template-columns:minmax(0,1fr) minmax(150px,280px);
+  gap:6px;
+  padding:8px 8px 0;
 }
 .rx-reference .rx-capture .rx-notes{
   padding:0;
@@ -1927,73 +2058,80 @@ body.log-page .log-pagination-button span{ font-size:14px; }
   margin:0;
   border:1px solid #b9c5d8;
   border-left-width:1px;
-  border-radius:3px;
+  border-radius:4px;
 }
-.rx-reference .rx-capture .rx-notes-subject{height:24px;padding:0 31px 0 7px;font-size:12px}
+.rx-reference .rx-capture .rx-notes-subject{height:24px;padding:0 31px 0 7px;font-size:12px;font-weight:700}
 .rx-reference .rx-capture .rx-notes-dropzone{padding:0}
 .rx-reference .rx-capture .ql-container{
-  min-height:68px;
+  min-height:90px;
   border:0!important;
   border-radius:0!important;
-  font-size:12px;
+  font-size:12.5px;
 }
-.rx-reference .rx-capture .ql-editor{min-height:68px;padding:8px 10px 2px}
+.rx-reference .rx-capture .ql-editor{min-height:90px;padding:8px 10px;line-height:1.5}
+.rx-reference .rx-capture .ql-editor.ql-blank::before{left:10px;right:10px;color:#8a96ab;font-style:normal}
 .rx-reference .rx-capture .ql-toolbar{
   display:flex;
   align-items:center;
-  min-height:31px;
-  padding:3px 38px 3px 39px;
+  min-height:34px;
+  padding:4px 38px 4px 42px;
   border:0!important;
-  border-top:1px solid #dfe6f0!important;
+  border-top:1px solid #dbe2ed!important;
   border-radius:0!important;
+  background:#fbfcff;
 }
 .rx-reference .rx-capture-tools{
   display:flex;
   align-items:center;
   gap:6px;
-  min-height:31px;
-  margin-top:-31px;
-  padding:3px 8px;
+  min-height:34px;
+  margin-top:-34px;
+  padding:4px 8px;
   position:relative;
   pointer-events:none;
 }
 .rx-reference .rx-capture-tools>*{pointer-events:auto}
+/* Attach = Contacts .pp-tb-add; tags = Contacts .pp-tag-add. */
 .rx-reference .rx-capture-tools .rx-notes-attach-btn{
-  width:24px;
-  height:24px;
+  width:26px;
+  height:26px;
   padding:0;
   justify-content:center;
   border:1px solid #b9c5d8;
-  border-radius:5px;
-  background:#fbfcff;
+  border-radius:4px;
+  background:#fff;
+  color:#284F9E;
 }
+.rx-reference .rx-capture-tools .rx-notes-attach-btn:hover{background:#eaf1ff}
 .rx-reference .rx-capture-tools .rx-notes-attach-btn span{display:none}
 .rx-reference .rx-capture-tools .rx-tags-input{
   width:min(260px,45vw);
-  height:24px;
+  height:26px;
   margin-left:auto;
-  border-style:dashed;
-  border-radius:99px;
+  border:1px solid #dbe2ed;
+  border-radius:16px;
   padding:2px 9px;
+  background:#fff;
   font-size:11px;
   font-weight:700;
   color:#284F9E;
 }
+/* Sections = Contacts .pp-company panels with a .pp-sec-t style legend. */
 .rx-reference fieldset.rx-section{
   min-width:0;
   margin:0;
-  padding:7px 9px 9px;
+  padding:8px;
   border:1px solid #b9c5d8;
-  border-radius:4px;
-  background:#fff;
+  border-radius:6px;
+  background:#fbfcff;
 }
 .rx-reference fieldset.rx-section[hidden]{display:none}
 .rx-reference .rx-section legend{
   padding:0 5px;
-  color:#284F9E;
+  color:#486077;
   font-size:9.5px;
   font-weight:800;
-  letter-spacing:.08em;
+  letter-spacing:.06em;
   text-transform:uppercase;
 }
 .rx-reference .rx-section-hint{
@@ -2017,38 +2155,53 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-reference .rx-g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .rx-reference .rx-g2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .rx-reference .rx-gc{grid-template-columns:minmax(0,1.7fr) minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr)}
-.rx-reference .rx-l{margin-bottom:2px;font-size:9.5px;color:#44546e;letter-spacing:0;text-transform:none}
+/* Labels = Contacts .pp-f labels; inputs = Contacts .pp-in (26px, radius 4). */
+.rx-reference .rx-l{margin-bottom:2px;font-size:10.5px;font-weight:700;color:#44546e;letter-spacing:0;text-transform:none}
 .rx-reference .rx-in,
 .rx-reference .rx-select-btn,
 .rx-reference .rx-location-input,
 .rx-reference .rx-geo-input{
-  height:24px;
-  padding:2px 6px;
+  height:26px;
+  padding:2px 7px;
   border-color:#b9c5d8;
-  border-radius:3px;
+  border-radius:4px;
+  color:#1d1d1f;
   font-size:12px;
 }
-.rx-reference .rx-geo-combo .rx-select-btn{height:22px;width:25px;padding:0}
-.rx-reference .rx-location-toggle{width:24px;height:22px}
+.rx-reference .rx-in:focus,
+.rx-reference .rx-select-btn:focus,
+.rx-reference .rx-location-input:focus,
+.rx-reference .rx-geo-input:focus{
+  border-color:#284F9E;
+  outline:none;
+  box-shadow:0 0 0 2px rgba(40,79,158,.14);
+}
+.rx-reference .rx-geo-combo .rx-select-btn{height:24px;width:25px;padding:0;box-shadow:none}
+.rx-reference .rx-location-toggle{width:24px;height:24px}
 .rx-reference .rx-phone-row,
 .rx-reference .rx-email-row{gap:4px}
-.rx-reference .rx-phone-row .tel-cc{height:24px;padding:0 5px}
+.rx-reference .rx-phone-row .tel-cc{height:26px;padding:0 5px;border-color:#b9c5d8;border-radius:4px}
 .rx-reference .rx-phone-remove,
-.rx-reference .rx-email-remove{width:22px;height:24px;font-size:15px}
+.rx-reference .rx-email-remove{width:22px;height:26px;font-size:15px}
+/* "+ Add Number / Email / handle" = Contacts .pp-addlink. */
 .rx-reference .rx-add-phone,
 .rx-reference .rx-add-email,
-.rx-reference .rx-add-related,
 .rx-reference .rx-add-handle{
   margin-top:4px;
-  padding:2px 8px;
-  border:1px solid #93c5fd;
-  border-radius:4px;
-  background:#eaf1ff;
-  font-size:10.5px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#284F9E;
+  font-size:11px;
+  font-weight:700;
   text-decoration:none;
 }
+.rx-reference .rx-add-phone:hover,
+.rx-reference .rx-add-email:hover,
+.rx-reference .rx-add-handle:hover{text-decoration:underline}
+.rx-reference .rx-add-related{margin-top:4px;text-decoration:none}
 .rx-reference .rx-related-wrap{margin-top:7px}
-.rx-reference .rx-person{padding:8px;border-radius:4px;background:#fbfcff;gap:7px}
+.rx-reference .rx-person{padding:8px;border-radius:6px;background:#fbfcff;gap:7px}
 .rx-reference .rx-contact-reference{display:flex;flex-direction:column;gap:6px;min-width:0}
 .rx-reference .rx-contact-identity{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;align-items:stretch;min-width:0}
 .rx-reference .rx-contact-photo-card{display:flex;flex-direction:column;min-width:0;padding:6px 8px;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff}
@@ -2060,11 +2213,11 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-reference .rx-contact-avatar{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#eaf1ff;color:#284F9E;font-size:10.5px;font-weight:800}
 .rx-reference .rx-contact-avatar.is-logo{border-radius:4px}
 .rx-reference .rx-contact-photo-preview{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);border-radius:3px;object-fit:cover}
-.rx-reference .rx-ref-mini{min-height:20px;margin-top:5px;padding:1px 8px;border:1px solid #93c5fd;border-radius:3px;background:#eaf1ff;color:#284F9E;font:inherit;font-size:10px;font-weight:700;cursor:pointer}
+.rx-reference .rx-ref-mini{min-height:26px;margin-top:5px;padding:0 8px;border:1px solid #93c5fd;border-radius:4px;background:#eaf1ff;color:#284F9E;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer}
 .rx-reference .rx-ref-mini:hover{background:#dce9ff}
 .rx-reference .rx-ref-mini[disabled]{opacity:.58;cursor:wait}
 .rx-reference .rx-contact-fields{display:grid;grid-template-columns:64px minmax(0,1fr) 82px minmax(0,1fr) 82px minmax(0,1fr);gap:4px 6px;align-items:center;min-width:0}
-.rx-reference .rx-ref-label{color:#1F3F80;font-size:9.5px;font-weight:700;text-align:right;white-space:nowrap}
+.rx-reference .rx-ref-label{color:#44546e;font-size:10.5px;font-weight:700;text-align:right;white-space:nowrap}
 .rx-reference .rx-ref-label i{color:#b91c1c;font-style:normal}
 .rx-reference .rx-contact-company-input,.rx-reference .rx-related-company{color:#284F9E;font-weight:700}
 .rx-reference .rx-ref-span3{grid-column:span 3}
@@ -2076,11 +2229,11 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-reference .rx-company-panel .rx-contact-card,.rx-reference .rx-person .rx-contact-card{background:#fff}
 .rx-reference .rx-phone-list,.rx-reference .rx-email-list,.rx-reference .rx-social-list,.rx-reference .rx-website-list,.rx-reference .rx-company-phone-list,.rx-reference .rx-company-online-list,.rx-reference .rx-related-phone-list,.rx-reference .rx-related-online-list{display:flex;flex-direction:column;gap:3px}
 .rx-reference .rx-phone-row,.rx-reference .rx-email-row,.rx-reference .rx-ref-line{display:grid;grid-template-columns:64px minmax(0,1fr) 22px;gap:0;align-items:center;min-width:0}
-.rx-reference .rx-phone-label,.rx-reference .rx-email-label,.rx-reference .rx-ref-line-label{height:24px;min-width:0;padding:0 5px;border:0;background:transparent;color:#1F3F80;font:inherit;font-size:9.5px;font-weight:700;text-align:right}
+.rx-reference .rx-phone-label,.rx-reference .rx-email-label,.rx-reference .rx-ref-line-label{height:26px;min-width:0;padding:0 5px;border:0;background:transparent;color:#44546e;font:inherit;font-size:10.5px;font-weight:700;text-align:right}
 .rx-reference select.rx-ref-line-label{text-align:left}
 .rx-reference .rx-phone-row .tel-wrap,.rx-reference .rx-ref-line .tel-wrap{min-width:0}
-.rx-reference .rx-phone-row .rx-in,.rx-reference .rx-email-row .rx-in,.rx-reference .rx-ref-line>.rx-in,.rx-reference .rx-ref-line .rx-in{border-radius:3px 0 0 3px}
-.rx-reference .rx-phone-remove,.rx-reference .rx-email-remove,.rx-reference .rx-ref-remove{display:flex;align-items:center;justify-content:center;width:22px;height:24px;padding:0;border:1px solid #efb5b5;border-left:0;border-radius:0 3px 3px 0;background:#fff1f1;color:#b91c1c;font:700 12px/1 Arial,sans-serif;cursor:pointer}
+.rx-reference .rx-phone-row .rx-in,.rx-reference .rx-email-row .rx-in,.rx-reference .rx-ref-line>.rx-in,.rx-reference .rx-ref-line .rx-in{border-radius:4px 0 0 4px}
+.rx-reference .rx-phone-remove,.rx-reference .rx-email-remove,.rx-reference .rx-ref-remove{display:flex;align-items:center;justify-content:center;width:22px;height:26px;padding:0;border:1px solid #efb5b5;border-left:0;border-radius:0 4px 4px 0;background:#fff1f1;color:#b91c1c;font:700 12px/1 Arial,sans-serif;cursor:pointer}
 .rx-reference .rx-phone-remove[hidden],.rx-reference .rx-email-remove[hidden]{display:flex}
 .rx-reference .rx-phone-remove:hover,.rx-reference .rx-email-remove:hover,.rx-reference .rx-ref-remove:hover{background:#fee2e2}
 .rx-reference .rx-email-row .draft-email{display:flex;min-width:0}
@@ -2115,12 +2268,12 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-contact-match-foot{border-top:1px solid #dbe2ed;border-bottom:0;background:#fbfcff;color:#284F9E;font-size:10px;letter-spacing:0;text-transform:none}
 .rx-reference .rx-social{gap:4px}
 .rx-reference .rx-social .rx-in,
-.rx-reference .rx-social .rx-select-btn{height:24px}
-.rx-reference .rx-social-remove{width:24px;height:24px;border-radius:3px}
+.rx-reference .rx-social .rx-select-btn{height:26px}
+.rx-reference .rx-social-remove{width:26px;height:26px;border-radius:4px}
 .rx-reference .rx-fs{padding:0;border:0;gap:7px}
 .rx-reference .rx-fs>h4{display:none}
 .rx-reference .rx-map-input-row{gap:4px}
-.rx-reference .rx-use-location{min-height:24px;height:24px;padding:0 8px;border-radius:4px;font-size:10px}
+.rx-reference .rx-use-location{min-height:26px;height:26px;padding:0 8px;border-radius:4px;font-size:11px;font-weight:700}
 .rx-reference .rx-mapprev .mapwrap{height:120px}
 .rx-reference .rx-location-status{min-height:0;margin-top:2px;font-size:9.5px}
 .rx-reference .rx-attachment-drop{
@@ -2269,17 +2422,19 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-reference .rx-visit-camera{display:flex;align-items:center;justify-content:center;height:52px;background:#eef2f8;font-size:18px}
 .rx-reference .rx-visit-awaiting>div:last-child{padding:3px 6px}
 .rx-reference .rx-mini{
-  height:24px;
-  padding:3px 9px;
+  height:26px;
+  padding:0 8px;
   border:1px solid #93c5fd;
   border-radius:4px;
   background:#eaf1ff;
   color:#284F9E;
   font:inherit;
-  font-size:10.5px;
+  font-size:11px;
   font-weight:700;
+  white-space:nowrap;
   cursor:pointer;
 }
+.rx-reference .rx-mini:hover{background:#dce9ff}
 .rx-reference .rx-plusrow{
   display:flex;
   justify-content:center;
@@ -2289,8 +2444,8 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-reference .rx-plus{
   width:30px;
   height:30px;
-  border:1px dashed #7f95b8;
-  border-radius:6px;
+  border:1px dashed #93c5fd;
+  border-radius:4px;
   background:#fff;
   color:#284F9E;
   font:800 17px/1 Barlow,sans-serif;
@@ -2332,28 +2487,37 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-reference .rx-add-option:hover{background:#eaf1ff}
 .rx-reference .rx-add-option[disabled]{opacity:.55;cursor:default;background:transparent}
 .rx-reference .rx-add-check{margin-left:auto;color:#16a34a;font-weight:800}
+/* Footer = Contacts .pp-foot; buttons = .pp-btn / .pp-btn-primary. */
 .rx-reference .rx-foot{
   min-height:43px;
-  padding:7px 12px;
-  gap:8px 10px;
+  padding:7px 14px;
+  gap:8px;
   border-top:1px solid #b9c5d8;
-  border-radius:0 0 7px 7px;
-  background:#e9edf4;
+  border-radius:0 0 5px 5px;
+  background:#fff;
 }
-.rx-reference .rx-copy-l{font-size:9px;color:#8a8f98}
-.rx-reference .rx-copy-btn{min-width:150px;height:27px;border-radius:4px;font-size:11px}
-.rx-reference .rx-copy-h{font-size:10.5px;color:#44546e}
-.rx-reference .rx-status{font-size:10.5px}
+.rx-reference .rx-copy-l{font-size:9.5px;font-weight:800;letter-spacing:.06em;color:#44546e}
+.rx-reference .rx-copy,
+.rx-reference .rx-copy-btn{min-width:150px;height:26px;border:1px solid #b9c5d8;border-radius:4px;font-size:12px}
+.rx-reference .rx-copy-h{font-size:11px;color:#44546e}
+.rx-reference .rx-status{font-size:11px}
 .rx-reference .rx-cancel,
 .rx-reference .rx-save-cont,
 .rx-reference .rx-save{
+  height:28px;
   min-height:28px;
-  padding:5px 14px;
+  padding:0 14px;
+  border:1px solid #b9c5d8;
   border-radius:4px;
+  background:#fff;
+  color:#1F3F80;
   font-size:12px;
+  font-weight:700;
 }
-.rx-reference .rx-save-cont{border-color:#b9c5d8;background:#fff;color:#1d1d1f}
-.rx-reference .rx-save{border:1px solid #1F3F80;background:linear-gradient(#305FB8,#284F9E)}
+.rx-reference .rx-cancel:hover,
+.rx-reference .rx-save-cont:hover{background:#eaf1ff}
+.rx-reference .rx-save{border-color:#1F3F80;background:#284F9E;color:#fff}
+.rx-reference .rx-save:hover{background:#1F3F80}
 
 @media (max-width:860px){
   .rx-reference{padding:10px}
