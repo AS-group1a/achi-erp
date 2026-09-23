@@ -846,7 +846,6 @@
       activity: bucket.activity || '',
       companySize: bucket.company_size || '',
       photo: bucket.photo || null,
-      preferredChannel: bucket.preferred_channel || '',
       aiNote: bucket.ai_note || '',
       aiSummary: bucket.ai_summary || '',
       aiSummaryWhen: bucket.ai_summary_at || null,
@@ -954,12 +953,16 @@
     ].filter(Boolean).join(' ').toLowerCase().includes(query));
   }
 
-  // No preference / AI fields are stored for contacts yet; these read them if
-  // they ever appear in the contact-info bucket and otherwise render "—".
-  const PREF_CLASS = { WhatsApp: 'pref-wa', Call: 'pref-call', Email: 'pref-email' };
+  // No preference is stored for contacts; it is predicted from what the
+  // + Person popup saved, in priority order: a WhatsApp number, then any other
+  // number (Mobile, Telephone, Fax…), then an email.
+  const PREF_CLASS = { WhatsApp: 'pref-wa', Mobile: 'pref-call', Email: 'pref-email' };
 
   function contactPref(contact) {
-    return PREF_CLASS[contact.preferredChannel] ? contact.preferredChannel : '—';
+    if (contact.phones.some(phone => phone.label === 'WhatsApp')) return 'WhatsApp';
+    if (contact.phones.length) return 'Mobile';
+    if (contact.emails.length || contact.primary_email) return 'Email';
+    return '—';
   }
 
   function prefBadge(contact, placeholder = true) {
