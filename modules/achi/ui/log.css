@@ -1771,34 +1771,109 @@ body.log-page .log-pagination-button span{ font-size:14px; }
   padding:18px;
   background:rgba(15,23,42,.54);
   backdrop-filter:blur(3px);
+  font-family:Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  font-size:12px;
+  line-height:1.35;
+}
+
+.rx-reference button,
+.rx-reference input,
+.rx-reference select,
+.rx-reference textarea{
+  font-family:inherit;
 }
 .rx-reference .rx-box{
   width:min(980px,calc(100vw - 36px));
-  /* Start as a compact quick-capture dialog. Because height is content-driven,
-     revealing a section with the + menu grows the dialog naturally; removing
-     sections shrinks it again. Once the viewport limit is reached, .rx-body
-     keeps the form usable with its existing internal scrollbar. */
   height:auto;
-  min-height:min(460px,calc(100vh - 36px));
-  max-height:calc(100vh - 36px);
+  min-height:min(310px,calc(100dvh - 36px));
+  max-height:calc(100dvh - 36px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
   border:1px solid #b9c5d8;
   border-radius:8px;
   background:#f4f6fa;
-  box-shadow:0 18px 50px rgba(15,23,42,.26);
+  box-shadow:0 12px 32px rgba(15,23,42,.18);
 }
 .rx-reference .rx-head{
+  display:flex;
+  align-items:center;
   min-height:38px;
-  padding:7px 12px;
-  gap:6px 8px;
-  flex-wrap:wrap;
+  height:38px;
+  padding:6px 12px;
+  gap:8px;
+  flex:0 0 auto;
+  flex-wrap:nowrap;
   background:linear-gradient(#305FB8,#284F9E);
+  color:#fff;
   border-radius:7px 7px 0 0;
 }
+
+.rx-reference .rx-regarding{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 31px;
+  min-height:31px;
+  padding:4px 11px;
+  border-bottom:1px solid #b9c5d8;
+  background:#f4f6fa;
+  color:#44546e;
+}
+
+.rx-reference .rx-regarding-label{
+  flex:0 0 auto;
+  color:#7b879a;
+  font-family:"Barlow Condensed",Barlow,sans-serif;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+
+.rx-reference .rx-regarding-control{
+  flex:0 0 180px;
+  width:180px;
+  height:23px;
+  padding:0 5px;
+  border:1px solid #b9c5d8;
+  border-radius:3px;
+  background:#fff;
+  color:#1d2b45;
+  font-family:Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  font-size:11px;
+  font-weight:600;
+  line-height:1.2;
+  cursor:pointer;
+  appearance:auto;
+  -webkit-appearance:menulist;
+}
+
+.rx-reference .rx-regarding-control:hover,
+.rx-reference .rx-regarding-control:focus{
+  outline:none;
+  border-color:#284F9E;
+}
+
+
+.rx-reference .rx-regarding-help{
+  min-width:0;
+  overflow:hidden;
+  color:#44546e;
+  font-size:10px;
+  font-weight:500;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
 .rx-reference .rx-head h2{
   margin:0;
+  flex:0 0 auto;
+  color:#fff;
+  font-family:"Barlow Condensed",Barlow,sans-serif;
   font-size:13px;
-  font-weight:800;
-  letter-spacing:.02em;
+  font-weight:700;
+  line-height:1;
+  letter-spacing:.01em;
 }
 .rx-reference .rx-chip,
 .rx-reference .rx-by{
@@ -1879,20 +1954,22 @@ body.log-page .log-pagination-button span{ font-size:14px; }
   font-size:10px;
 }
 .rx-reference .rx-tag{
-  min-width:0;
-  margin:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  font-size:10px;
-  font-style:italic;
-  opacity:.75;
+  display:none;
 }
 .rx-reference .rx-x{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 24px;
   width:24px;
   height:24px;
+  margin-left:auto;
+  padding:0;
   border:1px solid rgba(255,255,255,.4);
   border-radius:5px;
   background:rgba(255,255,255,.1);
+  color:#fff;
+  cursor:pointer;
 }
 .rx-reference .rx-cols{background:#f4f6fa;min-height:0}
 .rx-reference .rx-body{
@@ -2075,8 +2152,50 @@ body.log-page .log-pagination-button span{ font-size:14px; }
 .rx-reference .rx-contact-card{min-width:0;padding:6px 8px;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff}
 .rx-reference .rx-company-panel .rx-contact-card,.rx-reference .rx-person .rx-contact-card{background:#fff}
 .rx-reference .rx-phone-list,.rx-reference .rx-email-list,.rx-reference .rx-social-list,.rx-reference .rx-website-list,.rx-reference .rx-company-phone-list,.rx-reference .rx-company-online-list,.rx-reference .rx-related-phone-list,.rx-reference .rx-related-online-list{display:flex;flex-direction:column;gap:3px}
-.rx-reference .rx-phone-row,.rx-reference .rx-email-row,.rx-reference .rx-ref-line{display:grid;grid-template-columns:64px minmax(0,1fr) 22px;gap:0;align-items:center;min-width:0}
-.rx-reference .rx-phone-label,.rx-reference .rx-email-label,.rx-reference .rx-ref-line-label{height:24px;min-width:0;padding:0 5px;border:0;background:transparent;color:#1F3F80;font:inherit;font-size:9.5px;font-weight:700;text-align:right}
+.rx-reference .rx-phone-row,
+.rx-reference .rx-email-row{
+  display:grid;
+  grid-template-columns:96px minmax(0,1fr) 22px;
+  gap:0;
+  align-items:center;
+  min-width:0;
+}
+
+.rx-reference .rx-ref-line{
+  display:grid;
+  grid-template-columns:64px minmax(0,1fr) 22px;
+  gap:0;
+  align-items:center;
+  min-width:0;
+}
+.rx-reference .rx-phone-label,
+.rx-reference .rx-email-label{
+  width:100%;
+  height:24px;
+  min-width:0;
+  padding:0 22px 0 7px;
+  border:0;
+  background:transparent;
+  color:#1F3F80;
+  font:inherit;
+  font-size:9.5px;
+  font-weight:700;
+  text-align:left;
+  white-space:nowrap;
+}
+
+.rx-reference .rx-ref-line-label{
+  height:24px;
+  min-width:0;
+  padding:0 5px;
+  border:0;
+  background:transparent;
+  color:#1F3F80;
+  font:inherit;
+  font-size:9.5px;
+  font-weight:700;
+  text-align:right;
+}
 .rx-reference select.rx-ref-line-label{text-align:left}
 .rx-reference .rx-phone-row .tel-wrap,.rx-reference .rx-ref-line .tel-wrap{min-width:0}
 .rx-reference .rx-phone-row .rx-in,.rx-reference .rx-email-row .rx-in,.rx-reference .rx-ref-line>.rx-in,.rx-reference .rx-ref-line .rx-in{border-radius:3px 0 0 3px}
@@ -2365,6 +2484,10 @@ body.log-page .log-pagination-button span{ font-size:14px; }
   .rx-reference .rx-ref-wide-control{grid-column:span 3}
   .rx-reference .rx-tag{display:none}
   .rx-reference .rx-capture-top{grid-template-columns:1fr}
+  .rx-reference .rx-head{
+    height:auto;
+    flex-wrap:wrap;
+  }
 }
 @media (max-width:600px){
   .rx-reference{padding:0;align-items:stretch}

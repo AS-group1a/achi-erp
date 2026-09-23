@@ -54,21 +54,74 @@
     </div>
 
     <div class="kpis" aria-label="Log summary">
-      <div class="kpi k1">
+      <button
+        class="kpi k1 btn on"
+        id="k-total-card"
+        type="button"
+        data-log-summary-filter="total"
+        aria-pressed="true"
+        title="Show all logs"
+      >
         <strong class="n" id="k-total">0</strong>
         <span class="l">Total logs</span>
-      </div>
-      <button class="kpi k2 btn" id="k-open-card" type="button" title="Filter to open logs">
-        <strong class="n" id="k-open">0</strong><span class="l">open logs</span>
       </button>
-      <div class="kpi k3"><strong class="n" id="k-month">0</strong><span class="l">logs this month</span></div>
-      <div class="kpi k4"><strong class="n" id="k-done">0</strong><span class="l">done</span></div>
-      <button class="kpi-deleted" id="btn-deleted" type="button" title="Show deleted logs — restore them or delete them permanently">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+
+      <button
+        class="kpi k2 btn"
+        id="k-open-card"
+        type="button"
+        data-log-summary-filter="open"
+        aria-pressed="false"
+        title="Show open logs"
+      >
+        <strong class="n" id="k-open">0</strong>
+        <span class="l">Open logs</span>
+      </button>
+
+      <button
+        class="kpi k3 btn"
+        id="k-month-card"
+        type="button"
+        data-log-summary-filter="month"
+        aria-pressed="false"
+        title="Show logs from this month"
+      >
+        <strong class="n" id="k-month">0</strong>
+        <span class="l">Logs this month</span>
+      </button>
+
+      <button
+        class="kpi k4 btn"
+        id="k-done-card"
+        type="button"
+        data-log-summary-filter="done"
+        aria-pressed="false"
+        title="Show completed logs"
+      >
+        <strong class="n" id="k-done">0</strong>
+        <span class="l">Done</span>
+      </button>
+
+      <button
+        class="kpi-deleted"
+        id="btn-deleted"
+        type="button"
+        title="Show deleted logs — restore them or delete them permanently"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        </svg>
         <span>Deleted Logs</span>
       </button>
     </div>
-  </section>
+      </section>
 
   <div class="shell">
     <div class="nav">
@@ -129,6 +182,33 @@
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
         </button>
       </div>
+      <div class="rx-regarding">
+        <span class="rx-regarding-label">REGARDING</span>
+
+        <select
+          class="rx-regarding-control"
+          id="rx-regarding-select"
+          data-rx-native
+          aria-label="Regarding"
+        >
+          <option value="new-first-contact" selected>New — first contact</option>
+          <option value="existing-enquiry">Existing enquiry</option>
+          <option value="existing-site-visit">Existing site visit</option>
+          <option value="existing-drawing">Existing drawing</option>
+          <option value="existing-mt">Existing M/T</option>
+          <option value="existing-boq">Existing BOQ</option>
+          <option value="existing-quotation">Existing quotation</option>
+          <option value="existing-job">Existing job</option>
+          <option value="existing-invoice">Existing invoice</option>
+          <option value="existing-balance">Existing balance</option>
+          <option value="existing-site-past-client">Existing site — past client</option>
+        </select>
+
+        <span class="rx-regarding-help">
+          First contact — log saves in the Log module; promote it to ENQ at any time.
+        </span>
+      </div>
+
       <div class="rx-cols">
         <div class="rx-body" id="rx-body"></div>
       </div>
