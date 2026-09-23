@@ -1869,106 +1869,160 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
    to .rx-reference so the shared log controls and other workspaces keep their
    existing appearance.
    ======================================================================== */
-/* Box, header, inputs and footer follow the Contacts "+ contact" popup
-   (.pp-* in contact_info.css) so both dialogs read as one design system. */
 .rx-reference{
-  padding:20px;
-  background:rgba(15,23,42,.55);
-  backdrop-filter:none;
+  padding:18px;
+  background:rgba(15,23,42,.54);
+  backdrop-filter:blur(3px);
+  font-family:Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  font-size:12px;
+  line-height:1.35;
+}
+
+.rx-reference button,
+.rx-reference input,
+.rx-reference select,
+.rx-reference textarea{
+  font-family:inherit;
 }
 .rx-reference .rx-box{
   width:min(980px,calc(100vw - 36px));
-  /* Start as a compact quick-capture dialog. Because height is content-driven,
-     revealing a section with the + menu grows the dialog naturally; removing
-     sections shrinks it again. Once the viewport limit is reached, .rx-body
-     keeps the form usable with its existing internal scrollbar. */
   height:auto;
-  min-height:min(460px,calc(100vh - 36px));
-  max-height:calc(100vh - 36px);
-  border:1px solid #1F3F80;
-  border-radius:6px;
-  background:#f4f6f9;
-  box-shadow:0 24px 60px rgba(15,23,42,.35);
-  color:#1d1d1f;
-  font-size:12px;
+  min-height:min(310px,calc(100dvh - 36px));
+  max-height:calc(100dvh - 36px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid #b9c5d8;
+  border-radius:8px;
+  background:#f4f6fa;
+  box-shadow:0 12px 32px rgba(15,23,42,.18);
 }
 .rx-reference .rx-head{
-  min-height:46px;
-  padding:6px 8px 6px 12px;
-  gap:6px;
-  flex-wrap:wrap;
-  background:#284F9E;
-  border-radius:5px 5px 0 0;
-}
-.rx-reference .rx-head h2{
-  margin:0 2px 0 0;
-  font-family:inherit;
-  font-size:15px;
-  font-weight:800;
-  letter-spacing:0;
-}
-/* Log number = Contacts .pp-code. */
-.rx-reference .rx-chip{
-  display:inline-flex!important;
+  display:flex;
   align-items:center;
-  height:26px;
-  box-sizing:border-box;
-  padding:3px 8px;
-  border:1px dashed rgba(255,255,255,.45);
-  border-radius:4px;
-  background:transparent;
-  color:#dce7fa;
-  font:700 11px/1 ui-monospace,Menlo,monospace;
+  min-height:38px;
+  height:38px;
+  padding:6px 12px;
+  gap:8px;
+  flex:0 0 auto;
+  flex-wrap:nowrap;
+  background:linear-gradient(#305FB8,#284F9E);
+  color:#fff;
+  border-radius:7px 7px 0 0;
+}
+
+.rx-reference .rx-regarding{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 31px;
+  min-height:31px;
+  padding:4px 11px;
+  border-bottom:1px solid #b9c5d8;
+  background:#f4f6fa;
+  color:#44546e;
+}
+
+.rx-reference .rx-regarding-label{
+  flex:0 0 auto;
+  color:#7b879a;
+  font-family:"Barlow Condensed",Barlow,sans-serif;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+
+.rx-reference .rx-regarding-control{
+  flex:0 0 180px;
+  width:180px;
+  height:23px;
+  padding:0 5px;
+  border:1px solid #b9c5d8;
+  border-radius:3px;
+  background:#fff;
+  color:#1d2b45;
+  font-family:Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  font-size:11px;
+  font-weight:600;
+  line-height:1.2;
+  cursor:pointer;
+  appearance:auto;
+  -webkit-appearance:menulist;
+}
+
+.rx-reference .rx-regarding-control:hover,
+.rx-reference .rx-regarding-control:focus{
+  outline:none;
+  border-color:#284F9E;
+}
+
+
+.rx-reference .rx-regarding-help{
+  min-width:0;
+  overflow:hidden;
+  color:#44546e;
+  font-size:10px;
+  font-weight:500;
+  text-overflow:ellipsis;
   white-space:nowrap;
 }
-/* "by …" = Contacts .pp-by. */
+
+.rx-reference .rx-head h2{
+  margin:0;
+  flex:0 0 auto;
+  color:#fff;
+  font-family:"Barlow Condensed",Barlow,sans-serif;
+  font-size:13px;
+  font-weight:700;
+  line-height:1;
+  letter-spacing:.01em;
+}
+.rx-reference .rx-chip,
 .rx-reference .rx-by{
   display:inline-flex!important;
   align-items:center;
-  padding:0;
-  border:0;
-  background:transparent;
-  color:#dce7fa;
-  font-size:11px;
+  height:22px;
+  box-sizing:border-box;
+  padding:2px 8px;
+  border:1px solid rgba(255,255,255,.3);
+  border-radius:4px;
+  background:rgba(255,255,255,.16);
+  color:#fff;
+  font:600 10.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
   white-space:nowrap;
 }
-/* Header controls = Contacts .pp-hin (26px, translucent on the blue bar). */
 .rx-reference .rx-head-select{
-  height:26px;
-  max-width:160px;
-  padding:2px 7px;
+  height:22px;
+  max-width:142px;
+  padding:2px 5px;
   border:1px solid rgba(255,255,255,.35);
   border-radius:4px;
-  background:rgba(255,255,255,.12);
+  background:rgba(255,255,255,.14);
   color:#fff;
   font:inherit;
-  font-size:12px;
+  font-size:10.5px;
   font-weight:700;
   cursor:pointer;
 }
-.rx-reference .rx-head-select:focus{outline:none;border-color:#fff}
 .rx-reference .rx-head-select option{color:#1d1d1f;background:#fff}
-.rx-reference .rx-when-wrap{height:26px}
+.rx-reference .rx-when-wrap{height:22px}
 .rx-reference .rx-when-display{
-  height:26px;
-  min-width:150px;
-  padding:0 7px;
+  height:22px;
+  min-width:138px;
+  padding:0 6px;
   gap:6px;
   border-radius:4px;
-  font-size:12px;
-  font-variant-numeric:tabular-nums;
+  font-size:10.5px;
 }
 .rx-reference .rx-when-display svg{width:12px;height:12px;margin-left:auto}
 .rx-reference .rx-state-btn{
-  min-width:100px;
-  height:26px;
+  min-width:96px;
+  height:22px;
   padding:0 7px;
   gap:5px;
   border-radius:4px;
-  background:rgba(255,255,255,.12);
-  border-color:rgba(255,255,255,.35);
-  font-size:12px;
-  text-transform:uppercase;
+  background:rgba(255,255,255,.14);
+  font-size:9.5px;
 }
 .rx-reference .rx-state-btn:hover,
 .rx-reference .rx-state-btn[aria-expanded="true"]{background:rgba(255,255,255,.24)}
@@ -1979,73 +2033,67 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   display:inline-flex;
   align-items:center;
   gap:5px;
-  height:26px;
-  padding:0 7px;
+  height:22px;
+  padding:0 6px;
   box-sizing:border-box;
-  border:1px solid rgba(255,255,255,.35);
+  border:1px solid rgba(255,255,255,.3);
   border-radius:4px;
   background:rgba(255,255,255,.12);
   color:#fff;
-  font-size:9.5px;
+  font-size:8.5px;
   font-weight:800;
-  letter-spacing:.06em;
+  letter-spacing:.05em;
   white-space:nowrap;
 }
 .rx-reference .rx-head-followup input{
-  width:108px;
+  width:96px;
   padding:0;
   border:0;
   background:transparent;
   color:#fff;
   color-scheme:dark;
   font:inherit;
-  font-size:12px;
-  font-weight:700;
-  letter-spacing:0;
-  font-variant-numeric:tabular-nums;
+  font-size:10px;
 }
 .rx-reference .rx-tag{
-  min-width:0;
-  margin:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  color:#dce7fa;
-  font-size:11px;
-  font-style:italic;
-  opacity:1;
+  display:none;
 }
-/* Close = Contacts .pp-x. */
 .rx-reference .rx-x{
-  width:34px;
-  height:34px;
-  border:1px solid rgba(255,255,255,.45);
-  border-radius:4px;
-  background:transparent;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 24px;
+  width:24px;
+  height:24px;
+  margin-left:auto;
+  padding:0;
+  border:1px solid rgba(255,255,255,.4);
+  border-radius:5px;
+  background:rgba(255,255,255,.1);
+  color:#fff;
+  cursor:pointer;
 }
-.rx-reference .rx-x:hover{background:rgba(255,255,255,.15)}
-.rx-reference .rx-x svg{width:14px;height:14px}
-.rx-reference .rx-cols{background:#f4f6f9;min-height:0}
+.rx-reference .rx-cols{background:#f4f6fa;min-height:0}
 .rx-reference .rx-body{
-  padding:14px;
-  gap:12px;
+  padding:9px 10px;
+  gap:8px;
   min-height:0;
-  background:#f4f6f9;
+  background:#f4f6fa;
   box-shadow:none;
   scrollbar-width:thin;
 }
-/* Quick capture = Contacts .pp-capture. */
 .rx-reference .rx-capture{
   border:1px solid #b9c5d8;
   border-radius:6px;
   background:#fff;
   overflow:hidden;
-  box-shadow:none;
+  box-shadow:0 1px 3px rgba(15,35,75,.06);
 }
 .rx-reference .rx-capture-top{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(150px,280px);
-  gap:6px;
-  padding:8px 8px 0;
+  grid-template-columns:minmax(0,1fr) minmax(150px,190px);
+  gap:5px;
+  padding:7px 8px 0;
 }
 .rx-reference .rx-capture .rx-notes{
   padding:0;
@@ -2058,80 +2106,73 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   margin:0;
   border:1px solid #b9c5d8;
   border-left-width:1px;
-  border-radius:4px;
+  border-radius:3px;
 }
-.rx-reference .rx-capture .rx-notes-subject{height:24px;padding:0 31px 0 7px;font-size:12px;font-weight:700}
+.rx-reference .rx-capture .rx-notes-subject{height:24px;padding:0 31px 0 7px;font-size:12px}
 .rx-reference .rx-capture .rx-notes-dropzone{padding:0}
 .rx-reference .rx-capture .ql-container{
-  min-height:90px;
+  min-height:68px;
   border:0!important;
   border-radius:0!important;
-  font-size:12.5px;
+  font-size:12px;
 }
-.rx-reference .rx-capture .ql-editor{min-height:90px;padding:8px 10px;line-height:1.5}
-.rx-reference .rx-capture .ql-editor.ql-blank::before{left:10px;right:10px;color:#8a96ab;font-style:normal}
+.rx-reference .rx-capture .ql-editor{min-height:68px;padding:8px 10px 2px}
 .rx-reference .rx-capture .ql-toolbar{
   display:flex;
   align-items:center;
-  min-height:34px;
-  padding:4px 38px 4px 42px;
+  min-height:31px;
+  padding:3px 38px 3px 39px;
   border:0!important;
-  border-top:1px solid #dbe2ed!important;
+  border-top:1px solid #dfe6f0!important;
   border-radius:0!important;
-  background:#fbfcff;
 }
 .rx-reference .rx-capture-tools{
   display:flex;
   align-items:center;
   gap:6px;
-  min-height:34px;
-  margin-top:-34px;
-  padding:4px 8px;
+  min-height:31px;
+  margin-top:-31px;
+  padding:3px 8px;
   position:relative;
   pointer-events:none;
 }
 .rx-reference .rx-capture-tools>*{pointer-events:auto}
-/* Attach = Contacts .pp-tb-add; tags = Contacts .pp-tag-add. */
 .rx-reference .rx-capture-tools .rx-notes-attach-btn{
-  width:26px;
-  height:26px;
+  width:24px;
+  height:24px;
   padding:0;
   justify-content:center;
   border:1px solid #b9c5d8;
-  border-radius:4px;
-  background:#fff;
-  color:#284F9E;
+  border-radius:5px;
+  background:#fbfcff;
 }
-.rx-reference .rx-capture-tools .rx-notes-attach-btn:hover{background:#eaf1ff}
 .rx-reference .rx-capture-tools .rx-notes-attach-btn span{display:none}
 .rx-reference .rx-capture-tools .rx-tags-input{
   width:min(260px,45vw);
-  height:26px;
+  height:24px;
   margin-left:auto;
-  border:1px solid #dbe2ed;
-  border-radius:16px;
+  border-style:dashed;
+  border-radius:99px;
   padding:2px 9px;
-  background:#fff;
   font-size:11px;
   font-weight:700;
   color:#284F9E;
 }
-/* Sections = Contacts .pp-company panels with a .pp-sec-t style legend. */
 .rx-reference fieldset.rx-section{
   min-width:0;
   margin:0;
-  padding:8px;
+  padding:7px 9px 9px;
   border:1px solid #b9c5d8;
-  border-radius:6px;
-  background:#fbfcff;
+  border-radius:4px;
+  background:#fff;
 }
 .rx-reference fieldset.rx-section[hidden]{display:none}
 .rx-reference .rx-section legend{
   padding:0 5px;
-  color:#486077;
+  color:#284F9E;
   font-size:9.5px;
   font-weight:800;
-  letter-spacing:.06em;
+  letter-spacing:.08em;
   text-transform:uppercase;
 }
 .rx-reference .rx-section-hint{
@@ -2155,53 +2196,38 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .rx-reference .rx-g2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .rx-reference .rx-gc{grid-template-columns:minmax(0,1.7fr) minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr)}
-/* Labels = Contacts .pp-f labels; inputs = Contacts .pp-in (26px, radius 4). */
-.rx-reference .rx-l{margin-bottom:2px;font-size:10.5px;font-weight:700;color:#44546e;letter-spacing:0;text-transform:none}
+.rx-reference .rx-l{margin-bottom:2px;font-size:9.5px;color:#44546e;letter-spacing:0;text-transform:none}
 .rx-reference .rx-in,
 .rx-reference .rx-select-btn,
 .rx-reference .rx-location-input,
 .rx-reference .rx-geo-input{
-  height:26px;
-  padding:2px 7px;
+  height:24px;
+  padding:2px 6px;
   border-color:#b9c5d8;
-  border-radius:4px;
-  color:#1d1d1f;
+  border-radius:3px;
   font-size:12px;
 }
-.rx-reference .rx-in:focus,
-.rx-reference .rx-select-btn:focus,
-.rx-reference .rx-location-input:focus,
-.rx-reference .rx-geo-input:focus{
-  border-color:#284F9E;
-  outline:none;
-  box-shadow:0 0 0 2px rgba(40,79,158,.14);
-}
-.rx-reference .rx-geo-combo .rx-select-btn{height:24px;width:25px;padding:0;box-shadow:none}
-.rx-reference .rx-location-toggle{width:24px;height:24px}
+.rx-reference .rx-geo-combo .rx-select-btn{height:22px;width:25px;padding:0}
+.rx-reference .rx-location-toggle{width:24px;height:22px}
 .rx-reference .rx-phone-row,
 .rx-reference .rx-email-row{gap:4px}
-.rx-reference .rx-phone-row .tel-cc{height:26px;padding:0 5px;border-color:#b9c5d8;border-radius:4px}
+.rx-reference .rx-phone-row .tel-cc{height:24px;padding:0 5px}
 .rx-reference .rx-phone-remove,
-.rx-reference .rx-email-remove{width:22px;height:26px;font-size:15px}
-/* "+ Add Number / Email / handle" = Contacts .pp-addlink. */
+.rx-reference .rx-email-remove{width:22px;height:24px;font-size:15px}
 .rx-reference .rx-add-phone,
 .rx-reference .rx-add-email,
+.rx-reference .rx-add-related,
 .rx-reference .rx-add-handle{
   margin-top:4px;
-  padding:0;
-  border:0;
-  background:transparent;
-  color:#284F9E;
-  font-size:11px;
-  font-weight:700;
+  padding:2px 8px;
+  border:1px solid #93c5fd;
+  border-radius:4px;
+  background:#eaf1ff;
+  font-size:10.5px;
   text-decoration:none;
 }
-.rx-reference .rx-add-phone:hover,
-.rx-reference .rx-add-email:hover,
-.rx-reference .rx-add-handle:hover{text-decoration:underline}
-.rx-reference .rx-add-related{margin-top:4px;text-decoration:none}
 .rx-reference .rx-related-wrap{margin-top:7px}
-.rx-reference .rx-person{padding:8px;border-radius:6px;background:#fbfcff;gap:7px}
+.rx-reference .rx-person{padding:8px;border-radius:4px;background:#fbfcff;gap:7px}
 .rx-reference .rx-contact-reference{display:flex;flex-direction:column;gap:6px;min-width:0}
 .rx-reference .rx-contact-identity{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;align-items:stretch;min-width:0}
 .rx-reference .rx-contact-photo-card{display:flex;flex-direction:column;min-width:0;padding:6px 8px;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff}
@@ -2213,11 +2239,11 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-contact-avatar{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#eaf1ff;color:#284F9E;font-size:10.5px;font-weight:800}
 .rx-reference .rx-contact-avatar.is-logo{border-radius:4px}
 .rx-reference .rx-contact-photo-preview{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);border-radius:3px;object-fit:cover}
-.rx-reference .rx-ref-mini{min-height:26px;margin-top:5px;padding:0 8px;border:1px solid #93c5fd;border-radius:4px;background:#eaf1ff;color:#284F9E;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer}
+.rx-reference .rx-ref-mini{min-height:20px;margin-top:5px;padding:1px 8px;border:1px solid #93c5fd;border-radius:3px;background:#eaf1ff;color:#284F9E;font:inherit;font-size:10px;font-weight:700;cursor:pointer}
 .rx-reference .rx-ref-mini:hover{background:#dce9ff}
 .rx-reference .rx-ref-mini[disabled]{opacity:.58;cursor:wait}
 .rx-reference .rx-contact-fields{display:grid;grid-template-columns:64px minmax(0,1fr) 82px minmax(0,1fr) 82px minmax(0,1fr);gap:4px 6px;align-items:center;min-width:0}
-.rx-reference .rx-ref-label{color:#44546e;font-size:10.5px;font-weight:700;text-align:right;white-space:nowrap}
+.rx-reference .rx-ref-label{color:#1F3F80;font-size:9.5px;font-weight:700;text-align:right;white-space:nowrap}
 .rx-reference .rx-ref-label i{color:#b91c1c;font-style:normal}
 .rx-reference .rx-contact-company-input,.rx-reference .rx-related-company{color:#284F9E;font-weight:700}
 .rx-reference .rx-ref-span3{grid-column:span 3}
@@ -2228,12 +2254,54 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-contact-card{min-width:0;padding:6px 8px;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff}
 .rx-reference .rx-company-panel .rx-contact-card,.rx-reference .rx-person .rx-contact-card{background:#fff}
 .rx-reference .rx-phone-list,.rx-reference .rx-email-list,.rx-reference .rx-social-list,.rx-reference .rx-website-list,.rx-reference .rx-company-phone-list,.rx-reference .rx-company-online-list,.rx-reference .rx-related-phone-list,.rx-reference .rx-related-online-list{display:flex;flex-direction:column;gap:3px}
-.rx-reference .rx-phone-row,.rx-reference .rx-email-row,.rx-reference .rx-ref-line{display:grid;grid-template-columns:64px minmax(0,1fr) 22px;gap:0;align-items:center;min-width:0}
-.rx-reference .rx-phone-label,.rx-reference .rx-email-label,.rx-reference .rx-ref-line-label{height:26px;min-width:0;padding:0 5px;border:0;background:transparent;color:#44546e;font:inherit;font-size:10.5px;font-weight:700;text-align:right}
+.rx-reference .rx-phone-row,
+.rx-reference .rx-email-row{
+  display:grid;
+  grid-template-columns:96px minmax(0,1fr) 22px;
+  gap:0;
+  align-items:center;
+  min-width:0;
+}
+
+.rx-reference .rx-ref-line{
+  display:grid;
+  grid-template-columns:64px minmax(0,1fr) 22px;
+  gap:0;
+  align-items:center;
+  min-width:0;
+}
+.rx-reference .rx-phone-label,
+.rx-reference .rx-email-label{
+  width:100%;
+  height:24px;
+  min-width:0;
+  padding:0 22px 0 7px;
+  border:0;
+  background:transparent;
+  color:#1F3F80;
+  font:inherit;
+  font-size:9.5px;
+  font-weight:700;
+  text-align:left;
+  white-space:nowrap;
+}
+
+.rx-reference .rx-ref-line-label{
+  height:24px;
+  min-width:0;
+  padding:0 5px;
+  border:0;
+  background:transparent;
+  color:#1F3F80;
+  font:inherit;
+  font-size:9.5px;
+  font-weight:700;
+  text-align:right;
+}
 .rx-reference select.rx-ref-line-label{text-align:left}
 .rx-reference .rx-phone-row .tel-wrap,.rx-reference .rx-ref-line .tel-wrap{min-width:0}
-.rx-reference .rx-phone-row .rx-in,.rx-reference .rx-email-row .rx-in,.rx-reference .rx-ref-line>.rx-in,.rx-reference .rx-ref-line .rx-in{border-radius:4px 0 0 4px}
-.rx-reference .rx-phone-remove,.rx-reference .rx-email-remove,.rx-reference .rx-ref-remove{display:flex;align-items:center;justify-content:center;width:22px;height:26px;padding:0;border:1px solid #efb5b5;border-left:0;border-radius:0 4px 4px 0;background:#fff1f1;color:#b91c1c;font:700 12px/1 Arial,sans-serif;cursor:pointer}
+.rx-reference .rx-phone-row .rx-in,.rx-reference .rx-email-row .rx-in,.rx-reference .rx-ref-line>.rx-in,.rx-reference .rx-ref-line .rx-in{border-radius:3px 0 0 3px}
+.rx-reference .rx-phone-remove,.rx-reference .rx-email-remove,.rx-reference .rx-ref-remove{display:flex;align-items:center;justify-content:center;width:22px;height:24px;padding:0;border:1px solid #efb5b5;border-left:0;border-radius:0 3px 3px 0;background:#fff1f1;color:#b91c1c;font:700 12px/1 Arial,sans-serif;cursor:pointer}
 .rx-reference .rx-phone-remove[hidden],.rx-reference .rx-email-remove[hidden]{display:flex}
 .rx-reference .rx-phone-remove:hover,.rx-reference .rx-email-remove:hover,.rx-reference .rx-ref-remove:hover{background:#fee2e2}
 .rx-reference .rx-email-row .draft-email{display:flex;min-width:0}
@@ -2268,12 +2336,12 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-contact-match-foot{border-top:1px solid #dbe2ed;border-bottom:0;background:#fbfcff;color:#284F9E;font-size:10px;letter-spacing:0;text-transform:none}
 .rx-reference .rx-social{gap:4px}
 .rx-reference .rx-social .rx-in,
-.rx-reference .rx-social .rx-select-btn{height:26px}
-.rx-reference .rx-social-remove{width:26px;height:26px;border-radius:4px}
+.rx-reference .rx-social .rx-select-btn{height:24px}
+.rx-reference .rx-social-remove{width:24px;height:24px;border-radius:3px}
 .rx-reference .rx-fs{padding:0;border:0;gap:7px}
 .rx-reference .rx-fs>h4{display:none}
 .rx-reference .rx-map-input-row{gap:4px}
-.rx-reference .rx-use-location{min-height:26px;height:26px;padding:0 8px;border-radius:4px;font-size:11px;font-weight:700}
+.rx-reference .rx-use-location{min-height:24px;height:24px;padding:0 8px;border-radius:4px;font-size:10px}
 .rx-reference .rx-mapprev .mapwrap{height:120px}
 .rx-reference .rx-location-status{min-height:0;margin-top:2px;font-size:9.5px}
 .rx-reference .rx-attachment-drop{
@@ -2422,19 +2490,17 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-visit-camera{display:flex;align-items:center;justify-content:center;height:52px;background:#eef2f8;font-size:18px}
 .rx-reference .rx-visit-awaiting>div:last-child{padding:3px 6px}
 .rx-reference .rx-mini{
-  height:26px;
-  padding:0 8px;
+  height:24px;
+  padding:3px 9px;
   border:1px solid #93c5fd;
   border-radius:4px;
   background:#eaf1ff;
   color:#284F9E;
   font:inherit;
-  font-size:11px;
+  font-size:10.5px;
   font-weight:700;
-  white-space:nowrap;
   cursor:pointer;
 }
-.rx-reference .rx-mini:hover{background:#dce9ff}
 .rx-reference .rx-plusrow{
   display:flex;
   justify-content:center;
@@ -2444,8 +2510,8 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-plus{
   width:30px;
   height:30px;
-  border:1px dashed #93c5fd;
-  border-radius:4px;
+  border:1px dashed #7f95b8;
+  border-radius:6px;
   background:#fff;
   color:#284F9E;
   font:800 17px/1 Barlow,sans-serif;
@@ -2487,37 +2553,28 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-add-option:hover{background:#eaf1ff}
 .rx-reference .rx-add-option[disabled]{opacity:.55;cursor:default;background:transparent}
 .rx-reference .rx-add-check{margin-left:auto;color:#16a34a;font-weight:800}
-/* Footer = Contacts .pp-foot; buttons = .pp-btn / .pp-btn-primary. */
 .rx-reference .rx-foot{
   min-height:43px;
-  padding:7px 14px;
-  gap:8px;
+  padding:7px 12px;
+  gap:8px 10px;
   border-top:1px solid #b9c5d8;
-  border-radius:0 0 5px 5px;
-  background:#fff;
+  border-radius:0 0 7px 7px;
+  background:#e9edf4;
 }
-.rx-reference .rx-copy-l{font-size:9.5px;font-weight:800;letter-spacing:.06em;color:#44546e}
-.rx-reference .rx-copy,
-.rx-reference .rx-copy-btn{min-width:150px;height:26px;border:1px solid #b9c5d8;border-radius:4px;font-size:12px}
-.rx-reference .rx-copy-h{font-size:11px;color:#44546e}
-.rx-reference .rx-status{font-size:11px}
+.rx-reference .rx-copy-l{font-size:9px;color:#8a8f98}
+.rx-reference .rx-copy-btn{min-width:150px;height:27px;border-radius:4px;font-size:11px}
+.rx-reference .rx-copy-h{font-size:10.5px;color:#44546e}
+.rx-reference .rx-status{font-size:10.5px}
 .rx-reference .rx-cancel,
 .rx-reference .rx-save-cont,
 .rx-reference .rx-save{
-  height:28px;
   min-height:28px;
-  padding:0 14px;
-  border:1px solid #b9c5d8;
+  padding:5px 14px;
   border-radius:4px;
-  background:#fff;
-  color:#1F3F80;
   font-size:12px;
-  font-weight:700;
 }
-.rx-reference .rx-cancel:hover,
-.rx-reference .rx-save-cont:hover{background:#eaf1ff}
-.rx-reference .rx-save{border-color:#1F3F80;background:#284F9E;color:#fff}
-.rx-reference .rx-save:hover{background:#1F3F80}
+.rx-reference .rx-save-cont{border-color:#b9c5d8;background:#fff;color:#1d1d1f}
+.rx-reference .rx-save{border:1px solid #1F3F80;background:linear-gradient(#305FB8,#284F9E)}
 
 @media (max-width:860px){
   .rx-reference{padding:10px}
@@ -2529,6 +2586,10 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   .rx-reference .rx-ref-wide-control{grid-column:span 3}
   .rx-reference .rx-tag{display:none}
   .rx-reference .rx-capture-top{grid-template-columns:1fr}
+  .rx-reference .rx-head{
+    height:auto;
+    flex-wrap:wrap;
+  }
 }
 @media (max-width:600px){
   .rx-reference{padding:0;align-items:stretch}

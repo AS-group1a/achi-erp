@@ -2398,6 +2398,30 @@ function openCommAddMenu(btn){
   commMenuEl=menu;
   setTimeout(()=>document.addEventListener('mousedown',commMenuOutside,true),0);
 }
+
+function logThisMonthRange(){
+  const now=new Date();
+
+  const from=new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1,
+    0,0,0,0
+  );
+
+  const to=new Date(
+    now.getFullYear(),
+    now.getMonth()+1,
+    0,
+    23,59,59,999
+  );
+
+  return {
+    from:from.toISOString(),
+    to:to.toISOString(),
+  };
+}
+
 /* General Log-style workspaces can declare ACHI_LOG_FILTER before this script.
    Immutable workspace scope is shared by the table and KPIs. User search and
    column filters narrow only the table; KPI counts always describe the full
