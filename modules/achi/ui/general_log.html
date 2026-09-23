@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · ARARA ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=38">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=39">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <!-- Renamed from log.html to general_log.html per the redesign request. This
@@ -46,7 +46,7 @@
         class="log-ai-query"
         id="log-ai-query"
         type="text"
-        placeholder="Ask AI"
+        placeholder="Ask the log… “what did Zerock ask for this month?” · “any complaints this week?” · “which calls mention netting?”"
         title="ARARA AI connection will be added in a later step"
         disabled
       >
@@ -54,74 +54,21 @@
     </div>
 
     <div class="kpis" aria-label="Log summary">
-      <button
-        class="kpi k1 btn on"
-        id="k-total-card"
-        type="button"
-        data-log-summary-filter="total"
-        aria-pressed="true"
-        title="Show all logs"
-      >
+      <div class="kpi k1">
         <strong class="n" id="k-total">0</strong>
         <span class="l">Total logs</span>
+      </div>
+      <button class="kpi k2 btn" id="k-open-card" type="button" title="Filter to open logs">
+        <strong class="n" id="k-open">0</strong><span class="l">open logs</span>
       </button>
-
-      <button
-        class="kpi k2 btn"
-        id="k-open-card"
-        type="button"
-        data-log-summary-filter="open"
-        aria-pressed="false"
-        title="Show open logs"
-      >
-        <strong class="n" id="k-open">0</strong>
-        <span class="l">Open logs</span>
-      </button>
-
-      <button
-        class="kpi k3 btn"
-        id="k-month-card"
-        type="button"
-        data-log-summary-filter="month"
-        aria-pressed="false"
-        title="Show logs from this month"
-      >
-        <strong class="n" id="k-month">0</strong>
-        <span class="l">Logs this month</span>
-      </button>
-
-      <button
-        class="kpi k4 btn"
-        id="k-done-card"
-        type="button"
-        data-log-summary-filter="done"
-        aria-pressed="false"
-        title="Show completed logs"
-      >
-        <strong class="n" id="k-done">0</strong>
-        <span class="l">Done</span>
-      </button>
-
-      <button
-        class="kpi-deleted"
-        id="btn-deleted"
-        type="button"
-        title="Show deleted logs — restore them or delete them permanently"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-        </svg>
+      <div class="kpi k3"><strong class="n" id="k-month">0</strong><span class="l">logs this month</span></div>
+      <div class="kpi k4"><strong class="n" id="k-done">0</strong><span class="l">done</span></div>
+      <button class="kpi-deleted" id="btn-deleted" type="button" title="Show deleted logs — restore them or delete them permanently">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         <span>Deleted Logs</span>
       </button>
     </div>
-      </section>
+  </section>
 
   <div class="shell">
     <div class="nav">
@@ -281,9 +228,9 @@
      STANDARD_LOG_TABLE_COLS list (now including "By"). FORM_COLS still builds
      the full Add/Edit form, unchanged. -->
 
-<script src="/api/v1/achi/ui/log-core.js?v=37"></script>
-<script src="/api/v1/achi/ui/log.js?v=26"></script>
-<script src="/api/v1/achi/ui/chrome.js?v=38"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=38"></script>
+<script src="/api/v1/achi/ui/log.js?v=27"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=42"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>

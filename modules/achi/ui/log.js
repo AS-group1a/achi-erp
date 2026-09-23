@@ -800,7 +800,6 @@ function rxSetSectionVisible(key,visible){
   if(visible) section?.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-
 let rxOnlineMatches=[];
 function rxSetCompanyPanel(show){
   const panel=$('rx-company-panel'),toggle=$('rx-company-toggle'),hint=$('rx-company-toggle-hint');
@@ -2427,7 +2426,7 @@ function logThisMonthRange(){
    Immutable workspace scope is shared by the table and KPIs. User search and
    column filters narrow only the table; KPI counts always describe the full
    workspace. */
-function logFilteredPath(basePath,{includeTableFilters=true,includeSummaryFilter=false}={}){
+function logFilteredPath(basePath,{includeTableFilters=true,includeOpenOnly=false}={}){
   const separator=basePath.indexOf('?');
   const path=separator===-1
     ? basePath
@@ -2476,26 +2475,12 @@ function logFilteredPath(basePath,{includeTableFilters=true,includeSummaryFilter
     appendLogColumnFilterParams(params);
   }
 
-  if(includeSummaryFilter){
-  if(logSummaryFilter==='open'){
+  // Open Logs is the only KPI card that narrows the table. Override any
+  // separate Status-column selection while the card is active.
+  if(includeOpenOnly&&openOnly){
     params.delete('status');
-    params.set('status','open');
+    params.append('status','open');
   }
-
-  if(logSummaryFilter==='done'){
-    params.delete('status');
-    params.set('status','done');
-  }
-
-  if(logSummaryFilter==='month'){
-    const range=logThisMonthRange();
-
-    params.delete('when_from');
-    params.delete('when_to');
-    params.set('when_from',range.from);
-    params.set('when_to',range.to);
-  }
-}
 
   const query=params.toString();
 
@@ -2504,7 +2489,7 @@ function logFilteredPath(basePath,{includeTableFilters=true,includeSummaryFilter
 function logListPath(){
   const base=logFilteredPath('/logs/',{
     includeTableFilters:true,
-    includeSummaryFilter:true,
+    includeOpenOnly:true,
   });
   const url=new URL(base,window.location.origin);
   url.searchParams.set('limit',String(LOG_PAGE_SIZE));
@@ -2538,7 +2523,7 @@ function logListPath(){
 function logStatsPath(){
   return logFilteredPath('/logs/stats',{
     includeTableFilters:false,
-    includeSummaryFilter:false,
+    includeOpenOnly:false,
   });
 }
 
@@ -2689,41 +2674,14 @@ tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dat
 let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('show',outer.scrollTop>200); if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
 $('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
 window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
-function syncLogSummaryCards(){
-  document
-    .querySelectorAll('[data-log-summary-filter]')
-    .forEach(card=>{
-      const active=
-        card.dataset.logSummaryFilter===logSummaryFilter;
-
-      card.classList.toggle('on',active);
-      card.setAttribute('aria-pressed',String(active));
-    });
-}
-
-async function applyLogSummaryFilter(filter){
+$('k-open-card').onclick=async()=>{
   if(deletedView) return;
 
-  if(!['total','open','month','done'].includes(filter)){
-    return;
-  }
-
-  logSummaryFilter=filter;
+  openOnly=!openOnly;
   logOffset=0;
-  syncLogSummaryCards();
-
+  $('k-open-card').classList.toggle('on',openOnly);
   await load();
-}
-
-document
-  .querySelectorAll('[data-log-summary-filter]')
-  .forEach(card=>{
-    card.onclick=()=>{
-      applyLogSummaryFilter(card.dataset.logSummaryFilter);
-    };
-  });
-
-syncLogSummaryCards();
+};
 let logSearchTimer=null;
 
 $('q').oninput=()=>{
@@ -2749,9 +2707,9 @@ $('btn-clear-filters').onclick=async()=>{
   clearAllLogColumnFilters();
 
   $('q').value='';
-  logSummaryFilter='total';
+  openOnly=false;
   logOffset=0;
-  syncLogSummaryCards();
+  $('k-open-card').classList.remove('on');
 
   selectedRows.clear();
   refreshSelectionButton();
