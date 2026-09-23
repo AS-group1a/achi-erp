@@ -3320,6 +3320,11 @@ function openExpandedRow(explicitId){
   updateSaveLabel();
 
   $('rx-title').textContent=isNew?'New':'Edit';
+  const regardingSelect=$('rx-regarding-select');
+
+  if(regardingSelect){
+    regardingSelect.value='new-first-contact';
+  }
   const code=String(src.log_code||'LOG').replace(/^LOG[-\s]*/i,'')||'LOG';
   $('rx-num').textContent=isNew?'LOG':(/^#/.test(code)?code:'#'+code);
   $('rx-by').textContent='by '+String(src.owner||src.created_by||'—');
