@@ -1613,19 +1613,19 @@ const FORM_COLS=[
    to use FORM_COLS above, so removing a field from this table never removes it
    from the form or changes how it is saved. */
 const STANDARD_LOG_TABLE_COLS=[
-  {k:'num',       h:'LOG-number',            tab:null, cls:'num pg-f-num',  w:96},
-  {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',     w:112},
-  {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',     w:112, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
-  {k:'contact',   h:'Contact',               tab:null,                     w:190},
-  {k:'mobile',    h:'Mobile / WA',           tab:null,                     w:165, edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
-  {k:'email',     h:'Email',                 tab:null,                     w:200, edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
-  {k:'role',      h:'Role',                  tab:null,                     w:135},
-  {k:'company',   h:'Company',               tab:null,                     w:180, edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
-  {k:'city',      h:'City',                  tab:null,                     w:135, edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
-  {k:'desc',      h:'Notes — What Was Said', tab:null,                     w:330, wide:true, note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
-  {k:'intent',    h:'Intent',                tab:null,                     w:165},
-  {k:'linked_to', h:'Linked To',             tab:null,                     w:125},
-  {k:'owner',     h:'By',                    tab:null,                     w:56},
+  {k:'num',       h:'Code',                  tab:null, cls:'num pg-f-num',    w:64},
+  {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',       w:92},
+  {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',       w:86, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
+  {k:'contact',   h:'Contact',               tab:null, cls:'log-contact-col', w:198},
+  {k:'mobile',    h:'Mobile / WA',           tab:null,                       w:116, edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+  {k:'email',     h:'Email',                 tab:null,                       w:156, edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
+  {k:'role',      h:'Role',                  tab:null,                       w:84},
+  {k:'company',   h:'Company',               tab:null,                       w:146, edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+  {k:'city',      h:'City',                  tab:null,                       w:90, edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
+  {k:'desc',      h:'Notes — What Was Said', tab:null,                       w:276, wide:true, note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
+  {k:'intent',    h:'Intent',                tab:null,                       w:100},
+  {k:'linked_to', h:'Linked To',             tab:null,                       w:87},
+  {k:'owner',     h:'By',                    tab:null,                       w:56},
 
 ];
 
@@ -1654,15 +1654,29 @@ const BUSINESS_CODE=(typeof window!=='undefined'&&typeof window.ACHI_BUSINESS_CO
   ?window.ACHI_BUSINESS_CODE.trim():'';
 function formatBusinessCode(r,rowNumber){
   const displayNumber=String(rowNumber);
-  if(!r) return displayNumber;
+  if(COMPACT_STANDARD_LOG){
+  const raw = String(r.log_code || '').trim();
 
-  /* The compact standard Log shows the permanent code. Older rows without one
-     retain a stable-looking visual fallback instead of rendering blank. */
-  if(!GENERAL_LOG){
+  if(!raw) return 'LOG-' + displayNumber;
+
+  const compact = raw
+    .replace(/^LOG[-\s]*/i, '')
+    .replace(/^#/, '')
+    .trim();
+
+  return 'LOG-' + (compact || displayNumber);
+}
+
+  /* The compact standard Log shows the short #code used by the dense design.
+     Key this behavior to
+     the selected column layout, rather than a page flag that another script
+     may set before this file loads on the main website. Older rows without a
+     permanent code retain a stable-looking visual fallback. */
+  if(COMPACT_STANDARD_LOG){
     const raw=String(r.log_code||'').trim();
     if(!raw) return '#'+displayNumber;
-    const compact=raw.replace(/^LOG[-\s]*/i,'');
-    return compact.startsWith('#')?compact:'#'+compact;
+    const compact=raw.replace(/^LOG[-\s]*/i,'').replace(/^#/,'').trim();
+    return '#'+(compact||displayNumber);
   }
 
   // The unconfigured General Log deliberately keeps its existing permanent
@@ -2008,23 +2022,34 @@ function renderIntentGroupsHTML(selectedCode){
 
 /* Compact standard-Log cells. These are display adapters only: the underlying
    record and the full Add/Edit form keep their original fields. */
+function compactStatusKey(value){
+  return String(value||'open').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'open';
+}
 function compactLogStatus(r){
   const value=String(r.status||'open').trim().toLowerCase();
-  return `<span class="badge b-${esc(value)} log-status-pill"><span>${esc(label(value))}</span><span class="log-pill-arrow">${SVG.tinyChev}</span></span>`;
+  return `<span class="badge b-${compactStatusKey(value)} log-status-pill"><span>${esc(label(value))}</span><span class="log-pill-arrow">${SVG.tinyChev}</span></span>`;
+}
+function compactLogChannel(r){
+  const value=[r.communication,r.log_type,r.type].map(v=>String(v||'').toLowerCase()).join(' ');
+  if(/email|e-mail|mail/.test(value)) return {kind:'email',label:'Email',icon:SVG.mailOutline};
+  if(/whats|message|chat|sms|note|social/.test(value)) return {kind:'message',label:'Message',icon:SVG.chat};
+  return {kind:'phone',label:'Call',icon:SVG.phone};
 }
 function compactLogContact(r){
   const name=String(r.contact_name||'').trim()
     ||[r.prefix,r.first_name,r.last_name].filter(Boolean).join(' ').trim()
     ||String(r.company_name||'').trim()
     ||'New contact';
-  const source=[r.channel,r.communication,r.log_type,r.reference]
-    .filter(Boolean).join(' ').toLowerCase();
-  const icon=source.includes('email')
-    ?SVG.mailOutline
-    :(source.includes('whatsapp')||source.includes('message')||source.includes('sms')||source.includes('dm')||source.includes('instagram')||source.includes('facebook')||source.includes('linkedin'))
-      ?SVG.chat
-      :SVG.phone;
-  return `<span class="log-contact-cell"><span class="log-contact-icon" aria-hidden="true">${icon}</span><strong>${esc(name)}</strong></span>`;
+  const channel=compactLogChannel(r);
+  return `<span class="log-contact-cell"><span class="log-contact-channel is-${channel.kind}" title="${channel.label}">${channel.icon}</span><strong>${esc(name)}</strong></span>`;
+}
+function compactLogPhone(value){
+  return value?`<span class="ph">${esc(value)}</span>`:'<span class="mt">—</span>';
+}
+function compactLogEmail(r){
+  if(!r.email) return '<span class="mt">—</span>';
+  return `<span class="email-cell"><button class="email-btn compact-email" type="button" data-compose-email="${esc(r.email)}" title="Compose email"><span>${esc(r.email)}</span></button></span>`;
 }
 function compactLogCity(r){
   const city=String(r.city||'').trim();
@@ -2119,8 +2144,9 @@ function cellHTML(c,r,i){switch(c.k){
   case 'type': return tagv(r.log_type);
   case 'category': return tagv(r.category);
   case 'tags': return tagsHTML(r.tags);
-  case 'mobile': return phone(r.mobile);
+  case 'mobile': return COMPACT_STANDARD_LOG?compactLogPhone(r.mobile):phone(r.mobile);
   case 'email': {
+    if(COMPACT_STANDARD_LOG) return compactLogEmail(r);
     if(!r.email) return '<span class="mt">—</span>';
     // A sent (green paper-plane) or not-yet (grey clock) badge, pinned to the end.
     const _sent=r.email_sent
@@ -2243,7 +2269,9 @@ async function stats(){
  * "What was said" keeps it wide tomorrow. The table is `table-layout:fixed`,
  * so setting the th width is what actually sizes the column — the body cells
  * follow it and nothing has to be touched per row. */
-const COLW_KEY='achi_log_col_widths_v2', COLW_MIN=42,
+/* v3 deliberately resets the older, much wider defaults once. User resizing
+   still persists from this version onward. */
+const COLW_KEY='achi_log_col_widths_v3', COLW_MIN=42,
       BUSINESS_CODE_COLUMN_MIN=136;
 let COLW={};
 function loadColWidths(){
@@ -2264,9 +2292,14 @@ function fixedLeft(key){
   }
   return 0;
 }
-function colClass(c,extra=''){
-  return [extra,FIXED_KEYS.includes(c.k)?'pg-f':'',c.k==='status'?'pg-f-shadow':'',c.k==='when'&&colWidth(c)<=110?'pg-dt-narrow':''].filter(Boolean).join(' ');
+function colClass(c, extra = ''){
+  return [
+    extra,
+    FIXED_KEYS.includes(c.k) ? 'pg-f' : '',
+    c.k === 'when' && colWidth(c) <= 110 ? 'pg-dt-narrow' : ''
+  ].filter(Boolean).join(' ');
 }
+
 function fixedStyle(c){
   const width=colWidth(c);
   return `${FIXED_KEYS.includes(c.k)?`position:sticky;left:${fixedLeft(c.k)}px;`:''}min-width:${width}px;width:${width}px;max-width:${width}px;`;
@@ -2403,7 +2436,10 @@ function draftRowHTML(dp,st,isTop,rowNumber){
   }).join('')}</tr>`;
 }
 
-function dataRowHTML(r,i,rowNumber){ const key=`log:${r.id}`; return `<tr class="data selectable-row${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
+function dataRowHTML(r,i,rowNumber){
+  const key=`log:${r.id}`;
+  const statusClass=COMPACT_STANDARD_LOG?` log-row-status-${compactStatusKey(r.status)}`:'';
+  return `<tr class="data selectable-row${statusClass}${selectedRows.has(key)?' row-selected':''}" data-row-key="${key}" data-file="${r.file_id}" data-log="${r.id}" data-i="${i}">${
   COLS.map(c=>{
     const ed=c.edit?`data-edit data-kind="${c.edit.kind}" data-target="${c.edit.target}" data-field="${c.edit.field}" data-val="${esc(c.edit.val(r))}"`:'';
     const cls=colClass(c,[c.cls||'',c.k==='num'&&BUSINESS_CODE?'business-code-cell':'',c.wide?'wide':'',c.note?'notecell':'',c.edit?(['stage','comm','status','type','category','prefix','role','subject','district','city','country','tags'].includes(c.edit.kind)?'sel':'ed'):''].filter(Boolean).join(' '));
@@ -3726,40 +3762,24 @@ return {
 };
 }
 
-/* bottom drag strip resizes table height (persisted) */
+/* Shared workspaces may still render a bottom drag strip. The Log page no
+   longer renders #vrz and instead fits its table to the viewport in log.js. */
 (function(){
-  const saved=+localStorage.getItem('achi_bh'); if(saved>160) outer.style.setProperty('--bh',saved+'px');
-  $('vrz').addEventListener('pointerdown',e=>{
-    const start={y:e.clientY,h:outer.getBoundingClientRect().height}; document.body.classList.add('resizing');
-    const mv=ev=>{ const h=Math.max(180,Math.min(1400,start.h+(ev.clientY-start.y))); outer.style.setProperty('--bh',h+'px'); };
+  const handle=$('vrz');
+  const tableOuter=$('touter');
+  if(!handle||!tableOuter) return;
+  const saved=+localStorage.getItem('achi_bh'); if(saved>160) tableOuter.style.setProperty('--bh',saved+'px');
+  handle.addEventListener('pointerdown',e=>{
+    const start={y:e.clientY,h:tableOuter.getBoundingClientRect().height}; document.body.classList.add('resizing');
+    const mv=ev=>{ const h=Math.max(180,Math.min(1400,start.h+(ev.clientY-start.y))); tableOuter.style.setProperty('--bh',h+'px'); };
     const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); document.body.classList.remove('resizing');
-      localStorage.setItem('achi_bh',Math.round(outer.getBoundingClientRect().height)); };
+      localStorage.setItem('achi_bh',Math.round(tableOuter.getBoundingClientRect().height)); };
     window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
   });
 })();
 
-/* Optional "TABLE SIZE" stepper (general_log.html). Reads/writes the SAME
-   --bh custom property and achi_bh storage key as the drag strip above, so
-   dragging and clicking always agree. A page without the buttons — any other
-   workspace sharing this script — simply has nothing to wire. */
-(function(){
-  const smaller=$('log-size-smaller'), bigger=$('log-size-bigger'), compact=$('log-size-compact');
-  if(!smaller&&!bigger&&!compact) return;
-  const clamp=h=>Math.max(140,Math.min(1400,h));
-  const currentH=()=>{ const v=parseFloat(getComputedStyle(outer).getPropertyValue('--bh')); return isNaN(v)?(+localStorage.getItem('achi_bh')||420):v; };
-  const setH=h=>{ h=clamp(h); outer.style.setProperty('--bh',h+'px'); try{ localStorage.setItem('achi_bh',Math.round(h)); }catch(e){} };
-  if(smaller) smaller.addEventListener('click',()=>setH(currentH()-60));
-  if(bigger) bigger.addEventListener('click',()=>setH(currentH()+60));
-  if(compact) compact.addEventListener('click',()=>setH(180));
-})();
-
-/* boot */
-$('totop').innerHTML=SVG.up;
-$('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="del-count">0</span>';
-$('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="email-count">0</span>';
-loadColWidths(); buildHead(); wireColResize(); ensureLogSortControl(); setActivePill(0); stats(); render();
-if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
-else { load(); loadCustomCities(); loadCustomDistricts(); loadIntentNextCodes() }
+/* Page bootstrapping lives in log.js, after both scripts have installed their
+   handlers. Keeping one boot path prevents duplicate loads and renders. */
 
 function rxBusy(on){
   const a=$('rx-save'),b=$('rx-cancel'),c=$('rx-save-cont');

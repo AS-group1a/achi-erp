@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · ARARA ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=34">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=38">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <!-- Renamed from log.html to general_log.html per the redesign request. This
@@ -21,14 +21,16 @@
   <section class="log-overview" aria-labelledby="log-overview-title">
     <div class="log-overview-top">
       <div class="log-overview-copy">
-        <h1 id="log-overview-title">Log — every communication</h1>
-        <span class="log-volume"><strong id="k-total">0</strong> logs · digital + paper</span>
-        <span class="log-explainer">Calls, WhatsApp and email land here first — ARARA AI matches, transcribes, files and suggests the next step.</span>
+        <h1 id="log-overview-title">Log</h1>
       </div>
 
       <div class="log-overview-actions">
-        <label class="sr-only" for="q">Search logs</label>
-        <input class="search" id="q" placeholder="Search caller, company, words said…">
+        <input
+          class="search"
+          id="q"
+          placeholder="Search logs"
+          aria-label="Search logs"
+        >
         <button class="log-clear-filters" id="btn-clear-filters" type="button">Clear filters</button>
         <button class="tb-exp" id="expand-row" type="button" title="Open the full Add Log form">
           <span class="tb-add-plus">+</span> Add Log
@@ -44,7 +46,7 @@
         class="log-ai-query"
         id="log-ai-query"
         type="text"
-        placeholder="Ask the log… “what did Zerock ask for this month?” · “any complaints this week?” · “which calls mention netting?”"
+        placeholder="Ask AI"
         title="ARARA AI connection will be added in a later step"
         disabled
       >
@@ -52,6 +54,10 @@
     </div>
 
     <div class="kpis" aria-label="Log summary">
+      <div class="kpi k1">
+        <strong class="n" id="k-total">0</strong>
+        <span class="l">Total logs</span>
+      </div>
       <button class="kpi k2 btn" id="k-open-card" type="button" title="Filter to open logs">
         <strong class="n" id="k-open">0</strong><span class="l">open logs</span>
       </button>
@@ -88,17 +94,6 @@
     <div class="tscroll" id="touter">
       <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
     </div>
-    <div class="vrz" id="vrz" title="Drag to resize table height"></div>
-  </div>
-
-  <!-- Compact "table size" stepper, ported from the new design. Reads/writes
-       the same --bh custom property and achi_bh storage key as the drag strip
-       above (wired in log-core.js), so the two controls always agree. -->
-  <div class="log-size-ctl">
-    <span class="log-size-lbl">TABLE SIZE</span>
-    <button class="szb" id="log-size-smaller" type="button" title="Smaller — see more of the details">−</button>
-    <button class="szb" id="log-size-bigger" type="button" title="Bigger — see more logs">+</button>
-    <button class="szb" id="log-size-compact" type="button" title="Compact view">Compact</button>
   </div>
 
   <!-- Add/Edit Log dialog. log-core.js supplies the form sections at runtime;
@@ -206,9 +201,9 @@
      STANDARD_LOG_TABLE_COLS list (now including "By"). FORM_COLS still builds
      the full Add/Edit form, unchanged. -->
 
-<script src="/api/v1/achi/ui/log-core.js?v=34"></script>
-<script src="/api/v1/achi/ui/log.js?v=24"></script>
-<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=38"></script>
+<script src="/api/v1/achi/ui/log.js?v=27"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=42"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>

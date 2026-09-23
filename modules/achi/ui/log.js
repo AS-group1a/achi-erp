@@ -2540,6 +2540,7 @@ function renderLogPagination(){
       ?logOffset+LOG_PAGE_SIZE:Math.max(0,logOffset-LOG_PAGE_SIZE);
     load();
   }));
+  fitLogTableToViewport();
 }
 
 /* tabs = scroll positions */
@@ -2718,17 +2719,44 @@ $('rows').addEventListener('click',e=>{
   e.preventDefault();
   openExpandedRow(tr.dataset.log);
 });
-/* bottom drag strip resizes table height (persisted) */
-(function(){
-  const saved=+localStorage.getItem('achi_bh'); if(saved>160) outer.style.setProperty('--bh',saved+'px');
-  $('vrz').addEventListener('pointerdown',e=>{
-    const start={y:e.clientY,h:outer.getBoundingClientRect().height}; document.body.classList.add('resizing');
-    const mv=ev=>{ const h=Math.max(180,Math.min(1400,start.h+(ev.clientY-start.y))); outer.style.setProperty('--bh',h+'px'); };
-    const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); document.body.classList.remove('resizing');
-      localStorage.setItem('achi_bh',Math.round(outer.getBoundingClientRect().height)); };
-    window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+/* The Log table always fills the viewport below the page controls. The old
+   drag handle, size buttons and persisted achi_bh override are intentionally
+   ignored so every browser gets the correct height automatically. */
+let logTableFitFrame=0;
+function fitLogTableToViewport(){
+  if(!document.body.classList.contains('log-page')) return;
+  cancelAnimationFrame(logTableFitFrame);
+  logTableFitFrame=requestAnimationFrame(()=>{
+    const scroller=$('touter');
+    if(!scroller) return;
+
+    const viewport=window.visualViewport;
+    const viewportBottom=viewport ? viewport.offsetTop+viewport.height : window.innerHeight;
+    const pagination=$('log-pagination');
+    const paginationHeight=pagination&&pagination.offsetParent!==null
+      ? pagination.getBoundingClientRect().height : 0;
+    const main=document.querySelector('main');
+    const mainBottomPadding=main ? parseFloat(getComputedStyle(main).paddingBottom)||0 : 0;
+    const height=Math.max(200,Math.floor(
+      viewportBottom-scroller.getBoundingClientRect().top-paginationHeight-Math.max(12,mainBottomPadding)
+    ));
+    scroller.style.setProperty('--log-table-fit-height',height+'px');
   });
-})();
+}
+
+try{ localStorage.removeItem('achi_bh'); }catch(_){}
+outer.style.removeProperty('--bh');
+window.addEventListener('resize',fitLogTableToViewport,{passive:true});
+if(window.visualViewport) window.visualViewport.addEventListener('resize',fitLogTableToViewport,{passive:true});
+if('ResizeObserver' in window){
+  const tableFitObserver=new ResizeObserver(fitLogTableToViewport);
+  const overview=document.querySelector('.log-overview');
+  const nav=document.querySelector('.shell .nav');
+  if(overview) tableFitObserver.observe(overview);
+  if(nav) tableFitObserver.observe(nav);
+}
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fitLogTableToViewport);
+fitLogTableToViewport();
 
 /* boot */
 $('totop').innerHTML=SVG.up;
@@ -2736,7 +2764,7 @@ $('btn-del').innerHTML=SVG.trash+'<span>Delete</span> <span class="tb-cnt" id="d
 $('btn-email').innerHTML=SVG.mail+'<span>Email</span> <span class="tb-cnt" id="email-count">0</span>';
 loadColWidths(); buildHead(); wireColResize(); ensureLogSortControl(); setActivePill(0); stats(); render();
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address (same localhost/IP), sign in, then reload.');
-else { load(); loadCustomCities(); loadCustomDistricts(); }
+else { load(); loadCustomCities(); loadCustomDistricts(); loadIntentNextCodes(); }
 
 
 /* ── Intent dropdown — "Copy Log → Stage" menu ────────────────────────────
