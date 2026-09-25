@@ -317,6 +317,34 @@ def _combine_multi(predicates: list, mode: str):
     return or_(*predicates)
 
 
+def _current_month_range() -> tuple[datetime, datetime]:
+    """[start, next) of the current UTC calendar month.
+
+    Shared by the "logs this month" KPI and the matching list filter so the
+    count on the card and the rows it filters to always agree.
+    """
+    now = datetime.now(timezone.utc)
+    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    if now.month == 12:
+        next_month = datetime(now.year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        next_month = datetime(now.year, now.month + 1, 1, tzinfo=timezone.utc)
+    return month_start, next_month
+
+
+def is_job_file(f: ContactFile) -> bool:
+    """True when this enquiry became a job: Won → JOB (stage "accepted") or
+    converted onto a project — and not cancelled since. Mirrors _JOB_FILE."""
+    return (f.stage == "accepted" or f.project_id is not None) and f.status != "cancelled"
+
+
+# SQL twin of is_job_file(), for "does this contact have any job?" lookups.
+_JOB_FILE = and_(
+    or_(ContactFile.stage == "accepted", ContactFile.project_id.is_not(None)),
+    ContactFile.status != "cancelled",
+)
+
+
 def _log_filter_predicates(
     filters: LogFilterParams,
 ) -> tuple:
@@ -437,6 +465,11 @@ def _log_filter_predicates(
 
     if filters.when_to:
         predicates.append(visible_when <= filters.when_to)
+
+    if filters.this_month:
+        month_start, next_month = _current_month_range()
+        predicates.append(FileLog.created_at >= month_start)
+        predicates.append(FileLog.created_at < next_month)
 
     if filters.status:
         predicates.append(
@@ -1122,6 +1155,23 @@ class ContactFileService:
         except Exception:  # noqa: BLE001 - the row is gone; a stale blob is not worth a 500
             logger.warning("ACHI: could not delete attachment blob %s", key, exc_info=True)
 
+    async def client_contact_ids(self, contact_ids: set[str]) -> set[str]:
+        """Which of these contacts are CLIENTS: they have at least one job
+        (see is_job_file) in their whole history, not just the current enquiry.
+
+        Derived on every read rather than stored, so it follows any change —
+        an enquiry moved into or out of Won → JOB, cancelled, or converted.
+        Everyone else is a LEAD.
+        """
+        if not contact_ids:
+            return set()
+        result = await self.session.execute(
+            select(ContactFile.contact_id)
+            .where(ContactFile.contact_id.in_(contact_ids), _JOB_FILE)
+            .distinct()
+        )
+        return {cid for cid in result.scalars().all() if cid}
+
     async def attachment_counts(self, log_ids: list[str]) -> dict[str, int]:
         """Attachment count per log — one grouped query, not one per row."""
         if not log_ids:
@@ -1654,28 +1704,7 @@ class ContactFileService:
     ) -> dict[str, int]:
         """Dashboard totals using the same filters as the table."""
 
-        now = datetime.now(timezone.utc)
-        month_start = datetime(
-            now.year,
-            now.month,
-            1,
-            tzinfo=timezone.utc,
-        )
-
-        if now.month == 12:
-            next_month = datetime(
-                now.year + 1,
-                1,
-                1,
-                tzinfo=timezone.utc,
-            )
-        else:
-            next_month = datetime(
-                now.year,
-                now.month + 1,
-                1,
-                tzinfo=timezone.utc,
-            )
+        month_start, next_month = _current_month_range()
 
         base_predicates = (
             FileLog.deleted_at.is_(None),

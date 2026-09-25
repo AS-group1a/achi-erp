@@ -116,50 +116,44 @@
   }
 
   // ── Domain constants (mirror schemas.py — STAGES / STATUSES) ──────────────
-  // The 7 visual pipeline steps of the dot strip and the board. Every backend
-  // stage value maps into one step; on_hold / cancelled are parked, not steps.
-  // Board columns = the pipeline. Order is a per-user preference (drag a
-  // column header to move it; saved in this browser). Dropping a card on a
-  // column applies that column's patch via PATCH /files/{id}.
-  const COLS = [
-    { id: 'enq',  label: 'Enquiry',     stages: ['prospect', 'outreach', 'first_contact', 'second_follow_up', 'enquiry'], patch: { stage: 'enquiry' } },
-    { id: 'sv',   label: 'Site visit',  stages: ['site_survey'], patch: { stage: 'site_survey' } },
-    { id: 'dwg',  label: 'Drawing',     stages: ['drawing'], patch: { stage: 'drawing' } },
-    { id: 'mt',   label: 'M/T',         stages: ['takeoff'], patch: { stage: 'takeoff' } },
-    { id: 'boq',  label: 'BOQ',         stages: ['boq', 'resources', 'plan'], patch: { stage: 'boq' } },
-    { id: 'quo',  label: 'Quotation',   stages: ['costing', 'pricing', 'quotation'], patch: { stage: 'quotation' } },
-    { id: 'fup',  label: 'Follow-up',   stages: ['follow_up'], patch: { stage: 'follow_up' } },
-    { id: 'neg',  label: 'Negotiation', stages: ['negotiation'], patch: { stage: 'negotiation' } },
-    { id: 'conf', label: 'Confirmed',   stages: ['accepted'], patch: { stage: 'accepted' } },
-    { id: 'job',  label: 'JOB',         stages: [], patch: { stage: 'accepted', status: 'transferred' } },
-    { id: 'hold', label: 'On hold',     stages: ['on_hold'], parked: true, patch: { stage: 'on_hold' } },
-    { id: 'canc', label: 'Cancelled',   stages: ['cancelled'], parked: true, patch: { stage: 'cancelled' } },
-  ];
-  const COL_BY_ID = {};
-  const STAGE_COL = {};
-  COLS.forEach(c => { COL_BY_ID[c.id] = c; c.stages.forEach(s => { STAGE_COL[s] = c.id; }); });
-
-  // Confirmed vs JOB both live on stage "accepted": JOB = handed over
-  // (status "transferred"), Confirmed = accepted but not yet transferred.
-  const colId = f => (f.stage === 'accepted'
-    ? (f.status === 'transferred' ? 'job' : 'conf')
-    : (STAGE_COL[f.stage] || 'enq'));
   const isDone = f => f.stage === 'accepted';
 
-  const ORDER_KEY = 'achi.crm.colOrder';
+  // Board columns = the eight stages of STAGE_PICK (below). Order is a per-user
+  // preference (drag a column header to move it; saved in this browser). The
+  // key is new: orders saved for the old 12-column board don't apply.
+  const ORDER_KEY = 'achi.crm.colOrder.v2';
   function loadColOrder() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null'); } catch (_e) { saved = null; }
-    const order = Array.isArray(saved) ? saved.filter(id => COL_BY_ID[id]) : [];
-    COLS.forEach(c => { if (!order.includes(c.id)) order.push(c.id); });
+    const order = Array.isArray(saved) ? saved.filter(id => STAGE_PICK_BY_ID[id]) : [];
+    STAGE_PICK.forEach(p => { if (!order.includes(p.id)) order.push(p.id); });
     return order;
   }
   function saveColOrder() {
     try { localStorage.setItem(ORDER_KEY, JSON.stringify(state.colOrder)); } catch (_e) { /* private mode */ }
   }
-  // The stage-dot strip follows the user's column order (parked columns and
-  // JOB excluded — JOB shares Confirmed's spot in the flow).
-  const flowIds = () => state.colOrder.filter(id => !COL_BY_ID[id].parked && id !== 'job');
+  // Stage column of the grid: one dropdown per row, and the same list (plus
+  // "All stages") as the header filter. Each step groups the backend stages it
+  // covers; picking a step saves its `value`. "Log" is the pre-enquiry first
+  // contact (prospect … 2nd follow-up); "Won → JOB" is stage "accepted".
+  // Stages outside these steps (follow-up, negotiation, on hold, cancelled) show
+  // their own name in the row's dropdown and appear only under "All stages".
+  const STAGE_PICK = [
+    { id: 'log',       label: 'Log',        stages: ['prospect', 'outreach', 'first_contact', 'second_follow_up'], value: 'first_contact' },
+    { id: 'enquiry',   label: 'Enquiry',    stages: ['enquiry'], value: 'enquiry' },
+    { id: 'site',      label: 'Site visit', stages: ['site_survey'], value: 'site_survey' },
+    { id: 'drawing',   label: 'Drawing',    stages: ['drawing'], value: 'drawing' },
+    { id: 'mt',        label: 'M/T',        stages: ['takeoff'], value: 'takeoff' },
+    { id: 'boq',       label: 'BOQ',        stages: ['boq', 'resources', 'plan'], value: 'boq' },
+    { id: 'quotation', label: 'Quotation',  stages: ['costing', 'pricing', 'quotation'], value: 'quotation' },
+    { id: 'won',       label: 'Won → JOB',  stages: ['accepted'], value: 'accepted' },
+  ];
+  const STAGE_PICK_OF = {};
+  const STAGE_PICK_BY_ID = {};
+  STAGE_PICK.forEach(p => { STAGE_PICK_BY_ID[p.id] = p; p.stages.forEach(s => { STAGE_PICK_OF[s] = p; }); });
+  // Which of the eight stages an enquiry is in ('' for follow-up, negotiation,
+  // on hold, cancelled — those have no board column).
+  const pickId = f => (STAGE_PICK_OF[f.stage] ? STAGE_PICK_OF[f.stage].id : '');
 
   const STAGE_LABEL = {
     prospect: 'Prospect', outreach: 'Outreach', follow_up: 'Follow-up',
@@ -171,7 +165,6 @@
     quotation: 'Quotation', negotiation: 'Negotiation', accepted: 'Won',
     cancelled: 'Cancelled', on_hold: 'On hold',
   };
-  const STAGE_KEYS = Object.keys(STAGE_LABEL);
 
   const STATUS_META = {
     open:        { label: 'OPEN',        style: 'background:#eaf1ff;color:#1F3F80' },
@@ -181,6 +174,11 @@
     cancelled:   { label: 'CANCELLED',   style: 'background:#fbeaea;color:#b91c1c' },
     transferred: { label: 'TRANSFERRED', style: 'background:#f4f6f9;color:#44546e' },
   };
+  // The statuses the grid's Status column offers (row dropdown + header filter).
+  const STATUS_PICK = ['open', 'scheduled', 'viewed', 'done', 'cancelled'];
+  // Colours only (background-color, not the `background` shorthand) so the
+  // pill's chevron background-image from crm.css survives the inline style.
+  const statusPillStyle = s => statusMeta(s).style.replace(/background:/g, 'background-color:');
   const statusMeta = s => STATUS_META[s] || { label: String(s || '—').toUpperCase(), style: 'background:#f4f6f9;color:#44546e' };
 
   // Docs pills + where each document kind lives, for the panel's links.
@@ -198,9 +196,10 @@
     view: 'list',            // list | board
     colOrder: null,          // filled right below (loadColOrder reads storage)
     seg: 'all',              // all | act | due | won | hold | closed
-    chips: new Set(),        // stuck | quiet | quo
     q: '',
     fSt: '',                 // status column filter
+    fStage: '',              // stage column filter (a STAGE_PICK id)
+    fCl: '',                 // client / lead column filter: '' | 'lead' | 'client'
     sort: { k: 'recv', dir: 'desc' },
     sel: null,               // selected file_id
     dock: 'below',           // below | side
@@ -221,6 +220,19 @@
     if (!ts) return '—';
     const d = new Date(ts);
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  // Received column: dd/mm/yyyy.
+  const fmtDMY = ts => {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+  // Enquiry code shown in the CRM: the file number's running sequence as
+  // ENQ-00001 (file_number is ACHI-YYYY-NNNNN). Anything else shows unchanged.
+  const enqCode = fileNumber => {
+    const raw = String(fileNumber || '').trim();
+    const match = raw.match(/-(\d+)$/);
+    return match ? `ENQ-${match[1].padStart(5, '0')}` : raw;
   };
   const fmtFull = ts => {
     if (!ts) return '—';
@@ -284,7 +296,8 @@
 
       files.push({
         fid: f.fid,
-        code: lead.file_number || '',
+        code: enqCode(lead.file_number),
+        fileNumber: lead.file_number || '',
         logCode: lead.log_code || null,
         origin: lead.origin_module || null,
         stage: lead.stage,
@@ -293,6 +306,9 @@
         subject: lead.subject || '',
         category: lead.category || null,
         description: lead.description || '',
+        // CLIENT / LEAD comes from the server, which looks at the contact's
+        // whole history (any job ever), not just this enquiry's stage.
+        clientStatus: lead.contact_status === 'client' ? 'client' : 'lead',
         contact: {
           id: lead.contact_id, name: lead.contact_name || '', prefix: lead.prefix || '',
           first: lead.first_name || '', last: lead.last_name || '',
@@ -331,20 +347,13 @@
   };
   const isOpenPipe = f => !f.parked && !isDone(f) && ['open', 'scheduled', 'viewed'].includes(f.status);
 
-  function chipMatch(f) {
-    if (!state.chips.size) return true;
-    if (state.chips.has('stuck') && !isHot(f)) return false;
-    if (state.chips.has('quiet') && !isQuiet(f)) return false;
-    if (state.chips.has('quo') && colId(f) !== 'quo') return false;
-    return true;
-  }
 
   // The ask-box honours the mock's example questions without pretending to be
   // an LLM: a recognised phrase becomes the matching live filter.
   const MAGIC = [
     [/\bstuck\b|\bneed(s)? action\b|\boverdue\b/, f => isHot(f)],
     [/\bquiet\b|\bgone quiet\b/, f => isQuiet(f)],
-    [/\bquotation\b|\bclos(e|ing)\b/, f => colId(f) === 'quo'],
+    [/\bquotation\b|\bclos(e|ing)\b/, f => pickId(f) === 'quotation'],
     [/\bquotation\b|\bclos(e|ing)\b/, f => f.step === 5],
     [/\bwon\b|\baccepted\b/, f => f.stage === 'accepted'],
     [/\bon hold\b/, f => f.stage === 'on_hold'],
@@ -356,7 +365,7 @@
     const magic = magicFor(state.q);
     if (magic) return magic(f);
     const hay = [
-      f.code, f.logCode, f.subject, f.category, f.description,
+      f.code, f.fileNumber, f.logCode, f.subject, f.category, f.description,
       f.contact.name, f.contact.company, f.contact.mobile, f.contact.email,
       f.site.location, f.site.city, f.site.district, f.site.country, f.site.street,
       f.ownerName, f.assignedName, f.stage, f.status, STAGE_LABEL[f.stage],
@@ -365,8 +374,10 @@
   }
 
   function visibleFiles() {
-    let list = FILES.filter(f => chipMatch(f) && textMatch(f));
+    let list = FILES.filter(f => textMatch(f));
     if (state.fSt) list = list.filter(f => f.status === state.fSt);
+    if (state.fCl) list = list.filter(f => f.clientStatus === state.fCl);
+    if (state.fStage) list = list.filter(f => STAGE_PICK_OF[f.stage] && STAGE_PICK_OF[f.stage].id === state.fStage);
     const dir = state.sort.dir === 'asc' ? 1 : -1;
     const key = state.sort.k === 'age'
       ? f => (f.recvAt ? Date.now() - f.recvAt : -1)
@@ -379,40 +390,30 @@
   }
 
   // ── Cell renderers ─────────────────────────────────────────────────────────
-  function stageDots(f) {
-    const flow = flowIds();
-    if (f.parked) {
-      const grey = flow.map(() => '<span></span>').join('');
-      return `<div class="stage">${grey}</div><span class="stage-badge">${esc((STAGE_LABEL[f.stage] || f.stage).toUpperCase())}</span>`;
-    }
-    const idx = flow.indexOf(colId(f) === 'job' ? 'conf' : colId(f));
-    const done = isDone(f);
-    const dots = flow.map((_, i) => {
-      const cls = done ? 'won' : i < idx ? 'on' : i === idx ? 'cur' : '';
-      return `<span class="${cls}"></span>`;
-    }).join('');
-    return `<div class="stage" title="${esc(STAGE_LABEL[f.stage] || f.stage)}">${dots}</div>`;
-  }
-
   function stageCell(f) {
-    const options = STAGE_KEYS.map(k =>
-      `<option value="${k}"${k === f.stage ? ' selected' : ''}>${esc(STAGE_LABEL[k])}</option>`).join('');
-    return `<span class="stw" title="Change stage — ${esc(STAGE_LABEL[f.stage] || f.stage)}">${stageDots(f)}`
-      + `<i class="farr">▾</i><select class="stover" data-act="stage" data-fid="${esc(f.fid)}">${options}</select></span>`;
+    const pick = STAGE_PICK_OF[f.stage];
+    // A stage outside the eight steps keeps its own name as the selected entry,
+    // so the dropdown never claims a step the enquiry is not in.
+    const current = pick ? ''
+      : `<option value="" selected disabled>${esc(STAGE_LABEL[f.stage] || f.stage)}</option>`;
+    const options = STAGE_PICK.map(p =>
+      `<option value="${p.value}"${pick === p ? ' selected' : ''}>${esc(p.label)}</option>`).join('');
+    return `<span class="stw" title="Change stage — ${esc(STAGE_LABEL[f.stage] || f.stage)}">`
+      + `<select class="stover stsel${pick && pick.id === 'won' ? ' is-won' : ''}" data-act="stage" data-fid="${esc(f.fid)}" aria-label="Stage">${current}${options}</select></span>`;
   }
 
   function statusCell(f) {
     const meta = statusMeta(f.status);
-    const options = Object.keys(STATUS_META).map(k =>
-      `<option value="${k}"${k === f.status ? ' selected' : ''}>${esc(STATUS_META[k].label)}</option>`).join('');
-    return `<span class="st stw" style="${meta.style}">${esc(meta.label)} <i class="farr">▾</i>`
-      + `<select class="stover" data-act="status" data-fid="${esc(f.fid)}">${options}</select></span>`;
+    // Any other stored status (e.g. "transferred" once handed over as a JOB)
+    // keeps its own name as the selected entry, like the Stage dropdown.
+    const current = STATUS_PICK.includes(f.status) ? ''
+      : `<option value="" selected disabled>${esc(meta.label)}</option>`;
+    const options = STATUS_PICK.map(k =>
+      `<option value="${k}"${k === f.status ? ' selected' : ''}>${esc(statusMeta(k).label)}</option>`).join('');
+    return `<span class="stw" title="Change status">`
+      + `<select class="stover stsel-status" style="${statusPillStyle(f.status)}" data-act="status" data-fid="${esc(f.fid)}" aria-label="Status">${current}${options}</select></span>`;
   }
 
-  function docsCell(f) {
-    return `<div class="docs">${DOCS.map(([k, label]) =>
-      `<span class="doc${f.docs[k] ? ' on' : ''}">${label}</span>`).join('')}</div>`;
-  }
 
   function clientCell(f) {
     const main = f.contact.company || f.contact.name || '';
@@ -420,19 +421,22 @@
     const sub = f.contact.company
       ? [person, f.contact.role].filter(Boolean).join(' — ')
       : (f.contact.role || f.contact.mobile || '');
-    if (!main) return '<span class="mut">—</span>';
-    return `<div style="line-height:1.15"><span class="nm-main">${esc(main)}</span>`
+    const badge = f.clientStatus === 'client'
+      ? '<span class="cl-badge is-client" title="Has worked with us before (at least one job)">CLIENT</span>'
+      : '<span class="cl-badge is-lead" title="No job with us yet">LEAD</span>';
+    if (!main) return `<div class="cl-line">${badge}</div>`;
+    return `<div style="line-height:1.15"><div class="cl-line"><span class="nm-main">${esc(main)}</span>${badge}</div>`
       + (sub ? `<div class="nm-sub">${esc(sub)}</div>` : '') + '</div>';
   }
 
   function subjectCell(f) {
     const site = [f.site.city, f.site.location].filter(Boolean).join(' — ');
-    return `<div style="line-height:1.15"><span style="font-size:11px">${f.subject ? esc(f.subject) : '<span class="mut">—</span>'}</span>`
+    return `<div style="line-height:1.15"><span style="font-size:11px">${f.subject ? esc(f.subject) : ''}</span>`
       + (site ? `<div class="nm-sub">${esc(site)}</div>` : '') + '</div>';
   }
 
   function nextCell(f) {
-    if (!f.fu) return '<span class="mut">—</span>';
+    if (!f.fu) return '';
     const cls = f.fu.overdue ? 'fu-red' : 'mut';
     const label = f.fu.notes ? esc(f.fu.notes) : 'Follow-up';
     return `<span class="${cls}" style="font-size:10.5px" title="${esc(f.fu.notes || '')}">`
@@ -440,7 +444,7 @@
   }
 
   function ageCell(f) {
-    if (!f.recvAt) return '<span class="mut">—</span>';
+    if (!f.recvAt) return '';
     const days = Math.max(0, Math.floor((Date.now() - f.recvAt) / DAY));
     const color = isHot(f) ? '#b91c1c' : '#8a8f98';
     return `<span class="num" style="font-size:10px;color:${color}">${days}d${isHot(f) ? ' ⚠' : ''}</span>`;
@@ -449,17 +453,22 @@
   // ── Grid ───────────────────────────────────────────────────────────────────
   function renderHead() {
     const arrow = k => (state.sort.k === k ? (state.sort.dir === 'asc' ? '▲' : '▼') : '↕');
-    const statuses = [...new Set(FILES.map(f => f.status))];
     const options = ['<option value="">All statuses</option>']
-      .concat(statuses.map(s => `<option value="${esc(s)}"${state.fSt === s ? ' selected' : ''}>${esc(statusMeta(s).label)}</option>`))
+      .concat(STATUS_PICK.map(s => `<option value="${s}"${state.fSt === s ? ' selected' : ''}>${esc(statusMeta(s).label)}</option>`))
+      .join('');
+    const stageFilterOptions = ['<option value="">All stages</option>']
+      .concat(STAGE_PICK.map(p => `<option value="${p.id}"${state.fStage === p.id ? ' selected' : ''}>${esc(p.label)}</option>`))
       .join('');
     $('hd').innerHTML =
       '<span>Code</span>'
       + `<span class="srt" data-sort="recv">Received<i class="sarr2">${arrow('recv')}</i></span>`
-      + '<span>Client</span>'
+      + `<span class="flt${state.fCl ? ' on' : ''}">Client / Lead <i class="farr">▾</i>${state.fCl ? ' · ' + (state.fCl === 'client' ? 'Client' : 'Lead') : ''}`
+      + `<select class="stover" data-act="fcl" title="Filter by client / lead">`
+      + `<option value="">All</option><option value="lead"${state.fCl === 'lead' ? ' selected' : ''}>Lead</option>`
+      + `<option value="client"${state.fCl === 'client' ? ' selected' : ''}>Client</option></select></span>`
       + '<span>Subject / site</span>'
-      + '<span>Stage E·S·D·M·B·Q·W</span>'
-      + '<span>Docs</span>'
+      + `<span class="flt${state.fStage ? ' on' : ''}">Stage <i class="farr">▾</i>${state.fStage ? ' · ' + esc(STAGE_PICK.find(p => p.id === state.fStage).label) : ''}`
+      + `<select class="stover" data-act="fstage" title="Filter by stage">${stageFilterOptions}</select></span>`
       + '<span>Next action</span>'
       + '<span>Own</span>'
       + `<span class="srt" data-sort="age">Age<i class="sarr2">${arrow('age')}</i></span>`
@@ -471,11 +480,10 @@
     const cls = (state.sel === f.fid ? 'sel ' : '') + (isHot(f) ? 'hot' : '');
     return `<div class="row ${cls}" data-fid="${esc(f.fid)}">`
       + `<div><span class="code">${esc(f.code)}</span></div>`
-      + `<div class="mut num" style="font-size:10.5px">${esc(fmtDM(f.recvAt))}</div>`
+      + `<div class="mut num" style="font-size:10.5px">${f.recvAt ? esc(fmtDMY(f.recvAt)) : ''}</div>`
       + `<div>${clientCell(f)}</div>`
       + `<div>${subjectCell(f)}</div>`
       + `<div>${stageCell(f)}</div>`
-      + `<div>${docsCell(f)}</div>`
       + `<div>${nextCell(f)}</div>`
       + `<div><span class="who" title="${esc(f.ownerName || '')}">${esc(initials(f.ownerName))}</span></div>`
       + `<div>${ageCell(f)}</div>`
@@ -516,8 +524,8 @@
     board.style.gridTemplateColumns = `repeat(${state.colOrder.length}, minmax(168px, 1fr))`;
     board.style.minWidth = `${state.colOrder.length * 176}px`;
     board.innerHTML = state.colOrder.map(id => {
-      const col = COL_BY_ID[id];
-      const items = list.filter(f => colId(f) === id);
+      const col = STAGE_PICK_BY_ID[id];
+      const items = list.filter(f => pickId(f) === id);
       return `<div class="bcol" data-col="${id}">`
         + `<div class="bch" draggable="true" data-col="${id}" title="Drag to reorder columns">⠿ ${esc(col.label)}<span class="n2">${items.length}</span></div>`
         + (items.length ? items.map(boardCard).join('') : '<div class="bempty">drop here</div>')
@@ -571,10 +579,9 @@
       return;
     }
     const f = FILES.find(x => x.fid === d.fid);
-    if (!f || colId(f) === targetId) return;
-    const patch = { ...COL_BY_ID[targetId].patch };
-    if (targetId === 'conf' && f.status === 'transferred') patch.status = 'open';
-    patchFile(d.fid, patch, 'Stage');
+    if (!f || pickId(f) === targetId) return;
+    // Same value the row's Stage dropdown saves for that step.
+    patchFile(d.fid, { stage: STAGE_PICK_BY_ID[targetId].value }, 'Stage');
   });
 
   boardEl.addEventListener('dragend', () => { dragging = null; clearDrop(); });
@@ -582,10 +589,8 @@
   // ── KPI chips ──────────────────────────────────────────────────────────────
   function renderKchips() {
     const open = FILES.filter(isOpenPipe).length;
-    const quo = FILES.filter(f => colId(f) === 'quo').length;
-    const won = FILES.filter(f => f.stage === 'accepted').length;
+    const quo = FILES.filter(f => pickId(f) === 'quotation').length;
     const due = FILES.filter(isHot).length;
-    const quiet = FILES.filter(isQuiet).length;
     const year = new Date().getFullYear();
     const inYear = FILES.filter(f => f.recvAt && new Date(f.recvAt).getFullYear() === year);
     const yWon = inYear.filter(f => f.stage === 'accepted').length;
@@ -596,8 +601,6 @@
     $('kchips').innerHTML =
       `<span class="kc"><b>${open}</b> open enquiries</span>`
       + `<span class="kc"><b>${quo}</b> at quotation stage</span>`
-      + `<span class="kc"><b>${won}</b> won</span>`
-      + `<span class="kc"><b>${quiet}</b> gone quiet 7d+</span>`
       + rateChip
       + `<span class="kc${due ? ' alert' : ''}"><b>${due}</b> need action today</span>`;
   }
@@ -715,8 +718,11 @@
   }
 
   // ── Load: pull every page of /logs/ (server caps a page at 1000) ───────────
-  async function load() {
-    $('rows').innerHTML = '<div class="row"><div class="empty">Loading…</div></div>';
+  // quiet: refresh in place (no "Loading…" placeholder, keep the table on error)
+  // — used after an edit so server-derived fields such as CLIENT / LEAD, which
+  // can change on other enquiries of the same contact, catch up.
+  async function load({ quiet = false } = {}) {
+    if (!quiet) $('rows').innerHTML = '<div class="row"><div class="empty">Loading…</div></div>';
     try {
       const rows = [];
       let offset = 0;
@@ -734,6 +740,7 @@
       FILES = groupFiles(RAW);
       renderAll();
     } catch (error) {
+      if (quiet) return;
       $('rows').innerHTML = `<div class="row"><div class="empty">Couldn’t load records: ${esc(error.message || 'error')}</div></div>`;
     }
   }
@@ -746,6 +753,9 @@
       FILES = groupFiles(RAW);
       renderAll();
       showToast(`${label} updated.`);
+      // A move into / out of Won → JOB can turn this contact's other
+      // enquiries CLIENT or LEAD too — re-read the server's verdict.
+      if ('stage' in patch || 'status' in patch) load({ quiet: true });
     } catch (error) {
       renderAll(); // put the selects back to server truth
       showToast(error.message || `Could not update ${label.toLowerCase()}.`, true);
@@ -822,9 +832,15 @@
     const sel = event.target.closest('select.stover');
     if (!sel) return;
     event.stopPropagation();
+    // Recolour the stage pill at once; the re-render after the save confirms it.
+    if (sel.classList.contains('stsel')) sel.classList.toggle('is-won', STAGE_PICK_OF[sel.value] && STAGE_PICK_OF[sel.value].id === 'won');
+    // Recolour the status pill at once, too.
+    if (sel.classList.contains('stsel-status')) sel.setAttribute('style', statusPillStyle(sel.value));
     if (sel.dataset.act === 'stage') patchFile(sel.dataset.fid, { stage: sel.value }, 'Stage');
     else if (sel.dataset.act === 'status') patchFile(sel.dataset.fid, { status: sel.value }, 'Status');
     else if (sel.dataset.act === 'fst') { state.fSt = sel.value; renderViews(); }
+    else if (sel.dataset.act === 'fstage') { state.fStage = sel.value; renderViews(); }
+    else if (sel.dataset.act === 'fcl') { state.fCl = sel.value; renderViews(); }
   });
 
   $('rows').addEventListener('click', event => {
@@ -865,15 +881,6 @@
     state.view = btn.dataset.view;
     [...$('seg-view').children].forEach(b => b.classList.toggle('on', b === btn));
     renderViews();
-  });
-
-  document.querySelectorAll('.ai .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const key = chip.dataset.chip;
-      if (state.chips.has(key)) state.chips.delete(key); else state.chips.add(key);
-      chip.classList.toggle('on', state.chips.has(key));
-      renderViews();
-    });
   });
 
   const searchBar = $('crm-search');

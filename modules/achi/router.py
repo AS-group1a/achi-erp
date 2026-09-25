@@ -52,7 +52,7 @@ from .schemas import (
     QuickLogCreate,
     QuickLogOut,
 )
-from .service import CONTACT_INFO_TAG, ContactFileService, parse_comm_tally
+from .service import CONTACT_INFO_TAG, ContactFileService, is_job_file, parse_comm_tally
 from .quotation_router import quotation_router
 from .survey_router import survey_router
 from .geo_router import geo_router
@@ -77,6 +77,23 @@ router.include_router(task_router)
 router.include_router(planner_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
+
+
+def _page_with_popup(page_file: str, popup_file: str) -> str:
+    """Read a UI page and inline its popup, kept in a separate file for editing.
+
+    The page holds a one-line `<!-- @include <popup_file> … -->` marker; the popup
+    replaces that whole line, so the browser still receives one page and the
+    page's scripts find every popup element at load, exactly as before the split.
+    """
+    page = (_UI_DIR / page_file).read_text(encoding="utf-8")
+    popup = (_UI_DIR / popup_file).read_text(encoding="utf-8")
+    start = page.find(f"<!-- @include {popup_file}")
+    if start < 0:
+        raise RuntimeError(f"{page_file} is missing the {popup_file} include marker")
+    line_start = page.rfind("\n", 0, start) + 1
+    line_end = page.index("\n", start) + 1
+    return page[:line_start] + popup + page[line_end:]
 
 # Coordinate shapes a resolved Google Maps URL can carry. @lat,lng is the map
 # centre; !3d..!4d.. is the pinned place; q=/ll=/search/ are query forms.
@@ -130,7 +147,7 @@ def ui() -> HTMLResponse:
     routes below. Serving the shell to an anonymous browser leaks nothing.
     """
     return HTMLResponse(
-        (_UI_DIR / "general_log.html").read_text(encoding="utf-8"),
+        _page_with_popup("general_log.html", "add_log_popup.html"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -146,7 +163,7 @@ def general_log_ui() -> HTMLResponse:
     page presets window.ACHI_LOG_COLS so log-core.js renders a different column
     set. Same enquiry data (/logs/), so a log added on either page shows on both."""
     return HTMLResponse(
-        (_UI_DIR / "general_log.html").read_text(encoding="utf-8"),
+        _page_with_popup("general_log.html", "add_log_popup.html"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -164,7 +181,7 @@ def site_visit_workspace_ui() -> HTMLResponse:
     page, not the older independent SiteSurvey dataset. The same ContactFile
     remains visible in CRM while its current stage is ``site_survey``.
     """
-    page = (_UI_DIR / "general_log.html").read_text(encoding="utf-8")
+    page = _page_with_popup("general_log.html", "add_log_popup.html")
     page = page.replace(
         "<title>Log Â· Achi Scaffolding ERP</title>",
         "<title>Site Visit Â· Achi Scaffolding ERP</title>",
@@ -221,13 +238,8 @@ def contact_info_ui() -> HTMLResponse:
     contact_info.js finds every popup element at load, exactly as before.
     """
 
-    page = (_UI_DIR / "contact_info.html").read_text(encoding="utf-8")
-    popup = (_UI_DIR / "add_contact_popup.html").read_text(encoding="utf-8")
-    marker = "  <!-- @include add_contact_popup.html — the + contact popup; router.py inserts it here -->\n"
-    if marker not in page:
-        raise RuntimeError("contact_info.html is missing the add_contact_popup.html include marker")
     return HTMLResponse(
-        page.replace(marker, popup, 1),
+        _page_with_popup("contact_info.html", "add_contact_popup.html"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -1824,6 +1836,8 @@ async def list_logs(
     attachment_docs = await svc.attachment_deliverables(log_ids)
     # General Log Communication pills + Last Touch: per-file channel breakdown.
     comm_summary = await svc.communication_summary([r[1].id for r in rows])
+    # CLIENT / LEAD from each contact's whole history (one query for the page).
+    client_ids = await svc.client_contact_ids({r[1].contact_id for r in rows if r[1].contact_id})
     # Addresses we've already emailed (any teammate, successfully sent) — one query,
     # lowercased, so the grid can flag "already emailed" without a lookup per row.
     sent_to = {
@@ -1945,6 +1959,11 @@ async def list_logs(
                 last_touch_channel=comm.get("last_channel"),
                 contact_id=f.contact_id,
                 company_contact_id=f.company_contact_id,
+                contact_status=(
+                    "client"
+                    if is_job_file(f) or (f.contact_id and f.contact_id in client_ids)
+                    else "lead"
+                ),
                 contact_name=name,
                 prefix=prefix,
                 first_name=first,

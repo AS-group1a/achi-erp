@@ -51,7 +51,20 @@ async function rxSaveAll(keepOpen){
     if(!keepOpen) setTimeout(closeExpandedRow,450);
   }
 }
-function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); rxCloseAddSectionMenu(); rxCloseTakeoffPicker(); $('rx').hidden=true; rxRowId=null; }
+function closeExpandedRow(){
+  closeRxState(); closeRxSelect(); closeContactMatches(); rxCloseAddSectionMenu(); rxCloseTakeoffPicker();
+  rxRowId=null;
+  const rx=$('rx');
+  clearTimeout(rxCloseTimer);
+  if(rx.hidden) return;
+  // The reference dialog closes like the Contacts "+ contact" popup: play the
+  // reverse animation (130ms), then hide. Other dialogs, and viewers who ask
+  // for less motion, still close at once.
+  const reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!rx.classList.contains('rx-reference')||reduceMotion){ rx.classList.remove('rx-closing'); rx.hidden=true; return; }
+  rx.classList.add('rx-closing');
+  rxCloseTimer=setTimeout(()=>{ rx.classList.remove('rx-closing'); rx.hidden=true; },130);
+}
 
 /* Field saves go through the SAME endpoints as the grid's inline editors, keyed
    off each column's own edit.target — so nothing here can save to a different
@@ -2426,7 +2439,7 @@ function logThisMonthRange(){
    Immutable workspace scope is shared by the table and KPIs. User search and
    column filters narrow only the table; KPI counts always describe the full
    workspace. */
-function logFilteredPath(basePath,{includeTableFilters=true,includeOpenOnly=false}={}){
+function logFilteredPath(basePath,{includeTableFilters=true,includeKpiFilter=false}={}){
   const separator=basePath.indexOf('?');
   const path=separator===-1
     ? basePath
@@ -2475,12 +2488,14 @@ function logFilteredPath(basePath,{includeTableFilters=true,includeOpenOnly=fals
     appendLogColumnFilterParams(params);
   }
 
-  // Open Logs is the only KPI card that narrows the table. Override any
-  // separate Status-column selection while the card is active.
-  if(includeOpenOnly&&openOnly){
+  // The active KPI card narrows the table. Open / Done override any separate
+  // Status-column selection while the card is active; "this month" uses the
+  // same created-at month range the card's count comes from.
+  if(includeKpiFilter&&(kpiFilter==='open'||kpiFilter==='done')){
     params.delete('status');
-    params.append('status','open');
+    params.append('status',kpiFilter);
   }
+  if(includeKpiFilter&&kpiFilter==='month') params.set('this_month','true');
 
   const query=params.toString();
 
@@ -2489,7 +2504,7 @@ function logFilteredPath(basePath,{includeTableFilters=true,includeOpenOnly=fals
 function logListPath(){
   const base=logFilteredPath('/logs/',{
     includeTableFilters:true,
-    includeOpenOnly:true,
+    includeKpiFilter:true,
   });
   const url=new URL(base,window.location.origin);
   url.searchParams.set('limit',String(LOG_PAGE_SIZE));
@@ -2523,7 +2538,7 @@ function logListPath(){
 function logStatsPath(){
   return logFilteredPath('/logs/stats',{
     includeTableFilters:false,
-    includeOpenOnly:false,
+    includeKpiFilter:false,
   });
 }
 
@@ -2674,14 +2689,20 @@ tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dat
 let sraf=0; outer.addEventListener('scroll',()=>{ $('totop').classList.toggle('show',outer.scrollTop>200); if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
 $('totop').onclick=()=>outer.scrollTo({top:0,behavior:'smooth'});
 window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
-$('k-open-card').onclick=async()=>{
-  if(deletedView) return;
+/* KPI cards filter the table. Clicking an active card again (or Total logs)
+   goes back to all logs. */
+for(const [key,id] of Object.entries(KPI_CARD_IDS)){
+  const card=$(id);
+  if(!card) continue;
+  card.onclick=async()=>{
+    if(deletedView) return;
 
-  openOnly=!openOnly;
-  logOffset=0;
-  $('k-open-card').classList.toggle('on',openOnly);
-  await load();
-};
+    kpiFilter=(key===''||kpiFilter===key)?'':key;
+    logOffset=0;
+    syncKpiCards();
+    await load();
+  };
+}
 let logSearchTimer=null;
 
 $('q').oninput=()=>{
@@ -2707,9 +2728,9 @@ $('btn-clear-filters').onclick=async()=>{
   clearAllLogColumnFilters();
 
   $('q').value='';
-  openOnly=false;
+  kpiFilter='';
   logOffset=0;
-  $('k-open-card').classList.remove('on');
+  syncKpiCards();
 
   selectedRows.clear();
   refreshSelectionButton();

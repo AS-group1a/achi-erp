@@ -1577,11 +1577,18 @@ body.log-page table{
   font-family:inherit;
   font-size:11.5px;
 }
-/* Header = Contacts .hd: 8.5px heavy uppercase on #e6ebf3, 26px tall. */
+/* Header = Contacts .hd: 8.5px heavy uppercase on #e6ebf3, 26px tall.
+   The Contacts page never loads the Barlow web font (contact_info.css has no
+   @import, chrome.js uses a system stack), so its header actually renders in
+   the system UI font. Use that same stack here so the two headers match. */
 body.log-page thead tr{ background:#e6ebf3; }
+/* 36px: the Contacts header renders at 36px because its `.hd span` rule also
+   hits the nested filter box (min-height 26px + 5px padding top and bottom). */
 body.log-page thead th, body.log-page thead th.pg-f{
-  height:26px; padding:0 8px; border-right:1px solid #dbe2ed; border-bottom:1px solid #b9c5d8;
-  background:#e6ebf3; color:#44546e; font-size:8.5px; font-weight:800; letter-spacing:.06em; text-align:left;
+  height:36px; padding:0 8px; border-right:1px solid #dbe2ed; border-bottom:1px solid #b9c5d8;
+  background:#e6ebf3; color:#44546e;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:8.5px; font-weight:800; letter-spacing:.06em; text-align:left;
 }
 body.log-page thead th.num-head:hover, body.log-page thead th.num-head.on{ background:#dbe4f2; color:#1F3F80; }
 body.log-page .log-col-head{ position:relative; justify-content:flex-start; height:24px; gap:4px; }
@@ -1606,13 +1613,19 @@ body.log-page .log-col-filter-btn:hover, body.log-page .log-col-filter-btn:focus
 body.log-page .log-col-filter-btn.is-active{ border-color:#1F3F80; background:#284F9E; color:#fff; }
 body.log-page .rz:hover, body.log-page .rz.rz-active{ background:#8ba6cc; }
 /* Rows = Contacts .row: 11.5px, 3px 8px cells, #eef2f8 rules. */
+/* Rows have no vertical lines, like the CRM grid: only the horizontal rule
+   between rows (the header keeps its faint column separators, as the CRM's does). */
 body.log-page tbody td, body.log-page tbody td.pg-f{
-  height:26px; padding:3px 8px; border-right:1px solid #eef2f8; border-bottom:1px solid #eef2f8;
+  height:26px; padding:3px 8px; border-right:0; border-bottom:1px solid #eef2f8;
   background:#fff; color:#1d1d1f; font-size:11.5px; font-weight:400; text-align:left;
+  /* Same system stack the Contacts rows actually render in (see thead above). */
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
 }
+/* Empty cells stay blank, like the CRM grid. log-core.js marks every empty
+   value in a saved row with <span class="mt">—</span>; draft rows (not .data)
+   use .mt for their "you" owner hint, so they are left alone. */
+body.log-page tbody tr.data .mt{ display:none; }
 body.log-page tbody tr.data:nth-child(even) td, body.log-page tbody tr.data:nth-child(even) td.pg-f{ background:#fff; }
-body.log-page tbody tr.log-row-status-open td,
-body.log-page tbody tr.log-row-status-open td.pg-f{ background:#fff8f6; }
 body.log-page tbody tr.data:hover td, body.log-page tbody tr.data:hover td.pg-f{ background:#eaf1ff; }
 body.log-page .pg-f-shadow{ box-shadow:3px 0 7px -5px rgba(30,55,92,.36); }
 body.log-page tbody tr.selectable-row td.num{ padding:3px 8px; text-align:left; }
@@ -1872,12 +1885,26 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 /* Box, header, inputs and footer follow the Contacts "+ contact" popup
    (.pp-* in contact_info.css) so both dialogs read as one design system. */
 .rx-reference{
-  padding:18px;
-  background:rgba(15,23,42,.54);
-  backdrop-filter:blur(3px);
+  padding:20px;
+  background:rgba(15,23,42,.55);
+  backdrop-filter:none;
   font-family:Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
   font-size:12px;
   line-height:1.35;
+}
+/* Open / close exactly like the Contacts "+ contact" popup (.pp-backdrop /
+   .pp in contact_info.css): the backdrop fades, the box rises 8px and scales
+   up from 98.5%; closing plays both in reverse (closeExpandedRow in log.js
+   holds the popup for the 130ms this takes). */
+@keyframes rx-pp-fade{from{opacity:0}to{opacity:1}}
+@keyframes rx-pp-rise{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.rx-reference:not([hidden]){animation:rx-pp-fade .16s ease both}
+.rx-reference:not([hidden]) .rx-box{animation:rx-pp-rise .2s cubic-bezier(.2,.7,.3,1) both}
+.rx-reference.rx-closing{animation:rx-pp-fade .13s ease both reverse;pointer-events:none}
+.rx-reference.rx-closing .rx-box{animation:rx-pp-rise .13s ease both reverse}
+@media (prefers-reduced-motion:reduce){
+  .rx-reference:not([hidden]),
+  .rx-reference:not([hidden]) .rx-box{animation:none}
 }
 
 .rx-reference button,
@@ -1886,11 +1913,15 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference textarea{
   font-family:inherit;
 }
+/* Same size as the Contacts "+ contact" popup (.pp: min(1180px, 100vw - 40px)
+   wide, at most 100vh - 40px tall). The height is fixed at that limit so the
+   dialog keeps one size whether it holds just the quick capture or the full
+   "Contact — caller & company" section; the body scrolls inside it. */
 .rx-reference .rx-box{
-  width:min(980px,calc(100vw - 36px));
-  height:auto;
-  min-height:min(310px,calc(100dvh - 36px));
-  max-height:calc(100dvh - 36px);
+  width:min(1180px,calc(100vw - 40px));
+  height:calc(100dvh - 40px);
+  min-height:0;
+  max-height:calc(100dvh - 40px);
   display:flex;
   flex-direction:column;
   overflow:hidden;
@@ -1973,11 +2004,12 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   margin:0;
   flex:0 0 auto;
   color:#fff;
-  font-family:"Barlow Condensed",Barlow,sans-serif;
-  font-size:13px;
-  font-weight:700;
+  /* Same as the Contacts popup title (.pp-new): Barlow 15px, weight 800. */
+  font-family:Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  font-size:15px;
+  font-weight:800;
   line-height:1;
-  letter-spacing:.01em;
+  letter-spacing:0;
 }
 /* Log number = Contacts .pp-code. */
 .rx-reference .rx-chip{
@@ -2381,6 +2413,179 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-contact-match-head,.rx-contact-match-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;border-bottom:1px solid #dbe2ed;background:#eef2f8;color:#44546e;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
 .rx-contact-match-head span:last-child{color:#8a8f98;font-weight:600;letter-spacing:0;text-transform:none}
 .rx-contact-match-foot{border-top:1px solid #dbe2ed;border-bottom:0;background:#fbfcff;color:#284F9E;font-size:10px;letter-spacing:0;text-transform:none}
+
+/* ── "Contact — caller & company" = the Contacts "+ contact" popup ──────────
+   Mirrors the person / company sections of add_contact_popup.html, class by
+   class (the .pp-* rules in contact_info.css). Styling only: the fields,
+   data-* hooks and IDs log-core.js/log.js read are unchanged.
+     .rx-contact-identity      = .pp-idrow        (photo card + field grid)
+     .rx-contact-photo-card    = .pp-pic / .pp-pic-t / .pp-pic-box
+     .rx-contact-fields        = .pp-grid of .pp-f (92px right-aligned labels)
+     .rx-contact-panels/-card  = .pp-two / .pp-panel / .pp-panel-t
+     .rx-ref-line, phone/email = .pp-row (92px label | control | 22px ×)
+     .rx-ref-address           = .ppa (Address — personal)
+     .rx-company-toggle        = .pp-check;  .rx-company-panel = .pp-company
+     .rx-related-wrap / person = .ppx-wrap / .ppx */
+.rx-reference .rx-contact-reference{gap:0}
+
+/* identity row: 118px photo card beside the field grid */
+.rx-reference .rx-contact-identity{grid-template-columns:118px minmax(0,1fr);gap:10px;align-items:start}
+.rx-reference .rx-contact-photo-card{
+  align-items:center;gap:3px;padding:0 0 6px;overflow:hidden;
+  border:1px solid #b9c5d8;border-radius:5px;background:#fff;
+}
+.rx-reference .rx-contact-photo-card>.rx-contact-card-title{
+  align-self:stretch;margin:0;padding:2px 6px;border-bottom:1px solid #dbe2ed;background:#eef2f8;
+  color:#486077;font-size:9px;font-weight:800;letter-spacing:.06em;text-align:center;text-transform:uppercase;
+}
+.rx-reference .rx-contact-photo-drop{
+  flex:0 0 auto;flex-direction:column;justify-content:flex-start;min-height:77px;overflow:visible;
+  padding:0;border:0;border-radius:0;background:transparent;
+}
+.rx-reference .rx-contact-photo-drop:hover{background:transparent}
+.rx-reference .rx-contact-photo-drop:hover .rx-contact-photo-placeholder>span:last-child{text-decoration:underline}
+.rx-reference .rx-contact-photo-placeholder{gap:3px;color:#284F9E;font-size:11px;font-weight:700}
+.rx-reference .rx-contact-avatar{
+  width:72px;height:72px;margin-top:5px;border-radius:50%;
+  background:#eaf1ff;color:#284F9E;font-size:22px;font-weight:800;
+}
+.rx-reference .rx-contact-avatar.is-logo{border-radius:6px;background:#e0f5f5;color:#0a5f76}
+.rx-reference .rx-contact-photo-preview{
+  inset:auto;top:5px;left:50%;width:72px;height:72px;transform:translateX(-50%);border-radius:50%;
+}
+.rx-reference [data-rx-photo-card="company"] .rx-contact-photo-preview{border-radius:6px}
+/* Find online = .pf-btn */
+.rx-reference .rx-contact-photo-card .rx-find-online{
+  width:100%;min-height:0;height:22px;margin:4px 0 0;padding:1px 6px;border-radius:4px;font-size:10px;
+}
+
+/* field grid: three label/field pairs per row, 92px labels, 12px between pairs */
+.rx-reference .rx-contact-fields{
+  grid-template-columns:92px minmax(0,1fr) 98px minmax(0,1fr) 98px minmax(0,1fr);
+  gap:5px 6px;align-content:start;
+}
+.rx-reference .rx-contact-company-input,.rx-reference .rx-related-company{color:#1d1d1f;font-weight:400}
+/* "Referred by" takes its own full row, like .pp-f-wide */
+.rx-reference .rx-referral-label{grid-column:1}
+.rx-reference .rx-referral-input{grid-column:2 / -1}
+/* HQ address + "+ Detail" sit in one field cell, like .pp-inline */
+.rx-reference .rx-ref-wide-control{grid-column:auto;gap:4px}
+.rx-reference .rx-ref-wide-control .rx-ref-mini{height:26px;margin:0}
+
+/* phone / email panels */
+.rx-reference .rx-contact-panels{gap:6px;margin-top:8px;align-items:start}
+.rx-reference .rx-contact-card,
+.rx-reference .rx-company-panel .rx-contact-card,
+.rx-reference .rx-person .rx-contact-card{
+  padding:0 8px 6px;overflow:hidden;border:1px solid #b9c5d8;border-radius:5px;background:#fbfcff;
+}
+.rx-reference .rx-contact-card>.rx-contact-card-title{
+  display:flex;align-items:center;margin:0 -8px 6px;padding:3px 8px;
+  border-bottom:1px solid #dbe2ed;background:#eef2f8;
+  color:#486077;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+}
+.rx-reference .rx-phone-list,.rx-reference .rx-email-list,.rx-reference .rx-social-list,.rx-reference .rx-website-list,
+.rx-reference .rx-company-phone-list,.rx-reference .rx-company-online-list,.rx-reference .rx-related-phone-list,.rx-reference .rx-related-online-list{gap:4px}
+.rx-reference .rx-contact-card .rx-email-list,
+.rx-reference .rx-contact-card .rx-website-list{margin-bottom:4px}
+.rx-reference .rx-contact-card>.rx-phone-list,
+.rx-reference .rx-contact-card>.rx-social-list,
+.rx-reference .rx-contact-card>.rx-company-phone-list,
+.rx-reference .rx-contact-card>.rx-company-online-list,
+.rx-reference .rx-contact-card>.rx-related-phone-list,
+.rx-reference .rx-contact-card>.rx-related-online-list{margin-bottom:5px}
+
+/* rows: 92px label | control | 22px remove (Social: 92px | 76px platform | handle | ×) */
+.rx-reference .rx-phone-row,
+.rx-reference .rx-email-row,
+.rx-reference .rx-ref-line{grid-template-columns:92px minmax(0,1fr) 22px;gap:5px}
+.rx-reference .rx-ref-line-label{height:auto;padding:0;color:#44546e;font-size:10.5px;font-weight:700;text-align:right}
+/* type pickers are ordinary bordered .pp-in selects */
+.rx-reference .rx-phone-label,
+.rx-reference select.rx-ref-line-label{
+  height:26px;padding:2px 7px;border:1px solid #b9c5d8;border-radius:4px;background:#fff;
+  color:#1d1d1f;font-size:12px;font-weight:400;text-align:left;
+}
+.rx-reference .rx-phone-row .rx-in,.rx-reference .rx-email-row .rx-in,
+.rx-reference .rx-ref-line>.rx-in,.rx-reference .rx-ref-line .rx-in{border-radius:4px}
+.rx-reference .rx-phone-row .tel-wrap,.rx-reference .rx-ref-line .tel-wrap{display:flex;gap:4px;min-width:0}
+.rx-reference .rx-phone-row .tel-wrap .rx-in,.rx-reference .rx-ref-line .tel-wrap .rx-in{flex:1;min-width:0}
+/* country button = .pp .phone-country-button; WhatsApp numbers go green like .pp-wa */
+.rx-reference .tel-cc{
+  height:26px;gap:3px;padding:0 5px;border:1px solid #b9c5d8;border-radius:4px;background:#fff;font-size:11px;
+}
+.rx-reference .tel-cc img{width:16px;height:12px}
+.rx-reference .tel-cc.is-whatsapp,
+.rx-reference .rx-phone-row:has(.rx-phone-label option[value="WhatsApp"]:checked) .tel-cc,
+.rx-reference .rx-ref-line:has(select.rx-ref-line-label option[value="WhatsApp"]:checked) .tel-cc{
+  border-color:#b9e6c8;background:#e8f8ee;color:#15803d;
+}
+/* remove = .pp-rx: quiet ×, red on hover */
+.rx-reference .rx-phone-remove,.rx-reference .rx-email-remove,.rx-reference .rx-ref-remove{
+  width:22px;height:22px;border:1px solid transparent;border-radius:4px;background:transparent;
+  color:#6b7a92;font-family:inherit;font-size:15px;font-weight:400;line-height:1;
+}
+.rx-reference .rx-phone-remove:hover,.rx-reference .rx-email-remove:hover,.rx-reference .rx-ref-remove:hover{
+  border-color:#eccaca;background:#fbeaea;color:#b91c1c;
+}
+.rx-reference .rx-ref-social{grid-template-columns:76px minmax(0,1fr);gap:5px}
+/* "+ Add Number" = .pp-addlink; "+ Add…" = .pp-addsel */
+.rx-reference .rx-contact-card .rx-add-phone{margin-top:0}
+.rx-reference .rx-contact-card>.rx-ref-mini{
+  min-height:0;height:auto;margin:0;padding:0;border:0;background:transparent;color:#284F9E;font-size:11px;font-weight:700;
+}
+.rx-reference .rx-contact-card>.rx-ref-mini:hover{background:transparent;text-decoration:underline}
+.rx-reference .rx-ref-add-select{
+  width:auto;height:26px;margin:0;padding:2px 7px;border-color:transparent;background:transparent;
+  color:#284F9E;font-size:11px;font-weight:700;box-shadow:none;cursor:pointer;
+}
+
+/* + Add Address = .pp-addbtn (dashed) */
+.rx-reference .rx-address-toggle,
+.rx-reference [data-rx-related-address-toggle]{
+  align-self:flex-start;display:inline-flex;align-items:center;min-height:0;height:26px;margin-top:8px;padding:0 10px;
+  border:1px dashed #93c5fd;border-radius:4px;background:#fff;color:#284F9E;font-size:11px;font-weight:700;
+}
+.rx-reference .rx-address-toggle:hover,
+.rx-reference [data-rx-related-address-toggle]:hover{background:#eaf1ff}
+
+/* Address — personal = .ppa (lighter, compact) */
+.rx-reference .rx-ref-address{margin-top:5px;padding:6px 8px;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff}
+.rx-reference .rx-ref-address>.rx-ref-subhead{gap:0;margin-bottom:6px}
+.rx-reference .rx-ref-address>.rx-ref-subhead b{color:#284F9E;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.rx-reference .rx-ref-address>.rx-ref-subhead span{margin-left:8px;color:#8a8f98;font-size:9.5px}
+.rx-reference .rx-ref-address .rx-contact-fields{
+  grid-template-columns:68px minmax(0,1fr) 80px minmax(0,1fr) 80px minmax(0,1fr);gap:6px;
+}
+.rx-reference .rx-ref-address .rx-ref-label{font-size:11px}
+
+/* From a company = .pp-check */
+.rx-reference .rx-company-toggle{margin-top:10px;color:#1F3F80;font-size:12px}
+.rx-reference .rx-company-toggle input{width:14px;height:14px}
+
+/* Company = .pp-company with a .pp-sec-t title strip */
+.rx-reference .rx-company-panel{gap:0;margin-top:12px;padding:8px;border:1px solid #b9c5d8;border-radius:6px;background:#fbfcff}
+.rx-reference .rx-company-panel>.rx-ref-subhead{
+  margin:-8px -8px 8px;padding:4px 8px;border-bottom:1px solid #dbe2ed;border-radius:6px 6px 0 0;background:#eef2f8;
+}
+.rx-reference .rx-company-panel>.rx-ref-subhead b{color:#486077;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.rx-reference .rx-company-panel>.rx-ref-subhead b span{color:#284F9E;font-size:11px;letter-spacing:0;text-transform:none}
+.rx-reference .rx-company-panel>.rx-ref-subhead>span{color:#8a95a8;font-size:9px}
+.rx-reference .rx-company-panel>.rx-ref-address{margin-top:8px}
+
+/* Additional contacts = .ppx-wrap / .ppx cards; "+ Person" = .pp-mini.ppx-add */
+.rx-reference .rx-related-wrap{margin-top:7px;padding-top:6px;border-top:1px dashed #c9d2e0}
+.rx-reference .rx-related-heading{margin-bottom:5px}
+.rx-reference .rx-person{margin-bottom:5px;padding:5px 7px;gap:0;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff}
+.rx-reference .rx-person-head{margin-bottom:5px}
+.rx-reference .rx-person-t{color:#486077;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.rx-reference .rx-person .rx-contact-panels{margin-top:6px}
+.rx-reference .rx-person-foot{margin-top:6px}
+.rx-reference .rx-person-foot [data-rx-related-address-toggle]{margin-top:0}
+.rx-reference .rx-person-foot label{font-size:10.5px}
+.rx-reference .rx-add-related{align-self:flex-start;margin-top:7px}
+.rx-reference .rx-online-result{margin-top:6px}
+.rx-reference .rx-contact-match-note{margin-top:6px}
 .rx-reference .rx-social{gap:4px}
 .rx-reference .rx-social .rx-in,
 .rx-reference .rx-social .rx-select-btn{height:26px}
@@ -2636,12 +2841,13 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 
 @media (max-width:860px){
   .rx-reference{padding:10px}
-  .rx-reference .rx-box{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}
+  .rx-reference .rx-box{width:calc(100vw - 20px);height:calc(100dvh - 20px);max-height:calc(100dvh - 20px)}
   .rx-reference .rx-g4,
   .rx-reference .rx-gc{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .rx-reference .rx-contact-fields{grid-template-columns:68px minmax(0,1fr) 78px minmax(0,1fr)}
+  .rx-reference .rx-contact-fields{grid-template-columns:92px minmax(0,1fr) 98px minmax(0,1fr)}
+  .rx-reference .rx-ref-address .rx-contact-fields{grid-template-columns:68px minmax(0,1fr) 80px minmax(0,1fr)}
   .rx-reference .rx-ref-span3{grid-column:auto}
-  .rx-reference .rx-ref-wide-control{grid-column:span 3}
+  .rx-reference .rx-ref-wide-control{grid-column:auto}
   .rx-reference .rx-tag{display:none}
   .rx-reference .rx-capture-top{grid-template-columns:1fr}
   .rx-reference .rx-head{
@@ -2663,8 +2869,8 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   .rx-reference .rx-g-person{grid-template-columns:1fr}
   .rx-reference .rx-contact-identity{grid-template-columns:1fr}
   .rx-reference .rx-contact-photo-card{min-height:106px}
-  .rx-reference .rx-contact-photo-drop{min-height:64px}
-  .rx-reference .rx-contact-fields{grid-template-columns:76px minmax(0,1fr)}
+  .rx-reference .rx-contact-fields{grid-template-columns:92px minmax(0,1fr)}
+  .rx-reference .rx-ref-address .rx-contact-fields{grid-template-columns:68px minmax(0,1fr)}
   .rx-reference .rx-contact-panels{grid-template-columns:1fr}
   .rx-reference .rx-ref-label{text-align:left}
   .rx-reference .rx-ref-span3{grid-column:auto}

@@ -35,7 +35,7 @@
     document.body.classList.add('deleted-view');
     btn.classList.add('on');
     selectedRows.clear();                 // active selection doesn't carry into this view
-    openOnly = false; $('k-open-card').classList.remove('on');
+    kpiFilter = ''; syncKpiCards();
     const qv = $('qv'); if(qv) qv.hidden = true;
     $('rows').innerHTML = '';             // drop the active rows immediately, before the fetch
     await fetchDeleted();

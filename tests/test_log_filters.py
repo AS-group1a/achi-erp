@@ -210,6 +210,16 @@ class OriginQueryContractTests(unittest.TestCase):
 
         self.assertNotIn("origin_module", sql)
 
+    def test_this_month_filters_on_created_at_like_the_kpi(self) -> None:
+        self.assertNotIn(
+            "achi_file_log.created_at >=",
+            self._compiled_predicates(LogFilterParams()),
+        )
+        sql = self._compiled_predicates(LogFilterParams(this_month=True))
+
+        self.assertIn("achi_file_log.created_at >=", sql)
+        self.assertIn("achi_file_log.created_at <", sql)
+
 
 if __name__ == "__main__":
     unittest.main()
