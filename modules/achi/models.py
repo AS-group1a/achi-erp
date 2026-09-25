@@ -497,6 +497,30 @@ class AchiFullAccess(Base):
     note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
 
 
+class AchiContactCode(Base):
+    """A contact's permanent directory code: CO-00001 for a company, C-00001 for
+    a person (shown in the Contacts page's "Linked to" column).
+
+    OCE's contacts table is theirs, so the code lives here, keyed by contact_id.
+    Numbers run per kind, in the order codes are assigned: existing contacts
+    were numbered once by creation date, new ones take the next number. A code
+    is never renumbered or reused — deleting a contact leaves a gap. If a
+    contact is switched between person and company it gets a code in the new
+    kind (one row per contact and kind); the old one stays reserved.
+    """
+
+    __tablename__ = "achi_contact_code"
+    __table_args__ = (
+        Index("uq_achi_contact_code_contact_kind", "contact_id", "kind", unique=True),
+        Index("uq_achi_contact_code_kind_number", "kind", "number", unique=True),
+    )
+
+    # id / created_at / updated_at come from Base.
+    contact_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)  # "company" | "person"
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class AchiTakeoffLink(Base):
     """Caches the OCE takeoff artifact made from a Call Log attachment, so
     opening it in the editor reuses the same drawing/document rather than

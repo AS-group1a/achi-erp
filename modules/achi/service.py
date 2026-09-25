@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timezone
 
 from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -17,6 +18,7 @@ from app.modules.contacts.models import Contact
 from app.modules.users.models import User
 
 from .models import (
+    AchiContactCode,
     AchiEmail,
     ContactFile,
     FileLog,
@@ -148,6 +150,89 @@ MODULE_TAG = "achi_file"
 # carry it too, or it exists in the database yet never appears on the Contacts
 # page. router.py imports this name — single source, so they cannot drift.
 CONTACT_INFO_TAG = "achi_contact_info"
+
+# ── Contact directory codes (CO-00001 companies, C-00001 people) ─────────────
+_CONTACT_CODE_PREFIX = {"company": "CO", "person": "C"}
+
+
+def contact_kind(contact: Contact) -> str:
+    """"company" or "person", by the same rule as the Contacts page: the stored
+    record_type, else a contact with a company name and no person name."""
+    bucket = (contact.custom_properties or {}).get(CONTACT_INFO_TAG) or {}
+    record_type = bucket.get("record_type") if isinstance(bucket, dict) else None
+    if record_type in _CONTACT_CODE_PREFIX:
+        return record_type
+    if not contact.first_name and not contact.last_name and contact.company_name:
+        return "company"
+    return "person"
+
+
+def format_contact_code(kind: str, number: int) -> str:
+    return f"{_CONTACT_CODE_PREFIX[kind]}-{number:05d}"
+
+
+async def contact_codes(session: AsyncSession, contacts: list[Contact]) -> dict[str, str]:
+    """{contact_id: "CO-00001" | "C-00001"} for these contacts.
+
+    Contacts without a code in their current kind get the next number of that
+    kind, in creation order — so the first call numbers the existing directory
+    by creation date. Codes are stored (achi_contact_code) and never change.
+    Two requests assigning at once can race on the unique number: the loser's
+    transaction is rolled back and it retries against the new maximum.
+    """
+    # Plain values up front: a rollback below expires the ORM objects, and an
+    # expired attribute cannot be lazy-loaded on an async session.
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+    items = sorted(
+        ((str(c.id), contact_kind(c), c.created_at or epoch) for c in contacts),
+        key=lambda item: (item[2], item[0]),
+    )
+    kinds = {cid: kind for cid, kind, _created in items}
+    if not kinds:
+        return {}
+    have: dict[tuple[str, str], int] = {}
+    for _attempt in range(3):
+        rows = (
+            await session.execute(
+                select(AchiContactCode).where(AchiContactCode.contact_id.in_(list(kinds)))
+            )
+        ).scalars().all()
+        have = {(r.contact_id, r.kind): r.number for r in rows}
+        missing = [(cid, kind) for cid, kind, _created in items if (cid, kind) not in have]
+        if not missing:
+            break
+        for kind in _CONTACT_CODE_PREFIX:
+            todo = [cid for cid, k in missing if k == kind]
+            if not todo:
+                continue
+            top = (
+                await session.execute(
+                    select(func.max(AchiContactCode.number)).where(AchiContactCode.kind == kind)
+                )
+            ).scalar() or 0
+            for cid in todo:
+                top += 1
+                session.add(AchiContactCode(contact_id=cid, kind=kind, number=top))
+                have[(cid, kind)] = top
+        try:
+            await session.commit()
+            break
+        except IntegrityError:
+            await session.rollback()
+    else:
+        # Every attempt lost a race: answer with what is actually stored; the
+        # rest get their codes on the next request.
+        rows = (
+            await session.execute(
+                select(AchiContactCode).where(AchiContactCode.contact_id.in_(list(kinds)))
+            )
+        ).scalars().all()
+        have = {(r.contact_id, r.kind): r.number for r in rows}
+    return {
+        cid: format_contact_code(kind, have[(cid, kind)])
+        for cid, kind in kinds.items()
+        if (cid, kind) in have
+    }
 
 
 def _ensure_directory_tag(contact) -> None:
