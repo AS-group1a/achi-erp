@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · ARARA ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=39">
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=50">
 <link rel="stylesheet" href="/api/v1/achi/ui/quill.snow.css">
 </head>
 <!-- Renamed from log.html to general_log.html per the redesign request. This
@@ -54,15 +54,18 @@
     </div>
 
     <div class="kpis" aria-label="Log summary">
-      <div class="kpi k1">
-        <strong class="n" id="k-total">0</strong>
-        <span class="l">Total logs</span>
-      </div>
+      <button class="kpi k1 btn" id="k-total-card" type="button" title="Show all logs">
+        <strong class="n" id="k-total">0</strong><span class="l">Total logs</span>
+      </button>
       <button class="kpi k2 btn" id="k-open-card" type="button" title="Filter to open logs">
         <strong class="n" id="k-open">0</strong><span class="l">open logs</span>
       </button>
-      <div class="kpi k3"><strong class="n" id="k-month">0</strong><span class="l">logs this month</span></div>
-      <div class="kpi k4"><strong class="n" id="k-done">0</strong><span class="l">done</span></div>
+      <button class="kpi k3 btn" id="k-month-card" type="button" title="Filter to logs created this month">
+        <strong class="n" id="k-month">0</strong><span class="l">logs this month</span>
+      </button>
+      <button class="kpi k4 btn" id="k-done-card" type="button" title="Filter to done logs">
+        <strong class="n" id="k-done">0</strong><span class="l">done</span>
+      </button>
       <button class="kpi-deleted" id="btn-deleted" type="button" title="Show deleted logs — restore them or delete them permanently">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         <span>Deleted Logs</span>
@@ -96,82 +99,7 @@
     </div>
   </div>
 
-  <!-- Add/Edit Log dialog. log-core.js supplies the form sections at runtime;
-       these stable IDs keep the existing API, validation and upload behavior. -->
-  <div class="rx rx-reference" id="rx" hidden>
-    <div class="rx-box" role="dialog" aria-modal="true" aria-labelledby="rx-title">
-      <div class="rx-head">
-        <h2 id="rx-title">New</h2>
-        <span class="rx-chip" id="rx-num">LOG</span>
-        <label class="sr-only" for="rx-header-type">Log type</label>
-        <select class="rx-head-select" id="rx-header-type" data-rx-native aria-label="Log type"></select>
-        <span class="rx-when-wrap">
-          <span class="rx-when-display"><span id="rx-when-label"></span>
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M5 2v3M11 2v3M2.5 6.5h11"/></svg>
-          </span>
-          <input type="datetime-local" class="rx-when" id="rx-when" aria-label="Log date and time">
-        </span>
-        <div class="rx-state" id="rx-state">
-          <button type="button" class="rx-state-btn" id="rx-state-btn" aria-haspopup="listbox" aria-expanded="false">
-            <span class="rx-state-mark" id="rx-state-mark"></span>
-            <span id="rx-state-label">OPEN</span>
-            <svg class="rx-state-arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m2.5 4.5 3.5 3 3.5-3"/></svg>
-          </button>
-          <div class="rx-state-menu" id="rx-state-menu" role="listbox" aria-label="Log status" hidden></div>
-        </div>
-        <label class="rx-head-followup" for="rx-header-followup">
-          <span>FOLLOW UP</span>
-          <input type="date" id="rx-header-followup" aria-label="Follow-up date">
-        </label>
-        <span class="rx-by" id="rx-by">by —</span>
-        <p class="rx-tag" id="rx-sub">Quick capture</p>
-        <button type="button" class="rx-x" id="rx-close" aria-label="Close">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
-        </button>
-      </div>
-      <div class="rx-regarding">
-        <span class="rx-regarding-label">REGARDING</span>
-
-        <select
-          class="rx-regarding-control"
-          id="rx-regarding-select"
-          data-rx-native
-          aria-label="Regarding"
-        >
-          <option value="new-first-contact" selected>New — first contact</option>
-          <option value="existing-enquiry">Existing enquiry</option>
-          <option value="existing-site-visit">Existing site visit</option>
-          <option value="existing-drawing">Existing drawing</option>
-          <option value="existing-mt">Existing M/T</option>
-          <option value="existing-boq">Existing BOQ</option>
-          <option value="existing-quotation">Existing quotation</option>
-          <option value="existing-job">Existing job</option>
-          <option value="existing-invoice">Existing invoice</option>
-          <option value="existing-balance">Existing balance</option>
-          <option value="existing-site-past-client">Existing site — past client</option>
-        </select>
-
-        <span class="rx-regarding-help">
-          First contact — log saves in the Log module; promote it to ENQ at any time.
-        </span>
-      </div>
-
-      <div class="rx-cols">
-        <div class="rx-body" id="rx-body"></div>
-      </div>
-      <div class="rx-foot">
-        <label class="rx-copy-l" for="rx-copy">ON SAVE, COPY TO</label>
-        <select class="rx-copy" id="rx-copy"></select>
-        <span class="rx-copy-h">the log stays here — a linked copy opens the same popup from that module</span>
-        <span class="rx-status" id="rx-status"></span>
-        <div class="rx-foot-btns">
-          <button type="button" class="rx-cancel" id="rx-cancel">Cancel</button>
-          <button type="button" class="rx-save-cont" id="rx-save-cont">Save &amp; continue</button>
-          <button type="button" class="rx-save" id="rx-save">Save Log</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- @include add_log_popup.html — the Add/Edit Log popup; router.py inserts it here -->
 
   <!-- Quick quotation. Below the table, like the ERPNext quick view it replaces.
        Hidden until exactly one saved row is selected: a quotation is addressed to
@@ -228,13 +156,13 @@
      STANDARD_LOG_TABLE_COLS list (now including "By"). FORM_COLS still builds
      the full Add/Edit form, unchanged. -->
 
-<script src="/api/v1/achi/ui/log-core.js?v=38"></script>
-<script src="/api/v1/achi/ui/log.js?v=27"></script>
+<script src="/api/v1/achi/ui/log-core.js?v=42"></script>
+<script src="/api/v1/achi/ui/log.js?v=29"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=42"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 <script src="/api/v1/achi/ui/quill.js"></script>
 <script src="/api/v1/achi/ui/log-notes.js?v=1"></script>
-<script src="/api/v1/achi/ui/log-deleted.js?v=1"></script>
+<script src="/api/v1/achi/ui/log-deleted.js?v=2"></script>
 </body>
 </html>

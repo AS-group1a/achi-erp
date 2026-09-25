@@ -2185,7 +2185,17 @@ function cellHTML(c,r,i){switch(c.k){
 const ROW_CACHE_KEY=
   `achi_log_rows_v2:${window.location.pathname}`;
 const LOG_PAGE_SIZE=100;
-let ROWS=[], openOnly=false, activeTab=0, logOffset=0, logTotal=0;
+let ROWS=[], kpiFilter='', activeTab=0, logOffset=0, logTotal=0;
+/* KPI cards that narrow the table: '' (Total logs = no narrowing), 'open',
+   'month' or 'done'. Only pages that carry a card's id get it wired; the rest
+   keep their static counters. */
+const KPI_CARD_IDS={'':'k-total-card',open:'k-open-card',month:'k-month-card',done:'k-done-card'};
+function syncKpiCards(){
+  for(const [key,id] of Object.entries(KPI_CARD_IDS)){
+    const card=$(id);
+    if(card) card.classList.toggle('on',key!==''&&key===kpiFilter);
+  }
+}
 let logSortBy='', logSortDir='';
 function sortDirectionLabels(field){
   if(field==='stage') return ['Pipeline order','Reverse pipeline order'];
@@ -2637,8 +2647,8 @@ function revealSavedRow(logId){
   // so "Save" always lands on the actual saved row instead of leaving it lost.
   if(!$('rows').querySelector(selector)){
     $('q').value='';
-    openOnly=false;
-    $('k-open-card').classList.remove('on');
+    kpiFilter='';
+    syncKpiCards();
     render();
   }
   revealGridRow(selector);
@@ -3111,7 +3121,7 @@ function rxReferenceContactHTML(src,val){
     <div class="rx-online-result" id="rx-online-result" hidden></div>
     <div class="rx-contact-panels">
       <div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div>${rxPhoneListHTML(phoneRows)}</div>
-      <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-email-list" id="rx-email-list">${emailHtml}</div><div class="rx-website-list" id="rx-website-list">${rxReferenceOnlineRow('Website',src.website||'','main','company.com')}</div><div class="rx-social-list" id="rx-social-list">${socials.map(s=>rxReferenceSocialRow(s.platform,s.handle,'main')).join('')}</div><select class="rx-in rx-ref-add-select" id="rx-add-online"><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
+      <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-email-list" id="rx-email-list">${emailHtml}</div><div class="rx-website-list" id="rx-website-list">${rxReferenceOnlineRow('Website',src.website||'','main','company.com')}</div><div class="rx-social-list" id="rx-social-list">${socials.map(s=>rxReferenceSocialRow(s.platform,s.handle,'main')).join('')}</div><select class="rx-in rx-ref-add-select" data-rx-native aria-label="Add email, website or social" id="rx-add-online"><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
     </div>
     <button type="button" class="rx-ref-mini rx-address-toggle" data-rx-address-toggle="main">+ Add Address</button>
     <div class="rx-ref-address" data-rx-address-panel="main" hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where the person lives — site address stays in the Site section</span><button type="button" data-rx-address-close="main">×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street name"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>
@@ -3133,7 +3143,7 @@ function rxReferenceContactHTML(src,val){
       <div class="rx-ref-address" data-rx-company-address-panel hidden><div class="rx-ref-subhead"><b>Company HQ details</b><span>registered or main office address</span><button type="button" data-rx-company-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / floor"></div></div>
       <div class="rx-contact-panels">
         <div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div><div class="rx-company-phone-list">${rxReferenceTelRow('Telephone','','company')}${rxReferenceTelRow('Mobile','','company')}${rxReferenceTelRow('WhatsApp','','company')}</div><button type="button" class="rx-ref-mini" data-rx-company-add-phone>+ Add Number</button></div>
-        <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-company-online-list">${rxReferenceOnlineRow('Email','','company','info@company.com')}${rxReferenceOnlineRow('Website','','company','company.com')}${rxReferenceSocialRow('IG','','company')}</div><select class="rx-in rx-ref-add-select" data-rx-company-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
+        <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-company-online-list">${rxReferenceOnlineRow('Email','','company','info@company.com')}${rxReferenceOnlineRow('Website','','company','company.com')}${rxReferenceSocialRow('IG','','company')}</div><select class="rx-in rx-ref-add-select" data-rx-native aria-label="Add email, website or social" data-rx-company-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
       </div>
     </div>
     <div class="rx-related-wrap${relatedRows?'':' rx-related-empty'}" id="rx-related-wrap"><div class="rx-related-heading">Additional contacts — same company, saved with this log</div><div class="rx-related-list" id="rx-related-list">${relatedRows}</div></div>
@@ -3142,6 +3152,9 @@ function rxReferenceContactHTML(src,val){
   </div>`;
 }
 
+/* Pending hide while the Add Log popup plays its close animation (set by
+   closeExpandedRow in log.js, cleared here when it is reopened). */
+let rxCloseTimer=null;
 function openExpandedRow(explicitId){
   if(deletedView) return;
   const forceNew=explicitId===null;
@@ -3353,6 +3366,9 @@ function openExpandedRow(explicitId){
   wireGeoManualInputs();
   rxRenumberPersons();
   setRxState(currentState);
+  // Reopening during the 130ms close animation cancels it.
+  clearTimeout(rxCloseTimer);
+  $('rx').classList.remove('rx-closing');
   $('rx').hidden=false;
   rxUpdateMapPreview();
   $('rx-body').scrollTop=0;
@@ -3541,17 +3557,14 @@ async function rxSavePhones(r){
 
 /* ── Emails: a repeatable "Add Email" list, saved to the same shared bucket the
    Contacts page uses (primary_email = first). Mirrors the phone list. ── */
-const EMAIL_LABELS=['Primary','Work','Personal','Accounts','Sales','Other'];
-function rxEmailOptions(sel){
-  const list=EMAIL_LABELS.includes(sel)?EMAIL_LABELS:[sel,...EMAIL_LABELS];
-  return list.map(l=>`<option value="${esc(l)}"${l===sel?' selected':''}>${esc(l)}</option>`).join('');
-}
 function rxEmailRow(email,removable){
   const addr=(email&&email.address)||'';
   const label=(email&&email.label)||'Other';
   const showCompose=validEmail(addr)&&addr.trim();
   return `<div class="rx-email-row" data-rx-email-row>`
-    +`<select class="rx-in rx-email-label" data-rx-email-label aria-label="Email type">${rxEmailOptions(label)}</select>`
+    // Shown as a plain "Email" label, like the Contacts "+ contact" popup. The
+    // saved type (Primary / Other…) rides along in data-label so it is kept.
+    +`<span class="rx-ref-line-label rx-email-label" data-rx-email-label data-label="${esc(label)}">Email</span>`
     +`<span class="draft-email"><input class="rx-in rx-email-addr" data-rx-email inputmode="email" autocomplete="email" placeholder="name@company.com" value="${esc(addr)}">`
     +`<button class="draft-compose" type="button" data-rx-compose title="Compose email"${showCompose?'':' hidden'}>${SVG.mail}</button></span>`
     +`<button type="button" class="rx-email-remove" data-rx-email-remove aria-label="Remove email" title="Remove email"${removable?'':' hidden'}>&times;</button>`
@@ -3572,7 +3585,7 @@ function rxCollectEmails(){
   document.querySelectorAll('#rx-email-list [data-rx-email-row]').forEach(row=>{
     const address=(row.querySelector('.rx-email-addr')?.value||'').trim();
     if(!address) return;
-    const label=(row.querySelector('[data-rx-email-label]')?.value||'Other').trim()||'Other';
+    const label=(row.querySelector('[data-rx-email-label]')?.dataset.label||'Other').trim()||'Other';
     out.push({label,address});
   });
   return out.slice(0,8);
@@ -3634,7 +3647,7 @@ function rxRelatedRow(rc){
       +`<div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-related-online-list">`
         +`<div class="rx-ref-line"><span class="rx-ref-line-label">Email</span><input class="rx-in" data-rc-email inputmode="email" placeholder="name@company.com" value="${esc(f.email)}"><button type="button" class="rx-ref-remove" data-rx-ref-remove>×</button></div>`
         +`${rxReferenceOnlineRow('Website',f.website,'related','company.com')}${rxReferenceSocialRow(f.social_platform,f.social,'related')}`
-      +`</div><select class="rx-in rx-ref-add-select" data-rx-related-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>`
+      +`</div><select class="rx-in rx-ref-add-select" data-rx-native aria-label="Add email, website or social" data-rx-related-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>`
     +`</div>`
     +`<div class="rx-person-foot"><label>Primary contact? <select class="rx-in" data-rc-primary><option value="no"${f.primary?'':' selected'}>No</option><option value="yes"${f.primary?' selected':''}>Yes</option></select></label><button type="button" class="rx-ref-mini" data-rx-related-address-toggle>+ Add Address</button></div>`
     +`<div class="rx-ref-address" data-rx-related-address-panel hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where this person lives</span><button type="button" data-rx-related-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>`

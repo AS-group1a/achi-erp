@@ -462,6 +462,8 @@ class LogFilterParams(BaseModel):
 
     when_from: AwareDatetime | None = None
     when_to: AwareDatetime | None = None
+    # Logs created in the current UTC month — the "logs this month" KPI card.
+    this_month: bool = False
 
     status: list[str] = Field(
         default_factory=list,
@@ -786,6 +788,10 @@ class LogRowOut(BaseModel):
     # in which case the name fields below come from the file as typed)
     contact_id: str | None = None
     company_contact_id: str | None = None
+    # "client" when the contact has at least one job in their history (any of
+    # their enquiries Won → JOB or converted, not cancelled), else "lead".
+    # Derived per request, never stored.
+    contact_status: Literal["client", "lead"] = "lead"
     contact_name: str | None = None
     prefix: str | None = None
     first_name: str | None = None

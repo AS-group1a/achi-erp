@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CRM | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=10">
+  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=23">
 </head>
 <body data-achi-title="CRM">
   <svg class="icon-sprite" aria-hidden="true">
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7L20 14"/><path d="M20 5v6h-6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="m18 6-12 12M6 6l12 12"/></symbol>
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
   </svg>
 
   <main class="pg" id="pg">
     <div class="bar">
-      <h1>CRM — enquiries pipeline</h1>
+      <h1>CRM</h1>
       <span style="flex:1"></span>
       <label class="srch-wrap" for="crm-search"><svg><use href="#i-search"/></svg><input class="srch" type="search" id="crm-search" placeholder="Search ENQ, client, subject…" autocomplete="off"></label>
       <div class="seg" id="seg-view">
@@ -31,9 +31,6 @@
     <div class="ai">
       <span class="badge">ARARA AI</span>
       <input id="ai-q" placeholder="Ask the pipeline… “what’s stuck?” · “who went quiet?” · “at quotation?”" autocomplete="off">
-      <span class="chip" data-chip="stuck">⚠ What’s stuck</span>
-      <span class="chip" data-chip="quiet">Who went quiet</span>
-      <span class="chip" data-chip="quo">At quotation stage</span>
     </div>
 
     <div class="kchips" id="kchips"></div>
@@ -77,7 +74,7 @@
   </div>
 
   <div class="toast" id="toast" role="status" hidden></div>
-  <script src="/api/v1/achi/crm/crm.js?v=10"></script>
+  <script src="/api/v1/achi/crm/crm.js?v=22"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=41"></script>
 </body>
 </html>
