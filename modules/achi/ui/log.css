@@ -1572,8 +1572,12 @@ body.log-page .tscroll{
   width:100%; height:var(--log-table-fit-height,calc(100dvh - 210px)); min-height:200px; overflow:auto;
   scrollbar-color:#8f99a7 #edf1f5; scrollbar-width:thin;
 }
+/* Fixed, fitted column widths (log-core.js STANDARD_LOG_TABLE_COLS): the table
+   is exactly as wide as its columns — never stretched to fill the screen — and
+   columns can't be dragged wider or narrower (no .rz handles). */
+body.log-page .rz{ display:none; }
 body.log-page table{
-  width:max-content; min-width:100%; background:#fff; color:#1d1d1f;
+  width:max-content; min-width:0; background:#fff; color:#1d1d1f;
   font-family:inherit;
   font-size:11.5px;
 }
@@ -1683,6 +1687,9 @@ body.log-page .log-note-source{
 }
 body.log-page .log-note-source.is-ai{ background:#f3edfb; color:#5b21b6; }
 body.log-page .log-note-text{ min-width:0; overflow:hidden; color:#44546e; font-size:10.5px; text-overflow:ellipsis; white-space:nowrap; }
+/* Next Action: follow-up note · date, like the CRM's column; red once overdue. */
+body.log-page .log-next-action{ display:block; overflow:hidden; color:#44546e; font-size:10.5px; text-overflow:ellipsis; white-space:nowrap; }
+body.log-page .log-next-action.is-overdue{ color:#b91c1c; font-weight:700; }
 body.log-page .cellmarks{ top:7px; right:6px; gap:4px; }
 body.log-page .cellmark svg{ width:11px; height:11px; }
 /* Intent pill — now an interactive trigger for the "Copy Log → Stage" menu

@@ -174,6 +174,36 @@
     cancelled:   { label: 'CANCELLED',   style: 'background:#fbeaea;color:#b91c1c' },
     transferred: { label: 'TRANSFERRED', style: 'background:#f4f6f9;color:#44546e' },
   };
+  // Contact columns of the grid (same order as the Log table: Mobile / WA,
+  // Email, Role, Company, City). All but Role get a header dropdown filter of
+  // the values present, plus "(blank)" for empty cells.
+  const CONTACT_COLS = [
+    // Mobile / WA: the WhatsApp number when the contact has one (green icon),
+    // else the first number (mobile icon). Filtered by that type, not value.
+    { k: 'mobile',  label: 'Mobile / WA', get: f => phoneInfo(f).number, filter: true,
+      options: [['whatsapp', 'WhatsApp'], ['mobile', 'Mobile']], match: (f, want) => phoneInfo(f).kind === want },
+    { k: 'email',   label: 'Email',       get: f => f.contact.email, filter: true },
+    { k: 'role',    label: 'Role',        get: f => f.contact.role, filter: false },
+    { k: 'company', label: 'Company',     get: f => f.contact.company, filter: true },
+    { k: 'city',    label: 'City',        get: f => f.site.city, filter: true },
+  ];
+  const CF_BLANK = '__blank__';
+  // Which number the Mobile / WA column shows, and its type: a number labelled
+  // WhatsApp wins ('whatsapp'); else the first number of any other label
+  // ('mobile'); '' when the contact has no number.
+  function phoneInfo(f) {
+    const phones = (f.contact.phones || []).filter(p => p && String(p.number || '').trim());
+    const wa = phones.find(p => /whats\s*app/i.test(String(p.label || '')));
+    if (wa) return { kind: 'whatsapp', number: String(wa.number).trim() };
+    const first = phones[0] ? String(phones[0].number).trim() : String(f.contact.mobile || '').trim();
+    return first ? { kind: 'mobile', number: first } : { kind: '', number: '' };
+  }
+  const PHONE_ICON = {
+    whatsapp: '<svg class="ph-ic is-wa" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>',
+    mobile: '<svg class="ph-ic is-mob" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>',
+  };
+  const cfValue = (col, f) => String(col.get(f) || '').trim();
+
   // The statuses the grid's Status column offers (row dropdown + header filter).
   const STATUS_PICK = ['open', 'scheduled', 'viewed', 'done', 'cancelled'];
   // Colours only (background-color, not the `background` shorthand) so the
@@ -200,6 +230,7 @@
     fSt: '',                 // status column filter
     fStage: '',              // stage column filter (a STAGE_PICK id)
     fCl: '',                 // client / lead column filter: '' | 'lead' | 'client'
+    cf: { mobile: '', email: '', company: '', city: '' }, // contact column filters (CF_BLANK = empty cells)
     sort: { k: 'recv', dir: 'desc' },
     sel: null,               // selected file_id
     dock: 'below',           // below | side
@@ -377,6 +408,13 @@
     let list = FILES.filter(f => textMatch(f));
     if (state.fSt) list = list.filter(f => f.status === state.fSt);
     if (state.fCl) list = list.filter(f => f.clientStatus === state.fCl);
+    CONTACT_COLS.forEach(col => {
+      const want = col.filter && state.cf[col.k];
+      if (want) {
+        list = list.filter(f => (want === CF_BLANK ? !cfValue(col, f)
+          : col.match ? col.match(f, want) : cfValue(col, f) === want));
+      }
+    });
     if (state.fStage) list = list.filter(f => STAGE_PICK_OF[f.stage] && STAGE_PICK_OF[f.stage].id === state.fStage);
     const dir = state.sort.dir === 'asc' ? 1 : -1;
     const key = state.sort.k === 'age'
@@ -430,7 +468,8 @@
   }
 
   function subjectCell(f) {
-    const site = [f.site.city, f.site.location].filter(Boolean).join(' — ');
+    // Site line = the site location only; the city has its own City column.
+    const site = f.site.location || '';
     return `<div style="line-height:1.15"><span style="font-size:11px">${f.subject ? esc(f.subject) : ''}</span>`
       + (site ? `<div class="nm-sub">${esc(site)}</div>` : '') + '</div>';
   }
@@ -462,18 +501,58 @@
     $('hd').innerHTML =
       '<span>Code</span>'
       + `<span class="srt" data-sort="recv">Received<i class="sarr2">${arrow('recv')}</i></span>`
-      + `<span class="flt${state.fCl ? ' on' : ''}">Client / Lead <i class="farr">▾</i>${state.fCl ? ' · ' + (state.fCl === 'client' ? 'Client' : 'Lead') : ''}`
+      + `<span class="flt${state.fCl ? ' on' : ''}">Client / Lead <i class="farr">▾</i>`
       + `<select class="stover" data-act="fcl" title="Filter by client / lead">`
       + `<option value="">All</option><option value="lead"${state.fCl === 'lead' ? ' selected' : ''}>Lead</option>`
       + `<option value="client"${state.fCl === 'client' ? ' selected' : ''}>Client</option></select></span>`
+      + CONTACT_COLS.map(contactHeadCell).join('')
       + '<span>Subject / site</span>'
-      + `<span class="flt${state.fStage ? ' on' : ''}">Stage <i class="farr">▾</i>${state.fStage ? ' · ' + esc(STAGE_PICK.find(p => p.id === state.fStage).label) : ''}`
+      + `<span class="flt${state.fStage ? ' on' : ''}">Stage <i class="farr">▾</i>`
       + `<select class="stover" data-act="fstage" title="Filter by stage">${stageFilterOptions}</select></span>`
       + '<span>Next action</span>'
       + '<span>Own</span>'
       + `<span class="srt" data-sort="age">Age<i class="sarr2">${arrow('age')}</i></span>`
-      + `<span class="flt${state.fSt ? ' on' : ''}">Status <i class="farr">▾</i>${state.fSt ? ' · ' + esc(statusMeta(state.fSt).label) : ''}`
+      + `<span class="flt${state.fSt ? ' on' : ''}">Status <i class="farr">▾</i>`
       + `<select class="stover" data-act="fst" title="Filter by status">${options}</select></span>`;
+  }
+
+  // Header cell of a contact column: plain for Role, else a dropdown filter
+  // listing the values present in the loaded enquiries.
+  function contactHeadCell(col) {
+    if (!col.filter) return `<span>${esc(col.label)}</span>`;
+    const want = state.cf[col.k];
+    // A column with fixed options (Mobile / WA: WhatsApp, Mobile) lists those;
+    // the others list the values present in the loaded enquiries.
+    const choices = col.options
+      ? col.options
+      : [...new Set(FILES.map(f => cfValue(col, f)).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true }))
+        .map(v => [v, v]);
+    const hasBlank = FILES.some(f => !cfValue(col, f));
+    const options = [`<option value="">All</option>`]
+      .concat(choices.map(([v, label]) => `<option value="${esc(v)}"${want === v ? ' selected' : ''}>${esc(label)}</option>`))
+      .concat(hasBlank ? [`<option value="${CF_BLANK}"${want === CF_BLANK ? ' selected' : ''}>(blank)</option>`] : [])
+      .join('');
+    // An active filter shows only as the solid blue filter box; the header
+    // keeps just the column name.
+    return `<span class="flt${want ? ' on' : ''}">${esc(col.label)} <i class="farr">▾</i>`
+      + `<select class="stover" data-act="cf" data-k="${col.k}" title="Filter by ${esc(col.label.toLowerCase())}">${options}</select></span>`;
+  }
+
+  // Row cells of the contact columns: plain text, blank when empty.
+  function contactCells(f) {
+    return CONTACT_COLS.map(col => {
+      const v = cfValue(col, f);
+      if (col.k === 'mobile') {
+        const info = phoneInfo(f);
+        if (!info.number) return '<div class="mut c2"></div>';
+        const kind = info.kind === 'whatsapp' ? 'WhatsApp' : 'Mobile';
+        return `<div class="mut num c2" title="${esc(kind + ': ' + info.number)}"><span class="ph-cell">`
+          + `${PHONE_ICON[info.kind]}<span class="ph-num">${esc(info.number)}</span></span></div>`;
+      }
+      const cls = col.k === 'company' ? '' : col.k === 'mobile' ? 'mut num c2' : 'mut c2';
+      return `<div class="${cls}" title="${esc(v)}">${esc(v)}</div>`;
+    }).join('');
   }
 
   function rowHTML(f) {
@@ -482,6 +561,7 @@
       + `<div><span class="code">${esc(f.code)}</span></div>`
       + `<div class="mut num" style="font-size:10.5px">${f.recvAt ? esc(fmtDMY(f.recvAt)) : ''}</div>`
       + `<div>${clientCell(f)}</div>`
+      + contactCells(f)
       + `<div>${subjectCell(f)}</div>`
       + `<div>${stageCell(f)}</div>`
       + `<div>${nextCell(f)}</div>`
@@ -762,63 +842,60 @@
     }
   }
 
-  // ── New Prospect (unchanged behaviour — POST /logs/) ───────────────────────
-  function openProspect() {
-    const modal = $('prospect-modal');
-    if (!modal) return;
-    $('prospect-form').reset();
-    $('prospect-error').textContent = '';
-    modal.hidden = false;
-    const first = $('prospect-form').elements.first_name;
-    if (first) first.focus();
+  // ── New ENQ: the Log page's Add Log popup, exactly ─────────────────────────
+  // Markup: add_ENQ_popup.html. /crm/add-enq/ui is the Log page reduced to its
+  // Add Log popup and set to create CRM enquiries (stage "enquiry", origin
+  // "crm"). It is preloaded once into a hidden full-screen frame and kept, so
+  // "+ New ENQ" only fades in the backdrop and asks the popup to open (it
+  // plays its own animation). Messages: frame → 'ready' / 'closed';
+  // CRM → 'open-enq'.
+  const ENQ_FORM_URL = `${API}/crm/add-enq/ui`;
+  let enqReady = false;
+  let enqPending = false;
+
+  function preloadEnqForm() {
+    const frame = $('enq-frame');
+    if (frame && !frame.getAttribute('src')) frame.src = ENQ_FORM_URL;
   }
 
-  function closeProspect() {
-    const modal = $('prospect-modal');
-    if (modal) modal.hidden = true;
+  function sendEnqOpen() {
+    const frame = $('enq-frame');
+    if (!frame || !frame.contentWindow) return;
+    frame.contentWindow.postMessage({ source: 'achi-crm', type: 'open-enq' }, window.location.origin);
+    try { frame.focus(); } catch (_e) { /* ignore */ }
   }
 
-  async function submitProspect(event) {
-    event.preventDefault();
-    const form = $('prospect-form');
-    const val = name => (form.elements[name] ? form.elements[name].value.trim() : '');
-    const first = val('first_name'), last = val('last_name'), company = val('company_name');
-    if (!first && !last && !company) {
-      $('prospect-error').textContent = 'Enter at least a name or a company.';
-      return;
-    }
-    const payload = {
-      person: {
-        first_name: first || null,
-        last_name: last || null,
-        company_name: company || null,
-        mobile: val('mobile') || null,
-        email: val('email') || null,
-        is_company: !first && !last && Boolean(company),
-      },
-      subject: val('subject'),
-      category: val('category') || null,
-      stage: 'enquiry',
-      status: 'open',
-      log_type: 'General',
-      occurred_at: new Date().toISOString(),
-    };
-    const save = $('prospect-save');
-    save.disabled = true;
-    const label = save.textContent;
-    save.textContent = 'Adding…';
-    try {
-      await request(`${API}/logs/`, { method: 'POST', body: payload });
-      closeProspect();
-      showToast('Enquiry added.');
-      await load();
-    } catch (error) {
-      $('prospect-error').textContent = error.message || 'Could not add the enquiry.';
-    } finally {
-      save.disabled = false;
-      save.textContent = label;
-    }
+  function openEnqForm() {
+    const wrap = $('enq-frame-wrap');
+    if (!wrap) return;
+    preloadEnqForm();
+    wrap.classList.add('is-open');
+    wrap.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    if (enqReady) sendEnqOpen(); else enqPending = true;   // opens on 'ready'
   }
+
+  function closeEnqForm() {
+    const wrap = $('enq-frame-wrap');
+    if (!wrap || !wrap.classList.contains('is-open')) return;
+    wrap.classList.remove('is-open');                      // backdrop fades out (crm.css)
+    wrap.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    enqPending = false;
+    load({ quiet: true });                                 // a saved enquiry shows up
+  }
+
+  window.addEventListener('message', event => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data || {};
+    if (data.source !== 'achi-add-enq') return;
+    if (data.type === 'ready') {
+      enqReady = true;
+      if (enqPending) { enqPending = false; sendEnqOpen(); }
+    } else if (data.type === 'closed') {
+      closeEnqForm();
+    }
+  });
 
   // ── Events ─────────────────────────────────────────────────────────────────
   function selectFile(fid) {
@@ -841,6 +918,7 @@
     else if (sel.dataset.act === 'fst') { state.fSt = sel.value; renderViews(); }
     else if (sel.dataset.act === 'fstage') { state.fStage = sel.value; renderViews(); }
     else if (sel.dataset.act === 'fcl') { state.fCl = sel.value; renderViews(); }
+    else if (sel.dataset.act === 'cf') { state.cf[sel.dataset.k] = sel.value; renderViews(); }
   });
 
   $('rows').addEventListener('click', event => {
@@ -897,18 +975,13 @@
   const refresh = $('refresh-button');
   if (refresh) refresh.addEventListener('click', () => load().then(() => showToast('CRM refreshed.')));
   const newBtn = $('new-prospect-button');
-  if (newBtn) newBtn.addEventListener('click', openProspect);
-  const prospectClose = $('prospect-close');
-  if (prospectClose) prospectClose.addEventListener('click', closeProspect);
-  const prospectCancel = $('prospect-cancel');
-  if (prospectCancel) prospectCancel.addEventListener('click', closeProspect);
-  const prospectForm = $('prospect-form');
-  if (prospectForm) prospectForm.addEventListener('submit', submitProspect);
-  const prospectModal = $('prospect-modal');
-  if (prospectModal) prospectModal.addEventListener('click', event => { if (event.target === prospectModal) closeProspect(); });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeProspect(); });
+  if (newBtn) {
+    newBtn.addEventListener('click', openEnqForm);
+    newBtn.addEventListener('pointerenter', preloadEnqForm, { once: true });
+  }
 
   // ── Boot ───────────────────────────────────────────────────────────────────
   renderHead();
-  load();
+  // Preload the New ENQ form once the grid has had its turn on the network.
+  load().finally(() => window.setTimeout(preloadEnqForm, 600));
 })();
