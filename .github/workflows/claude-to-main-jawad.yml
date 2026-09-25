@@ -1,0 +1,67 @@
+name: Claude Approved Changes to main-jawad
+
+on:
+  push:
+    branches:
+      - "claude/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: main-jawad-auto-merge
+  cancel-in-progress: false
+
+jobs:
+  merge-approved-change:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check approval marker
+        id: approval
+        run: |
+          MESSAGE="${{ github.event.head_commit.message }}"
+
+          if [[ "$MESSAGE" != *"[JAWAD-APPROVED]"* ]]; then
+            echo "This Claude push has not been approved by Jawad."
+            echo "approved=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "approved=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        if: steps.approval.outputs.approved == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: main-jawad
+          fetch-depth: 0
+
+      - name: Merge Claude branch into main-jawad
+        if: steps.approval.outputs.approved == 'true'
+        env:
+          SOURCE_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -e
+
+          git config user.name "ARARABX Claude Automation"
+          git config user.email "actions@users.noreply.github.com"
+
+          git fetch origin main-jawad
+          git fetch origin "$SOURCE_BRANCH"
+
+          git checkout main-jawad
+          git reset --hard origin/main-jawad
+
+          git merge --no-ff \
+            "origin/$SOURCE_BRANCH" \
+            -m "Auto-merge approved Claude change from $SOURCE_BRANCH"
+
+          git push origin HEAD:main-jawad
+
+      - name: Delete temporary Claude branch
+        if: steps.approval.outputs.approved == 'true'
+        env:
+          SOURCE_BRANCH: ${{ github.ref_name }}
+        run: |
+          git push origin --delete "$SOURCE_BRANCH" || true
