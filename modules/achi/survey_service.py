@@ -45,15 +45,23 @@ def _drawing_has_shapes(payload: str) -> bool:
 
 
 async def _next_survey_number(session: AsyncSession) -> str:
-    """ACHI-SV-YYYY-NNNNN, sequential within the year (MAX+1, like the files)."""
-    year = datetime.now(timezone.utc).year
-    prefix = f"ACHI-SV-{year}-"
-    row = await session.execute(
-        select(func.max(SiteSurvey.survey_number)).where(SiteSurvey.survey_number.like(f"{prefix}%"))
+    """SV-NNNNN, one running sequence (MAX+1, like the files).
+
+    Visits from before this format are stored as ACHI-SV-YYYY-NNNNN and shown as
+    SV-NNNNN (schemas.display_survey_number), so the new sequence continues after
+    the highest of both — no two visits ever show the same code.
+    """
+    rows = await session.execute(
+        select(SiteSurvey.survey_number).where(
+            SiteSurvey.survey_number.like("SV-%") | SiteSurvey.survey_number.like("ACHI-SV-%")
+        )
     )
-    latest = row.scalar_one_or_none()
-    seq = int(latest.rsplit("-", 1)[1]) + 1 if latest else 1
-    return f"{prefix}{seq:05d}"
+    highest = 0
+    for number in rows.scalars().all():
+        tail = str(number).rsplit("-", 1)[-1]
+        if tail.isdigit():
+            highest = max(highest, int(tail))
+    return f"SV-{highest + 1:05d}"
 
 
 class SiteSurveyService:

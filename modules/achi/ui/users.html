@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Users | ACHI Scaffolding ERP</title>
+  <!-- Same page shell and "+ contact" popup (.pp-*) as Contacts, so both read as one design. -->
+  <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=17">
+  <style>
+    /* contact_info.css scopes its page font and chrome-bar hiding to Contacts;
+       mirror them here or this page falls back to the browser's serif. */
+    body[data-achi-title="Users"] {
+      margin: 0;
+      background: #f4f6f9;
+      font: 13px/1.45 Barlow, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      color: #1d1d1f;
+    }
+    body[data-achi-title="Users"] .achi-top { display: none; }
+    @media (max-width: 900px) {
+      body[data-achi-title="Users"] .achi-top { display: flex; padding: 6px 12px; }
+      body[data-achi-title="Users"] .achi-top h1 { display: none; }
+    }
+    .us-wrap .hd, .us-row {
+      display: grid;
+      min-width: 980px;
+      grid-template-columns: minmax(200px, 1.4fr) 104px 92px 116px minmax(220px, 2fr) 132px 64px;
+    }
+    .us-row {
+      align-items: center;
+      border-bottom: 1px solid #eef1f6;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .us-row:hover { background: #f6f9ff; }
+    .us-row > span { min-width: 0; padding: 6px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .us-row.is-off { color: #8a95a8; }
+    .us-name { display: flex !important; align-items: center; gap: 8px; }
+    .us-av {
+      display: grid; place-items: center; flex: 0 0 26px; width: 26px; height: 26px;
+      border-radius: 50%; background: #eaf1ff; color: #284f9e; font-size: 10.5px; font-weight: 800;
+    }
+    .us-name b { display: block; overflow: hidden; text-overflow: ellipsis; color: #1d1d1f; font-weight: 700; }
+    .us-row.is-off .us-name b { color: #8a95a8; }
+    .us-name small { display: block; overflow: hidden; text-overflow: ellipsis; color: #44546e; font-size: 11px; }
+    .us-pill {
+      display: inline-block; padding: 1px 7px; border: 1px solid #dbe2ed; border-radius: 10px;
+      background: #eef2f8; color: #284f9e; font-size: 10.5px; font-weight: 700; text-transform: capitalize;
+    }
+    .us-pill.r-admin { border-color: #1f3f80; background: #284f9e; color: #fff; }
+    .us-pill.r-manager { border-color: #93c5fd; background: #eaf1ff; }
+    .us-pill.is-on { border-color: #b9e6c8; background: #e8f8ee; color: #15803d; }
+    .us-pill.is-off { border-color: #eccaca; background: #fbeaea; color: #b91c1c; }
+    .us-pages { display: flex !important; flex-wrap: nowrap; gap: 4px; }
+    .us-chip { padding: 1px 6px; border-radius: 3px; background: #eef2f8; color: #44546e; font-size: 10.5px; font-weight: 700; }
+    .us-chip.is-all { background: #e8f8ee; color: #15803d; }
+    .us-edit { justify-self: end; }
+    .us-empty { padding: 26px; color: #44546e; text-align: center; font-size: 12px; }
+    .us-denied { margin: 24px auto; max-width: 460px; padding: 18px; border: 1px solid #b9c5d8; border-radius: 6px; background: #fff; color: #44546e; text-align: center; font-size: 12.5px; }
+
+    /* Popup additions on top of the .pp design. */
+    .us-pp { width: min(880px, calc(100vw - 40px)); }
+    .us-pp .pp-sec { margin-top: 14px; }
+    .us-pp .pp-sec-t span { margin-left: 6px; }
+    .us-pp .pp-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+    .us-note { grid-column: 2; color: #8a95a8; font-size: 10.5px; }
+    .us-erp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .us-opt {
+      display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px;
+      border: 1px solid #b9c5d8; border-radius: 5px; background: #fff; cursor: pointer;
+    }
+    .us-opt:has(input:checked) { border-color: #284f9e; background: #eaf1ff; box-shadow: 0 0 0 1px #284f9e inset; }
+    .us-opt input { margin: 2px 0 0; accent-color: #284f9e; }
+    .us-opt b { display: block; color: #1f3f80; font-size: 12px; }
+    .us-opt small { display: block; color: #44546e; font-size: 11px; }
+    .us-pages-head { display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; }
+    .us-pages-head .pp-check { margin: 0; }
+    .us-pages-head .pp-hint { color: #44546e; font-size: 11px; }
+    .us-page-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
+    .us-page-grid .us-opt { padding: 6px 9px; }
+    .us-page-grid.is-locked { opacity: .55; pointer-events: none; }
+    .us-page-grid.is-locked .us-opt:has(input:checked) { box-shadow: none; }
+    @media (max-width: 620px) {
+      .us-erp { grid-template-columns: 1fr; }
+      .us-note { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body data-achi-title="Users">
+  <main class="pg" data-screen-label="Users">
+
+    <div class="bar">
+      <div class="bar-title">
+        <h1>Users</h1>
+        <span class="fill"></span>
+        <input class="srch" type="search" id="us-search" placeholder="Search name or email…" autocomplete="off">
+      </div>
+      <div class="bar-actions">
+        <div class="seg" role="group" aria-label="Status">
+          <button type="button" class="on" data-us-filter="all">All</button>
+          <button type="button" data-us-filter="active">Active</button>
+          <button type="button" data-us-filter="inactive">Inactive</button>
+        </div>
+        <button type="button" class="mini mini-primary" id="us-new">+ user</button>
+      </div>
+    </div>
+
+    <div class="kchips">
+      <span class="kc"><b id="us-k-total">—</b> users</span>
+      <span class="kc"><b id="us-k-active">—</b> active</span>
+      <span class="kc"><b id="us-k-admin">—</b> admins</span>
+      <span class="kc"><b id="us-k-limited">—</b> ACHI pages only</span>
+    </div>
+
+    <div class="wrap us-wrap" id="us-list">
+      <div class="hd">
+        <span>Name</span>
+        <span>Role</span>
+        <span>Status</span>
+        <span>ERP access</span>
+        <span>Pages</span>
+        <span>Last login</span>
+        <span></span>
+      </div>
+      <div id="us-rows"><div class="us-empty">Loading…</div></div>
+    </div>
+  </main>
+
+  <!-- + user / edit user: the Contacts "+ contact" popup design (.pp-*). -->
+  <div class="pp-backdrop" id="us-modal" hidden>
+    <form class="pp us-pp" id="us-form" role="dialog" aria-modal="true" aria-labelledby="us-title" novalidate>
+      <header class="pp-head">
+        <span class="pp-new" id="us-title">New user</span>
+        <span class="pp-status">
+          <span class="pp-dot" id="us-dot" aria-hidden="true"></span>
+          <select class="pp-hin" id="us-active" aria-label="Account status">
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </span>
+        <span class="pp-by" id="us-meta"></span>
+        <span class="fill"></span>
+        <button type="button" class="pp-x" id="us-close" title="Close" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="pp-body">
+        <section class="pp-sec">
+          <div class="pp-sec-t">Account</div>
+          <div class="pp-grid">
+            <div class="pp-f">
+              <label for="us-name">Full name <i>*</i></label>
+              <input class="pp-in" type="text" id="us-name" maxlength="255" autocomplete="off">
+            </div>
+            <div class="pp-f">
+              <label for="us-email">Email <i>*</i></label>
+              <input class="pp-in" type="email" id="us-email" maxlength="255" autocomplete="off" placeholder="used to sign in">
+            </div>
+            <div class="pp-f">
+              <label for="us-role">Role</label>
+              <select class="pp-in" id="us-role">
+                <option value="viewer">Viewer — can look, not change</option>
+                <option value="editor">Editor — day-to-day work</option>
+                <option value="manager">Manager — also sees other users</option>
+                <option value="admin">Admin — everything, manages users</option>
+              </select>
+            </div>
+            <div class="pp-f">
+              <label for="us-password" id="us-password-label">Password <i>*</i></label>
+              <input class="pp-in" type="password" id="us-password" maxlength="128" autocomplete="new-password">
+              <span class="us-note" id="us-password-note">at least 12 characters, with a letter and a number</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="pp-sec">
+          <div class="pp-sec-t">Permissions<span>what this user can open</span></div>
+          <div class="us-erp" role="radiogroup" aria-label="ERP access">
+            <label class="us-opt"><input type="radio" name="us-erp" value="0" checked>
+              <span><b>ACHI pages only</b><small>Log, Contacts, CRM and the other ACHI pages ticked below</small></span></label>
+            <label class="us-opt"><input type="radio" name="us-erp" value="1">
+              <span><b>Full ERP access</b><small>also the OpenConstructionERP modules (projects, estimating, settings…)</small></span></label>
+          </div>
+          <div class="us-pages-head">
+            <label class="pp-check"><input type="checkbox" id="us-all-pages"> All ACHI pages</label>
+            <span class="pp-hint" id="us-pages-hint">untick to choose pages one by one</span>
+          </div>
+          <div class="us-page-grid" id="us-page-grid"></div>
+        </section>
+      </div>
+
+      <footer class="pp-foot">
+        <span class="pp-error" id="us-error" role="alert"></span>
+        <span class="fill"></span>
+        <button type="button" class="pp-btn" id="us-cancel">Cancel</button>
+        <button type="submit" class="pp-btn pp-btn-primary" id="us-save">Create user</button>
+      </footer>
+    </form>
+  </div>
+
+  <div class="toast" id="us-toast" role="status" hidden></div>
+
+  <script>
+  (function () {
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const API = '/api/v1/achi/users';
+
+    // ── Auth: the OCE shell's bearer token, refreshed once on 401 (as crm.js) ──
+    const token = () => { try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; } };
+    async function refresh() {
+      let rt = '';
+      try { rt = localStorage.getItem('oe_refresh_token') || ''; } catch (e) { /* no storage */ }
+      if (!rt) return false;
+      const r = await fetch('/api/v1/users/auth/refresh/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) }).catch(() => null);
+      if (!r || !r.ok) return false;
+      const b = await r.json().catch(() => ({}));
+      if (!b.access_token) return false;
+      localStorage.setItem('oe_access_token', b.access_token);
+      if (b.refresh_token) localStorage.setItem('oe_refresh_token', b.refresh_token);
+      return true;
+    }
+    async function api(path, opts = {}, retried = false) {
+      const init = { method: opts.method || 'GET', headers: { Authorization: 'Bearer ' + token() } };
+      if (opts.body) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(opts.body); }
+      const r = await fetch(API + path, init);
+      if (r.status === 401 && !retried && await refresh()) return api(path, opts, true);
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const d = Array.isArray(b.detail) ? b.detail.map(x => String(x.msg || x).replace(/^Value error, /, '')).join('; ') : b.detail;
+        const err = new Error(d || 'Request failed (' + r.status + ')'); err.status = r.status; throw err;
+      }
+      return b;
+    }
+
+    let users = [], pages = [], filter = 'all', editing = null, myId = '';
+    try {
+      const part = (token().split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/');
+      myId = JSON.parse(atob(part + '==='.slice((part.length + 3) % 4))).sub || '';
+    } catch (e) { /* signed out */ }
+
+    function toast(msg, bad) {
+      const t = $('us-toast');
+      t.textContent = msg; t.classList.toggle('is-error', !!bad); t.hidden = false;
+      clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 3200);
+    }
+    const initials = u => ((u.full_name || u.email || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2) || '?').toUpperCase();
+    const when = iso => {
+      if (!iso) return '<span class="mut">never</span>';
+      const d = new Date(iso);
+      return esc(d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }));
+    };
+    const pageLabel = k => (pages.find(p => p.key === k) || { label: k }).label;
+
+    function render() {
+      const q = $('us-search').value.trim().toLowerCase();
+      const list = users.filter(u =>
+        (filter === 'all' || (filter === 'active') === u.is_active) &&
+        (!q || (u.full_name + ' ' + u.email).toLowerCase().includes(q)));
+      $('us-k-total').textContent = users.length;
+      $('us-k-active').textContent = users.filter(u => u.is_active).length;
+      $('us-k-admin').textContent = users.filter(u => u.role === 'admin').length;
+      $('us-k-limited').textContent = users.filter(u => !u.full_access).length;
+      if (!list.length) { $('us-rows').innerHTML = '<div class="us-empty">' + (users.length ? 'No user matches.' : 'No users yet.') + '</div>'; return; }
+      $('us-rows').innerHTML = list.map(u => {
+        const pagesHtml = u.all_pages
+          ? '<span class="us-chip is-all">All pages</span>'
+          : (u.pages.length ? u.pages.map(k => '<span class="us-chip">' + esc(pageLabel(k)) + '</span>').join('') : '<span class="mut">no pages</span>');
+        return '<div class="us-row' + (u.is_active ? '' : ' is-off') + '" data-id="' + esc(u.id) + '">'
+          + '<span class="us-name"><span class="us-av">' + esc(initials(u)) + '</span><span><b>' + esc(u.full_name || '—') + (u.id === myId ? ' <span class="mut">(you)</span>' : '') + '</b><small>' + esc(u.email) + '</small></span></span>'
+          + '<span><span class="us-pill r-' + esc(u.role) + '">' + esc(u.role) + '</span></span>'
+          + '<span><span class="us-pill ' + (u.is_active ? 'is-on">Active' : 'is-off">Inactive') + '</span></span>'
+          + '<span>' + (u.full_access ? 'Full ERP' : 'ACHI only') + '</span>'
+          + '<span class="us-pages" title="' + esc(u.all_pages ? 'All pages' : u.pages.map(pageLabel).join(', ')) + '">' + pagesHtml + '</span>'
+          + '<span>' + when(u.last_login_at) + '</span>'
+          + '<span class="us-edit"><button type="button" class="mini">Edit</button></span>'
+          + '</div>';
+      }).join('');
+    }
+
+    async function load() {
+      try {
+        [pages, users] = await Promise.all([api('/pages'), api('/')]);
+        render();
+      } catch (e) {
+        $('us-list').outerHTML = '<div class="us-denied">' + (e.status === 403
+          ? '<b>Only admins can manage users.</b><br>Ask an admin to create or change an account.'
+          : e.status === 401 ? '<b>Session expired.</b><br>Open the main app, sign in, then reload this page.'
+          : esc(e.message)) + '</div>';
+      }
+    }
+
+    // ── popup ──
+    function syncPages() {
+      const admin = $('us-role').value === 'admin';
+      const all = admin || $('us-all-pages').checked;
+      $('us-all-pages').disabled = admin;
+      if (admin) $('us-all-pages').checked = true;
+      $('us-page-grid').classList.toggle('is-locked', all);
+      $('us-page-grid').querySelectorAll('input').forEach(i => { if (all) i.checked = true; });
+      $('us-pages-hint').textContent = admin ? 'admins always see every page' : (all ? 'untick to choose pages one by one' : 'tick the pages this user can open');
+      document.querySelectorAll('input[name="us-erp"]').forEach(r => { r.disabled = admin; if (admin) r.checked = r.value === '1'; });
+    }
+    function syncStatus() {
+      $('us-dot').style.background = $('us-active').value === '1' ? '#22c55e' : '#ef4444';
+    }
+    function open(u) {
+      editing = u || null;
+      $('us-error').textContent = '';
+      $('us-title').textContent = u ? 'Edit user' : 'New user';
+      $('us-save').textContent = u ? 'Save changes' : 'Create user';
+      $('us-meta').innerHTML = u ? 'last login <b>' + when(u.last_login_at) + '</b>' : '';
+      $('us-name').value = u ? u.full_name : '';
+      $('us-email').value = u ? u.email : '';
+      $('us-email').disabled = !!u;
+      $('us-role').value = u ? u.role : 'editor';
+      $('us-active').value = !u || u.is_active ? '1' : '0';
+      $('us-password').value = '';
+      $('us-password-label').innerHTML = u ? 'New password' : 'Password <i>*</i>';
+      $('us-password-note').textContent = u ? 'leave blank to keep the current one — changing it signs them out' : 'at least 12 characters, with a letter and a number';
+      const self = u && u.id === myId;
+      $('us-role').disabled = !!self;
+      $('us-active').disabled = !!self;
+      document.querySelectorAll('input[name="us-erp"]').forEach(r => { r.checked = r.value === (u && u.full_access ? '1' : '0'); });
+      $('us-all-pages').checked = !u || u.all_pages;
+      $('us-page-grid').innerHTML = pages.map(p =>
+        '<label class="us-opt"><input type="checkbox" value="' + esc(p.key) + '"' + (!u || u.all_pages || u.pages.includes(p.key) ? ' checked' : '') + '>'
+        + '<span><b>' + esc(p.label) + '</b><small>' + esc(p.hint) + '</small></span></label>').join('');
+      syncPages(); syncStatus();
+      $('us-modal').hidden = false;
+      $('us-name').focus();
+    }
+    const close = () => { $('us-modal').hidden = true; editing = null; };
+
+    async function save(ev) {
+      ev.preventDefault();
+      const err = $('us-error');
+      err.textContent = '';
+      const name = $('us-name').value.trim(), email = $('us-email').value.trim(), pw = $('us-password').value;
+      if (!name) { err.textContent = 'Full name is required.'; $('us-name').focus(); return; }
+      if (!editing && !email) { err.textContent = 'Email is required.'; $('us-email').focus(); return; }
+      if (!editing && !pw) { err.textContent = 'Password is required.'; $('us-password').focus(); return; }
+      if (pw && pw.length < 12) { err.textContent = 'Password must be at least 12 characters.'; $('us-password').focus(); return; }
+      const allPages = $('us-all-pages').checked;
+      const picked = [...$('us-page-grid').querySelectorAll('input:checked')].map(i => i.value);
+      if (!allPages && !picked.length) { err.textContent = 'Tick at least one page, or All ACHI pages.'; return; }
+      const body = {
+        full_name: name,
+        role: $('us-role').value,
+        is_active: $('us-active').value === '1',
+        full_access: (document.querySelector('input[name="us-erp"]:checked') || {}).value === '1',
+      };
+      if (editing) {
+        if (allPages) body.all_pages = true; else body.pages = picked;
+        if (pw) body.password = pw;
+        if (editing.id === myId) { delete body.role; delete body.is_active; }
+      } else {
+        body.email = email; body.password = pw;
+        body.pages = allPages ? null : picked;
+      }
+      $('us-save').disabled = true;
+      try {
+        const saved = await api(editing ? '/' + editing.id : '/', { method: editing ? 'PATCH' : 'POST', body });
+        const i = users.findIndex(u => u.id === saved.id);
+        if (i >= 0) users[i] = saved; else users.push(saved);
+        users.sort((a, b) => (a.full_name || a.email).localeCompare(b.full_name || b.email));
+        render(); close();
+        toast(editing ? 'User updated' : 'User created — ' + saved.email);
+      } catch (e) {
+        err.textContent = e.message;
+      } finally {
+        $('us-save').disabled = false;
+      }
+    }
+
+    $('us-new').addEventListener('click', () => open(null));
+    $('us-rows').addEventListener('click', e => {
+      const row = e.target.closest('.us-row');
+      if (row) open(users.find(u => u.id === row.dataset.id));
+    });
+    $('us-search').addEventListener('input', render);
+    document.querySelectorAll('[data-us-filter]').forEach(b => b.addEventListener('click', () => {
+      filter = b.dataset.usFilter;
+      document.querySelectorAll('[data-us-filter]').forEach(x => x.classList.toggle('on', x === b));
+      render();
+    }));
+    $('us-role').addEventListener('change', syncPages);
+    $('us-all-pages').addEventListener('change', syncPages);
+    $('us-active').addEventListener('change', syncStatus);
+    $('us-close').addEventListener('click', close);
+    $('us-cancel').addEventListener('click', close);
+    $('us-modal').addEventListener('mousedown', e => { if (e.target === $('us-modal')) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('us-modal').hidden) close(); });
+    $('us-form').addEventListener('submit', save);
+    load();
+  })();
+  </script>
+  <script src="/api/v1/achi/ui/chrome.js?v=49"></script>
+</body>
+</html>

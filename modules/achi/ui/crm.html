@@ -4,25 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CRM | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=10">
+  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=34">
 </head>
 <body data-achi-title="CRM">
   <svg class="icon-sprite" aria-hidden="true">
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7L20 14"/><path d="M20 5v6h-6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="m18 6-12 12M6 6l12 12"/></symbol>
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
   </svg>
 
   <main class="pg" id="pg">
     <div class="bar">
-      <h1>CRM — enquiries pipeline</h1>
+      <h1>CRM</h1>
       <span style="flex:1"></span>
       <label class="srch-wrap" for="crm-search"><svg><use href="#i-search"/></svg><input class="srch" type="search" id="crm-search" placeholder="Search ENQ, client, subject…" autocomplete="off"></label>
       <div class="seg" id="seg-view">
         <button type="button" data-view="list" class="on">☰ Grid</button>
         <button type="button" data-view="board">▦ Board</button>
+        <button type="button" data-view="cal">▤ Calendar</button>
       </div>
       <button class="mini" type="button" id="refresh-button" title="Refresh"><svg><use href="#i-refresh"/></svg></button>
       <button class="mini" type="button" id="new-prospect-button"><svg><use href="#i-plus"/></svg>New ENQ</button>
@@ -31,12 +32,23 @@
     <div class="ai">
       <span class="badge">ARARA AI</span>
       <input id="ai-q" placeholder="Ask the pipeline… “what’s stuck?” · “who went quiet?” · “at quotation?”" autocomplete="off">
-      <span class="chip" data-chip="stuck">⚠ What’s stuck</span>
-      <span class="chip" data-chip="quiet">Who went quiet</span>
-      <span class="chip" data-chip="quo">At quotation stage</span>
     </div>
 
-    <div class="kchips" id="kchips"></div>
+    <div class="krow">
+      <div class="kchips" id="kchips"></div>
+      <!-- My day: pick a date and the Grid shows only that day's follow-ups
+           (today also pulls in anything overdue). -->
+      <div class="daybar" id="daybar">
+        <span class="db-l">My day</span>
+        <button type="button" class="mini ghost db-arr" data-day="prev" title="Previous day" aria-label="Previous day">‹</button>
+        <input type="date" class="srch db-date" id="day-pick" aria-label="Show what to do on this day">
+        <button type="button" class="mini ghost db-arr" data-day="next" title="Next day" aria-label="Next day">›</button>
+        <button type="button" class="mini" data-day="today">Today</button>
+        <button type="button" class="mini ghost" data-day="clear" id="day-clear" hidden>✕ All days</button>
+        <label class="db-mine"><input type="checkbox" id="day-mine"> Only mine</label>
+      </div>
+    </div>
+    <div class="daysum" id="daysum" hidden></div>
 
     <div class="wrap" id="list-wrap">
       <div class="hd" id="hd"></div>
@@ -48,36 +60,71 @@
       <div class="bwrap" id="board"></div>
     </div>
 
+    <div class="wrap cal-wrap" id="cal-wrap" hidden>
+      <div class="cal-head" id="cal-head"></div>
+      <div class="cal-grid" id="cal"></div>
+    </div>
+
     <aside class="dpanel" id="panel" hidden></aside>
   </main>
 
-  <div class="modal-backdrop" id="prospect-modal" hidden>
-    <section class="record-modal" role="dialog" aria-modal="true" aria-labelledby="prospect-title">
-      <header class="modal-header">
-        <div><p class="modal-eyebrow">CRM</p><h2 id="prospect-title">New enquiry</h2></div>
-        <button class="dpx dark" type="button" id="prospect-close" aria-label="Close form" title="Close"><svg><use href="#i-x"/></svg></button>
+  <!-- New ENQ: same look as the Log "+ Log" and Contacts "+ contact" popups.
+       General fields first; "+ Add" puts a Contact and module sections under it. -->
+  <div class="nq-backdrop" id="prospect-modal" hidden>
+    <form class="nq" id="prospect-form" role="dialog" aria-modal="true" aria-labelledby="nq-title" novalidate>
+      <header class="nq-head">
+        <span class="nq-new" id="nq-title">New</span>
+        <span class="nq-chip">ENQ</span>
+        <span class="nq-code" title="The ENQ number is assigned when it is saved">New ENQ</span>
+        <input class="nq-hin nq-hdate" type="datetime-local" id="nq-when" aria-label="Received date and time">
+        <span class="nq-status">
+          <span class="nq-dot" id="nq-dot" aria-hidden="true"></span>
+          <select class="nq-hin" id="nq-status" aria-label="Status"></select>
+        </span>
+        <label class="nq-fu"><span>Follow up</span><input class="nq-hin nq-hdate" type="date" id="nq-followup" aria-label="Follow-up date"></label>
+        <span class="nq-by">by <b id="nq-user">…</b></span>
+        <span class="fill"></span>
+        <button type="button" class="nq-x" id="prospect-close" title="Close" aria-label="Close">&times;</button>
       </header>
-      <form id="prospect-form">
-        <div class="form-grid">
-          <label>First name<input name="first_name" autocomplete="off"></label>
-          <label>Last name<input name="last_name" autocomplete="off"></label>
-          <label class="span-2">Company<input name="company_name" autocomplete="off"></label>
-          <label>Mobile<input name="mobile" autocomplete="off"></label>
-          <label>Email<input name="email" type="email" autocomplete="off"></label>
-          <label class="span-2">Subject<input name="subject" autocomplete="off"></label>
-          <label class="span-2">Category <span class="field-note">optional</span><input name="category" autocomplete="off"></label>
+
+      <div class="nq-body">
+        <section class="nq-card">
+          <div class="nq-sec-t">General</div>
+          <div class="nq-subject-row">
+            <input class="nq-in" type="text" id="nq-subject" maxlength="255" placeholder="Short subject / summary…" autocomplete="off">
+            <select class="nq-in" id="nq-stage" aria-label="Stage"></select>
+          </div>
+          <div class="nq-grid">
+            <label class="nq-f"><span>Site</span><input class="nq-in" type="text" id="nq-site" placeholder="Site / project location" autocomplete="off"></label>
+            <label class="nq-f"><span>City</span><input class="nq-in" type="text" id="nq-city" maxlength="128" autocomplete="off"></label>
+            <label class="nq-f"><span>Maps link</span><input class="nq-in" type="url" id="nq-maps" maxlength="1024" placeholder="https://maps.app.goo.gl/…"></label>
+            <label class="nq-f"><span>Category</span><input class="nq-in" type="text" id="nq-category" maxlength="64" autocomplete="off"></label>
+            <label class="nq-f nq-f-wide"><span>Notes</span><textarea class="nq-in nq-notes" id="nq-notes" rows="3" placeholder="What did they ask for?"></textarea></label>
+          </div>
+        </section>
+
+        <div id="nq-subs"></div>
+
+        <div class="nq-addrow">
+          <span class="nq-addwrap">
+            <button type="button" class="nq-addbtn" id="nq-add" aria-haspopup="menu" aria-expanded="false">+ Add</button>
+            <span class="nq-addmenu" id="nq-addmenu" role="menu" hidden></span>
+          </span>
+          <span class="nq-hint">add the contact, then the modules this enquiry needs (M/T, BOQ…)</span>
         </div>
-        <p class="form-error" id="prospect-error" role="alert"></p>
-        <div class="form-actions">
-          <button class="mini ghost" type="button" id="prospect-cancel">Cancel</button>
-          <button class="mini solid" type="submit" id="prospect-save">Add enquiry</button>
-        </div>
-      </form>
-    </section>
+      </div>
+
+      <footer class="nq-foot">
+        <span class="nq-error" id="prospect-error" role="alert"></span>
+        <span class="fill"></span>
+        <button type="button" class="nq-btn" id="prospect-cancel">Cancel</button>
+        <button type="submit" class="nq-btn nq-btn-primary" id="prospect-save">Save ENQ</button>
+      </footer>
+    </form>
   </div>
 
   <div class="toast" id="toast" role="status" hidden></div>
-  <script src="/api/v1/achi/crm/crm.js?v=10"></script>
-<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
+  <script src="/api/v1/achi/crm/crm.js?v=34"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=49"></script>
 </body>
 </html>

@@ -92,13 +92,67 @@
   .danger:hover{background:#fbd5d5}
   .muted{color:var(--tx-3)}
   .has-drawing{background:#eaf1ff!important;border-color:var(--navy)!important;color:var(--navy)!important}
+  /* ── Design system: same sizes as Log · Contacts · CRM (40px white title box,
+     26px fields/buttons, 10.5px labels, 5–6px radii, section title bars like the
+     New ENQ / + contact forms). Overrides the phone-first look above. ── */
+  body{font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#1d1d1f}
+  body[data-achi-title="Site Visit"]{background:#f4f6f9 !important}
+  /* Same as CRM: the page's own title box replaces the shell's top strip on desktop. */
+  body[data-achi-title="Site Visit"] .achi-top{display:none}
+  @media (max-width:900px){ body[data-achi-title="Site Visit"] .achi-top{display:flex;padding:6px 12px} body[data-achi-title="Site Visit"] .achi-top h1{display:none} }
+  .err{border-radius:5px;margin:10px 12px 0;padding:8px 12px;font-size:12px}
+  .nav{margin:10px 12px 8px;padding:6px 10px;gap:8px;min-height:40px;background:#fff;border:1px solid #b9c5d8;border-radius:5px}
+  .nav h1{color:#1d1d1f;font-size:15px;font-weight:800}
+  .nav .back{font-size:11px;font-weight:700;color:#284F9E}
+  .btn{height:26px;padding:3px 9px;border:1px solid #93c5fd;border-radius:4px;background:#eaf1ff;color:#284F9E;font-size:11px;font-weight:700;box-shadow:none}
+  .btn:hover{background:#dce9ff}
+  .btn svg{width:13px;height:13px}
+  .btn-ghost{background:#fff;color:#44546e;border:1px solid #b9c5d8}
+  .btn-ghost:hover{background:#f4f6f9}
+  .search{height:26px;width:220px;border-radius:4px;border:1px solid #b9c5d8;background:#fff;color:#1d1d1f;font-size:12px;padding:3px 8px}
+  .search::placeholder{color:#8a97ab}
+  .wrap{grid-template-columns:280px 1fr;gap:8px;padding:0 12px 30px}
+  .list{border:1px solid #b9c5d8;border-radius:5px;box-shadow:none}
+  .list-head{display:flex;align-items:center;min-height:36px;padding:5px 10px;background:#e6ebf3;border-bottom:1px solid #b9c5d8;font-size:8.5px;letter-spacing:.06em;color:#44546e}
+  .sv{padding:6px 10px;border-bottom:1px solid #eef2f8}
+  .sv:hover{background:#eaf1ff}
+  .sv .n{font-family:ui-monospace,Menlo,monospace;font-size:10px}
+  .sv .who{font-size:12px}
+  .sv .where{font-size:11px;color:#44546e}
+  .sv .meta{margin-top:3px;gap:5px}
+  .empty{font-size:11.5px;color:#44546e}
+  .step{border:1px solid #b9c5d8;border-radius:6px;margin-bottom:10px;box-shadow:none;background:#fbfcff}
+  .step-h{gap:7px;padding:4px 8px;background:#eef2f8;border-bottom:1px solid #dbe2ed}
+  .step-n{width:18px;height:18px;font-size:10px}
+  .step-t{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#486077}
+  .step-s{font-size:10.5px;color:#44546e}
+  .step-b{padding:8px 10px 10px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 12px}
+  label.f span{font-size:10.5px;font-weight:700;letter-spacing:0;text-transform:none;color:#44546e;margin-bottom:2px}
+  input,select,textarea{height:26px;font-size:12px;border:1px solid #b9c5d8;border-radius:4px;padding:2px 7px}
+  input[type=file]{height:auto}
+  input:focus,select:focus,textarea:focus{border-color:#284F9E;box-shadow:0 0 0 2px rgba(40,79,158,.14)}
+  textarea{height:auto;min-height:70px;padding:5px 7px;line-height:1.4}
+  .badge{padding:1px 8px;font-size:9px;letter-spacing:.05em;text-transform:uppercase}
+  .chip{padding:1px 7px;border-radius:3px;font-size:10px}
+  .measurement-row{gap:6px;margin-bottom:6px}
+  .measurement-row .danger{padding:0 9px}
+  .drop{border:1.5px dashed #b9c5d8;border-radius:4px;padding:8px;font-size:11px}
+  .shots{gap:8px;margin-top:8px}
+  .shot{border-radius:4px}
+  .tilemap{border-radius:4px}
+  .row-actions{gap:8px;padding:7px 10px;border-top:1px solid #dbe2ed;background:#fff}
+  .saved{font-size:11px}
+  .danger{height:26px;border:1px solid #f1c4c4;border-radius:4px;padding:0 10px;font-size:11px}
 </style>
 </head>
 <body data-achi-title="Site Visit">
 <div class="nav">
+  <a class="back" href="/api/v1/achi/survey/ui">‹ All site visits</a>
+  <h1>Site Visit</h1>
   <span class="sp"></span>
   <input class="search" id="q" placeholder="Search site, name, number…">
-  <button class="btn" id="new-survey" type="button">+ New survey</button>
+  <button class="btn" id="new-survey" type="button">+ New visit</button>
 </div>
 <div class="err" id="err"></div>
 
@@ -112,6 +166,8 @@
 
 <script src="/api/v1/achi/ui/drawing.js?v=2"></script>
 <script>
+/* Visit codes are SV-NNNNN; older ones stored as ACHI-SV-YYYY-NNNNN show the same way. */
+const svCode=n=>String(n||'').replace(/^ACHI-SV-\d{4}-(\d+)$/,'SV-$1');
 /* Same-origin as the SPA, so the JWT it stored is ours to reuse. */
 const isJwt=s=>typeof s==='string'&&/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
 function jwtPayload(t){
@@ -237,7 +293,7 @@ function renderList(){
   $('list-head').textContent=`Surveys · ${rows.length}`;
   $('list').innerHTML = rows.length ? rows.map(s=>`
     <button class="sv ${current&&current.id===s.id?'on':''}" data-id="${s.id}" type="button">
-      <div class="n">${esc(s.survey_number)}</div>
+      <div class="n">${esc(svCode(s.survey_number))}</div>
       <div class="who">${esc(s.customer||s.lead||s.contact||'Unnamed survey')}</div>
       <div class="where">${esc(s.site_location||'No location yet')}</div>
       <div class="meta">
@@ -265,7 +321,7 @@ function renderDetail(){
   $('detail').innerHTML=`
   <div class="step">
     <div class="step-h"><span class="step-n">1</span><div><div class="step-t">Assignment</div>
-      <div class="step-s">${esc(s.survey_number)} · <span class="badge ${badgeClass(s.status)}">${esc(s.status)}</span></div></div></div>
+      <div class="step-s">${esc(svCode(s.survey_number))} · <span class="badge ${badgeClass(s.status)}">${esc(s.status)}</span></div></div></div>
     <div class="step-b">
       <div class="grid">
         <label class="f"><span>Status</span><select data-f="status">${opts(SURVEY_STATUSES,s.status)}</select></label>
@@ -377,14 +433,14 @@ function wireDetail(){
   $('drop').addEventListener('drop',e=>{e.preventDefault(); upload(e.dataTransfer.files);});
   $('file').onchange=e=>upload(e.target.files);
   $('del').onclick=async()=>{
-    if(!confirm(`Delete ${current.survey_number}? This cannot be undone.`)) return;
+    if(!confirm(`Delete ${svCode(current.survey_number)}? This cannot be undone.`)) return;
     try{ await api('/surveys/'+current.id,{method:'DELETE'}); current=null; await load(); }catch(e){ fail(e.message); }
   };
   $('draw').onclick=async()=>{
     if(typeof achi_drawing==='undefined'){ fail('Drawing tool did not load.'); return; }
     let initial='';
     try{ initial=(await api(`/surveys/${current.id}/drawing`)).drawing||''; }catch(e){}
-    achi_drawing.open({ title:`Sketch — ${current.survey_number}`, initial,
+    achi_drawing.open({ title:`Sketch — ${svCode(current.survey_number)}`, initial,
       onSave:async json=>{ try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({drawing:json})}); flash(); renderDetail(); renderList(); }catch(e){ fail(e.message); } } });
   };
 }
@@ -450,7 +506,7 @@ if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, 
    over to this form without the user hunting for it in the list. */
 else load(new URLSearchParams(location.search).get('id')||undefined);
 </script>
-<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=49"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>
 <script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
 </body>

@@ -12,10 +12,9 @@ customer was told.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import ContactFile, Quotation
@@ -75,16 +74,32 @@ def compute_totals(data: dict) -> tuple[int, int, int]:
     return int(subtotal), int(vat), int(subtotal + vat)
 
 
+def display_quotation_number(value: str | None) -> str:
+    """Quotation numbers are "QUO-NNNNN". Ones drafted before that format were
+    stored as "ACHI-QT-YYYY-NNNNN"; they show as "QUO-NNNNN" (stored value untouched)."""
+    raw = str(value or "")
+    if raw.startswith("ACHI-QT-"):
+        return f"QUO-{raw.rsplit('-', 1)[-1]}"
+    return raw
+
+
 async def _next_quotation_number(session: AsyncSession) -> str:
-    """ACHI-QT-YYYY-NNNNN, sequential within the year — same scheme as the rest."""
-    year = datetime.now(timezone.utc).year
-    prefix = f"ACHI-QT-{year}-"
-    row = await session.execute(
-        select(func.max(Quotation.quotation_number)).where(Quotation.quotation_number.like(f"{prefix}%"))
+    """QUO-NNNNN, one running sequence (MAX+1, like site visits).
+
+    Continues after the highest of both the new and the old ACHI-QT-YYYY-NNNNN
+    numbers, so no two quotations ever show the same code.
+    """
+    rows = await session.execute(
+        select(Quotation.quotation_number).where(
+            Quotation.quotation_number.like("QUO-%") | Quotation.quotation_number.like("ACHI-QT-%")
+        )
     )
-    latest = row.scalar_one_or_none()
-    seq = int(latest.rsplit("-", 1)[1]) + 1 if latest else 1
-    return f"{prefix}{seq:05d}"
+    highest = 0
+    for number in rows.scalars().all():
+        tail = str(number).rsplit("-", 1)[-1]
+        if tail.isdigit():
+            highest = max(highest, int(tail))
+    return f"QUO-{highest + 1:05d}"
 
 
 class QuotationService:

@@ -33,18 +33,10 @@
 var LINKS = [
   { label: 'Log', href: '/api/v1/achi/ui', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
   { label: 'Contacts', href: '/api/v1/achi/contact-info/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
-  { label: 'PROSP', href: '/api/v1/achi/prospect/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>' },
   { label: 'CRM', href: '/api/v1/achi/crm/ui', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
-  { label: 'Site Visit', href: '/api/v1/achi/site-visit/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
-  { label: 'DRAW', href: '/api/v1/achi/draw/ui', icon: '<path d="M4 20h16"/><path d="m14 4 6 6-10 10H4v-6z"/><path d="m13 5 6 6"/>' },
-  { label: 'M/T', href: '/api/v1/achi/mt/ui', icon: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/>' },
-  { label: 'BOQ', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
-  { label: 'RESOURCE', href: '/api/v1/achi/resource/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h8"/>' },
-  { label: 'PLAN', href: '/api/v1/achi/plan/ui', icon: '<path d="M4 20V4h16v16z"/><path d="m8 16 3-3 2 2 4-5"/>' },
-  { label: 'Planner', href: '/api/v1/achi/planner/ui', icon: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>' },
-  { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
-  { label: 'Team Tasks', href: '/api/v1/achi/tasks/ui', icon: '<path d="M3 4h18v16H3z"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m16 15 1.5 1.5L20 13"/>' },
-  { label: 'Files', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' }
+  { label: 'Site Visit', href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
+  { label: 'Files', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
+  { label: 'Users', href: '/api/v1/achi/users/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' }
   ];
 
   /* The admin cluster upstream pins at the bottom of its sidebar — a literal
@@ -97,13 +89,15 @@ var LINKS = [
     + '.achi-chrome:not(.achi-expanded) .achi-tools{grid-template-columns:1fr}'
     + '.achi-link span,.achi-back span,.achi-tool span,.achi-brand div,.achi-foot{transition:opacity .15s ease}'
     + '.achi-brand{display:flex;align-items:center;gap:10px;padding:16px 16px 14px}'
-    + '.achi-brand img{width:28px;height:28px;flex:0 0 auto;border-radius:6px;object-fit:contain}'
+    + '.achi-brand{min-height:28px}'
+    + '.achi-mark{display:none;width:32px;text-align:center;font-size:18px;line-height:28px;font-weight:800}'
+    + '.achi-chrome:not(.achi-expanded) .achi-mark{display:block}'
+    + '.achi-chrome:not(.achi-expanded) .achi-brand div{position:absolute}'
     + '.achi-back{display:flex;align-items:center;gap:9px;margin:0 8px 6px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:11px;line-height:1.36;font-weight:500}'
     + '.achi-back:hover{background:rgba(255,255,255,.12);color:#fff}'
     + '.achi-back svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
     + '.achi-sep{height:1px;background:rgba(255,255,255,.14);margin:2px 16px 8px}'
-    + '.achi-brand b{font-size:13px;line-height:1.46;font-weight:600;letter-spacing:.02em;display:block}'
-    + '.achi-brand span{font-size:11px;line-height:1.36;opacity:.72;display:block}'
+    + '.achi-brand b{font-size:18px;line-height:28px;font-weight:800;letter-spacing:.08em;display:block}'
     + '.achi-nav{padding:6px 8px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}'
     + '.achi-link{display:flex;align-items:center;gap:10px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.86);text-decoration:none;font-size:13px;line-height:1.46;font-weight:500;margin-bottom:2px}'
     + '.achi-link:hover{background:rgba(255,255,255,.12);color:#fff}'
@@ -147,13 +141,11 @@ var LINKS = [
   function build(title) {
     var side = document.createElement('nav');
     side.className = 'achi-chrome';
-    // Start on the stock mark so the sidebar paints immediately; applyBranding()
-    // swaps in the real ACHI logo once /api/v1/branding/ answers. See there for
-    // why the logo cannot simply be a file path.
+    // Product name only — no logo, no "by …" credit. Collapsed shows "A".
     side.innerHTML =
       '<div class="achi-brand">'
-      + '<img id="achi-logo" src="/logo.svg" alt="" onerror="this.style.display=\'none\'">'
-      + '<div><b>ACHI</b><span id="achi-credit">by ACHI Scaffolding</span></div></div>'
+      + '<span class="achi-mark" aria-hidden="true">A</span>'
+      + '<div><b>ARARA</b></div></div>'
       + '<a class="achi-back" href="/modules">'
       + '<svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>'
       + '<span>All modules</span></a>'
@@ -211,31 +203,6 @@ var LINKS = [
 }
   }
 
-  /* The ACHI logo is not a file. apply-branding.sh PUTs it to /api/v1/branding/
-   * as a base64 data URL held in the DB, because the tab title and in-app logo
-   * are a runtime setting the partner pack does not carry. /logo.svg is stock
-   * OpenConstructionERP, which is why hardcoding it showed the wrong mark.
-   *
-   * Read at runtime rather than baked in: re-brand once and every page follows,
-   * with no redeploy. The endpoint is public (it is what the login screen draws
-   * with), so this works before sign-in too. Any failure leaves the stock mark
-   * already on screen — a wrong logo is survivable, a broken sidebar is not.
-   */
-  function applyBranding() {
-    try {
-      fetch('/api/v1/branding/', { credentials: 'same-origin' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (b) {
-          if (!b) return;
-          var img = document.getElementById('achi-logo');
-          if (img && b.logo_data_url) { img.src = b.logo_data_url; img.style.display = ''; }
-          var credit = document.getElementById('achi-credit');
-          if (credit && b.company_name) credit.textContent = 'by ' + b.company_name;
-        })
-        .catch(function () {});
-    } catch (e) {}
-  }
-
   /* Admins keep the full mirror sidebar; everyone else gets exactly three
    * primary destinations (Log, Contacts, CRM). The verdict is the JWT's role claim
    * from the same storage the SPA uses — synchronous, so the sidebar never
@@ -262,8 +229,8 @@ var LINKS = [
     var links = document.querySelectorAll('.achi-chrome .achi-link');
     for (var i = 0; i < links.length; i++) {
       var href = (links[i].getAttribute('href') || '').split('?')[0];
-
-           links[i].style.display = '';
+      // Users is admin-only (the page's data is admin-only too).
+      links[i].style.display = href === '/api/v1/achi/users/ui' && !isAdminUser() ? 'none' : '';
     }
   }
 
@@ -302,10 +269,97 @@ var LINKS = [
     // Each page names itself; fall back to the document title.
     var t = document.body.getAttribute('data-achi-title') || document.title.split('·')[0].trim();
     build(t);
-    applyBranding();
     showPrimaryLinksOnly();
 
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
+})();
+
+/* ── Site Visit for an enquiry ────────────────────────────────────────────
+ * window.achiEnsureSiteVisit(info, io) — called by the Log and CRM right after
+ * they move an enquiry to the "Site visit" stage. Opens its SV-NNNNN visit in
+ * the Site Visit module unless one already exists for that enquiry.
+ *   info: { fileId, fileNumber, customer, contact, site, maps, subject }
+ *   io:   { get(path) → JSON, post(path, body) → JSON }   (page's own auth)
+ * The visit carries the ENQ code in its "lead" field; the server treats a visit
+ * with that code as the enquiry's own (ContactFileService._ensure_site_visit),
+ * so the server-side rule never opens a second one.
+ */
+(function () {
+  'use strict';
+  var pending = {};
+  var enqCode = function (fileNumber) {
+    var m = String(fileNumber || '').trim().match(/-(\d+)$/);
+    return m ? 'ENQ-' + ('00000' + m[1]).slice(-Math.max(5, m[1].length)) : '';
+  };
+  window.achiEnsureSiteVisit = function (info, io) {
+    if (!info || !info.fileId || pending[info.fileId]) return Promise.resolve(null);
+    var code = enqCode(info.fileNumber);
+    pending[info.fileId] = true;
+    return Promise.resolve(io.get('/api/v1/achi/surveys/?limit=1000'))
+      .then(function (rows) {
+        var list = Array.isArray(rows) ? rows : [];
+        var exists = list.some(function (s) {
+          return s.file_id === info.fileId || (code && String(s.lead || '') === code);
+        });
+        if (exists) return null;
+        return io.post('/api/v1/achi/surveys/', {
+          status: 'Scheduled',
+          lead: code || null,
+          customer: info.customer || null,
+          contact: info.contact || null,
+          site_location: info.site || null,
+          google_maps_url: info.maps || null,
+          notes: info.subject || null,
+        });
+      })
+      .catch(function () { return null; })
+      .then(function (created) { delete pending[info.fileId]; return created; });
+  };
+})();
+
+/* ── Page access (set per user on the Users page) ────────────────────────────
+ * Asks /users/me/pages which ACHI pages this user may open, hides the menu
+ * links to the others, and covers a blocked page with a "no access" notice when
+ * it is opened directly (bookmark, shared link). Runs docked or standalone.
+ * Fails open: if the check can't be made, nothing is hidden.
+ */
+(function () {
+  'use strict';
+  var tok;
+  try { tok = localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; }
+  catch (e) { tok = ''; }
+  if (!tok) return;
+
+  function norm(path) { return String(path || '').split('?')[0].replace(/\/+$/, '') || '/'; }
+
+  function apply(access) {
+    if (!access || access.all || !access.blocked_paths) return;
+    var blocked = {};
+    access.blocked_paths.forEach(function (p) { blocked[norm(p)] = true; });
+    var links = document.querySelectorAll('.achi-chrome .achi-link');
+    for (var i = 0; i < links.length; i++) {
+      if (blocked[norm(links[i].getAttribute('href'))]) links[i].style.display = 'none';
+    }
+    if (!blocked[norm(location.pathname)]) return;
+    var box = document.createElement('div');
+    box.setAttribute('role', 'alert');
+    box.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:20px;'
+      + 'background:#f4f6f9;font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#44546e';
+    box.innerHTML = '<div style="max-width:420px;padding:20px 22px;border:1px solid #b9c5d8;border-radius:6px;background:#fff;text-align:center">'
+      + '<div style="margin-bottom:6px;color:#1f3f80;font-size:15px;font-weight:800">No access to this page</div>'
+      + 'Your account can’t open this page. Ask an admin to add it on the Users page.'
+      + '<div style="margin-top:12px"><a href="javascript:history.back()" style="color:#284f9e;font-weight:700">← Go back</a></div></div>';
+    document.body.appendChild(box);
+  }
+
+  function run() {
+    fetch('/api/v1/achi/users/me/pages', { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(apply)
+      .catch(function () {});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
 })();

@@ -2862,6 +2862,9 @@ function openIntentMenu(trigger,logId){
   (menu.querySelector('.intent-option[aria-selected="true"]')||options[0])?.focus();
   setTimeout(()=>document.addEventListener('mousedown',intentMenuOutside,true),0);
 }
+/* Sales & Design intents file the log in the CRM at the matching stage
+   (mirrors LOG_INTENT_STAGE in service.py). */
+const LOG_INTENT_STAGE={ENQ:'enquiry',SV:'site_survey',DRW:'drawing',MT:'takeoff',BOQ:'boq',RES:'resources',PLN:'plan',QUO:'quotation'};
 async function pickIntent(r,code){
   closeIntentMenu();
   if(!code||r.intent===code) return;
@@ -2874,6 +2877,17 @@ async function pickIntent(r,code){
     const updated=(res&&res.log)?res.log:res;
     if(updated&&typeof updated==='object'){
       if('intent' in updated) r.intent=updated.intent;
+      // A Sales & Design intent moves the file's CRM stage; keep every row of
+      // that file in step with it.
+      let stage=updated.stage;
+      // Servers that predate the intent→stage link don't move the file, so
+      // file it at the matching CRM stage from here.
+      const wanted=LOG_INTENT_STAGE[code];
+      if(wanted&&stage!==wanted&&r.file_id){
+        const file=await api('/files/'+encodeURIComponent(r.file_id),{method:'PATCH',body:JSON.stringify({stage:wanted})});
+        stage=(file&&file.stage)||wanted;
+      }
+      if(stage) ROWS.filter(x=>x.file_id===r.file_id).forEach(x=>{ x.stage=stage; });
       // Only applied if/when the backend actually returns a resulting link —
       // never fabricated here.
       if('linked_to' in updated) r.linked_to=updated.linked_to;

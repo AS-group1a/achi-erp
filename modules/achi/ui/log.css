@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap');
+/* Barlow is no longer downloaded: the Log now renders in the same system font as
+   Contacts and CRM (which never load it), so every "Barlow, -apple-system…" stack
+   below falls through to -apple-system / Segoe UI. */
   :root{
     --navy:#284F9E; --navy-d:#1F3F80; --navy-2:#305FB8; --accent:#305FB8; --light:#eaf1ff;
     --bd:#dbe2ed; --hair:#eef1f6; --tx:#1d1d1f; --tx-2:#44546e; --tx-3:#8a8f98;
@@ -1360,7 +1362,7 @@
   box-shadow:none;
 }
 
-h1,h2,h3,h4{font-family:'Barlow Condensed',Barlow,sans-serif;font-weight:600;letter-spacing:.01em}
+h1,h2,h3,h4{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-weight:600;letter-spacing:.01em}
 
 
 /* ============================================================================
@@ -1887,7 +1889,7 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   font-family:inherit;
 }
 .rx-reference .rx-box{
-  width:min(980px,calc(100vw - 36px));
+  width:min(1180px,calc(100vw - 36px));
   height:auto;
   min-height:min(310px,calc(100dvh - 36px));
   max-height:calc(100dvh - 36px);
@@ -1928,7 +1930,7 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-regarding-label{
   flex:0 0 auto;
   color:#7b879a;
-  font-family:"Barlow Condensed",Barlow,sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   font-size:9px;
   font-weight:700;
   letter-spacing:.08em;
@@ -1973,7 +1975,7 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   margin:0;
   flex:0 0 auto;
   color:#fff;
-  font-family:"Barlow Condensed",Barlow,sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   font-size:13px;
   font-weight:700;
   line-height:1;
@@ -2300,7 +2302,9 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-contact-panels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:stretch;min-width:0}
 .rx-reference .rx-contact-card{min-width:0;padding:6px 8px;border:1px solid #dbe2ed;border-radius:4px;background:#fbfcff}
 .rx-reference .rx-company-panel .rx-contact-card,.rx-reference .rx-person .rx-contact-card{background:#fff}
-.rx-reference .rx-phone-list,.rx-reference .rx-email-list,.rx-reference .rx-social-list,.rx-reference .rx-website-list,.rx-reference .rx-company-phone-list,.rx-reference .rx-company-online-list,.rx-reference .rx-related-phone-list,.rx-reference .rx-related-online-list{display:flex;flex-direction:column;gap:3px}
+.rx-reference .rx-phone-list,.rx-reference .rx-email-list,.rx-reference .rx-social-list,.rx-reference .rx-website-list,.rx-reference .rx-company-phone-list,.rx-reference .rx-company-online-list,.rx-reference .rx-related-phone-list,.rx-reference .rx-related-online-list{display:flex;flex-direction:column;gap:6px}
+/* Email, Website and Social are separate lists in one card — space them like the rows inside. */
+.rx-reference .rx-email-list+.rx-website-list,.rx-reference .rx-website-list+.rx-social-list{margin-top:6px}
 .rx-reference .rx-phone-row,
 .rx-reference .rx-email-row{
   display:grid;
@@ -2312,13 +2316,14 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 
 .rx-reference .rx-ref-line{
   display:grid;
-  grid-template-columns:64px minmax(0,1fr) 22px;
+  grid-template-columns:96px minmax(0,1fr) 22px;
   gap:0;
   align-items:center;
   min-width:0;
 }
 .rx-reference .rx-phone-label,
-.rx-reference .rx-email-label{
+.rx-reference .rx-email-label,
+.rx-reference .rx-ref-social select.rx-in{
   width:100%;
   height:24px;
   min-width:0;
@@ -2343,7 +2348,10 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   font:inherit;
   font-size:9.5px;
   font-weight:700;
-  text-align:right;
+  display:flex;
+  align-items:center;
+  padding-left:11px;   /* matches the text inset of the Primary/IG pickers */
+  text-align:left;
 }
 .rx-reference select.rx-ref-line-label{text-align:left}
 .rx-reference .rx-phone-row .tel-wrap,.rx-reference .rx-ref-line .tel-wrap{min-width:0}
@@ -2353,7 +2361,10 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-reference .rx-phone-remove:hover,.rx-reference .rx-email-remove:hover,.rx-reference .rx-ref-remove:hover{background:#fee2e2}
 .rx-reference .rx-email-row .draft-email{display:flex;min-width:0}
 .rx-reference .rx-email-row .draft-compose{display:none}
-.rx-reference .rx-ref-social{display:grid;grid-template-columns:56px minmax(0,1fr);gap:4px;min-width:0}
+/* Social: the platform picker (IG, FB…) takes the label column, like "Primary"
+ * does for email, so every row's input starts at the same line. */
+.rx-reference .rx-ref-social{display:contents}
+.rx-reference .rx-ref-line:has(> .rx-ref-social)>.rx-ref-line-label{display:none}
 .rx-reference .rx-ref-social .rx-in{min-width:0}
 .rx-reference .rx-ref-add-select{width:110px;height:20px;margin-top:5px;padding:1px 4px;color:#284F9E;font-size:10px;font-weight:700}
 .rx-reference .rx-address-toggle{align-self:flex-start;margin-top:0}
@@ -2448,7 +2459,7 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
 .rx-mt-upload-status{min-height:16px;padding-top:6px;color:#8a5a08;font-size:10px;font-weight:700}
 .rx-mt-picker-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-top:1px solid #dbe2ed;background:#fff}
 .rx-mt-picker-foot>span{color:#64748b;font-size:9.5px;font-weight:700}
-.rx-mt-picker-foot .rx-mini{height:28px;padding:4px 10px;border:1px solid #93c5fd;border-radius:4px;background:#eaf1ff;color:#284F9E;font:700 10.5px Barlow,Arial,sans-serif;cursor:pointer}
+.rx-mt-picker-foot .rx-mini{height:28px;padding:4px 10px;border:1px solid #93c5fd;border-radius:4px;background:#eaf1ff;color:#284F9E;font:700 10.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;cursor:pointer}
 .rx-mt-picker button[disabled]{opacity:.55;cursor:wait}
 .rx-reference .rx-auto-grid{
   display:grid;
@@ -2563,7 +2574,7 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   border-radius:4px;
   background:#fff;
   color:#284F9E;
-  font:800 17px/1 Barlow,sans-serif;
+  font:800 17px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   cursor:pointer;
 }
 .rx-reference .rx-plus:hover,
@@ -2682,3 +2693,229 @@ body.log-page .totop{ width:34px; height:34px; border-radius:4px; font-size:16px
   .rx-reference .rx-when-display{min-width:126px}
   .rx-reference .rx-save-cont{display:none}
 }
+
+/* Standard Log: Next Step column stays on one line like the Notes column. */
+body.log-page .log-next-step{ display:block; min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Comfortable grid — same header height, row spacing and type as the Contacts
+   and CRM tables (36px header, ~34px rows, 11.5px body, nothing below 10px). */
+#tbl thead th{height:36px}
+#tbl tbody td{padding-top:4.5px;padding-bottom:4.5px}
+#tbl .log-note-source{font-size:8.5px}
+/* Shared sizes across Log · Contacts · CRM · Site Visit · Files: 40px title box, 40px AI bar with a 26px field, 26px chips/search/buttons, 36px table header, 34px rows, full page width, system font. */
+body.log-page .log-ai-query{height:26px;box-sizing:border-box;font:inherit;font-size:12px}
+/* City names show with a capital first letter (display only — the saved value is unchanged). */
+#tbl td[data-k="city"]{text-transform:capitalize}
+
+/* ========================================================================
+   Add Log = Contacts "+ contact" popup (.pp-* in contact_info.css).
+   One design for both: same frame, blue header, Regarding strip, labels
+   beside 26px fields, title strips on every card and panel.
+   ======================================================================== */
+.rx-reference{padding:20px;background:rgba(15,23,42,.55);backdrop-filter:none}
+.rx-reference .rx-box{
+  width:min(1180px,calc(100vw - 40px));
+  max-height:calc(100dvh - 40px);
+  border:1px solid #1f3f80;
+  border-radius:6px;
+  background:#f4f6f9;
+  box-shadow:0 24px 60px rgba(15,23,42,.35);
+}
+/* Header = .pp-head */
+.rx-reference .rx-head{
+  height:auto;
+  min-height:46px;
+  padding:6px 8px 6px 12px;
+  gap:6px;
+  flex-wrap:wrap;
+  background:#284f9e;
+  border-radius:0;
+}
+.rx-reference .rx-head h2{margin-right:2px;font-size:15px;font-weight:800}
+.rx-reference .rx-x{
+  flex:0 0 34px;
+  width:34px;
+  height:34px;
+  border:1px solid rgba(255,255,255,.45);
+  border-radius:4px;
+  background:transparent;
+}
+.rx-reference .rx-x svg{width:16px;height:16px}
+/* Regarding = .pp-regarding */
+.rx-reference .rx-regarding{
+  flex:0 0 auto;
+  flex-wrap:wrap;
+  min-height:0;
+  padding:6px 14px;
+  gap:8px;
+  background:#eef2f8;
+}
+.rx-reference .rx-regarding-label{
+  color:#44546e;
+  font-family:inherit;
+  font-size:9.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+}
+.rx-reference .rx-regarding-control{
+  flex:0 0 220px;
+  width:220px;
+  height:26px;
+  padding:2px 7px;
+  border-radius:4px;
+  color:#1d1d1f;
+  font-family:inherit;
+  font-size:12px;
+  font-weight:400;
+}
+.rx-reference .rx-regarding-control:focus{box-shadow:0 0 0 2px rgba(40,79,158,.14)}
+.rx-reference .rx-regarding-help{font-size:11px;font-weight:400}
+/* Body = .pp-body: cards keep their height, the body scrolls. */
+.rx-reference .rx-body>*{flex-shrink:0}
+/* Sections = .pp-sec with a .pp-sec-t title strip. */
+.rx-reference fieldset.rx-section{padding:8px;border-color:#b9c5d8;border-radius:6px;background:#fbfcff}
+.rx-reference fieldset.rx-section>legend{
+  float:left;
+  box-sizing:border-box;
+  width:calc(100% + 16px);
+  margin:-8px -8px 8px;
+  padding:4px 8px;
+  border-bottom:1px solid #dbe2ed;
+  border-radius:6px 6px 0 0;
+  background:#eef2f8;
+}
+.rx-reference fieldset.rx-section>legend+*{clear:both}
+.rx-reference .rx-section-hint{color:#284f9e;font-size:11px;font-weight:600}
+/* Contact block = .pp-idrow / .pp-pic / .pp-grid / .pp-f */
+.rx-reference .rx-contact-reference{gap:8px}
+.rx-reference .rx-contact-identity{grid-template-columns:118px minmax(0,1fr);gap:10px;align-items:start}
+.rx-reference .rx-contact-photo-card{
+  align-items:center;
+  gap:3px;
+  padding:0 0 6px;
+  overflow:hidden;
+  border:1px solid #b9c5d8;
+  border-radius:5px;
+  background:#fff;
+}
+.rx-reference .rx-contact-photo-card>.rx-contact-card-title{
+  align-self:stretch;
+  margin:0;
+  padding:2px 6px;
+  border-bottom:1px solid #dbe2ed;
+  background:#eef2f8;
+  color:#486077;
+  letter-spacing:.06em;
+  text-align:center;
+}
+.rx-reference .rx-contact-photo-drop{
+  flex:0 0 auto;
+  width:72px;
+  height:72px;
+  min-height:72px;
+  margin-top:5px;
+  border:0;
+  border-radius:50%;
+  background:#eaf1ff;
+}
+.rx-reference [data-rx-photo-card="company"] .rx-contact-photo-drop{border-radius:6px;background:#e0f5f5}
+.rx-reference .rx-contact-photo-drop:hover{background:#dce9ff}
+.rx-reference .rx-contact-photo-preview{inset:0;width:100%;height:100%;border-radius:inherit}
+/* Initials fill the circle; "+ Add photo" sits under it as a link. */
+.rx-reference .rx-contact-photo-placeholder{position:static;gap:0}
+.rx-reference .rx-contact-avatar{width:auto;height:auto;border-radius:0;background:transparent;font-size:22px}
+.rx-reference .rx-contact-photo-placeholder>span:last-child{
+  position:absolute;
+  top:calc(100% + 6px);
+  left:50%;
+  transform:translateX(-50%);
+  color:#284f9e;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.rx-reference .rx-contact-photo-drop{overflow:visible;margin-bottom:20px}
+.rx-reference .rx-contact-photo-card .rx-find-online{
+  width:calc(100% - 12px);
+  min-height:22px;
+  height:22px;
+  margin:0;
+  padding:1px 6px;
+  font-size:10px;
+}
+.rx-reference .rx-contact-fields{
+  grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
+  gap:5px 12px;
+  align-content:start;
+}
+.rx-reference .rx-ref-field{
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  align-items:center;
+  gap:0 6px;
+  min-width:0;
+}
+.rx-reference .rx-ref-field:not(:has(> :not([hidden]))){display:none}
+.rx-reference .rx-ref-field-wide{grid-column:1/-1}
+.rx-reference .rx-ref-wide-control{grid-column:auto;gap:4px}
+.rx-reference .rx-ref-label{color:#44546e;font-size:10.5px;font-weight:700;text-align:right}
+/* Address panels use the smaller 3-across .ppa grid. */
+.rx-reference .rx-ref-address{padding:6px 8px;border-color:#dbe2ed;border-radius:4px}
+.rx-reference .rx-ref-address .rx-contact-fields{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 18px}
+.rx-reference .rx-ref-address .rx-ref-field{grid-template-columns:68px minmax(0,1fr)}
+.rx-reference .rx-ref-subhead b{font-size:11px}
+/* Phone / Email panels = .pp-panel with a .pp-panel-t strip. */
+.rx-reference .rx-contact-card{padding:0 8px 6px;overflow:hidden;border-color:#b9c5d8;border-radius:5px;background:#fbfcff}
+.rx-reference .rx-contact-card>.rx-contact-card-title{
+  margin:0 -8px 6px;
+  padding:3px 8px;
+  border-bottom:1px solid #dbe2ed;
+  background:#eef2f8;
+  color:#486077;
+  font-size:9.5px;
+  letter-spacing:.06em;
+}
+.rx-reference .rx-phone-list,.rx-reference .rx-email-list,.rx-reference .rx-social-list,.rx-reference .rx-website-list,.rx-reference .rx-company-phone-list,.rx-reference .rx-company-online-list,.rx-reference .rx-related-phone-list,.rx-reference .rx-related-online-list{gap:4px}
+.rx-reference .rx-email-list+.rx-website-list,.rx-reference .rx-website-list+.rx-social-list{margin-top:4px}
+.rx-reference .rx-phone-row,.rx-reference .rx-email-row,.rx-reference .rx-ref-line{grid-template-columns:92px minmax(0,1fr) 22px;gap:0 5px}
+.rx-reference .rx-phone-row .rx-in,.rx-reference .rx-email-row .rx-in,.rx-reference .rx-ref-line>.rx-in,.rx-reference .rx-ref-line .rx-in{border-radius:4px}
+/* Row labels read like .pp-olabel; pickers keep a quiet frame. */
+.rx-reference .rx-ref-line-label{justify-content:flex-end;padding:0;color:#44546e;font-size:10.5px}
+.rx-reference .rx-phone-label,.rx-reference .rx-email-label,.rx-reference .rx-ref-social select.rx-in{height:26px;border:1px solid #b9c5d8;border-radius:4px;background:#fff;color:#1d1d1f;font-size:11px}
+/* × = .pp-rx: a quiet 22px button that turns red on hover. */
+.rx-reference .rx-phone-remove,.rx-reference .rx-email-remove,.rx-reference .rx-ref-remove{
+  width:22px;
+  height:22px;
+  border:1px solid transparent;
+  border-radius:4px;
+  background:transparent;
+  color:#6b7a92;
+  font-size:15px;
+}
+.rx-reference .rx-phone-remove:hover,.rx-reference .rx-email-remove:hover,.rx-reference .rx-ref-remove:hover{border-color:#eccaca;background:#fbeaea;color:#b91c1c}
+/* "+ Add Number" = .pp-addlink; "+ Add…" = .pp-addsel. */
+.rx-reference .rx-contact-card .rx-ref-mini{min-height:0;height:auto;margin-top:5px;padding:0;border:0;background:transparent;color:#284f9e;font-size:11px}
+.rx-reference .rx-contact-card .rx-ref-mini:hover{background:transparent;text-decoration:underline}
+.rx-reference .rx-contact-card select.rx-in.rx-ref-add-select{display:block;width:auto;max-width:100%;height:26px;margin-top:5px;padding:2px 7px;border-color:transparent;background:transparent;box-shadow:none;color:#284f9e;font-size:11px;font-weight:700}
+/* "+ Add Address" = .pp-addbtn (dashed); "+ Person" = .pp-mini. */
+.rx-reference .rx-address-toggle{height:26px;min-height:26px;margin-top:0;padding:0 10px;border:1px dashed #93c5fd;background:#fff}
+.rx-reference .rx-add-related{height:26px;min-height:26px;margin-top:0;align-self:flex-start}
+.rx-reference .rx-company-toggle{color:#1d1d1f;font-size:12px}
+.rx-reference .rx-company-toggle input{width:14px;height:14px}
+.rx-reference .rx-person{padding:8px;border-color:#b9c5d8;border-radius:6px}
+@media (max-width:860px){
+  .rx-reference .rx-ref-address .rx-contact-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:600px){
+  .rx-reference{padding:0}
+  .rx-reference .rx-box{width:100vw;max-height:100dvh;border:0;border-radius:0}
+  .rx-reference .rx-regarding-control{flex:1 1 auto;width:auto}
+  .rx-reference .rx-contact-identity,
+  .rx-reference .rx-contact-fields,
+  .rx-reference .rx-ref-address .rx-contact-fields{grid-template-columns:1fr}
+  .rx-reference .rx-contact-photo-card{min-height:0}
+  .rx-reference .rx-ref-label{text-align:right}
+}
+/* The "+ Add…" picker is drawn as a .rx-select-btn next to the hidden select. */
+.rx-reference .rx-contact-card .rx-ref-add-select+.rx-select-btn{display:inline-flex;width:auto;height:26px;margin-top:5px;padding:2px 7px;gap:6px;border-color:transparent;background:transparent;box-shadow:none;color:#284f9e;font-size:11px;font-weight:700}
+.rx-reference .rx-contact-card .rx-ref-add-select+.rx-select-btn:hover{background:#eaf1ff}

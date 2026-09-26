@@ -57,6 +57,12 @@
     /[&<>"]/g,
     character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[character]),
   );
+  // Enquiry code as shown in the CRM: file_number ACHI-YYYY-NNNNN -> ENQ-NNNNN.
+  const enqCode = fileNumber => {
+    const raw = String(fileNumber || '').trim();
+    const match = raw.match(/^ACHI-\d{4}-(\d+)$/);
+    return match ? `ENQ-${match[1].padStart(5, '0')}` : raw;
+  };
   const PHONE_LABELS = ['Primary', 'Mobile', 'Office', 'Site', 'WhatsApp', 'Home', 'Other'];
   const EMAIL_LABELS = ['Primary', 'Work', 'Personal', 'Accounts', 'Sales', 'Other'];
   const SOCIAL_PLATFORMS = ['IG', 'FB', 'LinkedIn', 'TikTok', 'X'];
@@ -1024,7 +1030,7 @@
 
   function linkedCode(contact, placeholder = true) {
     if (!contact.latestFile || !contact.latestFile.file_number) return placeholder ? '<span class="mut">—</span>' : '';
-    return `<span class="code" title="${escapeHtml(contact.latestFile.subject || '')}">${escapeHtml(contact.latestFile.file_number)}</span>`;
+    return `<span class="code" title="${escapeHtml(contact.latestFile.subject || '')}">${escapeHtml(enqCode(contact.latestFile.file_number))}</span>`;
   }
 
   function whoMarkup(contact) {
@@ -1223,7 +1229,7 @@
     const links = state.links[contact.id];
     const rows = [
       ...filesForContact(contact.id).map(file => `<tr>
-        <td><span class="code">${escapeHtml(file.file_number || 'File')}</span></td>
+        <td><span class="code">${escapeHtml(file.file_number ? enqCode(file.file_number) : 'File')}</span></td>
         <td class="mut t-wrap">${escapeHtml([file.subject || titleCase(file.stage), titleCase(file.status)].filter(Boolean).join(' · '))}</td>
       </tr>`),
       ...projectsForContact(contact.id).map(project => `<tr>
@@ -3232,7 +3238,7 @@
             follow_up_date: $('pp-followup').value || null,
           },
         });
-        logMessage = file.log_code ? ` · LOG #${file.log_code}` : ` · ${file.file_number}`;
+        logMessage = file.log_code ? ` · LOG #${file.log_code}` : ` · ${enqCode(file.file_number)}`;
         for (const attachment of pp.files) await uploadLogAttachment(log.id, attachment);
         pp.created.logSaved = true;
       } catch (error) {

@@ -227,35 +227,48 @@ aside.oe-sidebar button[title="Add your logo or company name"],
   display: none !important;
 }
 
-/* 3. Lay the logo and credit side by side. Upstream renders both as block-level
- *    (img.block + span.mt-1.block) so they stack vertically; flex puts them in a
- *    row and mt-1 has to go or the credit sits low. */
+/* 3. Replace the whole brand block with the product name "ARARA".
+ *    No logo and no "by …" credit. The slot is upstream's `div.flex-1.min-w-0`,
+ *    whose only child is the branding button (logo/text mode) OR the
+ *    OpenConstructionERP link (default mode) — so this covers every branding
+ *    mode, including a stale custom logo cached in the browser. Children are
+ *    hidden (font-size:0 also collapses bare text nodes) and ::after prints
+ *    the name. The DDC mark leaves the UI (TRADEMARK.md §4); /about and the
+ *    footer notices are untouched. */
 aside.oe-sidebar button[aria-label="Customise branding"],
-[data-testid="app-sidebar"] button[aria-label="Customise branding"] {
+[data-testid="app-sidebar"] button[aria-label="Customise branding"],
+aside.oe-sidebar a[title="OpenConstructionERP"],
+[data-testid="app-sidebar"] a[title="OpenConstructionERP"] {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
-}
-
-/* 4. Replace the hardcoded credit. font-size:0 collapses the "by" text node and
- *    the nested Open/Construction/ERP spans (they inherit it); ::after restores a
- *    real size for our own text. */
-aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child,
-[data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child {
   font-size: 0 !important;
-  margin-top: 0 !important;     /* kill upstream's mt-1, which stacked it below */
-  flex: 0 1 auto;
-  min-width: 0;                 /* let `truncate` still work inside the flex row */
+  pointer-events: none !important;   /* no branding dialog, no outbound link */
 }
-aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child::after,
-[data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child::after {
-  content: "by ACHI Scaffolding";
-  font-size: 8px;
+aside.oe-sidebar button[aria-label="Customise branding"] > *,
+[data-testid="app-sidebar"] button[aria-label="Customise branding"] > *,
+aside.oe-sidebar a[title="OpenConstructionERP"] > *,
+[data-testid="app-sidebar"] a[title="OpenConstructionERP"] > * {
+  display: none !important;
+}
+aside.oe-sidebar button[aria-label="Customise branding"]::after,
+[data-testid="app-sidebar"] button[aria-label="Customise branding"]::after,
+aside.oe-sidebar a[title="OpenConstructionERP"]::after,
+[data-testid="app-sidebar"] a[title="OpenConstructionERP"]::after {
+  content: "ARARA";
+  font-size: 18px;
   line-height: 1;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, .58);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+/* Collapsed (iconified) sidebar: the slot is ~28px wide, so just "A". */
+aside.oe-sidebar :not(.min-w-0) > button[aria-label="Customise branding"]::after,
+[data-testid="app-sidebar"] :not(.min-w-0) > button[aria-label="Customise branding"]::after,
+aside.oe-sidebar :not(.min-w-0) > a[title="OpenConstructionERP"]::after,
+[data-testid="app-sidebar"] :not(.min-w-0) > a[title="OpenConstructionERP"]::after {
+  content: "A";
+  letter-spacing: 0;
 }
 
 /* --- 5. Hide the "Uberization of Construction" article card ----------------
@@ -326,6 +339,29 @@ div:has(button[title="Customise logo"]) > p.text-sm.text-content-tertiary,
 div:has(button[aria-label="Customize logo"]) > p.text-sm.text-content-tertiary,
 div:has(button[title="Customize logo"]) > p.text-sm.text-content-tertiary {
   display: none !important;
+}
+
+/* --- Login screen: the product name "ARARA" instead of any logo -------------
+ * The header row's first child is the brand block (upstream logo + name in
+ * default mode, or the custom logo/name + credit). Hide its contents and print
+ * the name. Same pen-button anchor as the rules above, so only the login page. */
+:has(> button[aria-label="Customise logo"]) > :first-child > *,
+:has(> button[title="Customise logo"]) > :first-child > *,
+:has(> button[aria-label="Customize logo"]) > :first-child > *,
+:has(> button[title="Customize logo"]) > :first-child > * {
+  display: none !important;
+}
+:has(> button[aria-label="Customise logo"]) > :first-child::after,
+:has(> button[title="Customise logo"]) > :first-child::after,
+:has(> button[aria-label="Customize logo"]) > :first-child::after,
+:has(> button[title="Customize logo"]) > :first-child::after {
+  content: "ARARA";
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #284F9E;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 /* --- Login screen: make the logo mark round, not a square -------------------

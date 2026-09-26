@@ -157,6 +157,10 @@ class FileLog(Base):
     updates: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     follow_up_date: Mapped[str | None] = mapped_column(Date, nullable=True)
     follow_up_notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    # The Log "Intent" pill (ENQ, SV, QUO, ...). A Sales & Design intent also
+    # moves the file's CRM stage — see LOG_INTENT_STAGE in service.py. Nullable
+    # and additive, so the startup auto-heal adds it with no migration.
+    intent: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # The sketch drawn in the description popup — a JSON array of shapes, exactly
     # the payload the canvas tool round-trips. Stored as text, never queried into:
@@ -495,6 +499,23 @@ class AchiFullAccess(Base):
     # it stays consistent with every other model here (Base owns the PK).
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+
+
+class AchiPageAccess(Base):
+    """Which ACHI pages a user may open, set from the Users page.
+
+    No row = every page (so existing staff are never locked out by this table
+    appearing). Admins always see every page regardless of any row. ``pages`` is
+    a JSON array of page keys from users_router.PAGES, e.g. ["log", "contacts"].
+    """
+
+    __tablename__ = "achi_page_access"
+    __table_args__ = (
+        Index("uq_achi_page_access_user", "user_id", unique=True),
+    )
+
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    pages: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
 
 
 class AchiTakeoffLink(Base):

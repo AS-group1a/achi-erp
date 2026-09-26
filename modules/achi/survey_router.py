@@ -12,6 +12,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import select
 
 from app.dependencies import CurrentUserId, SessionDep
 
@@ -22,6 +23,7 @@ from .schemas import (
     SurveyRowOut,
     SurveyUpdate,
 )
+from .models import ContactFile
 from .survey_service import SiteSurveyService
 
 survey_router = APIRouter()
@@ -83,9 +85,17 @@ async def list_surveys(
     svc = SiteSurveyService(session)
     rows = await svc.list(status=status_, limit=limit)
     counts = await svc.photo_counts([r.id for r in rows])
+    file_ids = {r.file_id for r in rows if r.file_id}
+    file_numbers = {}
+    if file_ids:
+        result = await session.execute(
+            select(ContactFile.id, ContactFile.file_number).where(ContactFile.id.in_(file_ids))
+        )
+        file_numbers = dict(result.all())
     out = []
     for r in rows:
         o = SurveyRowOut.model_validate(r)
+        o.file_number = file_numbers.get(r.file_id) if r.file_id else None
         o.measurement_count = len(r.measurements)
         o.photo_count = counts.get(r.id, 0)
         out.append(o)

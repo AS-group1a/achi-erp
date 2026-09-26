@@ -14,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.users.models import User
 
+from .schemas import display_survey_number
+
 from .planner_models import AchiPlannerEvent, AchiPlannerEventAttendee, AchiPlannerReminder
 from .planner_schemas import (
     PlannerAttendeeIn,
@@ -237,7 +239,7 @@ class PlannerService:
                 source="site_visit",
                 related_record_type="site_survey",
                 related_record_id=survey.id,
-                related_record_label=survey.survey_number + (f" · {location}" if location else ""),
+                related_record_label=display_survey_number(survey.survey_number) + (f" · {location}" if location else ""),
             ))
         return output
 
