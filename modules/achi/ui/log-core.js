@@ -49,7 +49,7 @@ const $=id=>document.getElementById(id);
 
   const eyebrow=document.createElement('div');
   eyebrow.className='achi-log-hero__eyebrow';
-  eyebrow.textContent='ACHI SCAFFOLDING';
+  eyebrow.textContent='ARARA';
 
   const heading=document.createElement('h1');
   heading.className='achi-log-hero__title';

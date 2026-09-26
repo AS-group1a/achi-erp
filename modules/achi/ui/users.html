@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Users | ACHI Scaffolding ERP</title>
+  <title>Users | ARARA</title>
   <!-- Same page shell and "+ contact" popup (.pp-*) as Contacts, so both read as one design. -->
   <link rel="stylesheet" href="/api/v1/achi/contact-info/contact_info.css?v=17">
   <style>
@@ -108,7 +108,7 @@
       <span class="kc"><b id="us-k-total">—</b> users</span>
       <span class="kc"><b id="us-k-active">—</b> active</span>
       <span class="kc"><b id="us-k-admin">—</b> admins</span>
-      <span class="kc"><b id="us-k-limited">—</b> ACHI pages only</span>
+      <span class="kc"><b id="us-k-limited">—</b> limited to chosen pages</span>
     </div>
 
     <div class="wrap us-wrap" id="us-list">
@@ -116,7 +116,7 @@
         <span>Name</span>
         <span>Role</span>
         <span>Status</span>
-        <span>ERP access</span>
+        <span>Access</span>
         <span>Pages</span>
         <span>Last login</span>
         <span></span>
@@ -173,14 +173,14 @@
 
         <section class="pp-sec">
           <div class="pp-sec-t">Permissions<span>what this user can open</span></div>
-          <div class="us-erp" role="radiogroup" aria-label="ERP access">
+          <div class="us-erp" role="radiogroup" aria-label="Access">
             <label class="us-opt"><input type="radio" name="us-erp" value="0" checked>
-              <span><b>ACHI pages only</b><small>Log, Contacts, CRM and the other ACHI pages ticked below</small></span></label>
+              <span><b>Chosen pages only</b><small>Only the ARARA pages ticked below</small></span></label>
             <label class="us-opt"><input type="radio" name="us-erp" value="1">
-              <span><b>Full ERP access</b><small>also the OpenConstructionERP modules (projects, estimating, settings…)</small></span></label>
+              <span><b>Full access</b><small>every ARARA page, with no limits</small></span></label>
           </div>
           <div class="us-pages-head">
-            <label class="pp-check"><input type="checkbox" id="us-all-pages"> All ACHI pages</label>
+            <label class="pp-check"><input type="checkbox" id="us-all-pages"> All ARARA pages</label>
             <span class="pp-hint" id="us-pages-hint">untick to choose pages one by one</span>
           </div>
           <div class="us-page-grid" id="us-page-grid"></div>
@@ -269,7 +269,7 @@
           + '<span class="us-name"><span class="us-av">' + esc(initials(u)) + '</span><span><b>' + esc(u.full_name || '—') + (u.id === myId ? ' <span class="mut">(you)</span>' : '') + '</b><small>' + esc(u.email) + '</small></span></span>'
           + '<span><span class="us-pill r-' + esc(u.role) + '">' + esc(u.role) + '</span></span>'
           + '<span><span class="us-pill ' + (u.is_active ? 'is-on">Active' : 'is-off">Inactive') + '</span></span>'
-          + '<span>' + (u.full_access ? 'Full ERP' : 'ACHI only') + '</span>'
+          + '<span>' + (u.full_access ? 'Full access' : 'Chosen pages') + '</span>'
           + '<span class="us-pages" title="' + esc(u.all_pages ? 'All pages' : u.pages.map(pageLabel).join(', ')) + '">' + pagesHtml + '</span>'
           + '<span>' + when(u.last_login_at) + '</span>'
           + '<span class="us-edit"><button type="button" class="mini">Edit</button></span>'
@@ -342,7 +342,7 @@
       if (pw && pw.length < 12) { err.textContent = 'Password must be at least 12 characters.'; $('us-password').focus(); return; }
       const allPages = $('us-all-pages').checked;
       const picked = [...$('us-page-grid').querySelectorAll('input:checked')].map(i => i.value);
-      if (!allPages && !picked.length) { err.textContent = 'Tick at least one page, or All ACHI pages.'; return; }
+      if (!allPages && !picked.length) { err.textContent = 'Tick at least one page, or All ARARA pages.'; return; }
       const body = {
         full_name: name,
         role: $('us-role').value,
@@ -394,6 +394,6 @@
     load();
   })();
   </script>
-  <script src="/api/v1/achi/ui/chrome.js?v=49"></script>
+  <script src="/api/v1/achi/ui/chrome.js?v=51"></script>
 </body>
 </html>

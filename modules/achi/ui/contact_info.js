@@ -1233,7 +1233,7 @@
         <td class="mut t-wrap">${escapeHtml([file.subject || titleCase(file.stage), titleCase(file.status)].filter(Boolean).join(' · '))}</td>
       </tr>`),
       ...projectsForContact(contact.id).map(project => `<tr>
-        <td><a class="code" href="/projects/${escapeHtml(project.id)}">${escapeHtml(project.project_code || 'Project')}</a></td>
+        <td><span class="code">${escapeHtml(project.project_code || 'Project')}</span></td>
         <td class="mut t-wrap">${escapeHtml([project.name, titleCase(project.status)].filter(Boolean).join(' · '))}</td>
       </tr>`),
       ...((links && links.crm_leads) || []).map(lead => `<tr>

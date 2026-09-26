@@ -54,13 +54,6 @@ PAGES: list[dict] = [
      "paths": ["/api/v1/achi/site-visit/ui", "/api/v1/achi/survey/ui"]},
     {"key": "files", "label": "Files", "hint": "Enquiry files",
      "paths": ["/api/v1/achi/files/ui"]},
-    {"key": "workspaces", "label": "Stage workspaces", "hint": "Drawing, M/T, BOQ, Resources, Plan, Quotation",
-     "paths": ["/api/v1/achi/draw/ui", "/api/v1/achi/mt/ui", "/api/v1/achi/boq/ui",
-               "/api/v1/achi/resource/ui", "/api/v1/achi/plan/ui", "/api/v1/achi/quotation/ui"]},
-    {"key": "planner", "label": "Planner", "hint": "Schedules and reminders",
-     "paths": ["/api/v1/achi/planner/ui"]},
-    {"key": "tasks", "label": "Team Tasks", "hint": "Assign and follow up tasks",
-     "paths": ["/api/v1/achi/tasks/ui"]},
 ]
 PAGE_KEYS = [p["key"] for p in PAGES]
 

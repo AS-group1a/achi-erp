@@ -15,9 +15,9 @@ from app.core.module_loader import ModuleManifest
 manifest = ModuleManifest(
     name="oe_achi",
     version="0.1.0",
-    display_name="ACHI Scaffolding",
-    description="Company-specific extensions for Achi Scaffolding.",
-    author="Achi Scaffolding",
+    display_name="ARARA",
+    description="ARARA operations pages.",
+    author="ARARA",
     category="community",
     depends=[],
     optional_depends=["oe_takeoff", "oe_crm"],

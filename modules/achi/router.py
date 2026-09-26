@@ -382,7 +382,7 @@ async def _contact_info_shared_contact(
     if contact is None or contact.is_active is not is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
     if not _is_contact_info_contact(contact):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Contact is not in the ACHI directory")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Contact is not in the ARARA directory")
     return contact
 
 
@@ -1035,7 +1035,7 @@ def info() -> ModuleInfo:
     return ModuleInfo(
         module=MANIFEST.name,
         version=MANIFEST.version,
-        company="Achi Scaffolding",
+        company="ARARA",
         note="ACHI's own code. Upstream is stock and unmodified.",
     )
 

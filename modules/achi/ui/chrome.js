@@ -1,27 +1,12 @@
-/* ACHI app chrome — the sidebar our own pages wear when opened directly.
+/* ARARA app chrome — the sidebar every ARARA page wears.
  *
- * WHY THIS EXISTS
- * Our pages are served by our router, not by OCE's SPA, so on their own they
- * arrive with no app furniture around them. Opened straight from a URL — a phone
- * on site, a bookmark, a link in a message — that looks like a different product.
+ * The ERP underneath has no screens of its own any more (achi-nav.js sends
+ * anyone signed in straight here), so this sidebar is the whole app menu: every
+ * ARARA page, plus Sign out. Pages hidden per user on the Users page are taken
+ * out of it further down this file.
  *
- * WHEN IT RENDERS
- * Only when the page is NOT inside a frame. achi-nav.js docks these same pages
- * into the SPA's content area, where the real sidebar is already on screen; a
- * second one there is the duplicate you get in a docked screenshot. So the frame
- * case is upstream's chrome, and the standalone case is this. One file covers
- * both because the check is one line, not because the two are the same thing.
- *
- * FIDELITY
- * Deliberately mirrors upstream's sidebar — same logo (/logo.svg, served by the
- * app itself so it can never drift), same "by ACHI Scaffolding" credit, same
- * navy, same version/licence footer. It lists only OUR pages plus the handful of
- * upstream destinations worth reaching from here, because this is a way back into
- * the app, not a replacement for its menu.
- *
- * The cost of the mirror is that it is hand-maintained: it does not read
- * upstream's nav, so restyling there will not reach here. Kept small on purpose
- * to keep that cost small. Links out are ordinary full page loads.
+ * Only renders when the page is NOT inside a frame. Links are ordinary full
+ * page loads. It is hand-maintained — add a page to LINKS when adding a page.
  */
 (function () {
   'use strict';
@@ -29,7 +14,8 @@
   // Docked in the SPA? Upstream's sidebar is already there — stand down.
   if (window.top !== window.self) return;
 
-  // Keep this list exact and ordered. The All Modules arrow is
+  // The whole ARARA menu, in order. The ERP underneath has no screens of its
+  // own any more (deploy/overrides/achi-nav.js).
 var LINKS = [
   { label: 'Log', href: '/api/v1/achi/ui', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
   { label: 'Contacts', href: '/api/v1/achi/contact-info/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
@@ -49,12 +35,7 @@ var LINKS = [
    * singular looks right and 404s.
    */
   var TOOLS = [
-    { label: 'Settings',   href: '/settings',   icon: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>' },
-    { label: 'Users',      href: '/users',      icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
-    { label: 'Modules',    href: '/modules',    icon: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/>' },
-    { label: 'Governance', href: '/governance', icon: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>' },
-    { label: 'Audit',      href: '/audits',     icon: '<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>' },
-    { label: 'About',      href: '/about',      icon: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>' }
+    { label: 'Sign out', href: '/login', signout: true, icon: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>' }
   ];
 
   // #284F9E is the same navy achi-theme.css paints upstream's sidebar with —
@@ -112,7 +93,7 @@ var LINKS = [
      * for exactly that reason — it ignored the rescope and stood out. */
     + '.achi-cluster{position:relative;padding:8px;background:rgba(0,0,0,.02)}'
     + '.achi-cluster::before{content:"";position:absolute;top:0;left:12px;right:12px;height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,.22),transparent)}'
-    + '.achi-tools{display:grid;grid-template-columns:1fr 1fr;gap:4px;list-style:none;margin:0;padding:0}'
+    + '.achi-tools{display:grid;grid-template-columns:1fr;gap:4px;list-style:none;margin:0;padding:0}'
     + '.achi-tool{display:flex;align-items:center;justify-content:flex-start;gap:6px;height:32px;padding:0 8px;border-radius:6px;border:0;background:transparent;color:rgba(255,255,255,.82);text-decoration:none;font-size:11px;line-height:1;font-weight:500;min-width:0;transition:background .12s,color .12s}'
     + '.achi-tool:hover{background:rgba(255,255,255,.12);color:#fff}'
     + '.achi-tool span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
@@ -146,9 +127,6 @@ var LINKS = [
       '<div class="achi-brand">'
       + '<span class="achi-mark" aria-hidden="true">A</span>'
       + '<div><b>ARARA</b></div></div>'
-      + '<a class="achi-back" href="/modules">'
-      + '<svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>'
-      + '<span>All modules</span></a>'
       + '<div class="achi-sep"></div>'
       + '<div class="achi-nav">'
       + LINKS.map(function (l) {
@@ -162,15 +140,15 @@ var LINKS = [
       + '<div class="achi-cluster">'
       + '<ul class="achi-tools">'
       + TOOLS.map(function (t) {
-          return '<li><a class="achi-tool" href="' + t.href + '" title="' + t.label + '" aria-label="' + t.label + '">'
+          return '<li><a class="achi-tool" href="' + t.href + '"' + (t.signout ? ' data-achi-signout' : '') + ' title="' + t.label + '" aria-label="' + t.label + '">'
             + '<svg viewBox="0 0 24 24" aria-hidden="true">' + t.icon + '</svg>'
             + '<span>' + t.label + '</span></a></li>';
         }).join('')
       + '</ul>'
       + '</div>'
-      // Version + licence, upstream's own footer. /api/source is the AGPL source
+      // Licence, from upstream's own footer. /api/source is the AGPL source
       // offer — it is a licence notice, so it is reproduced, not restyled away.
-      + '<div class="achi-foot"><span>v11.9.0</span><span>·</span>'
+      + '<div class="achi-foot">'
       + '<a href="/api/source" target="_blank" rel="noopener noreferrer">AGPL-3.0</a></div>';
 
     var top = document.createElement('div');
@@ -223,9 +201,6 @@ var LINKS = [
   /* Team Tasks is revealed separately for admins and supervisors. */
 
   function showPrimaryLinksOnly() {
-    var cluster = document.querySelector('.achi-chrome .achi-cluster');
-    if (cluster) cluster.style.display = 'none';
-
     var links = document.querySelectorAll('.achi-chrome .achi-link');
     for (var i = 0; i < links.length; i++) {
       var href = (links[i].getAttribute('href') || '').split('?')[0];
@@ -265,12 +240,43 @@ var LINKS = [
       })
       .catch(function () {});
   }
+  /* Sign-in lives on the ERP's /login screen (the only ERP screen still used),
+   * so signing out clears exactly what its own logout clears, then goes there. */
+  var AUTH_KEYS = ['oe_access_token', 'oe_refresh_token', 'oe_remember', 'oe_user_email', 'oe_user_full_name'];
+  function signOut() {
+    try {
+      AUTH_KEYS.forEach(function (k) { localStorage.removeItem(k); sessionStorage.removeItem(k); });
+      localStorage.removeItem('achi_access_verdict');
+      sessionStorage.setItem('oe_manual_login', '1');
+    } catch (e) { /* storage blocked: /login still works */ }
+    location.replace('/login');
+  }
+  // No session at all (never signed in, or the refresh token is gone and the
+  // access token has expired): straight to sign-in instead of a page of errors.
+  function hasSession() {
+    var access, refresh;
+    try {
+      access = localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || '';
+      refresh = localStorage.getItem('oe_refresh_token') || sessionStorage.getItem('oe_refresh_token') || '';
+    } catch (e) { return true; }
+    if (refresh) return true;
+    if (!access) return false;
+    try {
+      var part = (access.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/');
+      while (part.length % 4) part += '=';
+      var exp = JSON.parse(atob(part)).exp;
+      return !exp || exp * 1000 > Date.now();
+    } catch (e) { return true; }
+  }
+
   function boot() {
+    if (!hasSession()) { location.replace('/login'); return; }
     // Each page names itself; fall back to the document title.
     var t = document.body.getAttribute('data-achi-title') || document.title.split('·')[0].trim();
     build(t);
     showPrimaryLinksOnly();
-
+    var out = document.querySelector('.achi-chrome [data-achi-signout]');
+    if (out) out.addEventListener('click', function (e) { e.preventDefault(); signOut(); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

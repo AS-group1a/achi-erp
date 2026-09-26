@@ -1,10 +1,10 @@
 {
   "slug": "achi-scaffolding",
-  "partner_name": "Achi Scaffolding",
+  "partner_name": "ARARA",
   "partner_url": null,
   "pack_version": "0.1.0",
   "pack_type": "partner",
-  "description": "Achi Scaffolding — internal operations platform",
+  "description": "ARARA — internal operations platform",
   "default_locale": "en",
   "additional_locales": {},
   "cwicr_regions": [],
@@ -53,7 +53,7 @@
     "accent_color": null,
     "favicon_path": "favicon.png",
     "logo_path": "logo.png",
-    "powered_by_text": "Achi Scaffolding ERP"
+    "powered_by_text": "ARARA"
   },
   "demo_template_ids": [],
   "onboarding_script_path": "onboarding.yaml",

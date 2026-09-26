@@ -4,7 +4,7 @@ Every user can just write and Send: the message goes out through ONE shared
 company mailbox (configured once via the app's email settings — the same
 app.core.email service password-resets use), so no one has to connect an account
 or fiddle with app passwords. The mail goes out under a neutral company identity
-("Achi Scaffolding Team") with no Reply-To — recipients never see the individual
+("ARARA Team") with no Reply-To — recipients never see the individual
 sender's name or personal address. Who actually sent it is still recorded on the
 ``achi_email`` row for internal audit; it just isn't put on the wire.
 
@@ -46,7 +46,7 @@ _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 # Neutral identity every outbound message goes out under, so the recipient sees
 # the company and never the individual who happened to click Send.
-_FROM_NAME = "Achi Scaffolding Team"
+_FROM_NAME = "ARARA Team"
 
 
 async def _sender_name(session, user_id: str | None) -> str:
@@ -76,7 +76,7 @@ def _wrap_html(fragment: str) -> str:
         'line-height:1.5;color:#1f2937">'
         f"{fragment or ''}"
         '<div style="margin-top:18px;color:#6b7280;font-size:12px">'
-        "Sent via Achi Scaffolding</div></div>"
+        "Sent via ARARA</div></div>"
     )
 
 
