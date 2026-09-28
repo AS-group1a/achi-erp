@@ -94,8 +94,8 @@ body[data-achi-title="CRM"] .achi-top { display: none; }
 
 /* ── Grid ────────────────────────────────────────────────────────────── */
 .wrap { background: #fff; border: 1px solid var(--line); border-radius: 5px; overflow-x: auto; scrollbar-width: thin; font-family: var(--grid-font); }
-.hd, .row, .foot { min-width: 1132px; }
-.hd, .row { display: grid; grid-template-columns: 88px 74px minmax(150px, 1fr) minmax(190px, 1.25fr) 118px minmax(170px, 1.1fr) 44px 56px 122px; }
+.hd, .row, .foot { min-width: 1724px; }
+.hd, .row { display: grid; grid-template-columns: 88px 74px minmax(150px, 1fr) 116px 156px 84px 146px 90px minmax(190px, 1.25fr) 118px minmax(170px, 1.1fr) 44px 56px 122px; }
 /* Header = Contacts .hd / Log thead: 8.5px heavy uppercase, 36px tall. */
 .hd { background: var(--head); border-bottom: 1px solid var(--line); font-size: 8.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--mut); }
 .hd span { display: flex; align-items: center; gap: 4px; min-height: 36px; padding: 5px 8px; box-shadow: inset -1px 0 0 var(--line-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -135,6 +135,15 @@ body[data-achi-title="CRM"] .achi-top { display: none; }
 .cl-badge.is-client { background: #E5EEFF; color: #244A85; }
 /* Secondary line = Contacts .c-sm / Log secondary cell text (10.5px). */
 .nm-sub { color: var(--mut); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; }
+/* Contact columns (Mobile / WA, Email, Role, City): secondary 10.5px text. */
+.row .c2 { font-size: 10.5px; }
+/* Mobile / WA: small coloured icon before the number — WhatsApp green for a
+   WhatsApp number, CRM navy for any other kind (mobile, office, home…). */
+.ph-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ph-ic { flex: 0 0 auto; width: 12px; height: 12px; }
+.ph-ic.is-wa { color: #25D366; }
+.ph-ic.is-mob { color: var(--navy); }
+.ph-num { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .st { font-size: 8.5px; font-weight: 800; letter-spacing: .05em; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
 
 .stw { position: relative; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; max-width: 100%; }
@@ -240,36 +249,26 @@ table.t { width: 100%; border-collapse: collapse; font-size: 11px; }
 .pg.side > .dpanel { margin-top: 0; }
 .pg.side .dpb { grid-template-columns: 1fr; max-height: calc(100vh - 140px); }
 
-/* ── Modal + toast ───────────────────────────────────────────────────── */
-/* New ENQ popup = the Contacts "+ contact" popup (.pp-* in contact_info.css):
-   same backdrop, open animation, solid blue 46px header, 26px inputs, white
-   footer with .pp-btn buttons. */
-@keyframes crm-pp-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes crm-pp-rise { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
-.modal-backdrop { position: fixed; inset: 0; z-index: 90; display: flex; align-items: flex-start; justify-content: center; padding: 7vh 20px 20px; background: rgba(15, 23, 42, .55); animation: crm-pp-fade .16s ease both; }
-.record-modal { width: min(560px, 100%); background: var(--canvas); border: 1px solid var(--navy-dark); border-radius: 6px; box-shadow: 0 24px 60px rgba(15, 23, 42, .35); overflow: hidden; font-size: 12px; animation: crm-pp-rise .2s cubic-bezier(.2, .7, .3, 1) both; }
-@media (prefers-reduced-motion: reduce) { .modal-backdrop, .record-modal { animation: none; } }
-.modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 6px 8px 6px 12px; background: var(--navy); color: #fff; }
-.modal-eyebrow { margin: 0 0 1px; font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #dce7fa; }
-.modal-header h2 { margin: 0; font-size: 15px; font-weight: 800; }
-/* close = Contacts .pp-x */
-.dpx.dark { width: 34px; height: 34px; border-color: rgba(255, 255, 255, .45); background: transparent; }
-.dpx.dark:hover { background: rgba(255, 255, 255, .15); }
-.dpx.dark svg { width: 14px; height: 14px; }
-#prospect-form { padding: 14px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
-.form-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; font-weight: 700; color: var(--mut); }
-.form-grid input { font: inherit; font-size: 12px; font-weight: 400; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; height: 26px; padding: 2px 7px; background: #fff; }
-.form-grid input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px rgba(40, 79, 158, .14); }
-.form-grid .span-2 { grid-column: span 2; }
-.field-note { color: var(--soft); font-weight: 400; }
-.form-error { min-height: 16px; margin: 8px 0 0; color: var(--red); font-size: 11px; }
-/* footer = Contacts .pp-foot, buttons = .pp-btn / .pp-btn-primary */
-.form-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 8px -14px -14px; padding: 7px 14px; border-top: 1px solid var(--line); background: #fff; }
-.form-actions .mini { height: 28px; padding: 0 14px; border-color: var(--line); background: #fff; color: var(--navy-dark); font-size: 12px; font-weight: 700; }
-.form-actions .mini:hover { background: var(--blue-soft); }
-.form-actions .mini.solid { border-color: var(--navy-dark); background: var(--navy); color: #fff; }
-.form-actions .mini.solid:hover { background: var(--navy-dark); }
+/* ── New ENQ frame (markup: add_ENQ_popup.html) ──────────────────────── */
+/* Holds the Log page's Add Log popup (/crm/add-enq/ui). Always laid out full
+   size (so the preloaded page has real dimensions) but invisible and
+   click-through until .is-open. The wrap is the dim backdrop: it fades like
+   the Contacts "+ contact" popup (.16s in, .13s out) while the popup inside
+   plays its own rise animation. */
+.enq-frame-wrap {
+  position: fixed; inset: 0; z-index: 95;
+  background: rgba(15, 23, 42, .55);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .13s ease, visibility 0s linear .13s;
+}
+.enq-frame-wrap.is-open {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transition: opacity .16s ease, visibility 0s;
+}
+.enq-frame { display: block; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
+@media (prefers-reduced-motion: reduce) { .enq-frame-wrap, .enq-frame-wrap.is-open { transition: none; } }
+
+/* ── Toast ───────────────────────────────────────────────────── */
 
 .toast { position: fixed; right: 18px; bottom: 18px; z-index: 120; max-width: min(420px, calc(100vw - 36px)); padding: 9px 12px; border-radius: 5px; background: #1d2440; color: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, .3); font-size: 12px; }
 .toast.is-error { background: var(--red); }
@@ -280,6 +279,4 @@ table.t { width: 100%; border-collapse: collapse; font-size: 11px; }
   .srch { width: 100%; }
   .srch-wrap { flex: 1 0 100%; }
   .pg.side, .pg.side.wide { display: block; }
-  .form-grid { grid-template-columns: 1fr; }
-  .form-grid .span-2 { grid-column: span 1; }
 }

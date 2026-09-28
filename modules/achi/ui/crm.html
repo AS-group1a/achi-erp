@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CRM | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=23">
+  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=28">
 </head>
 <body data-achi-title="CRM">
   <svg class="icon-sprite" aria-hidden="true">
@@ -48,33 +48,10 @@
     <aside class="dpanel" id="panel" hidden></aside>
   </main>
 
-  <div class="modal-backdrop" id="prospect-modal" hidden>
-    <section class="record-modal" role="dialog" aria-modal="true" aria-labelledby="prospect-title">
-      <header class="modal-header">
-        <div><p class="modal-eyebrow">CRM</p><h2 id="prospect-title">New enquiry</h2></div>
-        <button class="dpx dark" type="button" id="prospect-close" aria-label="Close form" title="Close"><svg><use href="#i-x"/></svg></button>
-      </header>
-      <form id="prospect-form">
-        <div class="form-grid">
-          <label>First name<input name="first_name" autocomplete="off"></label>
-          <label>Last name<input name="last_name" autocomplete="off"></label>
-          <label class="span-2">Company<input name="company_name" autocomplete="off"></label>
-          <label>Mobile<input name="mobile" autocomplete="off"></label>
-          <label>Email<input name="email" type="email" autocomplete="off"></label>
-          <label class="span-2">Subject<input name="subject" autocomplete="off"></label>
-          <label class="span-2">Category <span class="field-note">optional</span><input name="category" autocomplete="off"></label>
-        </div>
-        <p class="form-error" id="prospect-error" role="alert"></p>
-        <div class="form-actions">
-          <button class="mini ghost" type="button" id="prospect-cancel">Cancel</button>
-          <button class="mini solid" type="submit" id="prospect-save">Add enquiry</button>
-        </div>
-      </form>
-    </section>
-  </div>
+  <!-- @include add_ENQ_popup.html — the New ENQ popup; router.py inserts it here -->
 
   <div class="toast" id="toast" role="status" hidden></div>
-  <script src="/api/v1/achi/crm/crm.js?v=22"></script>
+  <script src="/api/v1/achi/crm/crm.js?v=30"></script>
 <script src="/api/v1/achi/ui/chrome.js?v=41"></script>
 </body>
 </html>

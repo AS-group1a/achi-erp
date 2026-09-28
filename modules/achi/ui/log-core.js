@@ -1613,18 +1613,19 @@ const FORM_COLS=[
    to use FORM_COLS above, so removing a field from this table never removes it
    from the form or changes how it is saved. */
 const STANDARD_LOG_TABLE_COLS=[
-  {k:'num',       h:'Code',                  tab:null, cls:'num pg-f-num',    w:64},
-  {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',       w:92},
-  {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',       w:86, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
-  {k:'contact',   h:'Contact',               tab:null, cls:'log-contact-col', w:198},
-  {k:'mobile',    h:'Mobile / WA',           tab:null,                       w:116, edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
-  {k:'email',     h:'Email',                 tab:null,                       w:156, edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
-  {k:'role',      h:'Role',                  tab:null,                       w:84},
-  {k:'company',   h:'Company',               tab:null,                       w:146, edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
-  {k:'city',      h:'City',                  tab:null,                       w:90, edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
-  {k:'desc',      h:'Notes — What Was Said', tab:null,                       w:276, wide:true, note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
-  {k:'intent',    h:'Intent',                tab:null,                       w:100},
-  {k:'linked_to', h:'Linked To',             tab:null,                       w:87},
+  {k:'num',       h:'Code',                  tab:null, cls:'num pg-f-num',    w:72},
+  {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',       w:104},
+  {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',       w:106, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
+  {k:'contact',   h:'Contact',               tab:null, cls:'log-contact-col', w:180},
+  {k:'mobile',    h:'Mobile / WA',           tab:null,                       w:122, edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
+  {k:'email',     h:'Email',                 tab:null,                       w:180, edit:{kind:'text',target:'contact',field:'email',val:r=>r.email||''}},
+  {k:'role',      h:'Role',                  tab:null,                       w:100},
+  {k:'company',   h:'Company',               tab:null,                       w:150, edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
+  {k:'city',      h:'City',                  tab:null,                       w:112, edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
+  {k:'desc',      h:'Notes — What Was Said', tab:null,                       w:280, wide:true, note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
+  {k:'next_action', h:'Next Action',         tab:null,                       w:170},
+  {k:'intent',    h:'Intent',                tab:null,                       w:124},
+  {k:'linked_to', h:'Linked To',             tab:null,                       w:96},
   {k:'owner',     h:'By',                    tab:null,                       w:56},
 
 ];
@@ -1934,6 +1935,18 @@ function appendLogColumnFilterParams(params){
 
 restoreLogColumnFilters();
 // A follow-up date is overdue once it's in the past and the file isn't closed.
+/* Next Action column (same as the CRM's): the follow-up note, or "Follow-up"
+   when there is only a date, then the date as dd/mm/yy; red with ⚠ once
+   overdue. Blank (the .mt marker) when the log has no follow-up. */
+function compactLogNextAction(r){
+  if(!r.follow_up_date) return '<span class="mt">—</span>';
+  const [y,m,d]=String(r.follow_up_date).slice(0,10).split('-');
+  const date=d&&m?`${d}/${m}/${(y||'').slice(2)}`:String(r.follow_up_date);
+  const overdue=isOverdueFollowup(r);
+  const note=String(r.follow_up_notes||'').trim();
+  return `<span class="log-next-action${overdue?' is-overdue':''}" title="${esc(note||'Follow-up')} · ${esc(date)}">`
+    +`${note?esc(note):'Follow-up'} · ${esc(date)}${overdue?' ⚠':''}</span>`;
+}
 function isOverdueFollowup(r){
   if(!r||!r.follow_up_date) return false;
   if(r.status==='done'||r.status==='cancelled') return false;
@@ -2173,6 +2186,7 @@ function cellHTML(c,r,i){switch(c.k){
     return `<span class="badge ${overdue?'b-cancelled fu-overdue':'b-scheduled'}">${esc(r.follow_up_date)}${overdue?' !':''}</span>`;
   }
   case 'funotes': return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
+  case 'next_action': return compactLogNextAction(r);
   /* General Log extra columns */
   case 'ref': return r.reference?`<span class="enq-ref">${esc(r.reference)}</span>`:'<span class="mt">—</span>';
   case 'role': return dash(r.role);
@@ -2285,6 +2299,9 @@ const COLW_KEY='achi_log_col_widths_v3', COLW_MIN=42,
       BUSINESS_CODE_COLUMN_MIN=136;
 let COLW={};
 function loadColWidths(){
+  // The Log page's compact table has fixed, fitted widths (STANDARD_LOG_TABLE_COLS
+  // .w): saved drag widths are ignored and resizing is off (wireColResize).
+  if(COMPACT_STANDARD_LOG){ COLW={}; return; }
   try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY)||'{}')||{}; }catch(e){ COLW={}; }
 }
 function saveColWidths(){
@@ -2357,6 +2374,7 @@ function buildHead(){
    carries as well as a desktop. One delegated listener on the header survives
    buildHead() being called again. */
 function wireColResize(){
+  if(COMPACT_STANDARD_LOG) return;   // fixed widths on the Log page (see loadColWidths)
   const head=$('thead');
   if(!head || head.dataset.rzWired) return;
   head.dataset.rzWired='1';
@@ -3086,6 +3104,41 @@ function rxReferenceOnlineRow(label,value,scope,placeholder){
 function rxReferenceSocialRow(platform,handle,scope){
   return `<div class="rx-ref-line" data-rx-${scope}-online-row><span class="rx-ref-line-label">Social</span><span class="rx-ref-social"><select class="rx-in" data-social-platform>${socialOptionsHTML(platform||'IG')}</select><input class="rx-in" placeholder="@handle" value="${esc(handle||'')}"></span><button type="button" class="rx-ref-remove" data-rx-ref-remove aria-label="Remove social handle">×</button></div>`;
 }
+/* Country / District / City dropdowns of the "+ Add Address" panels (person,
+   company HQ, additional contact). Country lists every country (COUNTRY_NAMES);
+   District and City come from GEO plus the team's added districts/cities, and
+   follow the chosen country / district (see rxAddrGeoChanged in log.js). A
+   country with no district/city data shows an empty list note. */
+function rxAddrOptions(list,placeholder,selected){
+  if(!list.length) return '<option value="">No list for this country</option>';
+  return `<option value="">${esc(placeholder)}</option>`
+    +list.map(v=>`<option value="${esc(v)}"${v===selected?' selected':''}>${esc(v)}</option>`).join('');
+}
+const rxAddrCities=(country,district)=>district?mergedCities(country,district):allCitiesForCountry(country);
+function rxAddrGeoHTML(country){
+  const c=country||'Lebanon';
+  const names=COUNTRY_NAMES.includes(c)?COUNTRY_NAMES:[c,...COUNTRY_NAMES];
+  return `<span class="rx-ref-label">Country</span><select class="rx-in" data-rx-native data-rx-addr-country aria-label="Country">`
+      +names.map(n=>`<option value="${esc(n)}"${n===c?' selected':''}>${esc(n)}</option>`).join('')+'</select>'
+    +`<span class="rx-ref-label">District</span><select class="rx-in" data-rx-native data-rx-addr-district aria-label="District">${rxAddrOptions(districtsMerged(c),'Select district')}</select>`
+    +`<span class="rx-ref-label">City</span><select class="rx-in" data-rx-native data-rx-addr-city aria-label="City">${rxAddrOptions(rxAddrCities(c,''),'Select city')}</select>`;
+}
+/* Country / District / City picked in an open "+ Add Address" panel: the
+   person's address first, else the company's HQ details (only while the
+   company section is shown). Empty strings when none has a city. */
+function rxAddressPanelGeo(){
+  const body=$('rx-body');
+  const read=panel=>{
+    if(!panel||panel.hidden) return null;
+    const pick=sel=>((panel.querySelector(sel)||{}).value||'').trim();
+    const city=pick('[data-rx-addr-city]');
+    return city?{country:pick('[data-rx-addr-country]'),district:pick('[data-rx-addr-district]'),city}:null;
+  };
+  const companyPanel=$('rx-company-panel');
+  return read(body&&body.querySelector('[data-rx-address-panel="main"]'))
+    ||((companyPanel&&!companyPanel.hidden)?read(body.querySelector('[data-rx-company-address-panel]')):null)
+    ||{country:'',district:'',city:''};
+}
 function rxReferenceContactHTML(src,val){
   const first=val('first')||'',last=val('last')||'',company=val('company')||'';
   const initials=rxContactInitials(first,last,company);
@@ -3124,7 +3177,7 @@ function rxReferenceContactHTML(src,val){
       <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-email-list" id="rx-email-list">${emailHtml}</div><div class="rx-website-list" id="rx-website-list">${rxReferenceOnlineRow('Website',src.website||'','main','company.com')}</div><div class="rx-social-list" id="rx-social-list">${socials.map(s=>rxReferenceSocialRow(s.platform,s.handle,'main')).join('')}</div><select class="rx-in rx-ref-add-select" data-rx-native aria-label="Add email, website or social" id="rx-add-online"><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
     </div>
     <button type="button" class="rx-ref-mini rx-address-toggle" data-rx-address-toggle="main">+ Add Address</button>
-    <div class="rx-ref-address" data-rx-address-panel="main" hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where the person lives — site address stays in the Site section</span><button type="button" data-rx-address-close="main">×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street name"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>
+    <div class="rx-ref-address" data-rx-address-panel="main" hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where the person lives — site address stays in the Site section</span><button type="button" data-rx-address-close="main">×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…">${rxAddrGeoHTML()}<span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street name"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>
     <label class="rx-company-toggle"><input type="checkbox" id="rx-company-toggle"${companyOpen?' checked':''}>From a company — <span id="rx-company-toggle-hint">${companyOpen?'company section below':'tick to add company details'}</span></label>
     <div class="rx-company-panel" id="rx-company-panel"${companyOpen?'':' hidden'}>
       <div class="rx-ref-subhead"><b>Company — <span id="rx-company-title">${esc(company||'new company')}</span></b><span>the contact belongs to this company</span></div>
@@ -3140,7 +3193,7 @@ function rxReferenceContactHTML(src,val){
           <span class="rx-ref-label">Size</span><select class="rx-in"><option>1–10</option><option>11–50</option><option>51–200</option><option>200+</option></select>
         </div>
       </div>
-      <div class="rx-ref-address" data-rx-company-address-panel hidden><div class="rx-ref-subhead"><b>Company HQ details</b><span>registered or main office address</span><button type="button" data-rx-company-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / floor"></div></div>
+      <div class="rx-ref-address" data-rx-company-address-panel hidden><div class="rx-ref-subhead"><b>Company HQ details</b><span>registered or main office address</span><button type="button" data-rx-company-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…">${rxAddrGeoHTML()}<span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / floor"></div></div>
       <div class="rx-contact-panels">
         <div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div><div class="rx-company-phone-list">${rxReferenceTelRow('Telephone','','company')}${rxReferenceTelRow('Mobile','','company')}${rxReferenceTelRow('WhatsApp','','company')}</div><button type="button" class="rx-ref-mini" data-rx-company-add-phone>+ Add Number</button></div>
         <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-company-online-list">${rxReferenceOnlineRow('Email','','company','info@company.com')}${rxReferenceOnlineRow('Website','','company','company.com')}${rxReferenceSocialRow('IG','','company')}</div><select class="rx-in rx-ref-add-select" data-rx-native aria-label="Add email, website or social" data-rx-company-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
@@ -3650,7 +3703,7 @@ function rxRelatedRow(rc){
       +`</div><select class="rx-in rx-ref-add-select" data-rx-native aria-label="Add email, website or social" data-rx-related-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>`
     +`</div>`
     +`<div class="rx-person-foot"><label>Primary contact? <select class="rx-in" data-rc-primary><option value="no"${f.primary?'':' selected'}>No</option><option value="yes"${f.primary?' selected':''}>Yes</option></select></label><button type="button" class="rx-ref-mini" data-rx-related-address-toggle>+ Add Address</button></div>`
-    +`<div class="rx-ref-address" data-rx-related-address-panel hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where this person lives</span><button type="button" data-rx-related-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>`
+    +`<div class="rx-ref-address" data-rx-related-address-panel hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where this person lives</span><button type="button" data-rx-related-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…">${rxAddrGeoHTML()}<span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>`
   +`</div>`;
 }
 function rxRelatedRowsHTML(list){ return (list||[]).map(rxRelatedRow).join(''); }
@@ -3756,10 +3809,21 @@ function rxCollectNew(){
     : {is_company:false, prefix:v.prefix||null, first_name:first||null, last_name:last||null,
        company_name:company||null, role:v.role||null, company_type:v.company_type||null,
        mobile:mob, email:eml, socials};
+  // The table's City column shows the file's city (the Site section). When the
+  // Site section has no city, take the one picked under "+ Add Address".
+  if(!v.city){
+    const addr=rxAddressPanelGeo();
+    if(addr.city){ v.country=v.country||addr.country; v.district=v.district||addr.district; v.city=addr.city; }
+  }
   const hasSite=v.country||v.district||v.city||v.street||v.maps||v.location||v.no||v.bldg||v.floor;
   const site=hasSite?{country:v.country||'Lebanon', district:v.district||null, city:v.city||null,
     street:v.street||null, maps_url:v.maps||null, site_location:v.location||null,
     site_number:v.no||null, site_building:v.bldg||null, site_floor:v.floor||null}:null;
+  // An embedding page can opt the popup into its workspace create scope
+  // (ACHI_LOG_FILTER.popup_create) — the CRM's "+ New ENQ" does, so the log
+  // lands as a CRM enquiry. Pages that don't opt in keep the old defaults.
+  const embedScope=(window.ACHI_LOG_FILTER&&window.ACHI_LOG_FILTER.popup_create===true
+    &&typeof workspaceCreateDefaults==='function')?workspaceCreateDefaults():{};
 return {
   person,
   site,
@@ -3768,7 +3832,8 @@ return {
   log_type:v.type||'inbound_call',
 
   // Use selected stage. Only default to Prospect if none exists.
-  stage:v.stage || 'prospect',
+  stage:v.stage || embedScope.stage || 'prospect',
+  origin_module:embedScope.origin || undefined,
 
   category:v.category||null,
   reference:v.reference||null,

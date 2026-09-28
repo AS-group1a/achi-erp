@@ -52,7 +52,7 @@ from .schemas import (
     QuickLogCreate,
     QuickLogOut,
 )
-from .service import CONTACT_INFO_TAG, ContactFileService, is_job_file, parse_comm_tally
+from .service import CONTACT_INFO_TAG, ContactFileService, contact_codes, is_job_file, parse_comm_tally
 from .quotation_router import quotation_router
 from .survey_router import survey_router
 from .geo_router import geo_router
@@ -255,11 +255,90 @@ def crm_ui() -> HTMLResponse:
 
     This first version intentionally shares the General Log data and behaviour.
     CRM-specific filtering will be added later after the workflow is approved.
+    The New ENQ popup lives in add_ENQ_popup.html and is inlined at its marker.
     """
     return HTMLResponse(
-        (_UI_DIR / "crm.html").read_text(encoding="utf-8"),
+        _page_with_popup("crm.html", "add_ENQ_popup.html"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+# Injected into the Log page to turn it into the CRM's "+ New ENQ" form.
+# In <head>, so the Log page behind the popup is never painted (no flash).
+# The CRM frame draws the dim backdrop itself, so the popup's is transparent.
+_ADD_ENQ_HEAD = """<style>
+  html, body.rx-embed { background: transparent !important; }
+  body.rx-embed { padding-left: 0 !important; }
+  body.rx-embed main > :not(#rx), body.rx-embed .totop, body.rx-embed .achi-chrome,
+  body.rx-embed .achi-top, body.rx-embed #achi-gate, body.rx-embed #achi-cover { display: none !important; }
+  body.rx-embed .rx-reference { background: transparent !important; }
+</style>
+"""
+_ADD_ENQ_CONFIG = """<script>
+  /* CRM "+ New ENQ": this page is only the Add Log popup, framed by the CRM.
+     popup_create makes the popup save in this scope: a CRM enquiry. */
+  window.ACHI_LOG_FILTER = {
+    create: {origin: 'crm', stage: 'enquiry'},
+    stages: ['enquiry'],
+    popup_create: true,
+  };
+</script>
+"""
+_ADD_ENQ_BOOT = """<script>
+  /* The CRM preloads this page once and keeps it. It says 'ready'; on
+     'open-enq' the popup opens (its own open animation plays); once it has
+     closed — Cancel, ×, Escape, backdrop or after Save, every path ends with
+     #rx hidden after its close animation — it says 'closed'. */
+  (function () {
+    var rx = document.getElementById('rx');
+    var origin = window.location.origin;
+    var post = function (type) {
+      try { window.parent.postMessage({ source: 'achi-add-enq', type: type }, origin); } catch (e) {}
+    };
+    var isOpen = false;
+    new MutationObserver(function () {
+      if (isOpen && rx.hidden) { isOpen = false; post('closed'); }
+    }).observe(rx, { attributes: true, attributeFilter: ['hidden'] });
+    window.addEventListener('message', function (event) {
+      var data = event.data || {};
+      if (event.origin !== origin || data.source !== 'achi-crm' || data.type !== 'open-enq') return;
+      openExpandedRow(null);
+      isOpen = true;
+    });
+    post('ready');
+  })();
+</script>
+"""
+
+
+@router.get(
+    "/crm/add-enq/ui",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    summary="CRM New ENQ form (the Log page's Add Log popup)",
+)
+def crm_add_enq_ui() -> HTMLResponse:
+    """The exact Add Log popup of the Log page, served on its own for the CRM.
+
+    Same page, scripts and popup as /ui (general_log.html + add_log_popup.html);
+    added are a <head> style (show only the popup, no flash, transparent
+    backdrop), a config block (create scope: CRM enquiry) and a boot script that
+    talks to the CRM: 'ready' → 'open-enq' → 'closed'. The CRM preloads this in
+    a hidden full-screen frame and reuses it for every "+ New ENQ".
+    """
+    page = _page_with_popup("general_log.html", "add_log_popup.html")
+    edits = (
+        ("</head>", _ADD_ENQ_HEAD + "</head>"),
+        ('<body class="log-page" data-achi-title="Log">',
+         '<body class="log-page rx-embed" data-achi-title="Log">'),
+        ('<script src="/api/v1/achi/ui/log-core.js', _ADD_ENQ_CONFIG + '<script src="/api/v1/achi/ui/log-core.js'),
+        ("</body>", _ADD_ENQ_BOOT + "</body>"),
+    )
+    for old, new in edits:
+        if old not in page:
+            raise RuntimeError(f"general_log.html changed: cannot find {old!r} for the CRM New ENQ form")
+        page = page.replace(old, new, 1)
+    return HTMLResponse(page, headers={"Cache-Control": "no-store, max-age=0"})
 
 @router.get(
     "/quotation/ui",
@@ -592,6 +671,26 @@ async def list_contact_info_contacts(
         offset=offset,
         limit=limit,
     )
+
+
+@router.get(
+    "/contact-info/contact-codes",
+    summary="Directory codes: CO-00001 for companies, C-00001 for people",
+)
+async def contact_info_codes(
+    session: SessionDep,
+    _user_id: CurrentUserId,
+) -> dict[str, str]:
+    """{contact_id: code} for every directory contact, active or deleted.
+
+    Codes are stored in achi_contact_code and assigned here on first sight —
+    the first call numbers the existing directory by creation date; later
+    contacts take the next number of their kind. OCE's contact response is left
+    untouched: the Contacts page fetches this map alongside the contact list.
+    """
+    result = await session.execute(select(Contact))
+    contacts = [contact for contact in result.scalars().all() if _is_contact_info_contact(contact)]
+    return await contact_codes(session, contacts)
 
 
 @router.post(

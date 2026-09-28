@@ -69,6 +69,9 @@
   const DEFAULT_ISO = 'lb';
   const DEFAULT_DIAL = '+961';
   const CONTACTS_PATH = '/api/v1/achi/contact-info/contacts?limit=500';
+  // {contact_id: "CO-00001" | "C-00001"}: permanent directory codes, assigned
+  // server-side (achi_contact_code) the first time a contact is seen.
+  const CONTACT_CODES_PATH = '/api/v1/achi/contact-info/contact-codes';
   const CONTACT_REFRESH_MS = 15000;
   const COUNTRIES = [
     ['lb', 'Lebanon', '+961'], ['ae', 'United Arab Emirates', '+971'], ['sa', 'Saudi Arabia', '+966'], ['qa', 'Qatar', '+974'],
@@ -109,6 +112,7 @@
 
   const state = {
     rawContacts: [],
+    contactCodes: {},
     contacts: [],
     files: [],
     logs: [],
@@ -1022,9 +1026,17 @@
     return contact.recordType === 'company' ? (contact.legal_name || '') : (contact.company_name || '');
   }
 
+  // Linked to: the contact's own permanent code — CO-00001 for a company,
+  // C-00001 for a person (from CONTACT_CODES_PATH). The tooltip names the
+  // latest linked enquiry, when there is one.
   function linkedCode(contact, placeholder = true) {
-    if (!contact.latestFile || !contact.latestFile.file_number) return placeholder ? '<span class="mut">—</span>' : '';
-    return `<span class="code" title="${escapeHtml(contact.latestFile.subject || '')}">${escapeHtml(contact.latestFile.file_number)}</span>`;
+    const code = (state.contactCodes || {})[contact.id];
+    if (!code) return placeholder ? '<span class="mut">—</span>' : '';
+    const file = contact.latestFile;
+    const title = file && file.file_number
+      ? ['Latest enquiry ' + file.file_number, file.subject].filter(Boolean).join(' — ')
+      : 'No linked enquiry yet';
+    return `<span class="code" title="${escapeHtml(title)}">${escapeHtml(code)}</span>`;
   }
 
   function whoMarkup(contact) {
@@ -1133,11 +1145,13 @@
         optionalRequest('/api/v1/achi/files/?limit=1000'),
         optionalRequest('/api/v1/achi/logs/?limit=1000'),
         optionalRequest('/api/v1/projects/?limit=500&status=all'),
+        optionalRequest(CONTACT_CODES_PATH),
       ]);
 
       applyContactResponse(await contactsPromise);
 
-      const [files, logs, projects] = await enrichmentPromise;
+      const [files, logs, projects, codes] = await enrichmentPromise;
+      state.contactCodes = codes && typeof codes === 'object' ? codes : {};
       state.files = Array.isArray(files) ? files : [];
       state.logs = Array.isArray(logs) ? logs : (Array.isArray(logs?.items) ? logs.items : []);
       state.projects = Array.isArray(projects) ? projects : null;
@@ -1158,7 +1172,9 @@
     if (!accessToken || document.hidden || contactRefreshInFlight) return;
     contactRefreshInFlight = true;
     try {
-      applyContactResponse(await request(CONTACTS_PATH));
+      const [response, codes] = await Promise.all([request(CONTACTS_PATH), optionalRequest(CONTACT_CODES_PATH)]);
+      if (codes && typeof codes === 'object') state.contactCodes = codes;   // new contacts get theirs
+      applyContactResponse(response);
     } catch (_error) {
       // Keep the current directory visible during a transient background failure.
     } finally {

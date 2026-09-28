@@ -1,0 +1,7 @@
+  <!-- "+ New ENQ" = the Log page's Add Log popup, exactly. crm.js preloads
+       /api/v1/achi/crm/add-enq/ui into this full-screen frame once and keeps
+       it; the wrap draws the dim backdrop and fades in/out (.is-open, crm.css),
+       the popup inside plays its own open/close animation. -->
+  <div class="enq-frame-wrap" id="enq-frame-wrap" aria-hidden="true">
+    <iframe class="enq-frame" id="enq-frame" title="New enquiry" tabindex="-1"></iframe>
+  </div>

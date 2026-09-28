@@ -27,7 +27,12 @@ async function rxSaveAll(keepOpen){
   const phonesChanged=rxPhonesChanged(r);
   const emailsChanged=rxEmailsChanged(r);
   const relatedChanged=rxRelatedChanged(r);
-  if(!changed.length && !extrasChanged && !phonesChanged && !emailsChanged && !relatedChanged){
+  // "+ Add Address" city -> the file's city (the table's City column), when
+  // the Site section's own city field is empty.
+  const siteCityEl=$('rx-body').querySelector('[data-k="city"]');
+  const addr=rxAddressPanelGeo();
+  const addrCity=(!siteCityEl||!rxFieldValue(siteCityEl))&&addr.city&&addr.city!==String(r.city||'')?addr:null;
+  if(!changed.length && !extrasChanged && !phonesChanged && !emailsChanged && !relatedChanged && !addrCity){
     st.textContent='Nothing to save'; st.className='rx-status';
     if(!keepOpen) setTimeout(closeExpandedRow,500);
     return;
@@ -44,6 +49,14 @@ async function rxSaveAll(keepOpen){
   if(phonesChanged){ try{ await rxSavePhones(r); }catch(e){ failed++; } }
   if(emailsChanged){ try{ await rxSaveEmails(r); }catch(e){ failed++; } }
   if(relatedChanged){ try{ await rxSaveRelated(r); }catch(e){ failed++; } }
+  if(addrCity){
+    try{
+      const geo={city:addrCity.city, district:addrCity.district||null, country:addrCity.country||null};
+      await api('/files/'+r.file_id,{method:'PATCH',body:JSON.stringify(geo)});
+      ROWS.forEach(x=>{ if(x.file_id===r.file_id) Object.assign(x,geo); });   // every log of this file
+      render();
+    }catch(e){ failed++; }
+  }
   rxBusy(false);
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
   else {
@@ -1018,8 +1031,32 @@ $('rx-body').addEventListener('click',e=>{
   const inp=e.target.closest('.rx-tags-input'); if(!inp) return;
   openSelectPopup(inp,inp,selectPopupChoices('tags'),()=>{},{multi:true,addSentinel:TAG_ADD,onAdd:addTag});
 });
+/* "+ Add Address" panels: District follows Country, City follows District,
+   and picking a city fills its district when that is unambiguous. */
+function rxAddrGeoChanged(el){
+  const grid=el.closest('.rx-contact-fields');
+  if(!grid) return;
+  const country=grid.querySelector('[data-rx-addr-country]'),
+        district=grid.querySelector('[data-rx-addr-district]'),
+        city=grid.querySelector('[data-rx-addr-city]');
+  if(!country||!district||!city) return;
+  if(el===country){
+    district.innerHTML=rxAddrOptions(districtsMerged(country.value),'Select district');
+    city.innerHTML=rxAddrOptions(rxAddrCities(country.value,''),'Select city');
+  }else if(el===district){
+    const keep=city.value;
+    city.innerHTML=rxAddrOptions(rxAddrCities(country.value,district.value),'Select city',keep);
+  }else if(el===city&&city.value&&!district.value){
+    const found=districtForCity(country.value,city.value);
+    if(found){
+      district.innerHTML=rxAddrOptions(districtsMerged(country.value),'Select district',found);
+      city.innerHTML=rxAddrOptions(rxAddrCities(country.value,found),'Select city',city.value);
+    }
+  }
+}
 $('rx-body').addEventListener('change',e=>{
   const el=e.target;
+  if(el.matches('[data-rx-addr-country],[data-rx-addr-district],[data-rx-addr-city]')){ rxAddrGeoChanged(el); return; }
   if(el.matches('[data-rx-photo-input]')){ rxPreviewContactPhoto(el); return; }
   if(el.id==='rx-company-toggle'){ rxSetCompanyPanel(el.checked); return; }
   if(el.id==='rx-add-online'||el.matches('[data-rx-company-add-online],[data-rx-related-add-online]')){ rxAddOnlineRow(el); return; }
