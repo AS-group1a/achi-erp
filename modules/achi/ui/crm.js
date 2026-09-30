@@ -118,7 +118,7 @@
   // ── Domain constants (mirror schemas.py — STAGES / STATUSES) ──────────────
   const isDone = f => f.stage === 'accepted';
 
-  // Board columns = the eight stages of STAGE_PICK (below). Order is a per-user
+  // Board columns = the seven stages of STAGE_PICK (below). Order is a per-user
   // preference (drag a column header to move it; saved in this browser). The
   // key is new: orders saved for the old 12-column board don't apply.
   const ORDER_KEY = 'achi.crm.colOrder.v2';
@@ -134,12 +134,12 @@
   }
   // Stage column of the grid: one dropdown per row, and the same list (plus
   // "All stages") as the header filter. Each step groups the backend stages it
-  // covers; picking a step saves its `value`. "Log" is the pre-enquiry first
-  // contact (prospect … 2nd follow-up); "Won → JOB" is stage "accepted".
-  // Stages outside these steps (follow-up, negotiation, on hold, cancelled) show
-  // their own name in the row's dropdown and appear only under "All stages".
+  // covers; picking a step saves its `value`. "Won → JOB" is stage "accepted".
+  // Stages outside these steps (negotiation, on hold, cancelled) show their own
+  // name in the row's dropdown and appear only under "All stages".
+  // Pre-enquiry logs (prospect … 2nd follow-up) are not CRM records: they stay
+  // on the Log page until an intent (ENQ, SV, …) or a stage moves them here.
   const STAGE_PICK = [
-    { id: 'log',       label: 'Log',        stages: ['prospect', 'outreach', 'first_contact', 'second_follow_up'], value: 'first_contact' },
     { id: 'enquiry',   label: 'Enquiry',    stages: ['enquiry'], value: 'enquiry' },
     { id: 'site',      label: 'Site visit', stages: ['site_survey'], value: 'site_survey' },
     { id: 'drawing',   label: 'Drawing',    stages: ['drawing'], value: 'drawing' },
@@ -151,7 +151,12 @@
   const STAGE_PICK_OF = {};
   const STAGE_PICK_BY_ID = {};
   STAGE_PICK.forEach(p => { STAGE_PICK_BY_ID[p.id] = p; p.stages.forEach(s => { STAGE_PICK_OF[s] = p; }); });
-  // Which of the eight stages an enquiry is in ('' for follow-up, negotiation,
+  // The file stages the CRM loads — Enquiry onwards, plus the parked states.
+  const CRM_STAGES = [
+    'enquiry', 'site_survey', 'drawing', 'takeoff', 'boq', 'resources', 'plan',
+    'costing', 'pricing', 'quotation', 'negotiation', 'accepted', 'cancelled', 'on_hold',
+  ];
+  // Which of the seven stages an enquiry is in ('' for follow-up, negotiation,
   // on hold, cancelled — those have no board column).
   const pickId = f => (STAGE_PICK_OF[f.stage] ? STAGE_PICK_OF[f.stage].id : '');
 
@@ -418,7 +423,7 @@
   // ── Cell renderers ─────────────────────────────────────────────────────────
   function stageCell(f) {
     const pick = STAGE_PICK_OF[f.stage];
-    // A stage outside the eight steps keeps its own name as the selected entry,
+    // A stage outside the seven steps keeps its own name as the selected entry,
     // so the dropdown never claims a step the enquiry is not in.
     const current = pick ? ''
       : `<option value="" selected disabled>${esc(STAGE_LABEL[f.stage] || f.stage)}</option>`;
@@ -455,25 +460,21 @@
       + (sub ? `<div class="nm-sub">${esc(sub)}</div>` : '') + '</div>';
   }
 
-  // Site opens the location in Google Maps: the saved Maps link when there is
-  // one, else a Maps search for the site + city.
+  // Site shows the CITY as a Google Maps link, like the Log's Location column:
+  // the saved Maps link when there is one, else a Maps search for
+  // city / district / country.
   function siteMapsUrl(f) {
     if (f.site.maps && /^https?:\/\//i.test(f.site.maps)) return f.site.maps;
-    const q = [f.site.location, f.site.street, f.site.city, f.site.district, f.site.country].filter(Boolean).join(', ')
-      || [f.subject, f.site.city].filter(Boolean).join(', ');
+    const q = [f.site.city, f.site.district, f.site.country].filter(Boolean).join(', ');
     return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : '';
   }
-  // Site text shows in Title Case (display only — the saved value is unchanged).
+  // City shows in Title Case (display only — the saved value is unchanged).
   const titleCase = s => String(s || '').toLowerCase().replace(/(^|[\s\-\/(.,])(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
-  function subjectCell(f) {
-    const site = [esc(titleCase(f.site.city)), esc(titleCase(f.site.location))]
-      .filter(Boolean).join(' — ');
-    const url = siteMapsUrl(f);
-    const inner = `<span style="font-size:11px">${f.subject ? esc(titleCase(f.subject)) : ''}</span>`
-      + (site ? `<div class="nm-sub">${site}</div>` : '');
-    if (!url || (!f.subject && !site)) return `<div style="line-height:1.15">${inner}</div>`;
-    return `<a class="site-lnk" href="${esc(url)}" target="_blank" rel="noopener" title="Open in Google Maps">`
-      + `<svg aria-hidden="true"><use href="#i-pin"/></svg><span style="line-height:1.15;min-width:0">${inner}</span></a>`;
+  function siteCell(f) {
+    const city = String(f.site.city || '').trim();
+    if (!city) return '';
+    return `<a class="site-lnk" href="${esc(siteMapsUrl(f))}" target="_blank" rel="noopener" title="Open in Google Maps">`
+      + `<svg aria-hidden="true"><use href="#i-pin"/></svg><span>${esc(titleCase(city))}</span></a>`;
   }
   function contactCell(f) {
     const person = [f.contact.prefix, f.contact.first, f.contact.last].filter(Boolean).join(' ').trim()
@@ -496,7 +497,9 @@
       ? '<span class="cl-badge is-client" title="Has worked with us before (at least one job)">CLIENT</span>'
       : '<span class="cl-badge is-lead" title="No job with us yet">LEAD</span>';
     const name = f.contact.company || (f.contact.first || f.contact.last ? '' : f.contact.name) || '';
-    return `<div class="cl-line">${name ? `<span class="nm-main" title="${esc(name)}">${esc(name)}</span>` : ''}${badge}</div>`;
+    // No company name → blank cell (no lone LEAD / CLIENT badge).
+    if (!name) return '';
+    return `<div class="cl-line"><span class="nm-main" title="${esc(name)}">${esc(name)}</span>${badge}</div>`;
   }
   // "Linked to": a count button; the list opens in one shared floating menu.
   const linkedCount = f => DOCS.filter(([k]) => f.docs[k]).length + f.logs.length;
@@ -617,7 +620,7 @@
       + `<div>${emailCell(f)}</div>`
       + `<div title="${esc(f.contact.role)}">${esc(f.contact.role)}</div>`
       + `<div>${companyCell(f)}</div>`
-      + `<div>${subjectCell(f)}</div>`
+      + `<div>${siteCell(f)}</div>`
       + `<div>${stageCell(f)}</div>`
       + `<div>${linkedCell(f)}</div>`
       + `<div><span class="who" title="${esc(f.ownerName || '')}">${esc(initials(f.ownerName))}</span></div>`
@@ -918,7 +921,7 @@
       let offset = 0;
       let total = 0;
       for (let page = 0; page < 5; page += 1) {
-        const data = await request(`${API}/logs/?limit=1000&offset=${offset}`);
+        const data = await request(`${API}/logs/?limit=1000&offset=${offset}&stages=${CRM_STAGES.join(',')}`);
         const items = Array.isArray(data && data.items) ? data.items : (Array.isArray(data) ? data : []);
         rows.push(...items);
         total = (data && typeof data.total === 'number') ? data.total : rows.length;
