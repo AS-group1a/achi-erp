@@ -1,362 +1,449 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Site Visits · Achi Scaffolding ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/grid.css?v=2">
-<style>
-  /* Survey statuses have no badge classes in the shared sheet — the Call Log's
-     vocabulary is different. Same shapes, survey colours. */
-  .b-Draft{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
-  .b-Scheduled{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
-  .b-In-Progress{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
-  .b-Completed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
-  .b-Cancelled{background:#fbeaea;color:#8b2635;border-color:#e8b4bb}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Visit | ARARA</title>
+  <!-- Site Visit list (every SV-NNNNN). Same look as CRM / Contacts: reuses the CRM
+       sheet. Served at /survey/ui (no ?id) and /site-visit/ui; a row opens
+       /survey/ui?id=… (the full visit form). -->
+  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=35">
+  <style>
+    /* Column set for this page (resizable; crm.css reads --crm-cols). */
+    #pg { --crm-cols: 92px 84px 128px 92px minmax(150px, 1.2fr) minmax(170px, 1.4fr) 150px 92px 88px; --crm-minw: 1120px; }
+    .sv-st { font: inherit; font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border: 0; border-radius: 999px; padding: 3px 8px; cursor: pointer; appearance: none; -webkit-appearance: none; }
+    .sv-st:focus { outline: none; box-shadow: 0 0 0 2px rgba(40, 79, 158, .2); }
+    .sv-mini { color: var(--mut); font-size: 10.5px; }
+    .sv-enq { font-family: ui-monospace, Menlo, monospace; font-size: 10px; font-weight: 700; color: var(--navy); }
+    .sv-empty { padding: 26px 14px; text-align: center; color: var(--mut); }
+    .sv-ck { flex: 0 0 auto; width: 13px; height: 13px; margin: 0 6px 0 0; vertical-align: -2px; accent-color: var(--navy); cursor: pointer; }
+    .mini.danger { background: #fff; border-color: #f1b8b3; color: #b42318; }
+    .mini.danger:hover { background: #fbeaea; }
+  </style>
 </head>
-<body>
-<main>
-  <div class="err" id="err"></div>
-  <div class="shell">
-    <div class="nav">
-      <div class="nav-actions">
-        <button class="tb-add" id="add-row" type="button"><span class="tb-add-plus">+</span> Add Row</button>
-        <span class="cnt" id="count">· 0</span>
-        <button class="tb-del" id="btn-del" type="button" title="Delete selected surveys">Delete <span class="tb-cnt" id="del-count">0</span></button>
-      </div>
-      <div class="pt" id="tabs">
-        <span class="pt-ind" id="ind"></span>
-        <button class="pill-tab on" data-tab="0">Assignment</button>
-        <button class="pill-tab" data-tab="1">Site Info</button>
-        <button class="pill-tab" data-tab="2">Measurements</button>
-        <button class="pill-tab" data-tab="3">Field Capture</button>
-      </div>
-      <div class="nav-right">
-        <input class="search" id="q" placeholder="Search surveys…">
-      </div>
+<body data-achi-title="Site Visit">
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+  </svg>
+
+  <main class="pg" id="pg">
+    <div class="bar">
+      <h1>Site Visit</h1>
+      <span style="flex:1"></span>
+      <label class="srch-wrap" for="sv-search"><svg><use href="#i-search"/></svg><input class="srch" type="search" id="sv-search" placeholder="Search SV, ENQ, client, site…" autocomplete="off"></label>
+      <button class="mini danger" type="button" id="sv-del" hidden>Delete</button>
+      <button class="mini" type="button" id="sv-refresh" title="Refresh"><svg><use href="#i-refresh"/></svg></button>
+      <button class="mini" type="button" id="sv-new"><svg><use href="#i-plus"/></svg>New visit</button>
     </div>
-    <div class="tscroll" id="touter">
-      <table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table>
+
+    <div class="kchips" id="kchips"></div>
+
+    <div class="wrap" id="list-wrap">
+      <div class="hd" id="hd"></div>
+      <div id="rows"></div>
+      <div class="foot" id="foot"></div>
     </div>
-  </div>
-</main>
-<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
-<script src="/api/v1/achi/ui/comment.js?v=15"></script>
-<script src="/api/v1/achi/ui/task_drawer.js?v=1"></script>
-<script>
-/* Site Survey table — the Call Log grid's contract, on survey rows.
-   Design comes from the shared grid.css rather than a copy, so the two tables
-   cannot drift apart visually. */
+  </main>
 
-/* ── auth ──────────────────────────────────────────────────────────────────
-   Both tokens this API issues are JWTs, so "looks like a JWT" cannot tell them
-   apart; a refresh token sent as a bearer 401s forever and re-signing-in does
-   not clear it. Exclude anything typed "refresh". */
-const isJwt=s=>typeof s==='string'&&/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(s);
-function jwtPayload(t){ try{ let p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4) p+='='; return JSON.parse(atob(p)); }catch(e){ return null; } }
-const isAccessJwt=s=>isJwt(s)&&(jwtPayload(s)||{}).type!=='refresh';
-function scanStorage(match){
-  for(const st of [localStorage,sessionStorage]){
-    for(let i=0;i<st.length;i++){ const v=st.getItem(st.key(i));
-      if(match(v))return v;
-      if(v&&v[0]==='{'){ try{const o=JSON.parse(v);
-        for(const c of [o.access_token,o.refresh_token,o.token,o.state&&o.state.access_token,o.state&&o.state.refresh_token])
-          if(match(c))return c; }catch(e){} } }
-  } return null;
-}
-const getToken=()=>isAccessJwt(localStorage.getItem('oe_access_token'))?localStorage.getItem('oe_access_token'):scanStorage(isAccessJwt);
-const getRefreshToken=()=>isJwt(localStorage.getItem('oe_refresh_token'))?localStorage.getItem('oe_refresh_token'):scanStorage(s=>isJwt(s)&&(jwtPayload(s)||{}).type==='refresh');
-let TOKEN=getToken();
-const API='/api/v1/achi';
-const $=id=>document.getElementById(id);
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
-const clearErr=()=>{$('err').style.display='none';};
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script>
+/* Site Visit — every visit (SV-NNNNN) in one list, CRM/Contacts look.
+ * A visit opens by itself when an enquiry reaches the "Site visit" stage (Log
+ * intent SV, CRM stage dropdown / board, or a New ENQ saved at that stage);
+ * "New visit" opens one by hand. A row opens the full visit form (photos,
+ * measurements, sketch, "I'm on site"). Status changes inline. */
+(function () {
+  'use strict';
 
-/* Access tokens last an hour; swap the refresh token in and retry once so an
-   expired session recovers silently. Shared promise: a burst of parallel 401s
-   triggers one refresh, not one each. */
-let refreshing=null;
-function refreshToken(){
-  if(refreshing) return refreshing;
-  const rt=getRefreshToken(); if(!rt) return Promise.resolve(false);
-  refreshing=fetch('/api/v1/users/auth/refresh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:rt})})
-    .then(r=>r.ok?r.json():null)
-    .then(d=>{ if(d&&d.access_token){ TOKEN=d.access_token;
-      try{ localStorage.setItem('oe_access_token',TOKEN); if(d.refresh_token) localStorage.setItem('oe_refresh_token',d.refresh_token); }catch(e){}
-      return true; } return false; })
-    .catch(()=>false).finally(()=>{ refreshing=null; });
-  return refreshing;
-}
-async function api(path,opts={},retried){
-  const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
-  if(r.status===401){
-    if(!retried && await refreshToken()) return api(path,opts,true);
-    /* message, not "401": callers do fail(e.message) and the bare status code
-       told the user nothing */
-    const m='Session expired — open the main app on this host, sign in, then reload.';
-    fail(m); throw new Error(m); }
-  if(r.status===204) return {};
-  const b=await r.json().catch(()=>({}));
-  if(!r.ok){ const d=b.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
-  return b;
-}
+  const API = '/api/v1/achi';
+  const $ = id => document.getElementById(id);
+  const esc = value => String(value == null ? '' : value).replace(
+    /[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]),
+  );
 
-const STATUSES=['Draft','Scheduled','In Progress','Completed','Cancelled'];
-const SITE_TYPES=['','Residential','Commercial','Industrial'];
-const ROOF_TYPES=['','Flat','Pitched','Mixed','N/A'];
-const label=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  // ── Auth (unchanged — the OCE shell's bearer token, refreshed on 401) ──────
+  const isJwt = value => typeof value === 'string' && /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(value);
 
-/* Fixed columns first, then tab 0..3 — the Call Log's ordering. */
-const COLS=[
-  {k:'num',            h:'#',             w:46,  fixed:true, cls:'num'},
-  {k:'status',         h:'Status',        w:130, fixed:true, opts:STATUSES, badge:true},
-  {k:'survey_date',    h:'Survey Date',   w:130, fixed:true, type:'date'},
-  {k:'assigned_to',    h:'Surveyor',      w:150, fixed:true},
-  {k:'customer',       h:'Customer',    tab:0, w:170},
-  {k:'lead',           h:'Lead',        tab:0, w:150},
-  {k:'contact',        h:'Contact',     tab:0, w:150},
-  {k:'site_location',  h:'Site Location',tab:1, w:230},
-  {k:'google_maps_url',h:'Maps',        tab:1, w:180},
-  {k:'site_type',      h:'Site Type', tab:1, w:140, opts:SITE_TYPES},
-  {k:'roof_type',      h:'Roof Type', tab:1, w:130, opts:ROOF_TYPES},
-  {k:'site_area',      h:'Area (m²)',  tab:1, w:110},
-  {k:'measurements',   h:'Measurements',tab:2, w:150, ro:true, formLink:true, count:'measurement_count'},
-  {k:'notes',          h:'Notes',       tab:3, w:260},
-  {k:'updates',        h:'Updates',     tab:3, w:260},
-  {k:'drawing',        h:'Drawing',     tab:3, w:110, ro:true, formLink:true, flag:'has_drawing'},
-  {k:'attachments',    h:'Files',       tab:3, w:110, ro:true, formLink:true, count:'photo_count'},
-];
-const FIXED=COLS.filter(c=>c.fixed).map(c=>c.k);
-const fixedLeft=k=>COLS.filter(c=>c.fixed).slice(0,FIXED.indexOf(k)).reduce((n,c)=>n+c.w,0);
-const colStyle=c=>`${c.fixed?`position:sticky;left:${fixedLeft(c.k)}px;`:''}min-width:${c.w}px;width:${c.w}px;max-width:${c.w}px;`;
-
-let ROWS=[], draft={}, bottomDrafts=[];
-const selectedRows=new Set();
-const fmtDT=s=>{ if(!s)return ''; const d=new Date(s); if(isNaN(d))return String(s).slice(0,16).replace('T',' ');
-  const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
-/* Owner initials: first letter of first name + first of last, X when unknown —
-   the Call Log's rule, so one person reads the same on both tables. */
-function initials(name){
-  const parts=String(name||'').trim().split(/\s+/).filter(Boolean);
-  if(!parts.length) return 'X';
-  return ((parts[0][0]||'')+(parts.length>1?(parts[parts.length-1][0]||''):'')).toUpperCase()||'X';
-}
-const isLink=v=>/^https?:\/\//i.test(String(v||''));
-
-function cell(c,r,i){
-  if(c.k==='num') return `<a class="rn" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open the complete survey form">${esc(r.survey_number||'—')}</a>`;
-  if(c.k==='owner') return `<span class="avatar" title="${esc(r.owner_name||'')}">${esc(initials(r.owner_name))}</span>`;
-  if(c.formLink){
-    const n=c.count?Number(r[c.count]||0):0;
-    const present=c.flag?Boolean(r[c.flag]):n>0;
-    const text=c.count?(n?`${n} · Edit`:'Add'):(present?'Edit':'Add');
-    return `<a class="lnk" href="/api/v1/achi/survey/ui?id=${encodeURIComponent(r.id)}" title="Open this field in the survey form">${esc(text)}</a>`;
+  function jwtPayload(token) {
+    try {
+      let payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (payload.length % 4) payload += '=';
+      return JSON.parse(atob(payload));
+    } catch (_error) {
+      return null;
+    }
   }
-  const v=r[c.k];
-  if(c.k==='survey_date')
-    return v?`<span class="dt">${esc(String(v).slice(0,10))}</span>`:'<span class="mt">—</span>';
-  if(c.k==='created_at')
-    return v?`<span class="dt">${esc(fmtDT(v))}</span>`:'<span class="mt">—</span>';
-  if(v===null||v===undefined||v==='') return '<span class="mt">—</span>';
-  if(c.bool) return v?'<span class="tag">Yes</span>':'<span class="mt">—</span>';
-  if(c.badge) return `<span class="badge b-${esc(String(v).replace(/\s+/g,'-'))}">${esc(v)}</span>`;
-  if(c.opts) return `<span class="tag">${esc(label(v))}</span>`;
-  if(isLink(v)) return `<a class="lnk" href="${esc(v)}" target="_blank" rel="noreferrer">${esc(v)}</a>`;
-  return esc(v);
-}
-function buildHead(){
-  $('thead').innerHTML=COLS.map(c=>
-    `<th data-k="${c.k}" data-tab="${c.tab??''}" class="${c.fixed?'pg-f ':''}${c.cls||''}${c.k==='num'?' num-head':''}" style="${colStyle(c)}"${c.k==='num'?' role="button" tabindex="0" aria-pressed="false" title="Select all rows"':''}>${esc(c.h)}</th>`).join('');
-}
-/* POST /surveys/ takes identity and site only — the access and visit answers are
-   update-only, because a survey is scheduled first and filled in once someone is
-   standing on the site. The draft row therefore offers just these; anything else
-   would be accepted by the input and silently dropped by the API. Those cells
-   fill in by inline edit once the row exists. */
-const CREATABLE=new Set(['status','survey_date','assigned_to','customer','lead','contact',
-                         'site_location','google_maps_url','site_type','roof_type','site_area']);
-function draftCell(c,st,dp){
-  if(c.k==='num') return '<span class="rn">+</span>';
-  if(c.k==='created_at') return '<span class="mt">now</span>';
-  if(c.k==='owner') return '<span class="mt">you</span>';
-  if(c.k==='status') return '<span class="badge b-Draft">Draft</span>';
-  if(!CREATABLE.has(c.k)) return '<span class="mt" title="Filled in on site, after the survey exists">—</span>';
-  const v=esc(st[c.k]??'');
-  if(c.opts) return `<select class="din" data-dp="${dp}" data-dk="${c.k}">${c.opts.map(o=>`<option value="${esc(o)}"${o===(st[c.k]||'')?' selected':''}>${esc(label(o))}</option>`).join('')}</select>`;
-  return `<input class="din" data-dp="${dp}" data-dk="${c.k}" type="${c.type||'text'}" value="${v}">`;
-}
-function render(){
-  $('count').textContent=`· ${ROWS.length}`;
-  $('rows').innerHTML=[
-    `<tr class="draft dtop" data-dp="top">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c,draft,'top')}</td>`).join('')}</tr>`,
-    ROWS.length?ROWS.map((r,i)=>`<tr class="data selectable-row${selectedRows.has(r.id)?' row-selected':''}" data-id="${esc(r.id)}">${COLS.map(c=>{
-      const ed=(c.ro||c.k==='num')?'':`data-edit data-k="${c.k}"`;
-      const cls=[c.fixed?'pg-f':'',c.cls||'',(c.ro||c.k==='num')?'':(c.opts?'sel':'ed')].filter(Boolean).join(' ');
-      const select=c.k==='num'?`data-select-row="${esc(r.id)}" title="Select this row"`:'';
-      return `<td data-tab="${c.tab??''}" class="${cls}" style="${colStyle(c)}" ${select} ${ed}>${c.k==='num'?`<span class="rn">${esc(r.survey_number||'—')}</span>`:cell(c,r,i)}</td>`;}).join('')}</tr>`).join('')
-      :`<tr><td colspan="${COLS.length}" class="empty">No surveys yet — type in the highlighted row; Enter saves.</td></tr>`,
-    bottomDrafts.map((st,i)=>`<tr class="draft" data-dp="bottom-${i}">${COLS.map(c=>`<td data-tab="${c.tab??''}" class="${c.fixed?'pg-f':''}" style="${colStyle(c)}">${draftCell(c,st,'bottom-'+i)}</td>`).join('')}</tr>`).join(''),
-  ].join('');
-  refreshSelection();
-}
 
-/* draft: type, Enter saves */
-$('rows').addEventListener('input',e=>{ const el=e.target; if(!(el.dataset&&el.dataset.dk)) return;
-  const st=el.dataset.dp==='top'?draft:bottomDrafts[Number(String(el.dataset.dp).split('-')[1])];
-  if(st) st[el.dataset.dk]=el.value; });
-$('rows').addEventListener('keydown',e=>{ const el=e.target;
-  if(!(el.classList&&el.classList.contains('din'))||e.key!=='Enter') return;
-  /* Enter walks the draft row field by field and commits on the last one — the
-     Call Log's behaviour. Saving from wherever the cursor sat made entering a
-     record feel wrong. Scoped to the row being typed in, so a second draft row
-     does not pull focus out of the first. */
-  e.preventDefault();
-  const dp=el.dataset.dp;
-  const ins=[...$('rows').querySelectorAll(dp?`.din[data-dp="${dp}"]`:'tr.draft .din')];
-  const i=ins.indexOf(el);
-  if(i>-1&&i<ins.length-1){ ins[i+1].focus(); ins[i+1].scrollIntoView({inline:'center',block:'nearest'}); }
-  else commitDraft(dp); });
-function addBottomRow(){
-  bottomDrafts.push({});
-  render();
-  requestAnimationFrame(()=>{
-    const row=$('rows').querySelector(`tr[data-dp="bottom-${bottomDrafts.length-1}"]`);
-    if(!row) return;
-    const box=$('touter');
-    box.scrollTo({top:box.scrollHeight,left:box.scrollLeft,behavior:'smooth'});
-    const input=row.querySelector('[data-dk="assigned_to"]');
-    if(input) input.focus({preventScroll:true});
-  });
-}
-$('add-row').addEventListener('click',addBottomRow);
-async function commitDraft(dp='top'){
-  const st=dp==='top'?draft:bottomDrafts[Number(String(dp).split('-')[1])];
-  if(!st||!Object.values(st).some(v=>String(v||'').trim())) return;
-  const body=Object.fromEntries(Object.entries(st).filter(([k,v])=>CREATABLE.has(k)&&String(v||'').trim()));
-  if(!Object.keys(body).length) return;
-  try{ const made=await api('/surveys/',{method:'POST',body:JSON.stringify(body)});
-    if(dp==='top') draft={}; else bottomDrafts.splice(Number(String(dp).split('-')[1]),1);
-    await load(); clearErr();
-    requestAnimationFrame(()=>{ const row=$('rows').querySelector(`tr[data-id="${CSS.escape(String(made.id||''))}"]`); if(row) row.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'}); });
+  const isAccessJwt = value => isJwt(value) && (jwtPayload(value) || {}).type !== 'refresh';
+
+  function scanStorage(match) {
+    for (const storage of [localStorage, sessionStorage]) {
+      for (let index = 0; index < storage.length; index += 1) {
+        const value = storage.getItem(storage.key(index));
+        if (match(value)) return value;
+        if (value && value[0] === '{') {
+          try {
+            const parsed = JSON.parse(value);
+            const candidates = [
+              parsed.access_token, parsed.refresh_token, parsed.token,
+              parsed.state && parsed.state.access_token,
+              parsed.state && parsed.state.refresh_token,
+              parsed.state && parsed.state.token,
+            ];
+            for (const candidate of candidates) if (match(candidate)) return candidate;
+          } catch (_error) { /* ignore unrelated storage entries */ }
+        }
+      }
+    }
+    return null;
   }
-  catch(e){ fail(e.message); }
-}
 
-function visibleRows(){ return [...$('rows').querySelectorAll('tr.selectable-row')]; }
-function allRowsSelected(){ const rows=visibleRows(); return rows.length>0&&rows.every(tr=>selectedRows.has(tr.dataset.id)); }
-function refreshSelection(){
-  const all=allRowsSelected(), head=$('thead').querySelector('th[data-k="num"]');
-  if(head){ head.classList.toggle('on',all); head.setAttribute('aria-pressed',String(all)); head.title=all?'Unselect all rows':'Select all rows'; }
-  const n=selectedRows.size, del=$('btn-del');
-  del.classList.toggle('on',n>0); $('del-count').textContent=n;
-}
-function toggleRow(id){
-  if(selectedRows.has(id)) selectedRows.delete(id); else selectedRows.add(id);
-  render();
-}
-function toggleAll(){
-  const rows=visibleRows(), all=allRowsSelected();
-  rows.forEach(tr=>{ if(all) selectedRows.delete(tr.dataset.id); else selectedRows.add(tr.dataset.id); });
-  render();
-}
-$('thead').addEventListener('click',e=>{ if(e.target.closest('th[data-k="num"]')) toggleAll(); });
-$('thead').addEventListener('keydown',e=>{ if(e.target.closest('th[data-k="num"]')&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); toggleAll(); } });
-$('rows').addEventListener('click',e=>{ const td=e.target.closest('td[data-select-row]'); if(td){ e.preventDefault(); toggleRow(td.dataset.selectRow); } });
-async function deleteSelected(){
-  const ids=[...selectedRows];
-  if(!ids.length||!window.confirm(`Delete ${ids.length} selected survey${ids.length===1?'':'s'}?`)) return;
-  const del=$('btn-del'); del.disabled=true;
-  try{
-    for(const id of ids){ await api('/surveys/'+encodeURIComponent(id),{method:'DELETE'}); selectedRows.delete(id); }
-    await load(); clearErr();
-  }catch(e){ fail(e.message); }
-  finally{ del.disabled=false; refreshSelection(); }
-}
-$('btn-del').addEventListener('click',deleteSelected);
+  function getAccessToken() {
+    const direct = localStorage.getItem('oe_access_token');
+    return isAccessJwt(direct) ? direct : scanStorage(isAccessJwt);
+  }
 
-/* inline edit, one cell at a time */
-$('rows').addEventListener('click',e=>{
-  const td=e.target.closest('td[data-edit]'); if(!td||!td.closest('tr.data'))return;
-  if(e.target.closest('a')) return;
-  openEditor(td);
-});
-function openEditor(td){
-  if(td.querySelector('input,select')) return;
-  const k=td.dataset.k, c=COLS.find(x=>x.k===k), tr=td.closest('tr'), id=tr.dataset.id;
-  const r=ROWS.find(x=>x.id===id)||{}; const val=r[k]??'';
-  let el;
-  if(c.opts){ el=document.createElement('select'); el.className='cellinput';
-    el.innerHTML=c.opts.map(o=>`<option value="${esc(o)}"${o===val?' selected':''}>${esc(label(o))}</option>`).join(''); }
-  else { el=document.createElement('input'); el.className='cellinput'; el.type=c.type||'text';
-    el.value=(c.type==='datetime-local'&&val)?String(val).slice(0,16):val; }
-  td.innerHTML=''; td.appendChild(el); el.focus();
-  if(el.select&&!c.opts) el.select();
-  let done=false;
-  const finish=async save=>{ if(done)return; done=true;
-    const nv=el.value;
-    if(save && String(nv)!==String(val)){
-      try{ const upd=await api('/surveys/'+id,{method:'PATCH',body:JSON.stringify({[k]:nv===''?null:nv})});
-        Object.assign(r,upd); clearErr(); }catch(err){ fail(err.message); } }
-    render();
+  function getRefreshToken() {
+    const direct = localStorage.getItem('oe_refresh_token');
+    if (isJwt(direct)) return direct;
+    return scanStorage(value => isJwt(value) && (jwtPayload(value) || {}).type === 'refresh');
+  }
+
+  let accessToken = getAccessToken();
+  let refreshPromise = null;
+
+  async function refreshAccessToken() {
+    if (refreshPromise) return refreshPromise;
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+    refreshPromise = fetch('/api/v1/users/auth/refresh/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+      .then(response => (response.ok ? response.json() : null))
+      .then(payload => {
+        if (!payload || !payload.access_token) return false;
+        accessToken = payload.access_token;
+        localStorage.setItem('oe_access_token', accessToken);
+        if (payload.refresh_token) localStorage.setItem('oe_refresh_token', payload.refresh_token);
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => { refreshPromise = null; });
+    return refreshPromise;
+  }
+
+  async function request(path, options = {}, retried = false) {
+    const headers = { Authorization: `Bearer ${accessToken || ''}`, ...(options.headers || {}) };
+    const init = { ...options, headers };
+    if (init.body && typeof init.body !== 'string') {
+      headers['Content-Type'] = 'application/json';
+      init.body = JSON.stringify(init.body);
+    }
+    const response = await fetch(path, init);
+    if (response.status === 401 && !retried && await refreshAccessToken()) return request(path, options, true);
+    if (response.status === 204) return null;
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = Array.isArray(body.detail)
+        ? body.detail.map(item => item.msg || String(item)).join('; ')
+        : body.detail;
+      const error = new Error(detail || `Request failed (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
+    return body;
+  }
+
+  let toastTimer = null;
+  function showToast(message, isError) {
+    const toast = $('toast');
+    window.clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.classList.toggle('is-error', Boolean(isError));
+    toast.hidden = false;
+    toastTimer = window.setTimeout(() => { toast.hidden = true; }, 3200);
+  }
+
+  // Mirrors schemas.SURVEY_STATUSES.
+  const STATUSES = ['Draft', 'Scheduled', 'In Progress', 'Completed', 'Cancelled'];
+  const ST_STYLE = {
+    Draft: 'background:#eaf1ff;color:#1F3F80',
+    Scheduled: 'background:#fff4e0;color:#8a5a08',
+    'In Progress': 'background:#f3edfb;color:#5b21b6',
+    Completed: 'background:#dcefe2;color:#14532d',
+    Cancelled: 'background:#fbeaea;color:#b91c1c',
   };
-  el.addEventListener('blur',()=>finish(true));
-  el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ev.preventDefault();finish(true);} else if(ev.key==='Escape'){done=true;render();} });
-  if(el.tagName==='SELECT') el.addEventListener('change',()=>finish(true));
-}
+  const enqCode = fileNumber => {
+    const raw = String(fileNumber || '').trim();
+    const match = raw.match(/-(\d+)$/);
+    return match ? `ENQ-${match[1].padStart(5, '0')}` : raw;
+  };
+  const fmtDate = d => {
+    if (!d) return '';
+    const [y, m, day] = String(d).slice(0, 10).split('-');
+    return day ? `${day}/${m}/${y}` : String(d);
+  };
 
-/* tabs scroll the grid horizontally, as the Call Log does */
-const tabsEl=$('tabs'), ind=$('ind'), outer=$('touter');
-let activeTab=0;
-const moveInd=b=>{ ind.style.left=b.offsetLeft+'px'; ind.style.width=b.offsetWidth+'px'; };
-const firstThForTab=n=>$('thead').querySelector(`th[data-tab="${n}"]`);
-function setActivePill(n){ activeTab=n; tabsEl.querySelectorAll('.pill-tab').forEach(b=>{const on=+b.dataset.tab===n;b.classList.toggle('on',on);if(on)moveInd(b);}); }
-function scrollToTab(n){ const th=firstThForTab(n); if(th) outer.scrollTo({left:n===0?0:th.offsetLeft-8,behavior:'smooth'}); setActivePill(n); }
-tabsEl.querySelectorAll('.pill-tab').forEach(b=>b.onclick=()=>scrollToTab(+b.dataset.tab));
-function tabFromScroll(){ const x=outer.scrollLeft+60; let best=0; [0,1,2,3].forEach(n=>{const th=firstThForTab(n); if(th&&th.offsetLeft<=x) best=n;}); if(best!==activeTab) setActivePill(best); }
-let sraf=0; outer.addEventListener('scroll',()=>{ if(sraf)return; sraf=requestAnimationFrame(()=>{sraf=0;tabFromScroll();}); });
-window.addEventListener('load',()=>moveInd(tabsEl.querySelector('.pill-tab.on')));
+  // Visit codes are SV-NNNNN; older ones stored as ACHI-SV-YYYY-NNNNN show the same way.
+  const svCode = n => String(n || '').replace(/^ACHI-SV-\d{4}-(\d+)$/, 'SV-$1');
 
-/* search is client-side: /surveys/ takes no q parameter */
-let searchTimer=null;
-$('q').oninput=()=>{ clearTimeout(searchTimer); searchTimer=setTimeout(render_filtered,200); };
-let ALL=[];
-function render_filtered(){
-  const q=$('q').value.trim().toLowerCase();
-  ROWS=!q?ALL:ALL.filter(r=>[r.customer,r.lead,r.contact,r.survey_number,r.site_location,r.assigned_to,r.notes]
-    .some(v=>String(v||'').toLowerCase().includes(q)));
+  const state = { all: [], q: '', st: '', picked: new Set() };
+
+  const COLS = ['Code', 'Visit date', 'Status', 'ENQ', 'Contact', 'Site', 'Mobile / WA', 'Surveyor', 'Captured'];
+
+  function renderHead() {
+    const opts = ['<option value="">All statuses</option>']
+      .concat(STATUSES.map(s => `<option value="${esc(s)}"${state.st === s ? ' selected' : ''}>${esc(s)}</option>`)).join('');
+    const shown = visible();
+    const allOn = shown.length > 0 && shown.every(r => state.picked.has(r.id));
+    $('hd').innerHTML = COLS.map((h, i) => (i === 0
+      ? `<span><input type="checkbox" class="sv-ck" id="sv-all" title="Select all shown"${allOn ? ' checked' : ''}>${esc(h)}</span>`
+      : i === 2
+      ? `<span class="flt${state.st ? ' on' : ''}">Status <i class="farr">▾</i>${state.st ? ' · ' + esc(state.st) : ''}<select class="stover" id="sv-fst" title="Filter by status">${opts}</select></span>`
+      : `<span>${esc(h)}</span>`)).join('');
+    Array.from($('hd').children).forEach((cell, i) => {
+      cell.insertAdjacentHTML('beforeend', `<i class="rz" data-i="${i}" title="Drag to resize · double-click to reset"></i>`);
+    });
+  }
+
+  function statusCell(r) {
+    const opts = STATUSES.map(s => `<option${s === r.status ? ' selected' : ''}>${esc(s)}</option>`).join('');
+    return `<select class="sv-st" data-status="${esc(r.id)}" style="${ST_STYLE[r.status] || ''}" aria-label="Status">${opts}</select>`;
+  }
+  // Site opens Google Maps, like the Log: the saved Maps link when there is
+  // one, else a Maps search for the site location / city.
+  function siteCell(r) {
+    const site = r.site_location || r.city || '';
+    if (!site) return '';
+    const maps = [r.google_maps_url, r.maps_url].find(u => u && /^https?:\/\//i.test(u));
+    const q = [r.site_location, r.city].filter(Boolean).join(', ');
+    const url = maps || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+    return `<a class="site-lnk" href="${esc(url)}" target="_blank" rel="noopener" title="Open in Google Maps">`
+      + `<svg aria-hidden="true"><use href="#i-pin"/></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(site)}</span></a>`;
+  }
+  function rowHTML(r) {
+    const mobile = r.lead_mobile || '';
+    const digits = mobile.replace(/[^\d]/g, '');
+    const contact = r.contact || r.lead_name || r.customer || r.lead_company || '';
+    const captured = [r.photo_count ? `${r.photo_count} 📷` : '', r.measurement_count ? `${r.measurement_count} m` : '', r.has_drawing ? '✎' : '']
+      .filter(Boolean).join(' · ');
+    const on = state.picked.has(r.id);
+    return `<div class="row${on ? ' sel' : ''}" data-open="${esc(r.id)}" title="Open the full visit">`
+      + `<div><input type="checkbox" class="sv-ck" data-pick="${esc(r.id)}" aria-label="Select"${on ? ' checked' : ''}><span class="code">${esc(svCode(r.survey_number))}</span></div>`
+      + `<div class="num" style="font-size:10.5px">${esc(fmtDate(r.survey_date)) || '<span class="mut">not set</span>'}</div>`
+      + `<div>${statusCell(r)}</div>`
+      + `<div>${(r.file_number || /^ENQ-\d+$/.test(r.lead || '')) ? `<a class="sv-enq" href="${API}/crm/ui" title="Open CRM">${esc(r.file_number ? enqCode(r.file_number) : r.lead)}</a>` : '<span class="mut">—</span>'}</div>`
+      + `<div><span class="nm-main" title="${esc(contact)}">${esc(contact)}</span></div>`
+      + `<div>${siteCell(r)}</div>`
+      + `<div>${mobile ? `<span class="num">${esc(mobile)}</span>${digits ? ` <a class="wa" href="https://wa.me/${digits}" target="_blank" rel="noopener" title="Open in WhatsApp">WA</a>` : ''}` : ''}</div>`
+      + `<div title="${esc(r.assigned_to || '')}">${esc(r.assigned_to || '')}</div>`
+      + `<div class="sv-mini">${captured || '—'}</div>`
+      + '</div>';
+  }
+
+  function visible() {
+    let list = state.all;
+    if (state.st) list = list.filter(r => r.status === state.st);
+    if (state.q) {
+      list = list.filter(r => [svCode(r.survey_number), r.survey_number, enqCode(r.file_number), r.customer, r.lead_company, r.contact, r.lead_name,
+        r.lead_mobile, r.site_location, r.city, r.assigned_to, r.notes].filter(Boolean).join(' ').toLowerCase().includes(state.q));
+    }
+    return list;
+  }
+
+  function render() {
+    renderHead();
+    const list = visible();
+    const n = s => state.all.filter(r => r.status === s).length;
+    $('kchips').innerHTML = `<span class="kc"><b>${state.all.length}</b> site visits</span>`
+      + `<span class="kc"><b>${n('Scheduled') + n('Draft')}</b> to do</span>`
+      + `<span class="kc"><b>${n('In Progress')}</b> in progress</span>`
+      + `<span class="kc"><b>${n('Completed')}</b> done</span>`;
+    $('rows').innerHTML = list.length ? list.map(rowHTML).join('')
+      : `<div class="sv-empty">${state.all.length ? 'No site visits match the current filters.'
+        : 'No site visits yet — move an enquiry to the “Site visit” stage (CRM or Log intent SV) and it appears here.'}</div>`;
+    const del = $('sv-del');
+    del.hidden = !state.picked.size;
+    del.textContent = `Delete ${state.picked.size} selected`;
+    $('foot').innerHTML = `<span>${list.length} shown</span><span style="flex:1"></span><span>click a line to open the visit — status changes inline</span>`;
+  }
+
+  async function load() {
+    try {
+      state.all = await request(`${API}/surveys/?limit=1000`) || [];
+      const ids = new Set(state.all.map(r => r.id));
+      state.picked.forEach(id => { if (!ids.has(id)) state.picked.delete(id); });
+      render();
+    } catch (error) {
+      $('rows').innerHTML = `<div class="sv-empty">Couldn’t load site visits: ${esc(error.message || 'error')}</div>`;
+      return;
+    }
+    catchUp();
+  }
+
+  // Enquiries sitting at the "Site visit" stage without a visit (moved there
+  // before visits opened automatically) get one here — tagged with their ENQ
+  // code like the Log / CRM do, so nothing is ever opened twice.
+  let catching = false;
+  async function catchUp() {
+    if (catching) return;
+    catching = true;
+    try {
+      const files = new Map();
+      for (let offset = 0; offset < 20000;) {
+        const data = await request(`${API}/logs/?stage=site_survey&limit=1000&offset=${offset}`);
+        const items = (data && data.items) || [];
+        items.forEach(r => { if (r.stage === 'site_survey' && !files.has(r.file_id)) files.set(r.file_id, r); });
+        offset += items.length;
+        if (!items.length || offset >= ((data && data.total) || 0)) break;
+      }
+      const have = new Set();
+      state.all.forEach(v => { if (v.file_id) have.add(v.file_id); if (/^ENQ-\d+$/.test(v.lead || '')) have.add(v.lead); });
+      let opened = 0;
+      for (const [fid, r] of files) {
+        const code = enqCode(r.file_number);
+        if (have.has(fid) || have.has(code)) continue;
+        const person = [r.prefix, r.first_name, r.last_name].filter(Boolean).join(' ') || r.contact_name || '';
+        await request(`${API}/surveys/`, { method: 'POST', body: {
+          status: 'Scheduled', lead: code || null, customer: r.company_name || person || null, contact: person || null,
+          site_location: [r.site_location, r.city].filter(Boolean).join(', ') || null,
+          google_maps_url: r.maps_url || null, notes: r.subject || null,
+        } });
+        have.add(code);
+        opened += 1;
+      }
+      if (opened) {
+        state.all = await request(`${API}/surveys/?limit=1000`) || [];
+        render();
+        showToast(`${opened} site visit${opened > 1 ? 's' : ''} opened for enquiries already at the Site visit stage.`);
+      }
+    } catch (_e) { /* the list above is still right; try again next load */ }
+    finally { catching = false; }
+  }
+
+  // ── Resizable columns (same behaviour as CRM) ─────────────────────────────
+  const COLW_KEY = 'achi.sv.colW';
+  let colW = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLW_KEY) || 'null');
+    if (Array.isArray(saved) && saved.length === COLS.length && saved.every(w => Number.isFinite(w) && w >= 36)) colW = saved;
+  } catch (_e) { colW = null; }
+  function applyColW() {
+    const pg = $('pg');
+    if (!colW) { pg.style.removeProperty('--crm-cols'); pg.style.removeProperty('--crm-minw'); return; }
+    pg.style.setProperty('--crm-cols', colW.map(w => `${Math.round(w)}px`).join(' '));
+    pg.style.setProperty('--crm-minw', `${Math.round(colW.reduce((a, b) => a + b, 0))}px`);
+  }
+  function saveColW() {
+    try {
+      if (colW) localStorage.setItem(COLW_KEY, JSON.stringify(colW.map(Math.round)));
+      else localStorage.removeItem(COLW_KEY);
+    } catch (_e) { /* private mode */ }
+  }
+  applyColW();
+  $('hd').addEventListener('pointerdown', event => {
+    const grip = event.target.closest('.rz');
+    if (!grip || event.button !== 0) return;
+    event.preventDefault();
+    colW = Array.from($('hd').children).map(c => c.getBoundingClientRect().width);
+    const i = Number(grip.dataset.i);
+    const startX = event.clientX;
+    const startW = colW[i];
+    document.body.classList.add('col-resizing');
+    const move = e => { colW[i] = Math.max(36, startW + e.clientX - startX); applyColW(); };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      document.body.classList.remove('col-resizing');
+      saveColW();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+  $('hd').addEventListener('dblclick', event => {
+    if (!event.target.closest('.rz')) return;
+    colW = null; applyColW(); saveColW();
+  });
+
+  // ── Events ────────────────────────────────────────────────────────────────
+  $('hd').addEventListener('change', event => {
+    if (event.target.id === 'sv-fst') { state.st = event.target.value; render(); }
+    if (event.target.id === 'sv-all') {
+      visible().forEach(r => (event.target.checked ? state.picked.add(r.id) : state.picked.delete(r.id)));
+      render();
+    }
+  });
+  $('rows').addEventListener('change', async event => {
+    const pick = event.target.closest('[data-pick]');
+    if (pick) {
+      if (pick.checked) state.picked.add(pick.dataset.pick); else state.picked.delete(pick.dataset.pick);
+      render();
+      return;
+    }
+    const sel = event.target.closest('[data-status]');
+    if (!sel) return;
+    sel.setAttribute('style', ST_STYLE[sel.value] || '');
+    try {
+      await request(`${API}/surveys/${encodeURIComponent(sel.dataset.status)}`, { method: 'PATCH', body: { status: sel.value } });
+      const r = state.all.find(x => x.id === sel.dataset.status);
+      if (r) r.status = sel.value;
+      render();
+      showToast('Status updated.');
+    } catch (error) {
+      showToast(error.message || 'Could not update the status.', true);
+      load();
+    }
+  });
+  $('rows').addEventListener('click', event => {
+    if (event.target.closest('a, select, input')) return;
+    const row = event.target.closest('[data-open]');
+    if (row) window.location.href = `${API}/survey/ui?id=${encodeURIComponent(row.dataset.open)}`;
+  });
+  $('sv-search').addEventListener('input', event => { state.q = event.target.value.trim().toLowerCase(); render(); });
+  $('sv-refresh').addEventListener('click', load);
+  $('sv-del').addEventListener('click', async () => {
+    const picked = state.all.filter(r => state.picked.has(r.id));
+    if (!picked.length) return;
+    const names = picked.slice(0, 5).map(r => svCode(r.survey_number)).join(', ') + (picked.length > 5 ? ` and ${picked.length - 5} more` : '');
+    if (!window.confirm(`Delete ${picked.length} site visit${picked.length > 1 ? 's' : ''} (${names})? Photos and measurements go with them. This cannot be undone.`)) return;
+    const btn = $('sv-del');
+    btn.disabled = true;
+    let failed = 0;
+    for (const r of picked) {
+      try {
+        await request(`${API}/surveys/${encodeURIComponent(r.id)}`, { method: 'DELETE' });
+        state.picked.delete(r.id);
+      } catch (_error) { failed += 1; }
+    }
+    btn.disabled = false;
+    await load();
+    showToast(failed ? `${failed} site visit${failed > 1 ? 's' : ''} could not be deleted.` : `Deleted ${picked.length} site visit${picked.length > 1 ? 's' : ''}.`, Boolean(failed));
+  });
+  // New visit by hand: a Draft dated today, then straight into its full form.
+  $('sv-new').addEventListener('click', async () => {
+    const btn = $('sv-new');
+    btn.disabled = true;
+    try {
+      const d = new Date();
+      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const s = await request(`${API}/surveys/`, { method: 'POST', body: { status: 'Draft', survey_date: today } });
+      window.location.href = `${API}/survey/ui?id=${encodeURIComponent(s.id)}`;
+    } catch (error) {
+      showToast(error.message || 'Could not open a new visit.', true);
+      btn.disabled = false;
+    }
+  });
+
   render();
-}
-async function load(){
-  try{ ALL=await api('/surveys/'); render_filtered(); clearErr(); }
-  catch(e){ fail(e.message); }
-}
-/* Shift+R adds a row, ported from the Call Log (itself from tabbed_grid.js).
-   One document-level capture listener that CLICKS the button, so keyboard and
-   mouse share one path. Accepts the physical KeyR as well as the produced
-   "r"/"R" so non-QWERTY layouts work. */
-function isTypingTarget(t){
-  if(!t) return false;
-  if(t.isContentEditable) return true;
-  const tag=(t.tagName||'').toUpperCase();
-  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return true;
-  return !!(t.closest && t.closest('input,textarea,select,[contenteditable]'));
-}
-document.addEventListener('keydown',e=>{
-  if(!e.shiftKey||e.ctrlKey||e.metaKey||e.altKey) return;
-  if(e.code!=='KeyR' && String(e.key||'').toLowerCase()!=='r') return;
-  if(e.repeat) return;                                  // ignore held-key repeat
-  if(isTypingTarget(e.target)) return;                  // not while typing a cell
-  if($('rows').querySelector('.cellinput')) return;     // not while an editor is open
-  const btn=$('add-row'); if(!btn) return;
-  e.preventDefault(); e.stopPropagation();
-  btn.click();
-},true);
-
-buildHead(); setActivePill(0); render();
-if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
-else load();
-</script>
+  load();
+})();
+  </script>
+<script src="/api/v1/achi/ui/chrome.js?v=52"></script>
 </body>
 </html>

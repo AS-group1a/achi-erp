@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime
 from urllib.parse import urlparse
 
@@ -37,6 +38,12 @@ LOG_TYPES = ("Prospect", "Lead", "Client", "Field", "Fleet", "Yard",
 DELIVERABLE_KEYS = ("srv", "dwg", "mt", "boq", "cst", "qte")
 ORIGIN_MODULES = ("prospect", "crm", "quotation")
 OriginModule = Literal["prospect", "crm", "quotation"]
+# Codes offered by the Log's Intent menu (INTENT_GROUPS in ui/log-core.js).
+LogIntent = Literal[
+    "ENQ", "SV", "DRW", "MT", "BOQ", "RES", "PLN", "QUO",
+    "JOB", "CAL", "CRW", "YRD", "FLT", "DS",
+    "INV", "ICAL", "RCP", "HR",
+]
 
 class ModuleInfo(BaseModel):
     module: str
@@ -239,6 +246,7 @@ class FileLogUpdate(BaseModel):
     updates: str | None = None
     follow_up_date: date | None = None
     follow_up_notes: str | None = None
+    intent: LogIntent | None = None
     # The canvas JSON from the description popup. ``has_drawing`` is derived in
     # the service from the payload, never trusted from the client.
     drawing: str | None = None
@@ -326,6 +334,9 @@ class FileLogOut(BaseModel):
     description: str
     follow_up_date: date | None
     follow_up_notes: str
+    intent: str | None = None
+    # The file's CRM stage after this edit, so the grid can follow an intent move.
+    stage: str | None = None
     has_drawing: int = 0
     created_by: str | None
     created_at: datetime
@@ -738,6 +749,7 @@ class LogRowOut(BaseModel):
     updates: str = ""
     follow_up_date: date | None
     follow_up_notes: str = ""
+    intent: str | None = None
     # Indicators the grid needs to mark a description cell without fetching the
     # blob or the attachment rows per line.
     has_drawing: int = 0
@@ -786,6 +798,10 @@ class LogRowOut(BaseModel):
     # in which case the name fields below come from the file as typed)
     contact_id: str | None = None
     company_contact_id: str | None = None
+    # "client" when the contact has at least one job in their history (any of
+    # their enquiries Won → JOB or converted, not cancelled), else "lead".
+    # Derived per request, never stored.
+    contact_status: Literal["client", "lead"] = "lead"
     contact_name: str | None = None
     prefix: str | None = None
     first_name: str | None = None
@@ -819,6 +835,19 @@ class LogListOut(BaseModel):
 
 
 # ── Site survey ───────────────────────────────────────────────────────────
+
+_OLD_SURVEY_NUMBER = re.compile(r"^ACHI-SV-\d{4}-(\d+)$")
+
+
+def display_survey_number(value: str | None) -> str | None:
+    """Visit numbers are "SV-NNNNN". Visits opened before that format were
+    stored as "ACHI-SV-YYYY-NNNNN"; they are shown as "SV-NNNNN" everywhere (the
+    stored value is untouched, and new numbers continue after them)."""
+    if not value:
+        return value
+    m = _OLD_SURVEY_NUMBER.match(value)
+    return f"SV-{m.group(1)}" if m else value
+
 
 SURVEY_STATUSES = ("Draft", "Scheduled", "In Progress", "Completed", "Cancelled")
 SURVEY_SITE_TYPES = ("Residential", "Commercial", "Industrial")
@@ -912,6 +941,12 @@ class SurveyOut(BaseModel):
 
     id: str
     survey_number: str
+
+    @field_validator("survey_number", mode="after")
+    @classmethod
+    def _plain_sv_number(cls, v: str) -> str:
+        return display_survey_number(v) or v
+
     status: str = "Draft"
     survey_date: date | None = None
     assigned_to: str | None = None
@@ -945,6 +980,21 @@ class SurveyRowOut(BaseModel):
 
     id: str
     survey_number: str
+
+    @field_validator("survey_number", mode="after")
+    @classmethod
+    def _plain_sv_number(cls, v: str) -> str:
+        return display_survey_number(v) or v
+
+    # The enquiry this visit belongs to (set when it was opened from the CRM /
+    # Log "Site visit" stage). file_number is filled in by the list endpoint.
+    file_id: str | None = None
+    file_number: str | None = None
+    lead_name: str | None = None
+    lead_company: str | None = None
+    lead_mobile: str | None = None
+    city: str | None = None
+    arrived_at: datetime | None = None
     status: str = "Draft"
     survey_date: date | None = None
     assigned_to: str | None = None

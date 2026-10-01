@@ -12,7 +12,7 @@ set -euo pipefail
 BASE="${BASE:-http://127.0.0.1:8080}"
 : "${TOKEN:?set TOKEN to an admin JWT}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPANY_NAME="${COMPANY_NAME:-Achi Scaffolding ERP}"   # max 60 chars; drives document.title
+COMPANY_NAME="${COMPANY_NAME:-ARARA}"   # max 60 chars; drives document.title
 
 echo "==> rescan packs"
 curl -fsS -X POST -H "Authorization: Bearer $TOKEN" "$BASE/api/v1/packs/rescan" >/dev/null

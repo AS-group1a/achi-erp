@@ -14,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.users.models import User
 
+from .schemas import display_survey_number
+
 from .planner_models import AchiPlannerEvent, AchiPlannerEventAttendee, AchiPlannerReminder
 from .planner_schemas import (
     PlannerAttendeeIn,
@@ -162,7 +164,7 @@ class PlannerService:
             select(ContactFile.id).where(ContactFile.id == record_id)
         )).scalar_one_or_none()
         if record is None:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Related ACHI record was not found")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Related ARARA record was not found")
 
     async def crm_follow_ups(self, actor_id: str, start: datetime, end: datetime) -> list[PlannerSourceEventOut]:
         """Project reliable CRM follow-up dates without creating Planner rows.
@@ -237,7 +239,7 @@ class PlannerService:
                 source="site_visit",
                 related_record_type="site_survey",
                 related_record_id=survey.id,
-                related_record_label=survey.survey_number + (f" · {location}" if location else ""),
+                related_record_label=display_survey_number(survey.survey_number) + (f" · {location}" if location else ""),
             ))
         return output
 
@@ -391,7 +393,7 @@ class PlannerService:
             )).scalars().all()
             users = {str(user.id): user for user in found}
             if users.keys() != internal_ids:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "An attendee is not an active ACHI user")
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "An attendee is not an active ARARA user")
         return [AchiPlannerEventAttendee(
             event_id=event_id, attendee_user_id=row.user_id,
             display_name=(_display_name(users[row.user_id]) if row.user_id else row.external_name or row.external_email or ""),
@@ -511,7 +513,7 @@ class PlannerService:
             )
         )).scalar_one_or_none()
         if attendee is None:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only an invited ACHI user can respond")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only an invited ARARA user can respond")
         attendee.response_status = data.response_status
         await self.session.commit()
         await self.session.refresh(event)
@@ -522,9 +524,12 @@ class PlannerService:
         if end <= start:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "end must be after start")
         wanted = set(user_ids)
+        # A free-text calendar note is a written reminder, not a commitment, so
+        # it never makes its author look busy.
         events = (await self.session.execute(
             select(AchiPlannerEvent).where(
                 AchiPlannerEvent.deleted_at.is_(None), AchiPlannerEvent.status == "scheduled",
+                AchiPlannerEvent.event_type != "note",
                 AchiPlannerEvent.start_at < end, AchiPlannerEvent.end_at > start,
             )
         )).scalars().all()

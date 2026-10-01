@@ -49,7 +49,7 @@ const $=id=>document.getElementById(id);
 
   const eyebrow=document.createElement('div');
   eyebrow.className='achi-log-hero__eyebrow';
-  eyebrow.textContent='ACHI SCAFFOLDING';
+  eyebrow.textContent='ARARA';
 
   const heading=document.createElement('h1');
   heading.className='achi-log-hero__title';
@@ -482,7 +482,7 @@ function contactSaveStatus(res){
   if(!res||!res.contact_id) return null;
   const name=res.contact_name?` “${res.contact_name}”`:'';
   if(res.contact_created) return `New contact${name} added to the directory`;
-  const how={phone:'phone number',email:'email',company:'company name'}[res.contact_matched_by];
+  const how={phone:'phone number',email:'email',company:'company name',name:'name'}[res.contact_matched_by];
   return `Contact${name} already exists${how?' — matched by '+how:''}; no duplicate created`;
 }
 function showSavedFeedback(res){
@@ -1493,7 +1493,26 @@ async function api(path,opts={},retried){
     throw new Error('Session expired — open the main app on this exact host, sign in, then reload.'); }
   const body=await r.json().catch(()=>({}));
   if(!r.ok){ const d=body.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
+  siteVisitAfterSave(path,opts);
   return body;
+}
+/* Moving an enquiry to "Site visit" (stage cell, edit form or intent SV) opens
+   its visit in the Site Visit module — see achiEnsureSiteVisit in chrome.js. */
+function siteVisitAfterSave(path,opts){
+  const m=String(path).match(/^\/files\/([^/?]+)$/);
+  if(!m||String(opts.method||'').toUpperCase()!=='PATCH'||!window.achiEnsureSiteVisit) return;
+  let body={}; try{ body=JSON.parse(opts.body||'{}'); }catch(e){ return; }
+  if(body.stage!=='site_survey') return;
+  const fid=decodeURIComponent(m[1]);
+  const r=(typeof ROWS!=='undefined'?ROWS:[]).find(x=>x.file_id===fid)||{};
+  const person=[r.first_name,r.last_name].filter(Boolean).join(' ')||r.contact_name||'';
+  window.achiEnsureSiteVisit({
+    fileId:fid, fileNumber:r.file_number, customer:r.company_name||person, contact:person,
+    site:[r.site_location,r.city].filter(Boolean).join(', '), maps:r.maps_url, subject:r.subject,
+  },{
+    get:p=>api(p.replace(API,'')),
+    post:(p,b)=>api(p.replace(API,''),{method:'POST',body:JSON.stringify(b)}),
+  });
 }
 async function searchContacts(q,retried){
   const term=String(q||'').trim();
@@ -1613,8 +1632,8 @@ const FORM_COLS=[
    to use FORM_COLS above, so removing a field from this table never removes it
    from the form or changes how it is saved. */
 const STANDARD_LOG_TABLE_COLS=[
-  {k:'num',       h:'Code',                  tab:null, cls:'num pg-f-num',    w:64},
-  {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',       w:92},
+  {k:'num',       h:'Code',                  tab:null, cls:'num pg-f-num',    w:92},
+  {k:'when',      h:'Date · Time',           tab:null, cls:'pg-f-date',       w:112},
   {k:'status',    h:'Status',                tab:null, cls:'pg-f-stat',       w:86, edit:{kind:'status',target:'file',field:'status',val:r=>r.status}},
   {k:'contact',   h:'Contact',               tab:null, cls:'log-contact-col', w:198},
   {k:'mobile',    h:'Mobile / WA',           tab:null,                       w:116, edit:{kind:'text',target:'contact',field:'mobile',val:r=>r.mobile||''}},
@@ -1623,6 +1642,7 @@ const STANDARD_LOG_TABLE_COLS=[
   {k:'company',   h:'Company',               tab:null,                       w:146, edit:{kind:'text',target:'contact',field:'company_name',val:r=>r.company_name||''}},
   {k:'city',      h:'City',                  tab:null,                       w:90, edit:{kind:'city',target:'file',field:'city',val:r=>r.city||''}},
   {k:'desc',      h:'Notes — What Was Said', tab:null,                       w:276, wide:true, note:true, edit:{kind:'text',target:'log',field:'description',val:r=>r.description||''}},
+  {k:'funotes',   h:'Next Step',             tab:null,                       w:200, wide:true, note:true, edit:{kind:'text',target:'log',field:'follow_up_notes',val:r=>r.follow_up_notes||''}},
   {k:'intent',    h:'Intent',                tab:null,                       w:100},
   {k:'linked_to', h:'Linked To',             tab:null,                       w:87},
   {k:'owner',     h:'By',                    tab:null,                       w:56},
@@ -1950,7 +1970,7 @@ function isOverdueFollowup(r){
    only describes the menu; it never invents a linked document. */
 const INTENT_GROUPS=[
   {title:'Sales & Design', group:'sales', options:[
-    {code:'ENQ', label:'ENQ — enquiry', hasNumber:true},
+    {code:'ENQ', label:'Enquiry', hasNumber:true},
     {code:'SV',  label:'Site Visit',    hasNumber:true},
     {code:'DRW', label:'DRAW',          hasNumber:true},
     {code:'MT',  label:'M/T',           hasNumber:true},
@@ -2073,7 +2093,7 @@ function compactLogIntent(r){
   const attrs=`data-intent-trigger aria-haspopup="listbox" aria-expanded="false" title="Copy this log into a stage — also files an ENQ in CRM"`;
   if(info){
     return `<button type="button" class="log-intent-pill log-intent-group-${info.group}" ${attrs}>`
-      + `<span>${esc(info.code+' — '+info.label)}</span><span class="log-pill-arrow">${SVG.tinyChev}</span></button>`;
+      + `<span>${esc(info.label.toUpperCase())}</span><span class="log-pill-arrow">${SVG.tinyChev}</span></button>`;
   }
   if(code){
     // A value the menu doesn't recognise (e.g. data predating this menu).
@@ -2119,7 +2139,7 @@ function cellHTML(c,r,i){switch(c.k){
 
   const text=GENERAL_LOG
     ?`${p(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()} ${p(h)}:${p(d.getMinutes())} ${hour < 12 ? 'AM' : 'PM'}`
-    :`${p(d.getDate())}/${p(d.getMonth()+1)} ${p(hour)}:${p(d.getMinutes())}`;
+    :`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(hour)}:${p(d.getMinutes())}`;
 
   return `<span class="lt-date">${esc(text)}</span>`;
 }  case 'status': return GENERAL_LOG?badge(r.status):compactLogStatus(r);
@@ -2172,7 +2192,11 @@ function cellHTML(c,r,i){switch(c.k){
     if(GENERAL_LOG) return `<span class="fu-date${overdue?' fu-overdue':''}">${esc(r.follow_up_date)}${overdue?' !':''}</span>`;
     return `<span class="badge ${overdue?'b-cancelled fu-overdue':'b-scheduled'}">${esc(r.follow_up_date)}${overdue?' !':''}</span>`;
   }
-  case 'funotes': return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
+  case 'funotes': {
+    if(!COMPACT_STANDARD_LOG) return r.follow_up_notes?esc(r.follow_up_notes):'<span class="mt">—</span>';
+    const next=r.follow_up_notes?richTextToPlain(r.follow_up_notes).trim():'';
+    return `<span class="log-next-step">${next?esc(next):'<span class="mt">—</span>'}</span>`;
+  }
   /* General Log extra columns */
   case 'ref': return r.reference?`<span class="enq-ref">${esc(r.reference)}</span>`:'<span class="mt">—</span>';
   case 'role': return dash(r.role);
@@ -2487,6 +2511,20 @@ function toggleSelectAll(){
   rows.forEach(tr=>toggleRowSelection(tr,!all));
   refreshSelectionButton(); refreshDeleteButton();
 }
+/* A click anywhere outside the table clears the selection, so the red Delete
+   button and the docked form go away. Clicks inside the table, the toolbar, the
+   form, or on any control / popup keep it. */
+const KEEP_SELECTION_ON='#tbl, .nav, #rx, #log-pagination, [role="dialog"], [role="menu"], [role="listbox"], button, a, input, select, textarea, label, [contenteditable]';
+document.addEventListener('click',e=>{
+  if(!selectedRows.size||deletedView) return;
+  const t=e.target;
+  if(!(t instanceof Element)||!t.isConnected||t.closest(KEEP_SELECTION_ON)) return;
+  document.querySelectorAll('#rows tr[data-row-key]').forEach(tr=>{
+    if(selectedRows.has(tr.dataset.rowKey)) toggleRowSelection(tr,false);
+  });
+  selectedRows.clear();
+  refreshSelectionButton(); refreshDeleteButton();
+});
 function toggleRowSelection(tr,force){
   const id=tr.dataset.rowKey, on=force===undefined?!selectedRows.has(id):force;
   if(on) selectedRows.add(id); else selectedRows.delete(id);
@@ -2694,19 +2732,48 @@ function selectedLogId(){
   if(logs.length!==1) return null;
   return logs[0].slice(4);   // strip "log:"
 }
+/* Selecting ONE saved row docks the Add Log form under the table, filled with
+   that row — the same form as the popup, not a separate card. The quick
+   quotation card no longer shows; its code stays for the quotation modules. */
+function rxDocked(){ const rx=$('rx'); return !!rx&&!rx.hidden&&rx.classList.contains('rx-docked'); }
+function refreshDockedForm(id){
+  const rx=$('rx'); if(!rx) return;
+  if(!rx.hidden&&!rx.classList.contains('rx-docked')) return;   // the popup is open: leave it alone
+  if(!id||deletedView||qvHidden||!ROWS.some(x=>x.id===id)){ if(rxDocked()) closeExpandedRow(); return; }
+  if(rxDocked()&&rxRowId===id) return;                           // already showing this row
+  openExpandedRow(id);
+  rx.classList.add('rx-docked');
+  rx.querySelector('.rx-box')?.setAttribute('aria-modal','false');
+  rxSetLocked(true);
+  rx.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+/* A saved log opens read-only — docked or in the popup; the Edit button next
+   to Cancel unlocks it. `inert` blocks clicks, typing and tab focus. New logs
+   open editable. */
+const RX_LOCK_TARGETS='.rx-cols, #rx-copy, #rx-header-type, .rx-when-wrap, #rx-state, .rx-head-followup';
+function rxSetLocked(locked){
+  const rx=$('rx'); if(!rx) return;
+  if(!$('rx-edit')){
+    $('rx-cancel')?.insertAdjacentHTML('afterend',
+      '<button type="button" class="rx-edit" id="rx-edit" title="Edit this log">'
+      +'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.5l2.5 2.5L6 12.5H3.5V10z"/></svg>Edit</button>');
+    $('rx-edit')?.addEventListener('click',()=>rxSetLocked(false));
+  }
+  rx.classList.toggle('rx-locked',locked);
+  rx.querySelectorAll(RX_LOCK_TARGETS).forEach(el=>{ el.inert=locked; });
+  if(!locked) rx.querySelector('#rx-notes-subject, .rx-body .rx-in')?.focus({preventScroll:true});
+}
+/* Cancel on the docked form throws the edits away: redraw the row, locked. */
+function rxCancelDocked(){
+  const id=rxRowId; rxRowId=null;
+  refreshDockedForm(id);
+}
 function refreshQuickQuote(){
-  const card=$('qv'); if(!card) return;
-  if(deletedView){ card.hidden=true; return; }   // no quotation from the deleted view
-  const id=selectedLogId();
-  if(id!==qvLastId){ qvLastId=id; qvHidden=false; qvMsg(''); }
-  if(!id||qvHidden){ card.hidden=true; return; }
-  const r=ROWS.find(x=>x.id===id);
-  if(!r){ card.hidden=true; return; }
-  card.hidden=false;
-  const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'this enquiry';
-  $('qv-for').textContent=`${r.file_number?r.file_number+' — ':''}${who}`;
-  if(!$('qv-city').value && r.city) $('qv-city').value=r.city;
-  qvTotals();
+  const card=$('qv');
+  const id=deletedView?null:selectedLogId();
+  if(id!==qvLastId){ qvLastId=id; qvHidden=false; if(card) qvMsg(''); }
+  if(card) card.hidden=true;
+  refreshDockedForm(id);
 }
 /* Totals mirror quotation_service.compute_totals. Duplicated deliberately: this
    is a live preview and must not wait on a round trip. The SERVER's numbers are
@@ -3096,16 +3163,16 @@ function rxReferenceContactHTML(src,val){
     <div class="rx-contact-identity">
       ${rxContactPhotoCard('person',initials,true)}
       <div class="rx-contact-fields">
-        <span class="rx-ref-label">Pre</span><select class="rx-in" id="rx-prefix" data-rx-select="prefix" data-k="prefix">${prefixOptions}</select>
-        <span class="rx-ref-label">First <i>*</i></span><input class="rx-in" data-k="first" value="${esc(first)}" placeholder="Type to search contacts...">
-        <span class="rx-ref-label">Middle</span><input class="rx-in" data-rx-contact-middle value="${esc(src.middle_name||'')}" placeholder="Middle name">
-        <span class="rx-ref-label">Last</span><input class="rx-in" data-k="last" value="${esc(last)}" placeholder="Type to search contacts...">
-        <span class="rx-ref-label">Father’s name</span><input class="rx-in" data-rx-contact-father placeholder="Father’s name">
-        <span class="rx-ref-label">Mother’s name</span><input class="rx-in" data-rx-contact-mother placeholder="Mother’s name">
-        <span class="rx-ref-label">Role</span><select class="rx-in" id="rx-role" data-rx-select="role" data-k="role">${roleOptions}</select>
-        <span class="rx-ref-label">Company</span><input class="rx-in rx-contact-company-input" data-k="company" value="${esc(company)}" placeholder="Type to search companies...">
-        <span class="rx-ref-label">Found us via</span><select class="rx-in" id="rx-reference" data-k="reference">${rxContactOptions(sourceOptions,source)}</select>
-        <span class="rx-ref-label rx-referral-label"${source==='Referral — someone'?'':' hidden'}>Referred by</span><input class="rx-in rx-referral-input"${source==='Referral — someone'?'':' hidden'} data-rx-referred-by placeholder="Name / company">
+        <div class="rx-ref-field"><span class="rx-ref-label">Pre</span><select class="rx-in" id="rx-prefix" data-rx-select="prefix" data-k="prefix">${prefixOptions}</select></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">First <i>*</i></span><input class="rx-in" data-k="first" value="${esc(first)}" placeholder="Type to search contacts..."></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">Middle</span><input class="rx-in" data-rx-contact-middle value="${esc(src.middle_name||'')}" placeholder="Middle name"></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">Last</span><input class="rx-in" data-k="last" value="${esc(last)}" placeholder="Type to search contacts..."></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">Father’s name</span><input class="rx-in" data-rx-contact-father placeholder="Father’s name"></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">Mother’s name</span><input class="rx-in" data-rx-contact-mother placeholder="Mother’s name"></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">Role</span><select class="rx-in" id="rx-role" data-rx-select="role" data-k="role">${roleOptions}</select></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">Company</span><input class="rx-in rx-contact-company-input" data-k="company" value="${esc(company)}" placeholder="Type to search companies..."></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">Found us via</span><select class="rx-in" id="rx-reference" data-k="reference">${rxContactOptions(sourceOptions,source)}</select></div>
+        <div class="rx-ref-field"><span class="rx-ref-label rx-referral-label"${source==='Referral — someone'?'':' hidden'}>Referred by</span><input class="rx-in rx-referral-input"${source==='Referral — someone'?'':' hidden'} data-rx-referred-by placeholder="Name / company"></div>
       </div>
     </div>
     <div class="rx-online-result" id="rx-online-result" hidden></div>
@@ -3114,23 +3181,23 @@ function rxReferenceContactHTML(src,val){
       <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-email-list" id="rx-email-list">${emailHtml}</div><div class="rx-website-list" id="rx-website-list">${rxReferenceOnlineRow('Website',src.website||'','main','company.com')}</div><div class="rx-social-list" id="rx-social-list">${socials.map(s=>rxReferenceSocialRow(s.platform,s.handle,'main')).join('')}</div><select class="rx-in rx-ref-add-select" id="rx-add-online"><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
     </div>
     <button type="button" class="rx-ref-mini rx-address-toggle" data-rx-address-toggle="main">+ Add Address</button>
-    <div class="rx-ref-address" data-rx-address-panel="main" hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where the person lives — site address stays in the Site section</span><button type="button" data-rx-address-close="main">×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street name"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>
+    <div class="rx-ref-address" data-rx-address-panel="main" hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where the person lives — site address stays in the Site section</span><button type="button" data-rx-address-close="main">×</button></div><div class="rx-contact-fields"><div class="rx-ref-field"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"></div><div class="rx-ref-field"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"></div><div class="rx-ref-field"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"></div><div class="rx-ref-field"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"></div><div class="rx-ref-field"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street name"></div><div class="rx-ref-field"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"></div><div class="rx-ref-field"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"></div><div class="rx-ref-field"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div></div>
     <label class="rx-company-toggle"><input type="checkbox" id="rx-company-toggle"${companyOpen?' checked':''}>From a company — <span id="rx-company-toggle-hint">${companyOpen?'company section below':'tick to add company details'}</span></label>
     <div class="rx-company-panel" id="rx-company-panel"${companyOpen?'':' hidden'}>
       <div class="rx-ref-subhead"><b>Company — <span id="rx-company-title">${esc(company||'new company')}</span></b><span>the contact belongs to this company</span></div>
       <div class="rx-contact-identity">
         ${rxContactPhotoCard('company',companyInitials,false)}
         <div class="rx-contact-fields">
-          <span class="rx-ref-label">Name</span><input class="rx-in" data-rx-company-name value="${esc(company)}" placeholder="Type or pick">
-          <span class="rx-ref-label">Type</span><select class="rx-in" id="rx-company_type" data-rx-select="company_type" data-k="company_type">${typeOptions}</select>
-          <span class="rx-ref-label">VAT / MOF no.</span><input class="rx-in" data-rx-company-vat placeholder="Tax registration">
-          <span class="rx-ref-label">HQ address</span><span class="rx-ref-wide-control"><input class="rx-in" data-rx-company-hq placeholder="Street, city"><button type="button" class="rx-ref-mini" data-rx-company-address-toggle>+ Detail</button></span>
-          <span class="rx-ref-label">Industry</span><select class="rx-in"><option>Construction</option><option>Real estate</option><option>Industrial</option><option>Public sector</option><option>+ Add New</option></select>
-          <span class="rx-ref-label">Activity</span><select class="rx-in"><option>General contracting</option><option>Scaffolding &amp; formwork</option><option>Fit-out &amp; finishing</option><option>MEP</option><option>Infrastructure</option><option>Developer / owner</option><option>+ Add New</option></select>
-          <span class="rx-ref-label">Size</span><select class="rx-in"><option>1–10</option><option>11–50</option><option>51–200</option><option>200+</option></select>
+          <div class="rx-ref-field"><span class="rx-ref-label">Name</span><input class="rx-in" data-rx-company-name value="${esc(company)}" placeholder="Type or pick"></div>
+          <div class="rx-ref-field"><span class="rx-ref-label">Type</span><select class="rx-in" id="rx-company_type" data-rx-select="company_type" data-k="company_type">${typeOptions}</select></div>
+          <div class="rx-ref-field"><span class="rx-ref-label">VAT / MOF no.</span><input class="rx-in" data-rx-company-vat placeholder="Tax registration"></div>
+          <div class="rx-ref-field rx-ref-field-wide"><span class="rx-ref-label">HQ address</span><span class="rx-ref-wide-control"><input class="rx-in" data-rx-company-hq placeholder="Street, city"><button type="button" class="rx-ref-mini" data-rx-company-address-toggle>+ Detail</button></span></div>
+          <div class="rx-ref-field"><span class="rx-ref-label">Industry</span><select class="rx-in"><option>Construction</option><option>Real estate</option><option>Industrial</option><option>Public sector</option><option>+ Add New</option></select></div>
+          <div class="rx-ref-field"><span class="rx-ref-label">Activity</span><select class="rx-in"><option>General contracting</option><option>Scaffolding &amp; formwork</option><option>Fit-out &amp; finishing</option><option>MEP</option><option>Infrastructure</option><option>Developer / owner</option><option>+ Add New</option></select></div>
+          <div class="rx-ref-field"><span class="rx-ref-label">Size</span><select class="rx-in"><option>1–10</option><option>11–50</option><option>51–200</option><option>200+</option></select></div>
         </div>
       </div>
-      <div class="rx-ref-address" data-rx-company-address-panel hidden><div class="rx-ref-subhead"><b>Company HQ details</b><span>registered or main office address</span><button type="button" data-rx-company-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / floor"></div></div>
+      <div class="rx-ref-address" data-rx-company-address-panel hidden><div class="rx-ref-subhead"><b>Company HQ details</b><span>registered or main office address</span><button type="button" data-rx-company-address-close>×</button></div><div class="rx-contact-fields"><div class="rx-ref-field"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"></div><div class="rx-ref-field"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"></div><div class="rx-ref-field"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"></div><div class="rx-ref-field"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"></div><div class="rx-ref-field"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"></div><div class="rx-ref-field"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / floor"></div></div></div>
       <div class="rx-contact-panels">
         <div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div><div class="rx-company-phone-list">${rxReferenceTelRow('Telephone','','company')}${rxReferenceTelRow('Mobile','','company')}${rxReferenceTelRow('WhatsApp','','company')}</div><button type="button" class="rx-ref-mini" data-rx-company-add-phone>+ Add Number</button></div>
         <div class="rx-contact-card"><div class="rx-contact-card-title">Email &amp; online</div><div class="rx-company-online-list">${rxReferenceOnlineRow('Email','','company','info@company.com')}${rxReferenceOnlineRow('Website','','company','company.com')}${rxReferenceSocialRow('IG','','company')}</div><select class="rx-in rx-ref-add-select" data-rx-company-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>
@@ -3144,6 +3211,11 @@ function rxReferenceContactHTML(src,val){
 
 function openExpandedRow(explicitId){
   if(deletedView) return;
+  // Opened directly (Add Log, double-click, summary cell) = the centered popup.
+  // refreshDockedForm() re-adds rx-docked right after calling this.
+  $('rx').classList.remove('rx-docked');
+  rxSetLocked(false);
+  $('rx').querySelector('.rx-box')?.setAttribute('aria-modal','true');
   const forceNew=explicitId===null;
   const id=forceNew?null:(explicitId||selectedLogId());
   const r=id?ROWS.find(x=>x.id===id):null;
@@ -3354,6 +3426,7 @@ function openExpandedRow(explicitId){
   rxRenumberPersons();
   setRxState(currentState);
   $('rx').hidden=false;
+  rxSetLocked(!isNew);
   rxUpdateMapPreview();
   $('rx-body').scrollTop=0;
 }
@@ -3617,15 +3690,15 @@ function rxRelatedRow(rc){
     +`<div class="rx-person-head"><span class="rx-person-t" data-rx-person-num>Contact</span>`
       +`<button type="button" class="rx-person-x" data-rx-related-remove aria-label="Remove contact person">&times; Remove</button></div>`
     +`<div class="rx-contact-identity">${rxContactPhotoCard('person',initials,false)}<div class="rx-contact-fields">`
-      +`<span class="rx-ref-label">Pre</span><select class="rx-in" data-rc-prefix>${rxPersonOpts(allPrefixes(),f.prefix)}</select>`
-      +`<span class="rx-ref-label">First <i>*</i></span><input class="rx-in" data-rc-first maxlength="128" placeholder="Type to search contacts..." value="${esc(f.first)}">`
-      +`<span class="rx-ref-label">Middle</span><input class="rx-in" data-rc-middle placeholder="Middle name" value="${esc(f.middle)}">`
-      +`<span class="rx-ref-label">Last</span><input class="rx-in" data-rc-last maxlength="128" placeholder="Type to search contacts..." value="${esc(f.last)}">`
-      +`<span class="rx-ref-label">Father’s name</span><input class="rx-in" data-rc-father placeholder="Father’s name" value="${esc(f.father)}">`
-      +`<span class="rx-ref-label">Mother’s name</span><input class="rx-in" data-rc-mother placeholder="Mother’s name" value="${esc(f.mother)}">`
-      +`<span class="rx-ref-label">Role</span><select class="rx-in" data-rc-role>${rxPersonOpts(allRoles(),f.role)}</select>`
-      +`<span class="rx-ref-label">Company</span><input class="rx-in rx-related-company" data-rc-company placeholder="Type to search companies..." value="${esc(f.company)}">`
-      +`<span class="rx-ref-label">Found us via</span><select class="rx-in" data-rc-source>${rxContactOptions(['Returning client','Advertisement','Social media','Referral — someone','Website','Walk-in'],f.source)}</select>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Pre</span><select class="rx-in" data-rc-prefix>${rxPersonOpts(allPrefixes(),f.prefix)}</select></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">First <i>*</i></span><input class="rx-in" data-rc-first maxlength="128" placeholder="Type to search contacts..." value="${esc(f.first)}"></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Middle</span><input class="rx-in" data-rc-middle placeholder="Middle name" value="${esc(f.middle)}"></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Last</span><input class="rx-in" data-rc-last maxlength="128" placeholder="Type to search contacts..." value="${esc(f.last)}"></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Father’s name</span><input class="rx-in" data-rc-father placeholder="Father’s name" value="${esc(f.father)}"></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Mother’s name</span><input class="rx-in" data-rc-mother placeholder="Mother’s name" value="${esc(f.mother)}"></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Role</span><select class="rx-in" data-rc-role>${rxPersonOpts(allRoles(),f.role)}</select></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Company</span><input class="rx-in rx-related-company" data-rc-company placeholder="Type to search companies..." value="${esc(f.company)}"></div>`
+      +`<div class="rx-ref-field"><span class="rx-ref-label">Found us via</span><select class="rx-in" data-rc-source>${rxContactOptions(['Returning client','Advertisement','Social media','Referral — someone','Website','Walk-in'],f.source)}</select></div>`
     +`</div></div>`
     +`<div class="rx-contact-panels">`
       +`<div class="rx-contact-card"><div class="rx-contact-card-title">Phone numbers</div><div class="rx-related-phone-list">`
@@ -3637,7 +3710,7 @@ function rxRelatedRow(rc){
       +`</div><select class="rx-in rx-ref-add-select" data-rx-related-add-online><option value="">+ Add…</option><option value="email">Email</option><option value="website">Website</option><option value="social">Social handle</option></select></div>`
     +`</div>`
     +`<div class="rx-person-foot"><label>Primary contact? <select class="rx-in" data-rc-primary><option value="no"${f.primary?'':' selected'}>No</option><option value="yes"${f.primary?' selected':''}>Yes</option></select></label><button type="button" class="rx-ref-mini" data-rx-related-address-toggle>+ Add Address</button></div>`
-    +`<div class="rx-ref-address" data-rx-related-address-panel hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where this person lives</span><button type="button" data-rx-related-address-close>×</button></div><div class="rx-contact-fields"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div>`
+    +`<div class="rx-ref-address" data-rx-related-address-panel hidden><div class="rx-ref-subhead"><b>Address — personal</b><span>where this person lives</span><button type="button" data-rx-related-address-close>×</button></div><div class="rx-contact-fields"><div class="rx-ref-field"><span class="rx-ref-label">Maps link</span><input class="rx-in" placeholder="https://maps.app.goo.gl/…"></div><div class="rx-ref-field"><span class="rx-ref-label">Country</span><input class="rx-in" placeholder="Country"></div><div class="rx-ref-field"><span class="rx-ref-label">District</span><input class="rx-in" placeholder="District"></div><div class="rx-ref-field"><span class="rx-ref-label">City</span><input class="rx-in" placeholder="City"></div><div class="rx-ref-field"><span class="rx-ref-label">Street</span><input class="rx-in" placeholder="Street"></div><div class="rx-ref-field"><span class="rx-ref-label">Building</span><input class="rx-in" placeholder="Building / villa"></div><div class="rx-ref-field"><span class="rx-ref-label">Floor</span><input class="rx-in" placeholder="Floor / unit"></div><div class="rx-ref-field"><span class="rx-ref-label">Notes</span><input class="rx-in" placeholder="landmark, gate code…"></div></div></div>`
   +`</div>`;
 }
 function rxRelatedRowsHTML(list){ return (list||[]).map(rxRelatedRow).join(''); }

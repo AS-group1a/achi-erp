@@ -110,11 +110,11 @@ async def _deliver_due(session: AsyncSession) -> int:
                         to=recipient,
                         subject=f"Reminder: {event.title}",
                         html_body=(
-                            "<p>This is an ACHI Planner reminder.</p>"
+                            "<p>This is an ARARA Planner reminder.</p>"
                             f"<p><strong>{event.title}</strong><br>{when}</p>"
                             + (f"<p>{event.description}</p>" if event.description else "")
                         ),
-                        from_addr=formataddr(("Achi Scaffolding Team", from_addr)) if from_addr else None,
+                        from_addr=formataddr(("ARARA Team", from_addr)) if from_addr else None,
                         reply_to=None,
                         tags=["achi", "planner-reminder"],
                     )

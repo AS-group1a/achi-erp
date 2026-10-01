@@ -52,6 +52,20 @@ _UNSAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 _NUMERIC_LOG_CODE_RE = re.compile(r"^[1-9]\d*$")
 
+# Setting a Log's intent to a Sales & Design step files it in the CRM at the
+# matching stage (ENQ -> Enquiry column ... QUO -> Quotation column). Other
+# intents (operations, finance) are recorded on the log only.
+LOG_INTENT_STAGE = {
+    "ENQ": "enquiry",
+    "SV": "site_survey",
+    "DRW": "drawing",
+    "MT": "takeoff",
+    "BOQ": "boq",
+    "RES": "resources",
+    "PLN": "plan",
+    "QUO": "quotation",
+}
+
 # PostgreSQL transaction-scoped advisory lock for global Log-number allocation.
 # This prevents concurrent Log creation transactions from receiving the same
 # permanent number.
@@ -315,6 +329,19 @@ def _combine_multi(predicates: list, mode: str):
         return and_(*predicates)
 
     return or_(*predicates)
+
+
+def is_job_file(f: ContactFile) -> bool:
+    """True when this enquiry became a job: Won → JOB (stage "accepted") or
+    converted onto a project — and not cancelled since. Mirrors _JOB_FILE."""
+    return (f.stage == "accepted" or f.project_id is not None) and f.status != "cancelled"
+
+
+# SQL twin of is_job_file(), for "does this contact have any job?" lookups.
+_JOB_FILE = and_(
+    or_(ContactFile.stage == "accepted", ContactFile.project_id.is_not(None)),
+    ContactFile.status != "cancelled",
+)
 
 
 def _log_filter_predicates(
@@ -872,10 +899,73 @@ class ContactFileService:
         f.log_code = str(max(existing_count, max_numeric) + 1)
 
 
-    async def update(self, f: ContactFile, data: ContactFileUpdate) -> ContactFile:
+    async def _ensure_site_visit(self, f: ContactFile, *, user_id: str | None) -> None:
+        """Open the Site Visit record (SV-NNNNN) for an enquiry that just reached
+        the Site visit stage — from the Log intent "SV", the CRM stage dropdown /
+        board, or a new ENQ saved straight at that stage.
+
+        One visit per enquiry: if the file already has one, nothing happens. The
+        caller commits, so the visit and the stage change land together.
+        """
+        from .survey_service import _next_survey_number
+
+        if f.id is None:
+            await self.session.flush()
+        existing = await self.session.execute(
+            select(SiteSurvey.id).where(SiteSurvey.file_id == f.id).limit(1)
+        )
+        if existing.scalar_one_or_none() is not None:
+            return
+        # The Log / CRM pages open the visit themselves too (chrome.js
+        # achiEnsureSiteVisit), tagging it with the ENQ code in "lead". Adopt
+        # that one instead of opening a second visit.
+        m = re.search(r"-(\d+)$", f.file_number or "")
+        if m:
+            tagged = (await self.session.execute(
+                select(SiteSurvey).where(
+                    SiteSurvey.file_id.is_(None), SiteSurvey.lead == f"ENQ-{m.group(1).zfill(5)}"
+                ).limit(1)
+            )).scalar_one_or_none()
+            if tagged is not None:
+                tagged.file_id = f.id
+                tagged.contact_id = tagged.contact_id or f.contact_id
+                return
+        contact = await self.session.get(Contact, f.contact_id) if f.contact_id else None
+        person = " ".join(
+            x for x in (f.lead_first_name, f.lead_last_name) if x
+        ).strip() or (_display_name(contact) if contact is not None else "")
+        company = f.lead_company or (getattr(contact, "company_name", None) if contact is not None else None)
+        visit = SiteSurvey(
+            survey_number=await _next_survey_number(self.session),
+            status="Scheduled",
+            file_id=f.id,
+            contact_id=f.contact_id,
+            customer=company or person or None,
+            contact=person or None,
+            lead_name=person or None,
+            lead_company=company or None,
+            lead_mobile=f.lead_mobile or (getattr(contact, "primary_phone", None) if contact is not None else None),
+            country=f.country,
+            district=f.district,
+            city=f.city,
+            street=f.street,
+            site_location=f.site_location,
+            maps_url=f.maps_url,
+            google_maps_url=f.maps_url,
+            notes=f.subject or None,
+            owner_user_id=user_id or f.owner_user_id,
+            tenant_id=f.tenant_id or user_id,
+        )
+        self.session.add(visit)
+        logger.info("achi: file %s reached Site visit -> opened %s", f.file_number, visit.survey_number)
+
+    async def update(self, f: ContactFile, data: ContactFileUpdate, *, user_id: str | None = None) -> ContactFile:
         d = data.model_dump(exclude_unset=True)
+        reaches_site_visit = d.get("stage") == "site_survey" and f.stage != "site_survey"
         for k, v in d.items():
             setattr(f, k, v)
+        if reaches_site_visit:
+            await self._ensure_site_visit(f, user_id=user_id)
         await self.session.commit()
         await self.session.refresh(f)
         return f
@@ -986,9 +1076,9 @@ class ContactFileService:
 
             phone = (file.lead_mobile or "").strip()
             email = (file.lead_email or "").strip()
-            if phone or email:
-                # Reachable now — same resolution the quick-create path uses, so
-                # a row promoted here and a row created complete end up identical.
+            if phone or email or file.lead_first_name or file.lead_last_name or file.lead_company:
+                # Same resolution the quick-create path uses, so a row promoted
+                # here and a row created complete end up identical.
                 person, company_contact, _matched = await self._resolve_contacts(
                     first=(file.lead_first_name or "").strip(),
                     last=(file.lead_last_name or "").strip(),
@@ -1006,6 +1096,8 @@ class ContactFileService:
                         _write_contact_related(person, related_list)
                 if company_contact is not None:
                     file.company_contact_id = str(company_contact.id)
+                    if person is None:
+                        file.contact_id = str(company_contact.id)   # company-only row: the file hangs off the company
             await self.session.commit()
             return
 
@@ -1049,6 +1141,13 @@ class ContactFileService:
             d["tags"] = ""
         for k, v in d.items():
             setattr(log, k, v)
+        stage = LOG_INTENT_STAGE.get(d.get("intent") or "")
+        if stage:
+            f = await self.session.get(ContactFile, log.file_id)
+            if f is not None and f.stage != stage:
+                f.stage = stage
+                if stage == "site_survey":
+                    await self._ensure_site_visit(f, user_id=log.created_by)
         await self.session.commit()
         await self.session.refresh(log)
         return log
@@ -1121,6 +1220,23 @@ class ContactFileService:
             await get_storage_backend().delete(key)
         except Exception:  # noqa: BLE001 - the row is gone; a stale blob is not worth a 500
             logger.warning("ACHI: could not delete attachment blob %s", key, exc_info=True)
+
+    async def client_contact_ids(self, contact_ids: set[str]) -> set[str]:
+        """Which of these contacts are CLIENTS: they have at least one job
+        (see is_job_file) in their whole history, not just the current enquiry.
+
+        Derived on every read rather than stored, so it follows any change —
+        an enquiry moved into or out of Won → JOB, cancelled, or converted.
+        Everyone else is a LEAD.
+        """
+        if not contact_ids:
+            return set()
+        result = await self.session.execute(
+            select(ContactFile.contact_id)
+            .where(ContactFile.contact_id.in_(contact_ids), _JOB_FILE)
+            .distinct()
+        )
+        return {cid for cid in result.scalars().all() if cid}
 
     async def attachment_counts(self, log_ids: list[str]) -> dict[str, int]:
         """Attachment count per log — one grouped query, not one per row."""
@@ -1324,6 +1440,8 @@ class ContactFileService:
             follow_up_notes=data.follow_up_notes,
         )
         self.session.add(log)
+        if file_created and f.stage == "site_survey":
+            await self._ensure_site_visit(f, user_id=user_id)
         await self.session.commit()
         await self.session.refresh(log)
         await self.session.refresh(f)
@@ -1372,6 +1490,71 @@ class ContactFileService:
                 return hit
         return None
 
+    async def backfill_missing_contacts(self) -> int:
+        """Give every log saved before name-only rows earned a contact its
+        Contacts-page entry. Idempotent: only files still without a contact are
+        touched, and _resolve_contacts reuses matching contacts (by phone, email,
+        then name) so re-running or repeated names never duplicate."""
+        live_log = (
+            select(FileLog.id)
+            .where(FileLog.file_id == ContactFile.id, FileLog.deleted_at.is_(None))
+            .exists()
+        )
+        files = (await self.session.execute(
+            select(ContactFile)
+            .where(ContactFile.contact_id.is_(None), live_log)
+            .order_by(ContactFile.created_at.asc())
+        )).scalars().all()
+        linked = 0
+        for f in files:
+            first = (f.lead_first_name or "").strip()
+            last = (f.lead_last_name or "").strip()
+            company = (f.lead_company or "").strip()
+            if not (first or last or company):
+                continue
+            person, org, _matched = await self._resolve_contacts(
+                first=first, last=last, company=company,
+                phone=(f.lead_mobile or "").strip(), email=(f.lead_email or "").strip(),
+                prefix=f.lead_prefix, user_id=f.owner_user_id,
+            )
+            primary = person or org
+            if primary is None:
+                continue
+            f.contact_id = str(primary.id)
+            if org is not None:
+                f.company_contact_id = str(org.id)
+            linked += 1
+        await self.session.commit()
+        return linked
+
+    async def _find_person_by_name(
+        self, first: str, last: str, company: str, tenant_id: str | None
+    ) -> Contact | None:
+        """An existing person with exactly this name (and company), case-insensitive.
+
+        Only used when the log has no phone or email to match on, so logging the
+        same name-only caller twice reuses one contact instead of duplicating it.
+        """
+        scope = []
+        if tenant_id is not None:
+            scope.append(or_(Contact.tenant_id == tenant_id, Contact.created_by == tenant_id))
+        same = lambda col, value: (  # noqa: E731
+            func.lower(col) == value.lower() if value else or_(col.is_(None), col == "")
+        )
+        q = (
+            select(Contact)
+            .where(
+                same(Contact.first_name, first),
+                same(Contact.last_name, last),
+                same(Contact.company_name, company),
+                Contact.is_active.is_(True),
+                *scope,
+            )
+            .order_by(Contact.created_at.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(q)).scalar_one_or_none()
+
     async def _find_company_contact(self, company: str, tenant_id: str | None) -> Contact | None:
         """The company's OWN contact: matching company name and no person name.
 
@@ -1403,32 +1586,35 @@ class ContactFileService:
         """Who gets a directory Contact for this row.
 
         Rules:
-          * No phone and no email -> no contact at all. A name we cannot reach is
-            not a contact; it stays on the file as typed.
-          * A person name + reachable -> a person contact.
+          * A person name -> a person contact, even with no phone or email: every
+            log's contact must land on the Contacts page. With no phone/email to
+            match on, an existing contact with the same name (and company) is
+            reused instead of creating a duplicate.
           * A company named -> its OWN separate contact, so "Anthony Karam / ASKII"
             yields two contacts, not one row with a company field.
           * The person keeps the phone/email; the company only takes them when
             there is no person to own them.
 
         The third element says how the PRIMARY contact (person, else company) was
-        matched to an existing row — "email", "phone" or "company" — and is None
+        matched to an existing row — "email", "phone", "name" or "company" — and is None
         when it was created fresh (or when the row earned no contact). Decided
         here, at the point of resolution, so the caller's "already existed"
         status can never disagree with what actually happened.
         """
-        if not (phone or email):
-            return None, None, None
-
         person = None
         person_matched = None
         if first or last:
-            person = await self._find_contact(email=email, phone=phone, tenant_id=user_id)
-            if person is not None:
-                if email and (person.primary_email or "").lower() == email.lower():
-                    person_matched = "email"
-                else:
-                    person_matched = "phone"
+            if phone or email:
+                person = await self._find_contact(email=email, phone=phone, tenant_id=user_id)
+                if person is not None:
+                    if email and (person.primary_email or "").lower() == email.lower():
+                        person_matched = "email"
+                    else:
+                        person_matched = "phone"
+            else:
+                person = await self._find_person_by_name(first, last, company, user_id)
+                if person is not None:
+                    person_matched = "name"
             if person is None:
                 person = Contact(
                     contact_type="lead",

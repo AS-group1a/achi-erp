@@ -29,7 +29,8 @@ async function rxSaveAll(keepOpen){
   const relatedChanged=rxRelatedChanged(r);
   if(!changed.length && !extrasChanged && !phonesChanged && !emailsChanged && !relatedChanged){
     st.textContent='Nothing to save'; st.className='rx-status';
-    if(!keepOpen) setTimeout(closeExpandedRow,500);
+    if(!keepOpen&&!rxDocked()) setTimeout(closeExpandedRow,500);
+    else if(!keepOpen) rxSetLocked(true);
     return;
   }
   rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
@@ -48,10 +49,11 @@ async function rxSaveAll(keepOpen){
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
   else {
     st.textContent='Saved'; st.className='rx-status ok'; setTimeout(()=>{ if($('rx-status'))$('rx-status').textContent=''; },2000);
-    if(!keepOpen) setTimeout(closeExpandedRow,450);
+    if(!keepOpen&&!rxDocked()) setTimeout(closeExpandedRow,450);
+    else if(!keepOpen) rxSetLocked(true);   // the docked form stays under the table, back to read-only
   }
 }
-function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); rxCloseAddSectionMenu(); rxCloseTakeoffPicker(); $('rx').hidden=true; rxRowId=null; }
+function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); rxCloseAddSectionMenu(); rxCloseTakeoffPicker(); if(rxDocked()) qvHidden=true; $('rx').classList.remove('rx-docked'); rxSetLocked(false); $('rx').hidden=true; rxRowId=null; }
 
 /* Field saves go through the SAME endpoints as the grid's inline editors, keyed
    off each column's own edit.target — so nothing here can save to a different
@@ -575,7 +577,8 @@ $('rows').addEventListener('pointerdown',e=>{
   openExpandedRow(id);
 });
 $('rx-close').addEventListener('click',closeExpandedRow);
-$('rx-cancel').addEventListener('click',closeExpandedRow);
+$('rx-cancel').addEventListener('click',()=>{   // locked: close · docked + editing: discard edits
+  if(!$('rx').classList.contains('rx-locked')&&rxDocked()) rxCancelDocked(); else closeExpandedRow(); });
 $('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
 $('rx-save-cont')?.addEventListener('click',()=>rxSaveAll(true));   // save + keep editing
 $('rx-when').addEventListener('change',e=>{ $('rx-when-label').textContent=fmtHeaderDT(e.target.value); });
@@ -997,7 +1000,7 @@ $('rx-body').addEventListener('paste',e=>{
   },0);
 });
 $('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&(e.target.dataset.k==='mobile'||e.target.dataset.rxTel)) rxValidatePhone(e.target); },true);
-$('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
+$('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')&&!rxDocked()) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 /* Tags: click the field to open the multi-select checkbox dropdown (the same one
    the grid uses). Delegated on rx-body so it survives every popup re-render. */
@@ -2862,6 +2865,9 @@ function openIntentMenu(trigger,logId){
   (menu.querySelector('.intent-option[aria-selected="true"]')||options[0])?.focus();
   setTimeout(()=>document.addEventListener('mousedown',intentMenuOutside,true),0);
 }
+/* Sales & Design intents file the log in the CRM at the matching stage
+   (mirrors LOG_INTENT_STAGE in service.py). */
+const LOG_INTENT_STAGE={ENQ:'enquiry',SV:'site_survey',DRW:'drawing',MT:'takeoff',BOQ:'boq',RES:'resources',PLN:'plan',QUO:'quotation'};
 async function pickIntent(r,code){
   closeIntentMenu();
   if(!code||r.intent===code) return;
@@ -2874,6 +2880,17 @@ async function pickIntent(r,code){
     const updated=(res&&res.log)?res.log:res;
     if(updated&&typeof updated==='object'){
       if('intent' in updated) r.intent=updated.intent;
+      // A Sales & Design intent moves the file's CRM stage; keep every row of
+      // that file in step with it.
+      let stage=updated.stage;
+      // Servers that predate the intent→stage link don't move the file, so
+      // file it at the matching CRM stage from here.
+      const wanted=LOG_INTENT_STAGE[code];
+      if(wanted&&stage!==wanted&&r.file_id){
+        const file=await api('/files/'+encodeURIComponent(r.file_id),{method:'PATCH',body:JSON.stringify({stage:wanted})});
+        stage=(file&&file.stage)||wanted;
+      }
+      if(stage) ROWS.filter(x=>x.file_id===r.file_id).forEach(x=>{ x.stage=stage; });
       // Only applied if/when the backend actually returns a resulting link —
       // never fabricated here.
       if('linked_to' in updated) r.linked_to=updated.linked_to;

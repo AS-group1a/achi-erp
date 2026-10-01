@@ -227,35 +227,48 @@ aside.oe-sidebar button[title="Add your logo or company name"],
   display: none !important;
 }
 
-/* 3. Lay the logo and credit side by side. Upstream renders both as block-level
- *    (img.block + span.mt-1.block) so they stack vertically; flex puts them in a
- *    row and mt-1 has to go or the credit sits low. */
+/* 3. Replace the whole brand block with the product name "ARARA".
+ *    No logo and no "by …" credit. The slot is upstream's `div.flex-1.min-w-0`,
+ *    whose only child is the branding button (logo/text mode) OR the
+ *    OpenConstructionERP link (default mode) — so this covers every branding
+ *    mode, including a stale custom logo cached in the browser. Children are
+ *    hidden (font-size:0 also collapses bare text nodes) and ::after prints
+ *    the name. The DDC mark leaves the UI (TRADEMARK.md §4); /about and the
+ *    footer notices are untouched. */
 aside.oe-sidebar button[aria-label="Customise branding"],
-[data-testid="app-sidebar"] button[aria-label="Customise branding"] {
+[data-testid="app-sidebar"] button[aria-label="Customise branding"],
+aside.oe-sidebar a[title="OpenConstructionERP"],
+[data-testid="app-sidebar"] a[title="OpenConstructionERP"] {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
-}
-
-/* 4. Replace the hardcoded credit. font-size:0 collapses the "by" text node and
- *    the nested Open/Construction/ERP spans (they inherit it); ::after restores a
- *    real size for our own text. */
-aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child,
-[data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child {
   font-size: 0 !important;
-  margin-top: 0 !important;     /* kill upstream's mt-1, which stacked it below */
-  flex: 0 1 auto;
-  min-width: 0;                 /* let `truncate` still work inside the flex row */
+  pointer-events: none !important;   /* no branding dialog, no outbound link */
 }
-aside.oe-sidebar button[aria-label="Customise branding"] > span:last-child::after,
-[data-testid="app-sidebar"] button[aria-label="Customise branding"] > span:last-child::after {
-  content: "by ACHI Scaffolding";
-  font-size: 8px;
+aside.oe-sidebar button[aria-label="Customise branding"] > *,
+[data-testid="app-sidebar"] button[aria-label="Customise branding"] > *,
+aside.oe-sidebar a[title="OpenConstructionERP"] > *,
+[data-testid="app-sidebar"] a[title="OpenConstructionERP"] > * {
+  display: none !important;
+}
+aside.oe-sidebar button[aria-label="Customise branding"]::after,
+[data-testid="app-sidebar"] button[aria-label="Customise branding"]::after,
+aside.oe-sidebar a[title="OpenConstructionERP"]::after,
+[data-testid="app-sidebar"] a[title="OpenConstructionERP"]::after {
+  content: "ARARA";
+  font-size: 18px;
   line-height: 1;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, .58);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+/* Collapsed (iconified) sidebar: the slot is ~28px wide, so just "A". */
+aside.oe-sidebar :not(.min-w-0) > button[aria-label="Customise branding"]::after,
+[data-testid="app-sidebar"] :not(.min-w-0) > button[aria-label="Customise branding"]::after,
+aside.oe-sidebar :not(.min-w-0) > a[title="OpenConstructionERP"]::after,
+[data-testid="app-sidebar"] :not(.min-w-0) > a[title="OpenConstructionERP"]::after {
+  content: "A";
+  letter-spacing: 0;
 }
 
 /* --- 5. Hide the "Uberization of Construction" article card ----------------
@@ -326,6 +339,29 @@ div:has(button[title="Customise logo"]) > p.text-sm.text-content-tertiary,
 div:has(button[aria-label="Customize logo"]) > p.text-sm.text-content-tertiary,
 div:has(button[title="Customize logo"]) > p.text-sm.text-content-tertiary {
   display: none !important;
+}
+
+/* --- Login screen: the product name "ARARA" instead of any logo -------------
+ * The header row's first child is the brand block (upstream logo + name in
+ * default mode, or the custom logo/name + credit). Hide its contents and print
+ * the name. Same pen-button anchor as the rules above, so only the login page. */
+:has(> button[aria-label="Customise logo"]) > :first-child > *,
+:has(> button[title="Customise logo"]) > :first-child > *,
+:has(> button[aria-label="Customize logo"]) > :first-child > *,
+:has(> button[title="Customize logo"]) > :first-child > * {
+  display: none !important;
+}
+:has(> button[aria-label="Customise logo"]) > :first-child::after,
+:has(> button[title="Customise logo"]) > :first-child::after,
+:has(> button[aria-label="Customize logo"]) > :first-child::after,
+:has(> button[title="Customize logo"]) > :first-child::after {
+  content: "ARARA";
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #284F9E;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 /* --- Login screen: make the logo mark round, not a square -------------------
@@ -435,5 +471,92 @@ div.grid.grid-cols-2:has(> a[href*="github.com/datadrivenconstruction"]):has(> a
   display: none !important;
 }
 .login-glass-pro.animate-form-scale-in > .pointer-events-none.absolute {
+  display: none !important;
+}
+
+/* --- Login screen: no "Sign in / Enter your credentials…" heading -----------
+ * The card's first stagger block is <div class="animate-stagger-in"><h2>Sign
+ * in</h2><p>Enter your credentials…</p></div> (built bundle). The screen-reader
+ * <h1> and the form's aria-label stay, so the page is still labelled. */
+.login-glass-pro.animate-form-scale-in > div.animate-stagger-in:has(> h2 + p) {
+  display: none !important;
+}
+
+/* --- Login screen: no light/dark theme switch --------------------------------
+ * Top-right controls (built bundle): <div class="absolute top-4 right-4 z-30">
+ * <div role="radiogroup">sun/moon/system</div> <div class="relative">language
+ * </div></div>. ARARA is light-only; achi-nav.js also pins the theme to light. */
+.absolute.top-4.right-4.z-30 > [role="radiogroup"] {
+  display: none !important;
+}
+
+/* --- Login screen: language picker in ARARA style ----------------------------
+ * Same markup as above: button = globe icon, flag, name, chevron; the open menu
+ * is the sibling <div> of flag + name rows. Plain white, navy text, the same
+ * hairline border and font as the ARARA pages — no frosted glass, no globe. */
+.absolute.top-4.right-4.z-30 > .relative > button {
+  gap: 8px !important;
+  height: 36px !important;
+  padding: 0 12px 0 10px !important;
+  border: 1px solid #dfe4ec !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  color: #284F9E !important;
+  font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+}
+.absolute.top-4.right-4.z-30 > .relative > button:hover {
+  background: #eef2fb !important;
+  border-color: #c9d3e6 !important;
+}
+.absolute.top-4.right-4.z-30 > .relative > button > svg:first-child {
+  display: none !important;                      /* the globe */
+}
+.absolute.top-4.right-4.z-30 > .relative > button > svg:last-child {
+  color: #284F9E !important;                     /* the chevron */
+  opacity: .7;
+}
+.absolute.top-4.right-4.z-30 > .relative img {
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  box-shadow: 0 0 0 1px rgba(40, 79, 158, .15);
+}
+.absolute.top-4.right-4.z-30 > .relative > div {
+  margin-top: 6px !important;
+  width: 220px !important;
+  padding: 4px !important;
+  border: 1px solid #dfe4ec !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  box-shadow: 0 8px 24px rgba(16, 32, 64, .10) !important;
+}
+.absolute.top-4.right-4.z-30 > .relative > div > button {
+  border-radius: 8px !important;
+  padding: 7px 10px !important;
+  color: #1d2433 !important;
+  font: 500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+}
+.absolute.top-4.right-4.z-30 > .relative > div > button:hover {
+  background: #eef2fb !important;
+}
+.absolute.top-4.right-4.z-30 > .relative > div > button.text-oe-blue {
+  background: #284F9E !important;
+  color: #fff !important;
+}
+.absolute.top-4.right-4.z-30 > .relative > div > button.text-oe-blue span {
+  color: inherit !important;
+}
+
+/* --- Login screen: no "Customize logo" pen next to ARARA ---------------------
+ * display:none keeps the button in the DOM, so the :has(> button…) anchors the
+ * rules above rely on still match. */
+button[aria-label="Customise logo"],
+button[title="Customise logo"],
+button[aria-label="Customize logo"],
+button[title="Customize logo"] {
   display: none !important;
 }

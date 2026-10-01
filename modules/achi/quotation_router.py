@@ -19,7 +19,7 @@ from .schemas import (
     QuotationOut,
     QuotationUpdate,
 )
-from .quotation_service import QuotationService, to_major, to_minor
+from .quotation_service import QuotationService, display_quotation_number, to_major, to_minor
 
 quotation_router = APIRouter()
 
@@ -30,7 +30,7 @@ def _out(q) -> QuotationOut:
     """Row -> wire shape, converting minor units back to decimal strings."""
     return QuotationOut(
         id=q.id,
-        quotation_number=q.quotation_number,
+        quotation_number=display_quotation_number(q.quotation_number),
         file_id=q.file_id,
         survey_id=q.survey_id,
         contact_id=q.contact_id,

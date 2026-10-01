@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Files · ACHI Scaffolding ERP</title>
-<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=22">
+<title>Files · ARARA</title>
+<link rel="stylesheet" href="/api/v1/achi/ui/log.css?v=52">
 <style>
 body{background:#f4f6f9 !important;margin:0;font:13px/1.45 Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#1d1d1f}
 a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
-.pg{padding:10px 12px 30px;max-width:1500px}
-.bar{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.pg{padding:10px 12px 30px;max-width:none}
+.bar{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;padding:6px 10px;border:1px solid #b9c5d8;border-radius:5px;background:#fff}
 .bar h1{margin:0;font-size:15px;font-weight:800}
 .hint{font-size:10.5px;color:#44546e}
 .err{display:none;background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:8px 12px;border-radius:6px;margin-bottom:8px;font-size:12px}
@@ -49,10 +49,10 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
 .drop b{color:#284F9E}
 .drop.hot{border-color:#284F9E;background:#eaf1ff;color:#1F3F80}
 .hd,.row{min-width:980px}
-.hd{display:grid;grid-template-columns:minmax(240px,1.5fr) 92px 110px 160px 64px 76px 76px 88px;background:#e6ebf3;border-bottom:1px solid #b9c5d8;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#44546e}
-.hd span{padding:4px 8px;box-shadow:inset -1px 0 0 #dbe2ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd{display:grid;grid-template-columns:minmax(240px,1.5fr) 92px 110px 160px 64px 76px 76px 88px;background:#e6ebf3;border-bottom:1px solid #b9c5d8;font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#44546e}
+.hd span{display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:5px 8px;box-shadow:inset -1px 0 0 #dbe2ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hd span:last-child{box-shadow:none}
-.row{display:grid;grid-template-columns:minmax(240px,1.5fr) 92px 110px 160px 64px 76px 76px 88px;align-items:center;border-bottom:1px solid #eef2f8;font-size:11.5px;cursor:pointer}
+.row{min-height:34px;display:grid;grid-template-columns:minmax(240px,1.5fr) 92px 110px 160px 64px 76px 76px 88px;align-items:center;border-bottom:1px solid #eef2f8;font-size:11.5px;cursor:pointer}
 .row>div{padding:3px 8px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row:hover{background:#eaf1ff}
 .row.sel{background:#eaf1ff}
@@ -291,12 +291,12 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   var MODULE_HREF = { log: '/api/v1/achi/ui', 'call-log': '/api/v1/achi/ui', call_log: '/api/v1/achi/ui',
     general: '/api/v1/achi/general-log/ui', 'general-log': '/api/v1/achi/general-log/ui', general_log: '/api/v1/achi/general-log/ui',
     crm: '/api/v1/achi/crm/ui', prospect: '/api/v1/achi/prospect/ui',
-    survey: '/api/v1/achi/site-visit/ui', 'site-visit': '/api/v1/achi/site-visit/ui', site_visit: '/api/v1/achi/site-visit/ui',
+    survey: '/api/v1/achi/survey/ui', 'site-visit': '/api/v1/achi/survey/ui', site_visit: '/api/v1/achi/survey/ui',
     quotation: '/api/v1/achi/quotation/ui', boq: '/api/v1/achi/boq/ui', mt: '/api/v1/achi/mt/ui',
     draw: '/api/v1/achi/draw/ui', resource: '/api/v1/achi/resource/ui', plan: '/api/v1/achi/plan/ui' };
   var PREFIX_HREF = { LOG: '/api/v1/achi/ui', ENQ: '/api/v1/achi/ui', GEN: '/api/v1/achi/general-log/ui',
     CRM: '/api/v1/achi/crm/ui', PROSP: '/api/v1/achi/prospect/ui',
-    SV: '/api/v1/achi/site-visit/ui', SUR: '/api/v1/achi/site-visit/ui',
+    SV: '/api/v1/achi/survey/ui', SUR: '/api/v1/achi/survey/ui',
     QUO: '/api/v1/achi/quotation/ui', QTE: '/api/v1/achi/quotation/ui',
     BOQ: '/api/v1/achi/boq/ui', MT: '/api/v1/achi/mt/ui',
     DWG: '/api/v1/achi/draw/ui', DRAW: '/api/v1/achi/draw/ui',
@@ -328,6 +328,14 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   function displayCode(code) {
     code = String(code || '');
     if (/^\d+$/.test(code)) return '#' + code;
+    // Stored numbers carry an ACHI- prefix that is never shown.
+    var m = code.match(/^ACHI-(\d{4})-(\d+)$/);
+    if (m) return 'ENQ-' + m[2].padStart(5, '0');
+    m = code.match(/^ACHI-SV-\d{4}-(\d+)$/);
+    if (m) return 'SV-' + m[1];
+    m = code.match(/^ACHI-QT-\d{4}-(\d+)$/);
+    if (m) return 'QUO-' + m[1];
+    code = code.replace(/^ACHI-/, '');
     return code.replace(/^MT(?=-)/, 'M/T');
   }
   function recordHref(f) {
@@ -845,6 +853,6 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
   });
 })();
 </script>
-<script src="/api/v1/achi/ui/chrome.js?v=41"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=52"></script>
 </body>
 </html>

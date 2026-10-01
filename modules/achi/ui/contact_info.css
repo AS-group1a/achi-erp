@@ -70,7 +70,7 @@ a:hover {
 
 .pg {
   padding: 10px 12px 30px;
-  max-width: 1500px;
+  max-width: none;
 }
 
 /* ==============================
@@ -3045,3 +3045,7 @@ table.t {
     flex-direction: column;
   }
 }
+
+/* Shared sizes across Log · Contacts · CRM · Site Visit · Files: 40px title box, 40px AI bar with a 26px field, 26px chips/search/buttons, 36px table header, 34px rows, full page width, system font. */
+.ai input { height: 26px; box-sizing: border-box; }
+.row { min-height: 34px; }

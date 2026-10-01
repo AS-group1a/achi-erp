@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import json
 import re
 from pathlib import Path
 from typing import Annotated
@@ -52,7 +53,7 @@ from .schemas import (
     QuickLogCreate,
     QuickLogOut,
 )
-from .service import CONTACT_INFO_TAG, ContactFileService, parse_comm_tally
+from .service import CONTACT_INFO_TAG, ContactFileService, is_job_file, parse_comm_tally
 from .quotation_router import quotation_router
 from .survey_router import survey_router
 from .geo_router import geo_router
@@ -61,8 +62,11 @@ from .comment_router import comment_router
 from .mail_router import mail_router
 from .task_router import task_router
 from .planner_router import planner_router
+from .users_router import users_router
 
 logger = logging.getLogger(__name__)
+# Older name-only logs are linked to contacts the first time Contacts loads.
+_contacts_backfilled = False
 
 router = APIRouter()
 
@@ -75,6 +79,7 @@ router.include_router(comment_router)
 router.include_router(mail_router)
 router.include_router(task_router)
 router.include_router(planner_router)
+router.include_router(users_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
@@ -155,36 +160,18 @@ def general_log_ui() -> HTMLResponse:
     "/site-visit/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
-    summary="Site Visit shared Log workspace UI",
+    summary="Site Visit module UI",
 )
 def site_visit_workspace_ui() -> HTMLResponse:
-    """Serve Site Visit as the shared ContactFile Log workspace.
+    """Serve the Site Visit module: every SiteSurvey (SV-NNNNN) in one list.
 
-    The operational Site Visit view is intentionally a stage-scoped General Log
-    page, not the older independent SiteSurvey dataset. The same ContactFile
-    remains visible in CRM while its current stage is ``site_survey``.
+    Same page as /survey/ui without ?id (survey_table.html), which is where the
+    sidebar points. A visit opens by itself when its enquiry reaches the
+    ``site_survey`` stage (see ContactFileService._ensure_site_visit); a row
+    opens the full visit form at /survey/ui?id=….
     """
-    page = (_UI_DIR / "general_log.html").read_text(encoding="utf-8")
-    page = page.replace(
-        "<title>Log Â· Achi Scaffolding ERP</title>",
-        "<title>Site Visit Â· Achi Scaffolding ERP</title>",
-        1,
-    ).replace(
-        '<body data-achi-title="Log">',
-        '<body data-achi-title="Site Visit">',
-        1,
-    ).replace(
-        "  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants",
-        """  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
-  window.ACHI_BUSINESS_CODE = 'SV';
-  window.ACHI_LOG_FILTER = {
-    create: {origin: 'crm', stage: 'site_survey'},
-    stages: ['site_survey'],
-  };""",
-        1,
-    )
     return HTMLResponse(
-        page,
+        (_UI_DIR / "survey_table.html").read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -398,7 +385,7 @@ async def _contact_info_shared_contact(
     if contact is None or contact.is_active is not is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
     if not _is_contact_info_contact(contact):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Contact is not in the ACHI directory")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Contact is not in the ARARA directory")
     return contact
 
 
@@ -563,6 +550,18 @@ async def list_contact_info_contacts(
     limit: int = Query(default=500, ge=1, le=500),
     deleted: bool = Query(default=False, description="Return deleted contacts instead of active contacts"),
 ) -> ContactListResponse:
+    global _contacts_backfilled
+    if not _contacts_backfilled:
+        # Once per server start: logs saved before name-only rows earned a
+        # contact get theirs now, so they show on this page.
+        try:
+            linked = await ContactFileService(session).backfill_missing_contacts()
+            if linked:
+                logger.info("achi: linked %d older logs to directory contacts", linked)
+            _contacts_backfilled = True
+        except Exception:
+            await session.rollback()
+            logger.exception("achi: contact backfill failed; will retry on the next load")
     result = await session.execute(select(Contact).where(Contact.is_active.is_(not deleted)))
     contacts = [contact for contact in result.scalars().all() if _is_contact_info_contact(contact)]
     contacts.sort(
@@ -809,6 +808,43 @@ def ui_chrome_js() -> PlainTextResponse:
     )
 
 
+# The installable-app identity. Upstream's /manifest.webmanifest installs as
+# "OpenConstructionERP"; chrome.js and achi-nav.js point the page at this one
+# instead, so the home-screen app is ARARA and opens on Log.
+_APP_MANIFEST = {
+    "id": "/api/v1/achi/ui",
+    "name": "ARARA",
+    "short_name": "ARARA",
+    "start_url": "/api/v1/achi/ui",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#f5f5f7",
+    "theme_color": "#284F9E",
+    "icons": [
+        {"src": "/api/v1/achi/ui/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/api/v1/achi/ui/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/api/v1/achi/ui/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ],
+}
+_APP_ICONS = {"app-icon-192.png", "app-icon-512.png", "app-icon-maskable-512.png", "apple-touch-icon.png"}
+
+
+@router.get("/ui/manifest.webmanifest", include_in_schema=False)
+def ui_app_manifest() -> Response:
+    return Response(
+        json.dumps(_APP_MANIFEST),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@router.get("/ui/{name}.png", include_in_schema=False)
+def ui_app_icon(name: str) -> FileResponse:
+    if f"{name}.png" not in _APP_ICONS:
+        raise HTTPException(status_code=404)
+    return FileResponse(_UI_DIR / f"{name}.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @router.get(
     "/ui/comment.js",
     response_class=PlainTextResponse,
@@ -1051,7 +1087,7 @@ def info() -> ModuleInfo:
     return ModuleInfo(
         module=MANIFEST.name,
         version=MANIFEST.version,
-        company="Achi Scaffolding",
+        company="ARARA",
         note="ACHI's own code. Upstream is stock and unmodified.",
     )
 
@@ -1205,13 +1241,13 @@ async def get_file(file_id: str, session: SessionDep, _user_id: CurrentUserId) -
 
 @router.patch("/files/{file_id}", response_model=ContactFileOut, summary="Update a file")
 async def update_file(
-    file_id: str, data: ContactFileUpdate, session: SessionDep, _user_id: CurrentUserId
+    file_id: str, data: ContactFileUpdate, session: SessionDep, user_id: CurrentUserId
 ) -> ContactFileOut:
     svc = ContactFileService(session)
     f = await svc.get(file_id)
     if f is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
-    return await _out(svc, await svc.update(f, data))
+    return await _out(svc, await svc.update(f, data, user_id=str(user_id) if user_id else None))
 
 
 @router.post(
@@ -1303,7 +1339,11 @@ async def update_log(
     log = await svc.get_log(log_id)
     if log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Log not found")
-    return FileLogOut.model_validate(await svc.update_log(log, data))
+    log = await svc.update_log(log, data)
+    out = FileLogOut.model_validate(log)
+    f = await svc.get(log.file_id)
+    out.stage = f.stage if f is not None else None
+    return out
 
 
 @router.delete("/logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a log entry (soft — recoverable)")
@@ -1824,6 +1864,8 @@ async def list_logs(
     attachment_docs = await svc.attachment_deliverables(log_ids)
     # General Log Communication pills + Last Touch: per-file channel breakdown.
     comm_summary = await svc.communication_summary([r[1].id for r in rows])
+    # CLIENT / LEAD from each contact's whole history (one query for the page).
+    client_ids = await svc.client_contact_ids({r[1].contact_id for r in rows if r[1].contact_id})
     # Addresses we've already emailed (any teammate, successfully sent) — one query,
     # lowercased, so the grid can flag "already emailed" without a lookup per row.
     sent_to = {
@@ -1903,6 +1945,7 @@ async def list_logs(
                 updates=log.updates,
                 follow_up_date=log.follow_up_date,
                 follow_up_notes=log.follow_up_notes,
+                intent=log.intent,
                 has_drawing=log.has_drawing,
                 attachment_count=counts.get(log.id, 0),
                 created_at=log.created_at,
@@ -1945,6 +1988,11 @@ async def list_logs(
                 last_touch_channel=comm.get("last_channel"),
                 contact_id=f.contact_id,
                 company_contact_id=f.company_contact_id,
+                contact_status=(
+                    "client"
+                    if is_job_file(f) or (f.contact_id and f.contact_id in client_ids)
+                    else "lead"
+                ),
                 contact_name=name,
                 prefix=prefix,
                 first_name=first,
