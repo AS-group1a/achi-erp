@@ -44,6 +44,24 @@ def _drawing_has_shapes(payload: str) -> bool:
     return isinstance(shapes, list) and bool(shapes)
 
 
+# A visit still to be done or under way; Completed / Cancelled are finished.
+OPEN_SITE_VISIT_STATUSES = ("Draft", "Scheduled", "In Progress")
+
+
+def site_visit_code(survey_number: str | None) -> str:
+    """SV-00001 from ACHI-SV-YYYY-NNNNN (the running number); else unchanged."""
+    raw = str(survey_number or "").strip()
+    head, _, tail = raw.rpartition("-")
+    return f"SV-{tail.zfill(5)}" if head and tail.isdigit() else raw
+
+
+def enquiry_code(file_number: str | None) -> str:
+    """ENQ-00001 from ACHI-YYYY-NNNNN — the code the CRM shows for the enquiry."""
+    raw = str(file_number or "").strip()
+    head, _, tail = raw.rpartition("-")
+    return f"ENQ-{tail.zfill(5)}" if head and tail.isdigit() else raw
+
+
 async def _next_survey_number(session: AsyncSession) -> str:
     """ACHI-SV-YYYY-NNNNN, sequential within the year (MAX+1, like the files)."""
     year = datetime.now(timezone.utc).year

@@ -13,16 +13,29 @@ from urllib.parse import quote
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse, Response
 
-from app.dependencies import CurrentUserId, SessionDep
+from sqlalchemy import select
 
+from app.dependencies import CurrentUserId, SessionDep
+from app.modules.contacts.models import Contact
+
+from .models import ContactFile, SiteSurvey
 from .schemas import (
+    LEGACY_SURVEY_STATUSES,
+    SiteVisitCreate,
+    SiteVisitRowOut,
     SurveyAttachmentOut,
     SurveyCreate,
     SurveyOut,
     SurveyRowOut,
     SurveyUpdate,
 )
-from .survey_service import SiteSurveyService
+from .service import CONTACT_INFO_TAG, _display_name
+from .survey_service import (
+    SiteSurveyService,
+    _next_survey_number,
+    enquiry_code,
+    site_visit_code,
+)
 
 survey_router = APIRouter()
 
@@ -90,6 +103,113 @@ async def list_surveys(
         o.photo_count = counts.get(r.id, 0)
         out.append(o)
     return out
+
+
+def _phone_for_row(contact: Contact | None, fallback: str | None) -> tuple[str | None, str]:
+    """(number, kind) for the Mobile / WA column — same rule as the CRM: a
+    number labelled WhatsApp wins, else the first number of any label."""
+    bucket = ((contact.custom_properties or {}).get(CONTACT_INFO_TAG) or {}) if contact else {}
+    phones = [
+        p for p in (bucket.get("phones") or [])
+        if isinstance(p, dict) and str(p.get("number") or "").strip()
+    ] if isinstance(bucket, dict) else []
+    wa = next((p for p in phones if "whatsapp" in str(p.get("label") or "").replace(" ", "").lower()), None)
+    if wa:
+        return str(wa["number"]).strip(), "whatsapp"
+    number = (str(phones[0]["number"]).strip() if phones else None) \
+        or (contact.primary_phone if contact else None) or fallback
+    return (number, "mobile") if number else (None, "")
+
+
+@survey_router.get(
+    "/site-visits/",
+    response_model=list[SiteVisitRowOut],
+    summary="Site Visit page rows, newest first",
+)
+async def list_site_visits(
+    session: SessionDep,
+    _user_id: CurrentUserId,
+    limit: int = Query(default=1000, ge=1, le=2000),
+) -> list[SiteVisitRowOut]:
+    """Every site visit with its SV code and, for one opened from an enquiry,
+    the ENQ code. Contact, mobile and site are read from the linked enquiry /
+    directory contact so they stay current; a hand-added visit shows what was
+    typed on it."""
+    svc = SiteSurveyService(session)
+    visits = await svc.list(limit=limit)
+    photos = await svc.photo_counts([v.id for v in visits])
+    file_ids = {v.file_id for v in visits if v.file_id}
+    files = {
+        f.id: f for f in (
+            await session.execute(select(ContactFile).where(ContactFile.id.in_(file_ids)))
+        ).scalars().all()
+    } if file_ids else {}
+    contact_ids = {(files[v.file_id].contact_id if v.file_id in files else None) or v.contact_id for v in visits}
+    contact_ids.discard(None)
+    contacts = {
+        str(c.id): c for c in (
+            await session.execute(select(Contact).where(Contact.id.in_(contact_ids)))
+        ).scalars().all()
+    } if contact_ids else {}
+
+    out: list[SiteVisitRowOut] = []
+    for v in visits:
+        f = files.get(v.file_id) if v.file_id else None
+        c = contacts.get(str((f.contact_id if f else None) or v.contact_id or ""))
+        typed = " ".join(p for p in ((f.lead_first_name, f.lead_last_name) if f else ()) if p).strip()
+        name = _display_name(c) or typed or v.lead_name or (f.lead_company if f else None)
+        mobile, kind = _phone_for_row(c, (f.lead_mobile if f else None) or v.lead_mobile)
+        city = (f.city if f else None) or v.city
+        location = (f.site_location if f else None) or v.site_location
+        out.append(SiteVisitRowOut(
+            id=v.id,
+            code=site_visit_code(v.survey_number),
+            survey_number=v.survey_number,
+            status=LEGACY_SURVEY_STATUSES.get(str(v.status), v.status),
+            survey_date=v.survey_date,
+            file_id=v.file_id,
+            enq_code=enquiry_code(f.file_number) if f else None,
+            contact_name=name,
+            company=(c.company_name if c else None) or v.lead_company or (f.lead_company if f else None),
+            mobile=mobile,
+            mobile_kind=kind,
+            site=" — ".join(p for p in (city, location) if p) or None,
+            assigned_to=v.assigned_to,
+            measurement_count=len(v.measurements),
+            photo_count=photos.get(v.id, 0),
+            has_drawing=bool(v.has_drawing),
+            created_at=v.created_at,
+        ))
+    return out
+
+
+@survey_router.post(
+    "/site-visits/",
+    response_model=SiteVisitRowOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a site visit by hand (\"+ New visit\")",
+)
+async def create_site_visit(data: SiteVisitCreate, session: SessionDep, user_id: CurrentUserId) -> SiteVisitRowOut:
+    visit = SiteSurvey(
+        survey_number=await _next_survey_number(session),
+        status=data.status,
+        survey_date=data.survey_date,
+        assigned_to=data.assigned_to,
+        lead_name=data.contact_name,
+        lead_mobile=data.mobile,
+        site_location=data.site,
+        owner_user_id=user_id,
+        tenant_id=user_id,
+    )
+    session.add(visit)
+    await session.commit()
+    await session.refresh(visit)
+    return SiteVisitRowOut(
+        id=visit.id, code=site_visit_code(visit.survey_number), survey_number=visit.survey_number,
+        status=visit.status, survey_date=visit.survey_date, contact_name=visit.lead_name,
+        mobile=visit.lead_mobile, mobile_kind="mobile" if visit.lead_mobile else "",
+        site=visit.site_location, assigned_to=visit.assigned_to, created_at=visit.created_at,
+    )
 
 
 @survey_router.post(

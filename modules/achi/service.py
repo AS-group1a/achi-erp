@@ -151,6 +151,10 @@ MODULE_TAG = "achi_file"
 # page. router.py imports this name — single source, so they cannot drift.
 CONTACT_INFO_TAG = "achi_contact_info"
 
+# The pipeline stage that is the Site Visit page: moving an enquiry into it
+# opens a site visit record (ContactFileService._open_site_visit).
+SITE_VISIT_STAGE = "site_survey"
+
 # ── Contact directory codes (CO-00001 companies, C-00001 people) ─────────────
 _CONTACT_CODE_PREFIX = {"company": "CO", "person": "C"}
 
@@ -992,11 +996,47 @@ class ContactFileService:
 
     async def update(self, f: ContactFile, data: ContactFileUpdate) -> ContactFile:
         d = data.model_dump(exclude_unset=True)
+        entering_site_visit = d.get("stage") == SITE_VISIT_STAGE and f.stage != SITE_VISIT_STAGE
         for k, v in d.items():
             setattr(f, k, v)
+        if entering_site_visit:
+            await self._open_site_visit(f)
         await self.session.commit()
         await self.session.refresh(f)
         return f
+
+    async def _open_site_visit(self, f: ContactFile) -> None:
+        """An enquiry moved into Site visit (CRM stage dropdown, board drop, any
+        stage edit): record a Draft site visit for it on the Site Visit page.
+        Skipped while the enquiry already has an open visit (Draft, Scheduled,
+        In Progress); a finished or cancelled one doesn't block a new visit.
+        Added to the caller's transaction — committed together with the stage.
+        """
+        from .survey_service import OPEN_SITE_VISIT_STATUSES, _next_survey_number
+
+        open_visit = (
+            await self.session.execute(
+                select(SiteSurvey.id)
+                .where(SiteSurvey.file_id == f.id, SiteSurvey.status.in_(OPEN_SITE_VISIT_STATUSES))
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if open_visit:
+            return
+        contact = await self.session.get(Contact, f.contact_id) if f.contact_id else None
+        typed_name = " ".join(p for p in (f.lead_first_name, f.lead_last_name) if p).strip()
+        self.session.add(SiteSurvey(
+            survey_number=await _next_survey_number(self.session),
+            status="Draft",
+            file_id=f.id,
+            contact_id=f.contact_id,
+            lead_name=_display_name(contact) or typed_name or f.lead_company or None,
+            lead_company=(contact.company_name if contact else None) or f.lead_company,
+            lead_mobile=((contact.primary_phone if contact else None) or f.lead_mobile or "")[:32] or None,
+            country=f.country, district=f.district, city=f.city, street=f.street,
+            site_location=f.site_location, maps_url=f.maps_url,
+        ))
+        logger.info("achi: file %s moved to site visit -> draft visit opened", f.file_number)
 
     async def convert(self, f: ContactFile, project_id: str) -> ContactFile:
         """The contact became a client: close the file onto a project.

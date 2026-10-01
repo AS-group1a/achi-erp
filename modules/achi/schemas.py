@@ -976,6 +976,46 @@ class SurveyRowOut(BaseModel):
         return LEGACY_SURVEY_STATUSES.get(str(value), value)
 
 
+# ── Site Visit page ───────────────────────────────────────────────────────
+# A site visit is a SiteSurvey row. Most are opened automatically when an
+# enquiry moves into the Site visit stage; "+ New visit" adds one by hand.
+
+
+class SiteVisitCreate(BaseModel):
+    """"+ New visit" on the Site Visit page (no enquiry behind it)."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    contact_name: str = Field(min_length=1, max_length=255)
+    mobile: str | None = Field(default=None, max_length=32)
+    site: str | None = Field(default=None, max_length=255)
+    survey_date: date | None = None
+    assigned_to: str | None = Field(default=None, max_length=255)
+    status: str = Field(default="Draft", pattern="^(%s)$" % "|".join(SURVEY_STATUSES))
+
+
+class SiteVisitRowOut(BaseModel):
+    """One row of the Site Visit table, flattened and ready to render."""
+
+    id: str
+    code: str                      # SV-00001
+    survey_number: str
+    status: str
+    survey_date: date | None = None
+    file_id: str | None = None
+    enq_code: str | None = None    # ENQ-00001 of the enquiry it came from
+    contact_name: str | None = None
+    company: str | None = None
+    mobile: str | None = None
+    mobile_kind: Literal["whatsapp", "mobile", ""] = ""
+    site: str | None = None
+    assigned_to: str | None = None
+    measurement_count: int = 0
+    photo_count: int = 0
+    has_drawing: bool = False
+    created_at: datetime
+
+
 # ── quotations ────────────────────────────────────────────────────────────
 # Money crosses this boundary as a decimal STRING ("1250.00"), not a float, and
 # is converted to integer minor units in quotation_service. See to_minor there.
