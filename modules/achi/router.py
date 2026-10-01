@@ -172,36 +172,36 @@ def general_log_ui() -> HTMLResponse:
     "/site-visit/ui",
     response_class=HTMLResponse,
     include_in_schema=False,
-    summary="Site Visit shared Log workspace UI",
+    summary="Site Visit page",
 )
-def site_visit_workspace_ui() -> HTMLResponse:
-    """Serve Site Visit as the shared ContactFile Log workspace.
+def site_visit_ui() -> HTMLResponse:
+    """The Site Visit page: every site visit (a SiteSurvey row) with its SV code.
 
-    The operational Site Visit view is intentionally a stage-scoped General Log
-    page, not the older independent SiteSurvey dataset. The same ContactFile
-    remains visible in CRM while its current stage is ``site_survey``.
+    Visits are opened automatically when an enquiry moves into the Site visit
+    stage (ContactFileService._open_site_visit) and can be added by hand. Same
+    look as the CRM page: it loads crm.css, then site_visit.css for its grid.
+    Data: GET/POST /site-visits/, PATCH and DELETE /surveys/{id}.
     """
-    page = _page_with_popup("general_log.html", "add_log_popup.html")
-    page = page.replace(
-        "<title>Log Â· Achi Scaffolding ERP</title>",
-        "<title>Site Visit Â· Achi Scaffolding ERP</title>",
-        1,
-    ).replace(
-        '<body data-achi-title="Log">',
-        '<body data-achi-title="Site Visit">',
-        1,
-    ).replace(
-        "  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants",
-        """  window.ACHI_GENERAL_LOG = true;   // read by log-core.js for General-Log-only cell variants
-  window.ACHI_BUSINESS_CODE = 'SV';
-  window.ACHI_LOG_FILTER = {
-    create: {origin: 'crm', stage: 'site_survey'},
-    stages: ['site_survey'],
-  };""",
-        1,
-    )
     return HTMLResponse(
-        page,
+        (_UI_DIR / "site_visit.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get("/site-visit/site_visit.css", response_class=PlainTextResponse, include_in_schema=False)
+def site_visit_css() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "site_visit.css").read_text(encoding="utf-8"),
+        media_type="text/css",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get("/site-visit/site_visit.js", response_class=PlainTextResponse, include_in_schema=False)
+def site_visit_js() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "site_visit.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 

@@ -1,0 +1,104 @@
+/* ACHI Site Visit page. Loaded after crm.css, which gives it the shared look
+ * (banner, search, .mini buttons, .seg, grid header/rows, filter boxes, status
+ * pill, phone icons, toast). This file only adds what is specific to the page. */
+
+/* Same page shell as the CRM (crm.css keys these to data-achi-title="CRM"). */
+body[data-achi-title="Site Visit"] {
+  margin: 0;
+  min-width: 320px;
+  background: var(--canvas) !important;
+  color: var(--ink);
+  font: 13px/1.45 Barlow, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+/* chrome.js's white title bar: hidden like on Contacts / CRM; on narrow screens
+   the bar keeps the sidebar burger but drops its duplicate title. */
+body[data-achi-title="Site Visit"] .achi-top { display: none; }
+@media (max-width: 900px) {
+  body[data-achi-title="Site Visit"] .achi-top { display: flex; padding: 6px 12px; }
+  body[data-achi-title="Site Visit"] .achi-top h1 { display: none; }
+}
+
+/* ── Quick views: Site visits / To do / In progress / Done ─────────────── */
+/* Counter chips like the Log page's KPI buttons: white chip, number then label
+   (crm.css .kc gives the box and type); blue on hover; light blue when active. */
+.sv-tab { font: inherit; font-size: 10.5px; line-height: 1.45; cursor: pointer; }
+.sv-tab:hover { border-color: var(--navy); background: var(--blue-soft); color: var(--navy); }
+.sv-tab.on { border-color: var(--navy); background: var(--blue-soft); color: var(--navy-dark); }
+.sv-tab:focus-visible { outline: 2px solid rgba(40, 79, 158, .35); outline-offset: 1px; }
+
+/* ── Delete N selected (beside Refresh) ─────────────────────────────────── */
+.mini.sv-del { border-color: #eccaca; background: #fbeaea; color: var(--red); }
+.mini.sv-del:hover { background: #f7dcdc; }
+
+/* ── Grid: Code, Visit date, Status, ENQ, Contact, Site, Mobile / WA,
+      Surveyor, Captured ───────────────────────────────────────────────── */
+.sv-page .hd, .sv-page .row, .sv-page .foot { min-width: 1180px; }
+.sv-page .hd, .sv-page .row {
+  grid-template-columns: 104px 96px 132px 100px minmax(170px, 1.2fr) minmax(180px, 1.4fr) 136px 130px 160px;
+}
+.sv-page .row { cursor: default; }
+.sv-page .row.sel { background: #dfeafa; }
+.sv-page .row .c2 { font-size: 10.5px; }
+
+/* Code cell = the selection handle: click to pick a visit for Delete. */
+.sv-code { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.sv-code::before {
+  content: ""; flex: 0 0 auto; width: 12px; height: 12px;
+  border: 1px solid var(--line); border-radius: 3px; background: #fff;
+}
+.row.sel .sv-code::before {
+  border-color: var(--navy-dark);
+  background: var(--navy) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m3 6.2 2 2 4-4.4' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 10px no-repeat;
+}
+.sv-code:hover::before { border-color: var(--navy); }
+
+/* Header "select all" box, drawn like the row boxes: ticked when every shown
+   row is selected, a dash when only some are. */
+.sv-all {
+  flex: 0 0 auto; width: 12px; height: 12px; margin-right: 2px; padding: 0;
+  border: 1px solid var(--line); border-radius: 3px; background: #fff; cursor: pointer;
+}
+.sv-all:hover:not(:disabled) { border-color: var(--navy); }
+.sv-all:disabled { opacity: .5; cursor: default; }
+.sv-all.on {
+  border-color: var(--navy-dark);
+  background: var(--navy) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m3 6.2 2 2 4-4.4' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 10px no-repeat;
+}
+.sv-all.mixed {
+  border-color: var(--navy-dark);
+  background: var(--navy) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 6h6' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 10px no-repeat;
+}
+
+/* Captured on site: measurements · sketch · photos */
+.sv-cap { display: flex; flex-wrap: nowrap; gap: 4px; overflow: hidden; }
+.sv-cap span { flex: 0 0 auto; padding: 1px 6px; border: 1px solid #cfe0ff; border-radius: 99px; background: var(--blue-soft); color: var(--navy); font-size: 9.5px; font-weight: 700; white-space: nowrap; }
+
+/* ── + New visit form: the Contacts "+ contact" popup look ──────────────── */
+@keyframes sv-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sv-rise { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+.sv-modal-backdrop { position: fixed; inset: 0; z-index: 90; display: flex; align-items: flex-start; justify-content: center; padding: 7vh 20px 20px; background: rgba(15, 23, 42, .55); animation: sv-fade .16s ease both; }
+.sv-modal { width: min(560px, 100%); overflow: hidden; border: 1px solid var(--navy-dark); border-radius: 6px; background: var(--canvas); box-shadow: 0 24px 60px rgba(15, 23, 42, .35); font-size: 12px; animation: sv-rise .2s cubic-bezier(.2, .7, .3, 1) both; }
+@media (prefers-reduced-motion: reduce) { .sv-modal-backdrop, .sv-modal { animation: none; } }
+.sv-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 6px 8px 6px 12px; background: var(--navy); color: #fff; }
+.sv-modal-head h2 { margin: 0; font-size: 15px; font-weight: 800; }
+.sv-modal-x { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 1px solid rgba(255, 255, 255, .45); border-radius: 4px; background: transparent; color: #fff; cursor: pointer; }
+.sv-modal-x:hover { background: rgba(255, 255, 255, .15); }
+.sv-modal-x svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+#sv-form { padding: 14px; }
+.sv-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.sv-form-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--mut); font-size: 10.5px; font-weight: 700; }
+.sv-form-grid label i { color: var(--red); font-style: normal; }
+.sv-form-grid input, .sv-form-grid select { height: 26px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 400; }
+.sv-form-grid input:focus, .sv-form-grid select:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px rgba(40, 79, 158, .14); }
+.sv-form-grid .span-2 { grid-column: span 2; }
+.sv-form-error { min-height: 16px; margin: 8px 0 0; color: var(--red); font-size: 11px; }
+.sv-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 8px -14px -14px; padding: 7px 14px; border-top: 1px solid var(--line); background: #fff; }
+.sv-form-actions .mini { height: 28px; padding: 0 14px; border-color: var(--line); background: #fff; color: var(--navy-dark); font-size: 12px; }
+.sv-form-actions .mini:hover { background: var(--blue-soft); }
+.sv-form-actions .mini.solid { border-color: var(--navy-dark); background: var(--navy); color: #fff; }
+.sv-form-actions .mini.solid:hover { background: var(--navy-dark); }
+
+@media (max-width: 760px) {
+  .sv-form-grid { grid-template-columns: 1fr; }
+  .sv-form-grid .span-2 { grid-column: span 1; }
+}
