@@ -2919,3 +2919,24 @@ body.log-page .log-ai-query{height:26px;box-sizing:border-box;font:inherit;font-
 /* The "+ Add…" picker is drawn as a .rx-select-btn next to the hidden select. */
 .rx-reference .rx-contact-card .rx-ref-add-select+.rx-select-btn{display:inline-flex;width:auto;height:26px;margin-top:5px;padding:2px 7px;gap:6px;border-color:transparent;background:transparent;box-shadow:none;color:#284f9e;font-size:11px;font-weight:700}
 .rx-reference .rx-contact-card .rx-ref-add-select+.rx-select-btn:hover{background:#eaf1ff}
+
+/* Docked Add Log form: selecting one saved row shows the same form, filled
+   with that row, inline under the table instead of as a centered popup. */
+#rx.rx-docked{position:static;inset:auto;z-index:auto;display:block;margin:8px 0;padding:0;background:none;backdrop-filter:none}
+#rx.rx-docked .rx-box{width:100%;height:auto;min-height:0;max-height:none;overflow:visible;box-shadow:none}
+#rx.rx-docked .rx-cols,
+#rx.rx-docked .rx-body{overflow:visible;max-height:none}
+/* A saved log is read-only until Edit (next to Cancel) is pressed. */
+.rx-edit{display:none}
+#rx.rx-locked .rx-edit{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 16px;border:1px solid #284F9E;border-radius:5px;background:#284F9E;color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+#rx.rx-locked .rx-edit:hover{background:#1f3f80}
+#rx.rx-locked .rx-edit svg{width:13px;height:13px}
+#rx.rx-locked .rx-save,
+#rx.rx-locked .rx-save-cont,
+#rx.rx-locked .rx-copy-l,
+#rx.rx-locked .rx-copy,
+#rx.rx-locked .rx-copy + .rx-select-btn,
+#rx.rx-locked .rx-copy-h,
+#rx.rx-locked .rx-plusrow,
+#rx.rx-locked .rx-section-remove,
+#rx.rx-locked #quill-desc-toolbar{display:none}

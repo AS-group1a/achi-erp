@@ -11,6 +11,44 @@
 (function () {
   'use strict';
 
+  // Browser tab icon: the ARARA mark, not the ERP logo (the same one
+  // deploy/overrides/achi-nav.js sets on the sign-in screens).
+  (function () {
+    var l = document.createElement('link');
+    l.rel = 'icon';
+    l.type = 'image/svg+xml';
+    l.href = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+      + '<rect width="64" height="64" rx="14" fill="#284F9E"/>'
+      + '<path fill="#fff" fill-rule="evenodd" d="M32 11 50.5 53h-8.2l-3.6-8.4H25.3L21.7 53h-8.2zm0 17.2-4.3 10h8.6z"/>'
+      + '</svg>');
+    document.head.appendChild(l);
+  })();
+
+  // Installable app: ARARA's manifest and home-screen icon, not upstream's
+  // "OpenConstructionERP" (modules/achi/router.py serves both).
+  (function () {
+    var tags = [
+      ['link', 'manifest', '/api/v1/achi/ui/manifest.webmanifest'],
+      ['link', 'apple-touch-icon', '/api/v1/achi/ui/apple-touch-icon.png'],
+      ['meta', 'theme-color', '#284F9E'],
+      ['meta', 'apple-mobile-web-app-title', 'ARARA'],
+      ['meta', 'application-name', 'ARARA'],
+      ['meta', 'apple-mobile-web-app-capable', 'yes'],
+      ['meta', 'mobile-web-app-capable', 'yes']
+    ];
+    for (var i = 0; i < tags.length; i++) {
+      var t = tags[i], sel = t[0] === 'link' ? 'link[rel="' + t[1] + '"]' : 'meta[name="' + t[1] + '"]';
+      var el = document.head.querySelector(sel);
+      if (!el) {
+        el = document.createElement(t[0]);
+        if (t[0] === 'link') el.rel = t[1]; else el.name = t[1];
+        document.head.appendChild(el);
+      }
+      el.setAttribute(t[0] === 'link' ? 'href' : 'content', t[2]);
+    }
+  })();
+
   // Docked in the SPA? Upstream's sidebar is already there — stand down.
   if (window.top !== window.self) return;
 
@@ -20,6 +58,7 @@ var LINKS = [
   { label: 'Log', href: '/api/v1/achi/ui', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
   { label: 'Contacts', href: '/api/v1/achi/contact-info/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
   { label: 'CRM', href: '/api/v1/achi/crm/ui', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
+  { label: 'Planner', href: '/api/v1/achi/planner/ui', icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>' },
   { label: 'Site Visit', href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
   { label: 'Files', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
   { label: 'Users', href: '/api/v1/achi/users/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' }

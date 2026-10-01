@@ -136,6 +136,7 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 /* CLIENT / LEAD badge after the client's name (status comes from the
    contact's whole history — see contact_status in the /logs/ rows). */
 .cl-line { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.co-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl-line .nm-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl-badge { flex: 0 0 auto; padding: 1px 6px; border-radius: 6px; font-size: 8.5px; font-weight: 800; letter-spacing: .05em; line-height: 1.45; text-transform: uppercase; }
 .cl-badge.is-lead { background: #FFF2D8; color: #996515; }

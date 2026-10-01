@@ -1076,9 +1076,9 @@ class ContactFileService:
 
             phone = (file.lead_mobile or "").strip()
             email = (file.lead_email or "").strip()
-            if phone or email:
-                # Reachable now — same resolution the quick-create path uses, so
-                # a row promoted here and a row created complete end up identical.
+            if phone or email or file.lead_first_name or file.lead_last_name or file.lead_company:
+                # Same resolution the quick-create path uses, so a row promoted
+                # here and a row created complete end up identical.
                 person, company_contact, _matched = await self._resolve_contacts(
                     first=(file.lead_first_name or "").strip(),
                     last=(file.lead_last_name or "").strip(),
@@ -1096,6 +1096,8 @@ class ContactFileService:
                         _write_contact_related(person, related_list)
                 if company_contact is not None:
                     file.company_contact_id = str(company_contact.id)
+                    if person is None:
+                        file.contact_id = str(company_contact.id)   # company-only row: the file hangs off the company
             await self.session.commit()
             return
 
@@ -1488,6 +1490,71 @@ class ContactFileService:
                 return hit
         return None
 
+    async def backfill_missing_contacts(self) -> int:
+        """Give every log saved before name-only rows earned a contact its
+        Contacts-page entry. Idempotent: only files still without a contact are
+        touched, and _resolve_contacts reuses matching contacts (by phone, email,
+        then name) so re-running or repeated names never duplicate."""
+        live_log = (
+            select(FileLog.id)
+            .where(FileLog.file_id == ContactFile.id, FileLog.deleted_at.is_(None))
+            .exists()
+        )
+        files = (await self.session.execute(
+            select(ContactFile)
+            .where(ContactFile.contact_id.is_(None), live_log)
+            .order_by(ContactFile.created_at.asc())
+        )).scalars().all()
+        linked = 0
+        for f in files:
+            first = (f.lead_first_name or "").strip()
+            last = (f.lead_last_name or "").strip()
+            company = (f.lead_company or "").strip()
+            if not (first or last or company):
+                continue
+            person, org, _matched = await self._resolve_contacts(
+                first=first, last=last, company=company,
+                phone=(f.lead_mobile or "").strip(), email=(f.lead_email or "").strip(),
+                prefix=f.lead_prefix, user_id=f.owner_user_id,
+            )
+            primary = person or org
+            if primary is None:
+                continue
+            f.contact_id = str(primary.id)
+            if org is not None:
+                f.company_contact_id = str(org.id)
+            linked += 1
+        await self.session.commit()
+        return linked
+
+    async def _find_person_by_name(
+        self, first: str, last: str, company: str, tenant_id: str | None
+    ) -> Contact | None:
+        """An existing person with exactly this name (and company), case-insensitive.
+
+        Only used when the log has no phone or email to match on, so logging the
+        same name-only caller twice reuses one contact instead of duplicating it.
+        """
+        scope = []
+        if tenant_id is not None:
+            scope.append(or_(Contact.tenant_id == tenant_id, Contact.created_by == tenant_id))
+        same = lambda col, value: (  # noqa: E731
+            func.lower(col) == value.lower() if value else or_(col.is_(None), col == "")
+        )
+        q = (
+            select(Contact)
+            .where(
+                same(Contact.first_name, first),
+                same(Contact.last_name, last),
+                same(Contact.company_name, company),
+                Contact.is_active.is_(True),
+                *scope,
+            )
+            .order_by(Contact.created_at.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(q)).scalar_one_or_none()
+
     async def _find_company_contact(self, company: str, tenant_id: str | None) -> Contact | None:
         """The company's OWN contact: matching company name and no person name.
 
@@ -1519,32 +1586,35 @@ class ContactFileService:
         """Who gets a directory Contact for this row.
 
         Rules:
-          * No phone and no email -> no contact at all. A name we cannot reach is
-            not a contact; it stays on the file as typed.
-          * A person name + reachable -> a person contact.
+          * A person name -> a person contact, even with no phone or email: every
+            log's contact must land on the Contacts page. With no phone/email to
+            match on, an existing contact with the same name (and company) is
+            reused instead of creating a duplicate.
           * A company named -> its OWN separate contact, so "Anthony Karam / ASKII"
             yields two contacts, not one row with a company field.
           * The person keeps the phone/email; the company only takes them when
             there is no person to own them.
 
         The third element says how the PRIMARY contact (person, else company) was
-        matched to an existing row — "email", "phone" or "company" — and is None
+        matched to an existing row — "email", "phone", "name" or "company" — and is None
         when it was created fresh (or when the row earned no contact). Decided
         here, at the point of resolution, so the caller's "already existed"
         status can never disagree with what actually happened.
         """
-        if not (phone or email):
-            return None, None, None
-
         person = None
         person_matched = None
         if first or last:
-            person = await self._find_contact(email=email, phone=phone, tenant_id=user_id)
-            if person is not None:
-                if email and (person.primary_email or "").lower() == email.lower():
-                    person_matched = "email"
-                else:
-                    person_matched = "phone"
+            if phone or email:
+                person = await self._find_contact(email=email, phone=phone, tenant_id=user_id)
+                if person is not None:
+                    if email and (person.primary_email or "").lower() == email.lower():
+                        person_matched = "email"
+                    else:
+                        person_matched = "phone"
+            else:
+                person = await self._find_person_by_name(first, last, company, user_id)
+                if person is not None:
+                    person_matched = "name"
             if person is None:
                 person = Contact(
                     contact_type="lead",

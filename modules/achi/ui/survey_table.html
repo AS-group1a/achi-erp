@@ -7,7 +7,7 @@
   <!-- Site Visit list (every SV-NNNNN). Same look as CRM / Contacts: reuses the CRM
        sheet. Served at /survey/ui (no ?id) and /site-visit/ui; a row opens
        /survey/ui?id=… (the full visit form). -->
-  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=34">
+  <link rel="stylesheet" href="/api/v1/achi/crm/crm.css?v=35">
   <style>
     /* Column set for this page (resizable; crm.css reads --crm-cols). */
     #pg { --crm-cols: 92px 84px 128px 92px minmax(150px, 1.2fr) minmax(170px, 1.4fr) 150px 92px 88px; --crm-minw: 1120px; }
@@ -23,6 +23,7 @@
 </head>
 <body data-achi-title="Site Visit">
   <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
@@ -215,6 +216,17 @@
     const opts = STATUSES.map(s => `<option${s === r.status ? ' selected' : ''}>${esc(s)}</option>`).join('');
     return `<select class="sv-st" data-status="${esc(r.id)}" style="${ST_STYLE[r.status] || ''}" aria-label="Status">${opts}</select>`;
   }
+  // Site opens Google Maps, like the Log: the saved Maps link when there is
+  // one, else a Maps search for the site location / city.
+  function siteCell(r) {
+    const site = r.site_location || r.city || '';
+    if (!site) return '';
+    const maps = [r.google_maps_url, r.maps_url].find(u => u && /^https?:\/\//i.test(u));
+    const q = [r.site_location, r.city].filter(Boolean).join(', ');
+    const url = maps || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+    return `<a class="site-lnk" href="${esc(url)}" target="_blank" rel="noopener" title="Open in Google Maps">`
+      + `<svg aria-hidden="true"><use href="#i-pin"/></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(site)}</span></a>`;
+  }
   function rowHTML(r) {
     const mobile = r.lead_mobile || '';
     const digits = mobile.replace(/[^\d]/g, '');
@@ -228,7 +240,7 @@
       + `<div>${statusCell(r)}</div>`
       + `<div>${(r.file_number || /^ENQ-\d+$/.test(r.lead || '')) ? `<a class="sv-enq" href="${API}/crm/ui" title="Open CRM">${esc(r.file_number ? enqCode(r.file_number) : r.lead)}</a>` : '<span class="mut">—</span>'}</div>`
       + `<div><span class="nm-main" title="${esc(contact)}">${esc(contact)}</span></div>`
-      + `<div title="${esc(r.site_location || '')}">${esc(r.site_location || '')}</div>`
+      + `<div>${siteCell(r)}</div>`
       + `<div>${mobile ? `<span class="num">${esc(mobile)}</span>${digits ? ` <a class="wa" href="https://wa.me/${digits}" target="_blank" rel="noopener" title="Open in WhatsApp">WA</a>` : ''}` : ''}</div>`
       + `<div title="${esc(r.assigned_to || '')}">${esc(r.assigned_to || '')}</div>`
       + `<div class="sv-mini">${captured || '—'}</div>`
@@ -432,6 +444,6 @@
   load();
 })();
   </script>
-<script src="/api/v1/achi/ui/chrome.js?v=51"></script>
+<script src="/api/v1/achi/ui/chrome.js?v=52"></script>
 </body>
 </html>

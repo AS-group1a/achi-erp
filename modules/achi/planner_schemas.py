@@ -11,14 +11,16 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 PLANNER_EVENT_TYPES = (
     "meeting", "appointment", "event", "reminder", "time_block",
-    "task_block", "site_visit", "call", "follow_up", "deadline", "note",
+    "task_block", "site_visit", "call", "follow_up", "deadline",
+    "task", "note", "job",
 )
 PLANNER_EVENT_STATUSES = ("scheduled", "cancelled")
 PLANNER_VISIBILITIES = ("team", "private")
 
 PlannerEventType = Literal[
     "meeting", "appointment", "event", "reminder", "time_block",
-    "task_block", "site_visit", "call", "follow_up", "deadline", "note",
+    "task_block", "site_visit", "call", "follow_up", "deadline",
+    "task", "note", "job",
 ]
 PlannerEventStatus = Literal["scheduled", "cancelled"]
 PlannerVisibility = Literal["team", "private"]

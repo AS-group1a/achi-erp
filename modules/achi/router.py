@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import json
 import re
 from pathlib import Path
 from typing import Annotated
@@ -64,6 +65,8 @@ from .planner_router import planner_router
 from .users_router import users_router
 
 logger = logging.getLogger(__name__)
+# Older name-only logs are linked to contacts the first time Contacts loads.
+_contacts_backfilled = False
 
 router = APIRouter()
 
@@ -547,6 +550,18 @@ async def list_contact_info_contacts(
     limit: int = Query(default=500, ge=1, le=500),
     deleted: bool = Query(default=False, description="Return deleted contacts instead of active contacts"),
 ) -> ContactListResponse:
+    global _contacts_backfilled
+    if not _contacts_backfilled:
+        # Once per server start: logs saved before name-only rows earned a
+        # contact get theirs now, so they show on this page.
+        try:
+            linked = await ContactFileService(session).backfill_missing_contacts()
+            if linked:
+                logger.info("achi: linked %d older logs to directory contacts", linked)
+            _contacts_backfilled = True
+        except Exception:
+            await session.rollback()
+            logger.exception("achi: contact backfill failed; will retry on the next load")
     result = await session.execute(select(Contact).where(Contact.is_active.is_(not deleted)))
     contacts = [contact for contact in result.scalars().all() if _is_contact_info_contact(contact)]
     contacts.sort(
@@ -791,6 +806,43 @@ def ui_chrome_js() -> PlainTextResponse:
         media_type="application/javascript",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+# The installable-app identity. Upstream's /manifest.webmanifest installs as
+# "OpenConstructionERP"; chrome.js and achi-nav.js point the page at this one
+# instead, so the home-screen app is ARARA and opens on Log.
+_APP_MANIFEST = {
+    "id": "/api/v1/achi/ui",
+    "name": "ARARA",
+    "short_name": "ARARA",
+    "start_url": "/api/v1/achi/ui",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#f5f5f7",
+    "theme_color": "#284F9E",
+    "icons": [
+        {"src": "/api/v1/achi/ui/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/api/v1/achi/ui/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/api/v1/achi/ui/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ],
+}
+_APP_ICONS = {"app-icon-192.png", "app-icon-512.png", "app-icon-maskable-512.png", "apple-touch-icon.png"}
+
+
+@router.get("/ui/manifest.webmanifest", include_in_schema=False)
+def ui_app_manifest() -> Response:
+    return Response(
+        json.dumps(_APP_MANIFEST),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@router.get("/ui/{name}.png", include_in_schema=False)
+def ui_app_icon(name: str) -> FileResponse:
+    if f"{name}.png" not in _APP_ICONS:
+        raise HTTPException(status_code=404)
+    return FileResponse(_UI_DIR / f"{name}.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get(

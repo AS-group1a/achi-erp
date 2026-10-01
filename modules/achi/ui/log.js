@@ -29,7 +29,8 @@ async function rxSaveAll(keepOpen){
   const relatedChanged=rxRelatedChanged(r);
   if(!changed.length && !extrasChanged && !phonesChanged && !emailsChanged && !relatedChanged){
     st.textContent='Nothing to save'; st.className='rx-status';
-    if(!keepOpen) setTimeout(closeExpandedRow,500);
+    if(!keepOpen&&!rxDocked()) setTimeout(closeExpandedRow,500);
+    else if(!keepOpen) rxSetLocked(true);
     return;
   }
   rxBusy(true); st.textContent='Saving…'; st.className='rx-status';
@@ -48,10 +49,11 @@ async function rxSaveAll(keepOpen){
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
   else {
     st.textContent='Saved'; st.className='rx-status ok'; setTimeout(()=>{ if($('rx-status'))$('rx-status').textContent=''; },2000);
-    if(!keepOpen) setTimeout(closeExpandedRow,450);
+    if(!keepOpen&&!rxDocked()) setTimeout(closeExpandedRow,450);
+    else if(!keepOpen) rxSetLocked(true);   // the docked form stays under the table, back to read-only
   }
 }
-function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); rxCloseAddSectionMenu(); rxCloseTakeoffPicker(); $('rx').hidden=true; rxRowId=null; }
+function closeExpandedRow(){ closeRxState(); closeRxSelect(); closeContactMatches(); rxCloseAddSectionMenu(); rxCloseTakeoffPicker(); if(rxDocked()) qvHidden=true; $('rx').classList.remove('rx-docked'); rxSetLocked(false); $('rx').hidden=true; rxRowId=null; }
 
 /* Field saves go through the SAME endpoints as the grid's inline editors, keyed
    off each column's own edit.target — so nothing here can save to a different
@@ -575,7 +577,8 @@ $('rows').addEventListener('pointerdown',e=>{
   openExpandedRow(id);
 });
 $('rx-close').addEventListener('click',closeExpandedRow);
-$('rx-cancel').addEventListener('click',closeExpandedRow);
+$('rx-cancel').addEventListener('click',()=>{   // locked: close · docked + editing: discard edits
+  if(!$('rx').classList.contains('rx-locked')&&rxDocked()) rxCancelDocked(); else closeExpandedRow(); });
 $('rx-save').addEventListener('click',()=>rxSaveAll(false));        // save + close
 $('rx-save-cont')?.addEventListener('click',()=>rxSaveAll(true));   // save + keep editing
 $('rx-when').addEventListener('change',e=>{ $('rx-when-label').textContent=fmtHeaderDT(e.target.value); });
@@ -997,7 +1000,7 @@ $('rx-body').addEventListener('paste',e=>{
   },0);
 });
 $('rx-body').addEventListener('blur',e=>{ if(e.target.dataset&&(e.target.dataset.k==='mobile'||e.target.dataset.rxTel)) rxValidatePhone(e.target); },true);
-$('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')) closeExpandedRow(); });
+$('rx').addEventListener('mousedown',e=>{ if(e.target===$('rx')&&!rxDocked()) closeExpandedRow(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('rx').hidden) closeExpandedRow(); });
 /* Tags: click the field to open the multi-select checkbox dropdown (the same one
    the grid uses). Delegated on rx-body so it survives every popup re-render. */

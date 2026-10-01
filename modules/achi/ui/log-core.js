@@ -482,7 +482,7 @@ function contactSaveStatus(res){
   if(!res||!res.contact_id) return null;
   const name=res.contact_name?` “${res.contact_name}”`:'';
   if(res.contact_created) return `New contact${name} added to the directory`;
-  const how={phone:'phone number',email:'email',company:'company name'}[res.contact_matched_by];
+  const how={phone:'phone number',email:'email',company:'company name',name:'name'}[res.contact_matched_by];
   return `Contact${name} already exists${how?' — matched by '+how:''}; no duplicate created`;
 }
 function showSavedFeedback(res){
@@ -2511,6 +2511,20 @@ function toggleSelectAll(){
   rows.forEach(tr=>toggleRowSelection(tr,!all));
   refreshSelectionButton(); refreshDeleteButton();
 }
+/* A click anywhere outside the table clears the selection, so the red Delete
+   button and the docked form go away. Clicks inside the table, the toolbar, the
+   form, or on any control / popup keep it. */
+const KEEP_SELECTION_ON='#tbl, .nav, #rx, #log-pagination, [role="dialog"], [role="menu"], [role="listbox"], button, a, input, select, textarea, label, [contenteditable]';
+document.addEventListener('click',e=>{
+  if(!selectedRows.size||deletedView) return;
+  const t=e.target;
+  if(!(t instanceof Element)||!t.isConnected||t.closest(KEEP_SELECTION_ON)) return;
+  document.querySelectorAll('#rows tr[data-row-key]').forEach(tr=>{
+    if(selectedRows.has(tr.dataset.rowKey)) toggleRowSelection(tr,false);
+  });
+  selectedRows.clear();
+  refreshSelectionButton(); refreshDeleteButton();
+});
 function toggleRowSelection(tr,force){
   const id=tr.dataset.rowKey, on=force===undefined?!selectedRows.has(id):force;
   if(on) selectedRows.add(id); else selectedRows.delete(id);
@@ -2718,20 +2732,48 @@ function selectedLogId(){
   if(logs.length!==1) return null;
   return logs[0].slice(4);   // strip "log:"
 }
+/* Selecting ONE saved row docks the Add Log form under the table, filled with
+   that row — the same form as the popup, not a separate card. The quick
+   quotation card no longer shows; its code stays for the quotation modules. */
+function rxDocked(){ const rx=$('rx'); return !!rx&&!rx.hidden&&rx.classList.contains('rx-docked'); }
+function refreshDockedForm(id){
+  const rx=$('rx'); if(!rx) return;
+  if(!rx.hidden&&!rx.classList.contains('rx-docked')) return;   // the popup is open: leave it alone
+  if(!id||deletedView||qvHidden||!ROWS.some(x=>x.id===id)){ if(rxDocked()) closeExpandedRow(); return; }
+  if(rxDocked()&&rxRowId===id) return;                           // already showing this row
+  openExpandedRow(id);
+  rx.classList.add('rx-docked');
+  rx.querySelector('.rx-box')?.setAttribute('aria-modal','false');
+  rxSetLocked(true);
+  rx.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+/* A saved log opens read-only — docked or in the popup; the Edit button next
+   to Cancel unlocks it. `inert` blocks clicks, typing and tab focus. New logs
+   open editable. */
+const RX_LOCK_TARGETS='.rx-cols, #rx-copy, #rx-header-type, .rx-when-wrap, #rx-state, .rx-head-followup';
+function rxSetLocked(locked){
+  const rx=$('rx'); if(!rx) return;
+  if(!$('rx-edit')){
+    $('rx-cancel')?.insertAdjacentHTML('afterend',
+      '<button type="button" class="rx-edit" id="rx-edit" title="Edit this log">'
+      +'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.5l2.5 2.5L6 12.5H3.5V10z"/></svg>Edit</button>');
+    $('rx-edit')?.addEventListener('click',()=>rxSetLocked(false));
+  }
+  rx.classList.toggle('rx-locked',locked);
+  rx.querySelectorAll(RX_LOCK_TARGETS).forEach(el=>{ el.inert=locked; });
+  if(!locked) rx.querySelector('#rx-notes-subject, .rx-body .rx-in')?.focus({preventScroll:true});
+}
+/* Cancel on the docked form throws the edits away: redraw the row, locked. */
+function rxCancelDocked(){
+  const id=rxRowId; rxRowId=null;
+  refreshDockedForm(id);
+}
 function refreshQuickQuote(){
-  const card=$('qv'); if(!card) return;
-  if(deletedView){ card.hidden=true; return; }   // no quotation from the deleted view
-  const id=selectedLogId();
-  if(id!==qvLastId){ qvLastId=id; qvHidden=false; qvMsg(''); }
-  if(!id||qvHidden){ card.hidden=true; return; }
-  const r=ROWS.find(x=>x.id===id);
-  if(!r){ card.hidden=true; return; }
-  card.hidden=false;
-  const who=[r.contact_name,r.company_name].filter(Boolean).join(' · ')||'this enquiry';
-  const enq=String(r.file_number||'').match(/-(\d+)$/);
-  $('qv-for').textContent=`${r.file_number?(enq?'ENQ-'+enq[1].padStart(5,'0'):r.file_number)+' — ':''}${who}`;
-  if(!$('qv-city').value && r.city) $('qv-city').value=r.city;
-  qvTotals();
+  const card=$('qv');
+  const id=deletedView?null:selectedLogId();
+  if(id!==qvLastId){ qvLastId=id; qvHidden=false; if(card) qvMsg(''); }
+  if(card) card.hidden=true;
+  refreshDockedForm(id);
 }
 /* Totals mirror quotation_service.compute_totals. Duplicated deliberately: this
    is a live preview and must not wait on a round trip. The SERVER's numbers are
@@ -3169,6 +3211,11 @@ function rxReferenceContactHTML(src,val){
 
 function openExpandedRow(explicitId){
   if(deletedView) return;
+  // Opened directly (Add Log, double-click, summary cell) = the centered popup.
+  // refreshDockedForm() re-adds rx-docked right after calling this.
+  $('rx').classList.remove('rx-docked');
+  rxSetLocked(false);
+  $('rx').querySelector('.rx-box')?.setAttribute('aria-modal','true');
   const forceNew=explicitId===null;
   const id=forceNew?null:(explicitId||selectedLogId());
   const r=id?ROWS.find(x=>x.id===id):null;
@@ -3379,6 +3426,7 @@ function openExpandedRow(explicitId){
   rxRenumberPersons();
   setRxState(currentState);
   $('rx').hidden=false;
+  rxSetLocked(!isNew);
   rxUpdateMapPreview();
   $('rx-body').scrollTop=0;
 }

@@ -492,14 +492,10 @@
     const mail = f.contact.email || (f.contact.emails[0] && f.contact.emails[0].address) || '';
     return mail ? `<a href="mailto:${esc(mail)}" title="${esc(mail)}">${esc(mail)}</a>` : '';
   }
+  // Company column: just the company name as plain text — no badge, no link.
   function companyCell(f) {
-    const badge = f.clientStatus === 'client'
-      ? '<span class="cl-badge is-client" title="Has worked with us before (at least one job)">CLIENT</span>'
-      : '<span class="cl-badge is-lead" title="No job with us yet">LEAD</span>';
-    const name = f.contact.company || (f.contact.first || f.contact.last ? '' : f.contact.name) || '';
-    // No company name → blank cell (no lone LEAD / CLIENT badge).
-    if (!name) return '';
-    return `<div class="cl-line"><span class="nm-main" title="${esc(name)}">${esc(name)}</span>${badge}</div>`;
+    const name = f.contact.company || '';
+    return name ? `<span class="co-name" title="${esc(name)}">${esc(name)}</span>` : '';
   }
   // "Linked to": a count button; the list opens in one shared floating menu.
   const linkedCount = f => DOCS.filter(([k]) => f.docs[k]).length + f.logs.length;
