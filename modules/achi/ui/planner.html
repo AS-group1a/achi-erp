@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Planner | ACHI Scaffolding ERP</title>
-  <link rel="stylesheet" href="/api/v1/achi/planner/planner.css?v=1">
+  <link rel="stylesheet" href="/api/v1/achi/planner/planner.css?v=2">
 </head>
 <body data-achi-title="Planner">
   <main class="planner-page">
@@ -12,11 +12,12 @@
       <div>
         <p class="planner-breadcrumb">ACHI / PLANNER</p>
         <h1>Planner</h1>
-        <p class="planner-subtitle">Plan work, meetings and important dates in one place.</p>
+        <p class="planner-subtitle">Plan work, meetings and important dates in one place. Click any day to write a note on it.</p>
       </div>
       <div class="planner-new-menu">
         <button class="planner-primary" id="planner-new" type="button" aria-expanded="false" aria-controls="planner-new-options">+ New</button>
         <div id="planner-new-options" class="planner-new-options" hidden>
+          <button type="button" data-planner-new-note>Note</button>
           <button type="button" data-planner-new-type="meeting">Meeting</button>
           <button type="button" data-planner-new-type="event">Event</button>
           <button type="button" data-planner-new-type="appointment">Appointment</button>
@@ -99,7 +100,7 @@
             <option value="appointment">Appointment</option><option value="reminder">Reminder</option>
             <option value="time_block">Time block</option><option value="site_visit">Site visit</option>
             <option value="call">Call</option><option value="follow_up">Follow-up</option>
-            <option value="deadline">Deadline</option>
+            <option value="deadline">Deadline</option><option value="note">Note</option>
           </select>
         </label>
         <label class="planner-field">Visibility
@@ -175,7 +176,25 @@
       </footer>
     </form>
   </dialog>
+  <dialog class="planner-note" id="planner-note" aria-labelledby="planner-note-date">
+    <form id="planner-note-form" method="dialog">
+      <header class="planner-note-header">
+        <p id="planner-note-date">New note</p>
+        <button class="planner-icon-button" id="planner-note-close" type="button" aria-label="Close">×</button>
+      </header>
+      <label class="sr-only" for="planner-note-text">Note</label>
+      <textarea id="planner-note-text" rows="9" maxlength="20000" placeholder="Write anything…"></textarea>
+      <p class="planner-note-error" id="planner-note-error" role="alert" hidden></p>
+      <footer class="planner-note-footer">
+        <button class="planner-note-link" id="planner-note-more" type="button">More options</button>
+        <button class="planner-danger" id="planner-note-delete" type="button" hidden>Delete</button>
+        <span></span>
+        <button class="planner-button" id="planner-note-cancel" type="button">Cancel</button>
+        <button class="planner-primary" id="planner-note-save" type="submit">Save</button>
+      </footer>
+    </form>
+  </dialog>
   <script src="/api/v1/achi/ui/chrome.js?v=41"></script>
-  <script src="/api/v1/achi/planner/planner.js?v=1"></script>
+  <script src="/api/v1/achi/planner/planner.js?v=2"></script>
 </body>
 </html>

@@ -522,9 +522,12 @@ class PlannerService:
         if end <= start:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "end must be after start")
         wanted = set(user_ids)
+        # A free-text calendar note is a written reminder, not a commitment, so
+        # it never makes its author look busy.
         events = (await self.session.execute(
             select(AchiPlannerEvent).where(
                 AchiPlannerEvent.deleted_at.is_(None), AchiPlannerEvent.status == "scheduled",
+                AchiPlannerEvent.event_type != "note",
                 AchiPlannerEvent.start_at < end, AchiPlannerEvent.end_at > start,
             )
         )).scalars().all()
