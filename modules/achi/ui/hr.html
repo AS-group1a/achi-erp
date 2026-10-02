@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR · ARARA</title>
+  <link rel="stylesheet" href="/api/v1/achi/projects/projects.css?v=1">
+</head>
+<body data-achi-title="HR">
+  <main class="pj-page">
+    <header class="pj-head">
+      <div>
+        <p class="pj-crumb"><span id="hr-company-name">ARARA</span> / HR</p>
+        <h1>Employees</h1>
+        <p class="pj-sub">The people of <span id="hr-company-sub">ARARA</span>. Projects assigns its tasks from this list.</p>
+      </div>
+      <div class="pj-actions">
+        <button class="pj-primary" id="hr-new" type="button" hidden>+ Employee</button>
+      </div>
+    </header>
+
+    <section class="pj-main" aria-label="Employees">
+      <div class="pj-toolbar">
+        <div class="pj-filters">
+          <label class="sr-only" for="hr-search">Search employees</label>
+          <input id="hr-search" type="search" maxlength="120" autocomplete="off" placeholder="Search name, title or team">
+          <label class="pj-who" style="font-size:13px;color:#53627b"><input id="hr-inactive" type="checkbox"> Show inactive</label>
+        </div>
+      </div>
+      <p class="hr-note">Switch between Achi Scaffolding and ARARA with the company menu at the top of the sidebar. Each company keeps its own employees.</p>
+      <p class="pj-msg" id="hr-msg" role="status" hidden></p>
+      <div id="hr-view" class="pj-view"></div>
+    </section>
+  </main>
+
+  <dialog class="pj-dialog" id="hr-dialog" aria-labelledby="hr-dialog-title">
+    <form id="hr-form" method="dialog">
+      <header class="pj-dialog-head">
+        <div><p class="pj-crumb" id="hr-dialog-company">EMPLOYEE</p><h2 id="hr-dialog-title">New employee</h2></div>
+        <button class="pj-icon" type="button" data-close aria-label="Close">×</button>
+      </header>
+      <div class="pj-form">
+        <label class="pj-field pj-full">Full name<input id="hr-name" maxlength="255" required autocomplete="off"></label>
+        <label class="pj-field">Job title<input id="hr-title" maxlength="128" autocomplete="off" placeholder="e.g. Full-stack developer"></label>
+        <label class="pj-field">Team<input id="hr-team" maxlength="128" autocomplete="off" placeholder="e.g. Backend" list="hr-teams"></label>
+        <datalist id="hr-teams"></datalist>
+        <label class="pj-field">Email<input id="hr-email" type="email" maxlength="255" autocomplete="off"></label>
+        <label class="pj-field">Phone<input id="hr-phone" maxlength="64" autocomplete="off"></label>
+        <label class="pj-field">Login account<select id="hr-user"></select></label>
+        <label class="pj-field">Status<select id="hr-active"><option value="1">Active</option><option value="0">Inactive</option></select></label>
+        <label class="pj-field pj-full">Notes<textarea id="hr-notes" rows="3" maxlength="5000"></textarea></label>
+        <p class="pj-form-error pj-full" id="hr-error" role="alert" hidden></p>
+      </div>
+      <footer class="pj-dialog-foot">
+        <button class="pj-danger" id="hr-delete" type="button" hidden>Delete</button>
+        <span></span>
+        <button class="pj-btn" type="button" data-close>Cancel</button>
+        <button class="pj-primary" id="hr-save" type="submit">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="/api/v1/achi/ui/chrome.js?v=52"></script>
+  <script src="/api/v1/achi/hr/hr.js?v=1"></script>
+</body>
+</html>

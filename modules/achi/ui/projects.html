@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projects · ARARA</title>
+  <link rel="stylesheet" href="/api/v1/achi/projects/projects.css?v=1">
+</head>
+<body data-achi-title="Projects">
+  <main class="pj-page">
+    <header class="pj-head">
+      <div>
+        <p class="pj-crumb"><span id="pj-company-name">ARARA</span> / PROJECTS</p>
+        <h1>Projects</h1>
+        <p class="pj-sub">Plan the tech team's work: projects, tasks and dates.</p>
+      </div>
+      <div class="pj-actions">
+        <button class="pj-btn" id="pj-new-project" type="button">+ Project</button>
+        <button class="pj-primary" id="pj-new-task" type="button">+ Task</button>
+      </div>
+    </header>
+
+    <div class="pj-work">
+      <aside class="pj-side" aria-labelledby="pj-side-title">
+        <div class="pj-side-head"><p class="pj-crumb">PROJECTS</p><h2 id="pj-side-title">All work</h2></div>
+        <div id="pj-project-list" class="pj-project-list"></div>
+      </aside>
+
+      <section class="pj-main" aria-label="Tasks">
+        <div class="pj-toolbar">
+          <div class="pj-tabs" role="tablist" aria-label="View">
+            <button type="button" role="tab" data-view="board">Board</button>
+            <button type="button" role="tab" data-view="table">Table</button>
+            <button type="button" role="tab" data-view="gantt">Gantt</button>
+          </div>
+          <div class="pj-filters">
+            <label class="sr-only" for="pj-person">Person</label>
+            <select id="pj-person"></select>
+            <label class="sr-only" for="pj-search">Search tasks</label>
+            <input id="pj-search" type="search" maxlength="120" autocomplete="off" placeholder="Search tasks">
+          </div>
+        </div>
+        <p class="pj-msg" id="pj-msg" role="status" hidden></p>
+        <div id="pj-view" class="pj-view"></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog class="pj-dialog" id="pj-task-dialog" aria-labelledby="pj-task-title">
+    <form id="pj-task-form" method="dialog">
+      <header class="pj-dialog-head">
+        <div><p class="pj-crumb" id="pj-task-code">NEW TASK</p><h2 id="pj-task-title">New task</h2></div>
+        <button class="pj-icon" type="button" data-close aria-label="Close">×</button>
+      </header>
+      <div class="pj-form">
+        <label class="pj-field pj-full">Title<input id="pj-t-title" maxlength="255" required autocomplete="off" placeholder="What needs to be done?"></label>
+        <label class="pj-field">Project<select id="pj-t-project" required></select></label>
+        <label class="pj-field">Assignee<select id="pj-t-assignee"></select></label>
+        <label class="pj-field">Status
+          <select id="pj-t-status">
+            <option value="backlog">Backlog</option><option value="todo">To do</option>
+            <option value="in_progress">In progress</option><option value="review">Review</option>
+            <option value="done">Done</option>
+          </select>
+        </label>
+        <label class="pj-field">Priority
+          <select id="pj-t-priority">
+            <option value="low">Low</option><option value="normal">Normal</option>
+            <option value="high">High</option><option value="urgent">Urgent</option>
+          </select>
+        </label>
+        <label class="pj-field">Start<input id="pj-t-start" type="date"></label>
+        <label class="pj-field">Due<input id="pj-t-due" type="date"></label>
+        <label class="pj-field pj-full">Description<textarea id="pj-t-desc" rows="5" maxlength="20000" placeholder="Details, links, acceptance notes…"></textarea></label>
+        <p class="pj-form-error pj-full" id="pj-t-error" role="alert" hidden></p>
+      </div>
+      <footer class="pj-dialog-foot">
+        <button class="pj-danger" id="pj-t-delete" type="button" hidden>Delete</button>
+        <span></span>
+        <button class="pj-btn" type="button" data-close>Cancel</button>
+        <button class="pj-primary" id="pj-t-save" type="submit">Save task</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="pj-dialog" id="pj-project-dialog" aria-labelledby="pj-project-title">
+    <form id="pj-project-form" method="dialog">
+      <header class="pj-dialog-head">
+        <div><p class="pj-crumb" id="pj-project-code">NEW PROJECT</p><h2 id="pj-project-title">New project</h2></div>
+        <button class="pj-icon" type="button" data-close aria-label="Close">×</button>
+      </header>
+      <div class="pj-form">
+        <label class="pj-field pj-full">Name<input id="pj-p-name" maxlength="255" required autocomplete="off" placeholder="e.g. ARARA mobile app"></label>
+        <fieldset class="pj-field pj-full pj-swatches"><legend>Colour</legend><div id="pj-p-colors"></div></fieldset>
+        <label class="pj-field">Status
+          <select id="pj-p-status">
+            <option value="planned">Planned</option><option value="active">Active</option>
+            <option value="on_hold">On hold</option><option value="done">Done</option>
+          </select>
+        </label>
+        <label class="pj-field">Lead<select id="pj-p-lead"></select></label>
+        <label class="pj-field">Start<input id="pj-p-start" type="date"></label>
+        <label class="pj-field">End<input id="pj-p-end" type="date"></label>
+        <label class="pj-field pj-full">Description<textarea id="pj-p-desc" rows="4" maxlength="20000" placeholder="Goal and scope"></textarea></label>
+        <p class="pj-form-error pj-full" id="pj-p-error" role="alert" hidden></p>
+      </div>
+      <footer class="pj-dialog-foot">
+        <button class="pj-danger" id="pj-p-delete" type="button" hidden>Delete project</button>
+        <span></span>
+        <button class="pj-btn" type="button" data-close>Cancel</button>
+        <button class="pj-primary" id="pj-p-save" type="submit">Save project</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="/api/v1/achi/ui/chrome.js?v=52"></script>
+  <script src="/api/v1/achi/projects/projects.js?v=1"></script>
+</body>
+</html>

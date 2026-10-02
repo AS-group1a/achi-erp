@@ -62,6 +62,10 @@ PAGES: list[dict] = [
      "paths": ["/api/v1/achi/quotation/ui"]},
     {"key": "files", "label": "Files", "hint": "Enquiry files",
      "paths": ["/api/v1/achi/files/ui"]},
+    {"key": "projects", "label": "Projects", "hint": "ARARA projects, tasks and Gantt",
+     "paths": ["/api/v1/achi/projects/ui"]},
+    {"key": "hr", "label": "HR", "hint": "Employees of each company",
+     "paths": ["/api/v1/achi/hr/ui"]},
 ]
 PAGE_KEYS = [p["key"] for p in PAGES]
 

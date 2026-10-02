@@ -64,6 +64,8 @@ from .mail_router import mail_router
 from .task_router import task_router
 from .planner_router import planner_router
 from .users_router import users_router
+from .hr_router import hr_router
+from .project_router import project_router
 
 logger = logging.getLogger(__name__)
 # Older name-only logs are linked to contacts the first time Contacts loads.
@@ -81,6 +83,8 @@ router.include_router(mail_router)
 router.include_router(task_router)
 router.include_router(planner_router)
 router.include_router(users_router)
+router.include_router(hr_router)
+router.include_router(project_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 

@@ -49,23 +49,50 @@
     }
   })();
 
+  // Company: Achi Scaffolding or ARARA, picked in the sidebar and remembered
+  // per browser. It decides which modules the menu shows, and the HR and
+  // Projects pages read it (window.araraCompany) to load that company's data.
+  var COMPANIES = [['achi', 'Achi Scaffolding', 'AC'], ['arara', 'ARARA', 'AR']];
+  var COMPANY_KEY = 'arara_company';
+  function currentCompany() {
+    // A page that belongs to one company (opened from a bookmark or a shared
+    // link) switches to that company, so the menu and the page's data agree.
+    var owner = pageOwner();
+    if (owner) { storeCompany(owner); return owner; }
+    try { var c = localStorage.getItem(COMPANY_KEY); if (c === 'achi' || c === 'arara') return c; } catch (e) {}
+    return 'achi';
+  }
+  function samePage(href) { return href.split('?')[0].replace(/\/+$/, '') === location.pathname.replace(/\/+$/, ''); }
+  function pageOwner() {
+    // LINKS is assigned further down; it stays undefined in a docked frame.
+    if (!LINKS) return null;
+    for (var i = 0; i < LINKS.length; i++) {
+      if (LINKS[i].co !== 'both' && samePage(LINKS[i].href)) return LINKS[i].co;
+    }
+    return null;
+  }
+  function storeCompany(c) { try { localStorage.setItem(COMPANY_KEY, c); } catch (e) {} }
+  window.araraCompany = currentCompany;
+
   // Docked in the SPA? Upstream's sidebar is already there — stand down.
   if (window.top !== window.self) return;
 
   // The whole ARARA menu, in order. The ERP underneath has no screens of its
   // own any more (deploy/overrides/achi-nav.js).
 var LINKS = [
-  { label: 'Log', href: '/api/v1/achi/ui', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
-  { label: 'Contacts', href: '/api/v1/achi/contact-info/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
-  { label: 'CRM', href: '/api/v1/achi/crm/ui', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
-  { label: 'Planner', href: '/api/v1/achi/planner/ui', icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>' },
-  { label: 'Site Visit', href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
-  { label: 'DRAW', href: '/api/v1/achi/draw/ui', icon: '<path d="M4 20h16"/><path d="m14 4 6 6-10 10H4v-6z"/><path d="m13 5 6 6"/>' },
-  { label: 'M/T', href: '/api/v1/achi/mt/ui', icon: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/>' },
-  { label: 'BOQ', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
-  { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
-  { label: 'Files', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
-  { label: 'Users', href: '/api/v1/achi/users/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' }
+  { label: 'Log', co: 'achi', href: '/api/v1/achi/ui', icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>' },
+  { label: 'Contacts', co: 'achi', href: '/api/v1/achi/contact-info/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
+  { label: 'CRM', co: 'achi', href: '/api/v1/achi/crm/ui', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
+  { label: 'Planner', co: 'both', href: '/api/v1/achi/planner/ui', icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>' },
+  { label: 'Site Visit', co: 'achi', href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
+  { label: 'DRAW', co: 'achi', href: '/api/v1/achi/draw/ui', icon: '<path d="M4 20h16"/><path d="m14 4 6 6-10 10H4v-6z"/><path d="m13 5 6 6"/>' },
+  { label: 'M/T', co: 'achi', href: '/api/v1/achi/mt/ui', icon: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/>' },
+  { label: 'BOQ', co: 'achi', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
+  { label: 'Quotation', co: 'achi', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
+  { label: 'Files', co: 'achi', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
+  { label: 'Projects', co: 'arara', href: '/api/v1/achi/projects/ui', icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/><path d="M13 8h4M13 12h4M13 16h2"/>' },
+  { label: 'HR', co: 'both', href: '/api/v1/achi/hr/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M16 11h6"/><rect x="15" y="15" width="7" height="6" rx="1"/>' },
+  { label: 'Users', co: 'both', href: '/api/v1/achi/users/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' }
   ];
 
   /* The admin cluster upstream pins at the bottom of its sidebar — a literal
@@ -121,6 +148,15 @@ var LINKS = [
     + '.achi-back:hover{background:rgba(255,255,255,.12);color:#fff}'
     + '.achi-back svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'
     + '.achi-sep{height:1px;background:rgba(255,255,255,.14);margin:2px 16px 8px}'
+    + '.achi-company{margin:0 12px 10px}'
+    + '.achi-co-label{display:block;margin:0 0 4px 2px;color:rgba(255,255,255,.62);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}'
+    + '.achi-company select{width:100%;height:32px;padding:0 26px 0 10px;border:1px solid rgba(255,255,255,.28);border-radius:8px;background:rgba(255,255,255,.1) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M3 4.5 6 7.5 9 4.5%27 fill=%27none%27 stroke=%27white%27 stroke-width=%271.6%27/%3E%3C/svg%3E") no-repeat right 9px center/12px;color:#fff;font:600 12.5px/1 ' + FONT + ';-webkit-appearance:none;appearance:none;cursor:pointer}'
+    + '.achi-company select:focus-visible{outline:2px solid #fff;outline-offset:1px}'
+    + '.achi-company option{color:#17223b;background:#fff}'
+    + '.achi-co-short{display:none}'
+    + '.achi-chrome:not(.achi-expanded) .achi-company{margin:0 16px 10px}'
+    + '.achi-chrome:not(.achi-expanded) .achi-co-label,.achi-chrome:not(.achi-expanded) .achi-company select{display:none}'
+    + '.achi-chrome:not(.achi-expanded) .achi-co-short{display:grid;place-items:center;width:32px;height:24px;border-radius:6px;background:rgba(255,255,255,.16);font-size:10px;font-weight:800;letter-spacing:.05em}'
     + '.achi-brand b{font-size:18px;line-height:28px;font-weight:800;letter-spacing:.08em;display:block}'
     + '.achi-nav{padding:6px 8px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}'
     + '.achi-link{display:flex;align-items:center;gap:10px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.86);text-decoration:none;font-size:13px;line-height:1.46;font-weight:500;margin-bottom:2px}'
@@ -173,14 +209,22 @@ var LINKS = [
   function build(title) {
     var side = document.createElement('nav');
     side.className = 'achi-chrome';
+    var company = currentCompany();
+    var shown = LINKS.filter(function (l) { return l.co === 'both' || l.co === company; });
+    var short = COMPANIES.filter(function (c) { return c[0] === company; })[0][2];
     // The ARARA logo, then the product name (hidden while collapsed).
     side.innerHTML =
       '<div class="achi-brand">'
       + '<span class="achi-mark" aria-hidden="true">' + LOGO + '</span>'
       + '<div><b>ARARA</b></div></div>'
+      + '<div class="achi-company"><label class="achi-co-label" for="achi-company">Company</label>'
+      + '<select id="achi-company">' + COMPANIES.map(function (c) {
+          return '<option value="' + c[0] + '"' + (c[0] === company ? ' selected' : '') + '>' + c[1] + '</option>';
+        }).join('') + '</select>'
+      + '<span class="achi-co-short" title="Company">' + short + '</span></div>'
       + '<div class="achi-sep"></div>'
       + '<div class="achi-nav">'
-      + LINKS.map(function (l) {
+      + shown.map(function (l) {
           return '<a class="achi-link" href="' + l.href + '">'
             + '<svg viewBox="0 0 24 24">' + l.icon + '</svg><span>' + l.label + '</span></a>';
         }).join('')
@@ -201,6 +245,17 @@ var LINKS = [
       // offer — it is a licence notice, so it is reproduced, not restyled away.
       + '<div class="achi-foot">'
       + '<a href="/api/source" target="_blank" rel="noopener noreferrer">AGPL-3.0</a></div>';
+
+    // Switching company: stay on this page when the other company has it too
+    // (Planner, HR, Users), otherwise open that company's first module.
+    side.querySelector('#achi-company').addEventListener('change', function (event) {
+      var next = event.target.value;
+      storeCompany(next);
+      var keep = LINKS.some(function (l) { return (l.co === 'both' || l.co === next) && samePage(l.href); });
+      if (keep) { location.reload(); return; }
+      var first = LINKS.filter(function (l) { return l.co === next; })[0];
+      location.assign(first ? first.href : location.href);
+    });
 
     var top = document.createElement('div');
     top.className = 'achi-top';
