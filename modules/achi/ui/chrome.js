@@ -60,6 +60,10 @@ var LINKS = [
   { label: 'CRM', href: '/api/v1/achi/crm/ui', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
   { label: 'Planner', href: '/api/v1/achi/planner/ui', icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>' },
   { label: 'Site Visit', href: '/api/v1/achi/survey/ui', icon: '<path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z"/><path d="M9 2v17"/><path d="M15 5v17"/>' },
+  { label: 'DRAW', href: '/api/v1/achi/draw/ui', icon: '<path d="M4 20h16"/><path d="m14 4 6 6-10 10H4v-6z"/><path d="m13 5 6 6"/>' },
+  { label: 'M/T', href: '/api/v1/achi/mt/ui', icon: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h3M13 12h3M8 16h8"/>' },
+  { label: 'BOQ', href: '/api/v1/achi/boq/ui', icon: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
+  { label: 'Quotation', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
   { label: 'Files', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
   { label: 'Users', href: '/api/v1/achi/users/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' }
   ];
@@ -110,8 +114,8 @@ var LINKS = [
     + '.achi-link span,.achi-back span,.achi-tool span,.achi-brand div,.achi-foot{transition:opacity .15s ease}'
     + '.achi-brand{display:flex;align-items:center;gap:10px;padding:16px 16px 14px}'
     + '.achi-brand{min-height:28px}'
-    + '.achi-mark{display:none;width:32px;text-align:center;font-size:18px;line-height:28px;font-weight:800}'
-    + '.achi-chrome:not(.achi-expanded) .achi-mark{display:block}'
+    + '.achi-mark{display:block;flex:none;width:32px;height:32px}'
+    + '.achi-mark svg{display:block;width:32px;height:32px;border-radius:9px;box-shadow:0 0 0 1px rgba(255,255,255,.22)}'
     + '.achi-chrome:not(.achi-expanded) .achi-brand div{position:absolute}'
     + '.achi-back{display:flex;align-items:center;gap:9px;margin:0 8px 6px;padding:7px 11px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:11px;line-height:1.36;font-weight:500}'
     + '.achi-back:hover{background:rgba(255,255,255,.12);color:#fff}'
@@ -158,13 +162,21 @@ var LINKS = [
     + ' .achi-burger{display:inline-flex}'
     + '}';
 
+  // The ARARA logo: a blue rounded square holding a white rounded bar.
+  var LOGO = '<svg viewBox="0 0 64 64" width="32" height="32" focusable="false">'
+    + '<defs><linearGradient id="achi-logo-fill" x1="0" y1="0" x2="1" y2="1">'
+    + '<stop offset="0" stop-color="#2E5EBC"/><stop offset="1" stop-color="#203F8D"/></linearGradient></defs>'
+    + '<rect width="64" height="64" rx="18" fill="url(#achi-logo-fill)"/>'
+    + '<rect x="16.9" y="26" width="30.2" height="12" rx="6" fill="none" stroke="#fff" stroke-width="3.9"/>'
+    + '</svg>';
+
   function build(title) {
     var side = document.createElement('nav');
     side.className = 'achi-chrome';
-    // Product name only — no logo, no "by …" credit. Collapsed shows "A".
+    // The ARARA logo, then the product name (hidden while collapsed).
     side.innerHTML =
       '<div class="achi-brand">'
-      + '<span class="achi-mark" aria-hidden="true">A</span>'
+      + '<span class="achi-mark" aria-hidden="true">' + LOGO + '</span>'
       + '<div><b>ARARA</b></div></div>'
       + '<div class="achi-sep"></div>'
       + '<div class="achi-nav">'
