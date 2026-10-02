@@ -1059,23 +1059,97 @@ class QuotationDraftFromLog(QuotationEstimate):
     valid_until: date | None = None
 
 
+_PLAIN_AMOUNT = re.compile(r"\d{1,12}(\.\d*)?|\.\d+")
+
+
+def _amount_text(value: str | None, label: str) -> str | None:
+    """A non-negative number typed by a person -> its plain text, or None if blank.
+
+    Thousands separators are dropped ("1,250.5" -> "1250.5"). Only plain digits
+    are accepted: words, signs and exponents ("1e9", "NaN") are refused, so a
+    typo never silently prices a line at zero or overflows the arithmetic.
+    """
+    text = str(value or "").replace(",", "").replace(" ", "")
+    if not text:
+        return None
+    if not _PLAIN_AMOUNT.fullmatch(text):
+        raise ValueError(f"{label} must be a number, zero or more")
+    return text
+
+
+class QuotationLineIn(BaseModel):
+    """One row of the quotation table, as the editor sends it."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    item: str = Field("", max_length=255)            # product / service
+    description: str = Field("", max_length=5000)
+    start_date: date | None = None
+    end_date: date | None = None
+    unit: str = Field("m²", max_length=16)
+    quantity: str | None = Field(None, max_length=32)
+    unit_price: str | None = Field(None, max_length=32)
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("A line's end date cannot be before its start date")
+        self.quantity = _amount_text(self.quantity, "Quantity")
+        self.unit_price = _amount_text(self.unit_price, "Price")
+        self.unit = self.unit or "m²"
+        return self
+
+
+class QuotationLineOut(BaseModel):
+    id: str
+    position: int
+    item: str
+    description: str
+    start_date: date | None = None
+    end_date: date | None = None
+    unit: str
+    quantity: str | None = None
+    unit_price: str | None = None
+    total: str
+
+
 class QuotationUpdate(QuotationEstimate):
-    customer_name: str | None = None
-    customer_company: str | None = None
-    customer_mobile: str | None = None
-    customer_email: str | None = None
-    site_city: str | None = None
-    site_address: str | None = None
-    scope: str | None = None
-    notes: str | None = None
+    # Lengths match the columns, so an over-long value is a 422, not a crash.
+    customer_name: str | None = Field(None, max_length=255)
+    customer_company: str | None = Field(None, max_length=255)
+    customer_mobile: str | None = Field(None, max_length=32)
+    customer_email: str | None = Field(None, max_length=255)
+    site_city: str | None = Field(None, max_length=128)
+    site_address: str | None = Field(None, max_length=1000)
+    scope: str | None = Field(None, max_length=1000)
+    notes: str | None = Field(None, max_length=20000)
     valid_until: date | None = None
     status: str | None = None
+    conditions: str | None = Field(None, max_length=20000)
+    # The whole table. Sent -> replaces every line; left out -> lines untouched.
+    lines: list[QuotationLineIn] | None = Field(None, max_length=200)
+
+    @field_validator("discount", "vat_percent")
+    @classmethod
+    def _plain_amount(cls, value, info: ValidationInfo):
+        label = "VAT %" if info.field_name == "vat_percent" else "Discount"
+        text = _amount_text(value, label)
+        if info.field_name == "vat_percent" and text and len(text) > 8:
+            raise ValueError("VAT % is too long")
+        return text
 
     @model_validator(mode="after")
     def _check_status(self):
         if self.status is not None and self.status not in QUOTATION_STATUSES:
             raise ValueError(f"status must be one of {QUOTATION_STATUSES}")
         return self
+
+
+class QuotationCreate(QuotationUpdate):
+    """A quotation written in the editor. file_id ties it to an enquiry (a Log
+    row's file); its customer then fills any customer field left blank."""
+
+    file_id: str | None = Field(None, max_length=36)
 
 
 class QuotationOut(BaseModel):
@@ -1112,8 +1186,11 @@ class QuotationOut(BaseModel):
     scope: str | None = None
     notes: str | None = None
     valid_until: date | None = None
+    conditions: str | None = None
     status: str
     created_at: datetime | None = None
+    # The table, in order. None in lists (not loaded there), a list otherwise.
+    lines: list[QuotationLineOut] | None = None
 
 
 # ── custom cities (added on the fly, stored server-side) ────────────────────

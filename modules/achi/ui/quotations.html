@@ -14,11 +14,15 @@
   .bar h1{font-size:15px;font-weight:800;color:var(--navy)}
   .bar .sp{flex:1}
   .search{font:inherit;font-size:12.5px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;min-width:220px;background:#fff}
+  .new{display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:8px;background:var(--navy);color:#fff;font-weight:600;font-size:13px;text-decoration:none;white-space:nowrap}
+  .new:hover{background:#1f3f80}
   .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
   table{width:100%;border-collapse:collapse}
   thead th{background:var(--navy);color:rgba(255,255,255,.86);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:10px 12px;white-space:nowrap}
   tbody td{padding:10px 12px;border-bottom:1px solid #eef1f6;font-size:12.5px;vertical-align:top}
+  tbody tr{cursor:pointer}
   tbody tr:hover{background:#f7f9fd}
+  tbody tr:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
   .num{font-weight:700;color:var(--navy);white-space:nowrap}
   .money{text-align:right;white-space:nowrap;font-weight:700}
   .badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:10.5px;font-weight:700;text-transform:capitalize}
@@ -36,17 +40,18 @@
   <div class="bar">
     <h1>Quotations</h1>
     <span class="sp"></span>
-    <input class="search" id="q" placeholder="Search number, customer, city…">
+    <input class="search" id="q" placeholder="Search number, customer, city…" aria-label="Search quotations">
+    <a class="new" href="/api/v1/achi/quotations/edit">+ New quotation</a>
   </div>
   <div class="card">
     <table>
       <thead><tr>
         <th>Number</th><th>Customer</th><th>Company</th><th>City</th>
-        <th>Area</th><th>Weeks</th><th class="money">Total</th><th>Status</th><th>Created</th>
+        <th class="money">Total</th><th>Status</th><th>Valid until</th><th>Created</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
-    <div class="empty" id="empty" hidden>No quotations yet. Draft one from a row in the Call Log.</div>
+    <div class="empty" id="empty" hidden>No quotations yet. Click “+ New quotation” to write one.</div>
   </div>
 </main>
 <script>
@@ -55,8 +60,9 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dash=v=>v==null||v===''?'—':esc(v);
 // Same token the app already holds: these pages are same-origin, so there is no
-// second sign-in. See log.html for the refresh path; this page is read-only and
-// simply reports an expired session rather than silently showing nothing.
+// second sign-in. See log.html for the refresh path; this page simply reports an
+// expired session rather than silently showing nothing. A row opens the editor.
+const EDIT=API+'/quotations/edit?id=';
 const TOKEN=localStorage.getItem('oe_access_token')||sessionStorage.getItem('oe_access_token');
 let ROWS=[];
 function fail(m){ const e=$('err'); e.textContent=m; e.style.display='block'; }
@@ -67,15 +73,14 @@ function render(){
   const rows=q?ROWS.filter(r=>[r.quotation_number,r.customer_name,r.customer_company,r.site_city]
     .some(v=>String(v||'').toLowerCase().includes(q))):ROWS;
   $('empty').hidden=rows.length>0;
-  $('rows').innerHTML=rows.map(r=>`<tr>
+  $('rows').innerHTML=rows.map(r=>`<tr tabindex="0" data-id="${esc(r.id)}">
     <td class="num">${esc(r.quotation_number)}</td>
     <td>${dash(r.customer_name)}</td>
     <td>${dash(r.customer_company)}</td>
     <td>${dash(r.site_city)}</td>
-    <td>${dash(r.area_sqm)}</td>
-    <td>${dash(r.duration_weeks)}</td>
     <td class="money">${dash(r.total)} ${esc(r.currency||'')}</td>
     <td><span class="badge b-${esc(r.status)}">${esc(r.status)}</span></td>
+    <td>${r.valid_until?esc(r.valid_until.split('-').reverse().join('/')):'—'}</td>
     <td>${r.created_at?fmtDT(r.created_at):'—'}</td>
   </tr>`).join('');
 }
@@ -88,6 +93,9 @@ async function load(){
   }catch(e){ fail(e.message||'Could not load quotations'); }
 }
 $('q').oninput=render;
+const open=tr=>{ if(tr&&tr.dataset.id) location.assign(EDIT+encodeURIComponent(tr.dataset.id)); };
+$('rows').onclick=e=>open(e.target.closest('tr'));
+$('rows').onkeydown=e=>{ if(e.key==='Enter') open(e.target.closest('tr')); };
 if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
 else load();
 </script>

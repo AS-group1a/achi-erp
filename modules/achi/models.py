@@ -420,6 +420,9 @@ class Quotation(Base):
     scope: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     valid_until: Mapped[str | None] = mapped_column(Date, nullable=True)
+    # Terms printed on the quotation's second page. Added after the table
+    # existed, so nullable: the additive auto-heal can only add NULL columns.
+    conditions: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # draft -> sent -> accepted | rejected | expired
     # No index=True here: __table_args__ already declares ix_achi_quotation_status.
@@ -431,6 +434,34 @@ class Quotation(Base):
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class QuotationLine(Base):
+    """One priced row of a quotation: a product or service, the dates it covers,
+    a quantity and a price per unit (per m² unless the row says otherwise).
+
+    The editor saves the table it shows, so a save replaces every line and
+    position is simply the row order. When a quotation has lines its subtotal is
+    their sum; the single-estimate fields above only price quotations without any.
+    Line totals are stored for the same reason the quotation's are.
+    """
+
+    __tablename__ = "achi_quotation_line"
+    __table_args__ = (Index("ix_achi_quotation_line_quotation", "quotation_id", "position"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    quotation_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("achi_quotation.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    item: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    start_date: Mapped[str | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[str | None] = mapped_column(Date, nullable=True)
+    unit: Mapped[str] = mapped_column(String(16), nullable=False, default="m²", server_default="m²")
+    quantity: Mapped[str | None] = mapped_column(String(32), nullable=True)   # numeric text, like area_sqm
+    unit_price_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    line_total_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
 class GeoCity(Base):

@@ -24,6 +24,7 @@ def _load_builder() -> dict:
         node for node in tree.body
         if (isinstance(node, ast.FunctionDef) and node.name == "_stage_module_page")
         or (isinstance(node, ast.AnnAssign) and getattr(node.target, "id", "") == "STAGE_MODULES")
+        or (isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") in {"_QUOTATION_ACTIONS", "_STAGE_ACTIONS"})
     ]
     namespace = {"json": json, "_UI_DIR": UI_DIR}
     exec(compile(ast.Module(body=wanted, type_ignores=[]), "router_builder", "exec"), namespace)
@@ -55,6 +56,16 @@ class StageModulePagesTest(unittest.TestCase):
                 self.assertIn(json.dumps(stages), page)
                 # The scope must be declared before log-core.js reads it at load.
                 self.assertLess(page.index("window.ACHI_LOG_FILTER"), page.index("/api/v1/achi/ui/log-core.js"))
+
+    def test_only_the_quotation_module_writes_quotations(self) -> None:
+        actions = self.ns["_STAGE_ACTIONS"]
+        self.assertEqual(set(actions), {"quotation"})
+        page = self.ns["_stage_module_page"](*self.ns["STAGE_MODULES"]["quotation"], actions=actions["quotation"])
+        self.assertIn('id="quo-new"', page)
+        self.assertIn("/api/v1/achi/quotations/edit", page)
+        # Placed beside "+ Add Log", not somewhere the anchor no longer exists.
+        self.assertLess(page.index('id="quo-new"'), page.index('id="expand-row"'))
+        self.assertNotIn('id="quo-new"', self.ns["_stage_module_page"](*self.ns["STAGE_MODULES"]["boq"]))
 
     def test_missing_anchor_fails_loudly(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

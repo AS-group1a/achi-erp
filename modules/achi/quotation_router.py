@@ -10,24 +10,45 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from app.dependencies import CurrentUserId, SessionDep
 
 from .schemas import (
+    QuotationCreate,
     QuotationDraftFromLog,
+    QuotationLineOut,
     QuotationOut,
     QuotationUpdate,
 )
-from .quotation_service import QuotationService, display_quotation_number, to_major, to_minor
+from .quotation_service import (
+    DEFAULT_CONDITIONS,
+    QuotationService,
+    display_quotation_number,
+    to_major,
+    to_minor,
+)
 
 quotation_router = APIRouter()
 
 _UI_DIR = Path(__file__).parent / "ui"
+_NO_STORE = {"Cache-Control": "no-store, max-age=0"}
 
 
-def _out(q) -> QuotationOut:
-    """Row -> wire shape, converting minor units back to decimal strings."""
+def _line_out(line) -> QuotationLineOut:
+    return QuotationLineOut(
+        id=line.id, position=line.position, item=line.item, description=line.description,
+        start_date=line.start_date, end_date=line.end_date, unit=line.unit,
+        quantity=line.quantity, unit_price=to_major(line.unit_price_minor),
+        total=to_major(line.line_total_minor) or "0.00",
+    )
+
+
+def _out(q, lines=None) -> QuotationOut:
+    """Row -> wire shape, converting minor units back to decimal strings.
+
+    lines: the quotation's table rows, or None where they are not loaded (lists).
+    """
     return QuotationOut(
         id=q.id,
         quotation_number=display_quotation_number(q.quotation_number),
@@ -55,9 +76,15 @@ def _out(q) -> QuotationOut:
         scope=q.scope,
         notes=q.notes,
         valid_until=q.valid_until,
+        conditions=q.conditions,
         status=q.status,
         created_at=q.created_at,
+        lines=None if lines is None else [_line_out(line) for line in lines],
     )
+
+
+async def _full(svc: QuotationService, q) -> QuotationOut:
+    return _out(q, await svc.lines(q.id))
 
 
 def _estimate_to_columns(data: dict) -> dict:
@@ -80,7 +107,56 @@ def _estimate_to_columns(data: dict) -> dict:
     summary="Quotations UI",
 )
 def quotations_ui() -> HTMLResponse:
-    return HTMLResponse((_UI_DIR / "quotations.html").read_text(encoding="utf-8"))
+    return HTMLResponse((_UI_DIR / "quotations.html").read_text(encoding="utf-8"), headers=_NO_STORE)
+
+
+@quotation_router.get("/quotations/edit", response_class=HTMLResponse, include_in_schema=False)
+def quotation_editor_ui() -> HTMLResponse:
+    """The quotation editor: ?id=<quotation> opens one, ?file=<enquiry> starts
+    one addressed to that enquiry's customer, neither starts a blank one."""
+    return HTMLResponse((_UI_DIR / "quotation_editor.html").read_text(encoding="utf-8"), headers=_NO_STORE)
+
+
+@quotation_router.get("/quotations/editor.js", response_class=PlainTextResponse, include_in_schema=False)
+def quotation_editor_js() -> PlainTextResponse:
+    return PlainTextResponse(
+        (_UI_DIR / "quotation_editor.js").read_text(encoding="utf-8"),
+        media_type="application/javascript", headers=_NO_STORE,
+    )
+
+
+@quotation_router.get("/quotations/defaults", summary="Defaults for a new quotation")
+async def quotation_defaults(user_id: CurrentUserId) -> dict:
+    return {"conditions": DEFAULT_CONDITIONS, "currency": "USD", "vat_percent": "11"}
+
+
+@quotation_router.get("/quotations/customer", summary="Who a quotation for an enquiry is addressed to")
+async def quotation_customer(
+    session: SessionDep,
+    user_id: CurrentUserId,
+    file_id: str = Query(..., max_length=36),
+) -> dict:
+    """The editor shows this before the first save; the server applies the same
+    mapping again on create, so the two cannot drift."""
+    customer = await QuotationService(session).customer_from_file(file_id)
+    if customer is None:
+        raise HTTPException(status_code=404, detail="That enquiry no longer exists")
+    return customer
+
+
+@quotation_router.post(
+    "/quotations/",
+    response_model=QuotationOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a quotation from the editor",
+)
+async def create_quotation(payload: QuotationCreate, session: SessionDep, user_id: CurrentUserId) -> QuotationOut:
+    svc = QuotationService(session)
+    data = _estimate_to_columns(payload.model_dump(exclude_unset=True))
+    q = await svc.create_from_editor(data, user_id=user_id)
+    if q is None:
+        raise HTTPException(status_code=404, detail="That enquiry no longer exists")
+    return await _full(svc, q)
 
 
 @quotation_router.post(
@@ -101,7 +177,7 @@ async def draft_from_log(
     if q is None:
         # The row is gone — 404 rather than a quotation addressed to nobody.
         raise HTTPException(status_code=404, detail="call log row not found")
-    return _out(q)
+    return await _full(svc, q)
 
 
 @quotation_router.get("/quotations/", response_model=list[QuotationOut], summary="List quotations")
@@ -117,10 +193,11 @@ async def list_quotations(
 
 @quotation_router.get("/quotations/{quotation_id}", response_model=QuotationOut, summary="Get a quotation")
 async def get_quotation(quotation_id: str, session: SessionDep, user_id: CurrentUserId) -> QuotationOut:
-    q = await QuotationService(session).get(quotation_id)
+    svc = QuotationService(session)
+    q = await svc.get(quotation_id)
     if q is None:
         raise HTTPException(status_code=404, detail="quotation not found")
-    return _out(q)
+    return await _full(svc, q)
 
 
 @quotation_router.patch("/quotations/{quotation_id}", response_model=QuotationOut, summary="Update a quotation")
@@ -134,7 +211,7 @@ async def update_quotation(
     q = await svc.get(quotation_id)
     if q is None:
         raise HTTPException(status_code=404, detail="quotation not found")
-    return _out(await svc.update(q, _estimate_to_columns(payload.model_dump(exclude_unset=True))))
+    return await _full(svc, await svc.update(q, _estimate_to_columns(payload.model_dump(exclude_unset=True))))
 
 
 @quotation_router.delete(

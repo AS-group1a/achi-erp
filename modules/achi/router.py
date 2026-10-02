@@ -241,7 +241,7 @@ def crm_ui() -> HTMLResponse:
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
-def _stage_module_page(title: str, code: str, scope: dict) -> str:
+def _stage_module_page(title: str, code: str, scope: dict, actions: str = "") -> str:
     """The Log page as one CRM stage module (DRAW, M/T, BOQ, Quotation).
 
     An enquiry appears here while its CRM stage is in ``scope["stages"]`` and is
@@ -249,7 +249,8 @@ def _stage_module_page(title: str, code: str, scope: dict) -> str:
     this fixed scope (module_sequence) and log-core.js prints the code. Built
     from general_log.html at request time so every module wears the current Log
     design with no copy to keep in step; a missing anchor fails loudly instead
-    of silently serving the unscoped Log.
+    of silently serving the unscoped Log. ``actions`` is extra header HTML,
+    placed before "+ Add Log".
     """
     page = (_UI_DIR / "general_log.html").read_text(encoding="utf-8")
     config = (
@@ -264,7 +265,7 @@ def _stage_module_page(title: str, code: str, scope: dict) -> str:
          f'<body class="log-page" data-achi-title="{title}">'),
         ('<h1 id="log-overview-title">Log</h1>', f'<h1 id="log-overview-title">{title}</h1>'),
         ('<script src="/api/v1/achi/ui/log-core.js', config + '<script src="/api/v1/achi/ui/log-core.js'),
-    )
+    ) + ((('<button class="tb-exp" id="expand-row"', actions + '<button class="tb-exp" id="expand-row"'),) if actions else ())
     for old, new in edits:
         if old not in page:
             raise RuntimeError(f"general_log.html changed: cannot find {old!r} for the {title} page")
@@ -285,9 +286,34 @@ STAGE_MODULES: dict[str, tuple[str, str, dict]] = {
 }
 
 
+# The Quotation module also writes quotations: "+ New quotation" opens the
+# editor, addressed to the selected enquiry's customer when exactly one saved
+# row is selected (selectedLogId and ROWS are log-core.js globals).
+_QUOTATION_ACTIONS = """<a class="log-clear-filters" href="/api/v1/achi/quotations/ui" style="text-decoration:none">Quotations list</a>
+        <button class="tb-exp" id="quo-new" type="button" title="Write a quotation. Select one enquiry first to address it to that customer.">+ New quotation</button>
+        <script>
+        (function () {
+          var btn = document.getElementById('quo-new');
+          function selectedFile() {
+            var id = typeof selectedLogId === 'function' ? selectedLogId() : null;
+            var row = id && typeof ROWS !== 'undefined' ? ROWS.find(function (r) { return r.id === id; }) : null;
+            return row && row.file_id ? row.file_id : null;
+          }
+          function label() { btn.textContent = selectedFile() ? '+ Quotation for selected' : '+ New quotation'; }
+          ['click', 'change', 'keyup'].forEach(function (t) { document.addEventListener(t, function () { setTimeout(label, 0); }); });
+          btn.addEventListener('click', function () {
+            var file = selectedFile();
+            location.assign('/api/v1/achi/quotations/edit' + (file ? '?file=' + encodeURIComponent(file) : ''));
+          });
+        })();
+        </script>
+        """
+_STAGE_ACTIONS = {"quotation": _QUOTATION_ACTIONS}
+
+
 def _stage_module_response(key: str) -> HTMLResponse:
     return HTMLResponse(
-        _stage_module_page(*STAGE_MODULES[key]),
+        _stage_module_page(*STAGE_MODULES[key], actions=_STAGE_ACTIONS.get(key, "")),
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
