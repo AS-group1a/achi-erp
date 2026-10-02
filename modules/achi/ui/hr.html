@@ -4,30 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HR · ARARA</title>
-  <link rel="stylesheet" href="/api/v1/achi/projects/projects.css?v=1">
+  <link rel="stylesheet" href="/api/v1/achi/projects/projects.css?v=2">
 </head>
 <body data-achi-title="HR">
   <main class="pj-page">
-    <header class="pj-head">
-      <div>
-        <p class="pj-crumb"><span id="hr-company-name">ARARA</span> / HR</p>
-        <h1>Employees</h1>
-        <p class="pj-sub">The people of <span id="hr-company-sub">ARARA</span>. Projects assigns its tasks from this list.</p>
-      </div>
-      <div class="pj-actions">
-        <button class="pj-primary" id="hr-new" type="button" hidden>+ Employee</button>
-      </div>
-    </header>
-
-    <section class="pj-main" aria-label="Employees">
+    <section class="pj-main pj-fill" aria-label="Employees">
       <div class="pj-toolbar">
+        <h2 class="pj-title"><span class="pj-crumb" id="hr-company-name">ARARA</span>Employees</h2>
         <div class="pj-filters">
           <label class="sr-only" for="hr-search">Search employees</label>
           <input id="hr-search" type="search" maxlength="120" autocomplete="off" placeholder="Search name, title or team">
           <label class="pj-who" style="font-size:13px;color:#53627b"><input id="hr-inactive" type="checkbox"> Show inactive</label>
         </div>
+        <div class="pj-actions"><button class="pj-primary" id="hr-new" type="button" hidden>+ Employee</button></div>
       </div>
-      <p class="hr-note">Switch between Achi Scaffolding and ARARA with the company menu at the top of the sidebar. Each company keeps its own employees.</p>
       <p class="pj-msg" id="hr-msg" role="status" hidden></p>
       <div id="hr-view" class="pj-view"></div>
     </section>
@@ -61,6 +51,6 @@
   </dialog>
 
   <script src="/api/v1/achi/ui/chrome.js?v=52"></script>
-  <script src="/api/v1/achi/hr/hr.js?v=1"></script>
+  <script src="/api/v1/achi/hr/hr.js?v=2"></script>
 </body>
 </html>

@@ -4,25 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Projects · ARARA</title>
-  <link rel="stylesheet" href="/api/v1/achi/projects/projects.css?v=1">
+  <link rel="stylesheet" href="/api/v1/achi/projects/projects.css?v=2">
 </head>
 <body data-achi-title="Projects">
   <main class="pj-page">
-    <header class="pj-head">
-      <div>
-        <p class="pj-crumb"><span id="pj-company-name">ARARA</span> / PROJECTS</p>
-        <h1>Projects</h1>
-        <p class="pj-sub">Plan the tech team's work: projects, tasks and dates.</p>
-      </div>
-      <div class="pj-actions">
-        <button class="pj-btn" id="pj-new-project" type="button">+ Project</button>
-        <button class="pj-primary" id="pj-new-task" type="button">+ Task</button>
-      </div>
-    </header>
-
     <div class="pj-work">
       <aside class="pj-side" aria-labelledby="pj-side-title">
-        <div class="pj-side-head"><p class="pj-crumb">PROJECTS</p><h2 id="pj-side-title">All work</h2></div>
+        <div class="pj-side-head"><p class="pj-crumb" id="pj-company-name">ARARA</p><h2 id="pj-side-title">Projects</h2></div>
         <div id="pj-project-list" class="pj-project-list"></div>
       </aside>
 
@@ -38,6 +26,10 @@
             <select id="pj-person"></select>
             <label class="sr-only" for="pj-search">Search tasks</label>
             <input id="pj-search" type="search" maxlength="120" autocomplete="off" placeholder="Search tasks">
+          </div>
+          <div class="pj-actions">
+            <button class="pj-btn" id="pj-new-project" type="button">+ Project</button>
+            <button class="pj-primary" id="pj-new-task" type="button">+ Task</button>
           </div>
         </div>
         <p class="pj-msg" id="pj-msg" role="status" hidden></p>
@@ -114,6 +106,6 @@
   </dialog>
 
   <script src="/api/v1/achi/ui/chrome.js?v=52"></script>
-  <script src="/api/v1/achi/projects/projects.js?v=1"></script>
+  <script src="/api/v1/achi/projects/projects.js?v=2"></script>
 </body>
 </html>

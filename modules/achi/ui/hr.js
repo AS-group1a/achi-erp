@@ -48,7 +48,6 @@
 
   function render() {
     $('hr-company-name').textContent = COMPANIES[company];
-    $('hr-company-sub').textContent = COMPANIES[company];
     $('hr-new').hidden = !state.canManage;
     const q = state.query;
     const rows = state.people.filter(p => !q || [p.full_name, p.job_title, p.team, p.email].some(v => String(v || '').toLowerCase().includes(q)));
