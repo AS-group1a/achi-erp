@@ -16,6 +16,7 @@ from app.modules.users.models import User
 
 from .schemas import display_survey_number
 
+from .company_access import require_company
 from .planner_models import AchiPlannerEvent, AchiPlannerEventAttendee, AchiPlannerReminder
 from .planner_schemas import (
     PlannerAttendeeIn,
@@ -127,7 +128,7 @@ class PlannerService:
 
     async def search_related_records(self, actor_id: str, query: str) -> list[PlannerRelatedRecordOut]:
         """Find existing Log/CRM/Site Visit files to link; never copies them."""
-        await self._actor(actor_id)
+        await require_company(self.session, await self._actor(actor_id), "achi")
         text = query.strip()
         if len(text) < 2:
             return []
@@ -171,7 +172,7 @@ class PlannerService:
 
         FileLog remains the single editable source.
         """
-        await self._actor(actor_id)
+        await require_company(self.session, await self._actor(actor_id), "achi")
         if end <= start:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "end must be after start")
         local_zone = ZoneInfo("Asia/Beirut")
@@ -208,7 +209,7 @@ class PlannerService:
         established ``achi_site_survey.scheduled_for`` field is therefore the
         only authoritative Site Visit schedule used here.
         """
-        await self._actor(actor_id)
+        await require_company(self.session, await self._actor(actor_id), "achi")
         if end <= start:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "end must be after start")
         rows = (await self.session.execute(
@@ -243,13 +244,15 @@ class PlannerService:
             ))
         return output
 
-    async def list_events(self, actor_id: str, start: datetime, end: datetime) -> PlannerEventListOut:
+    async def list_events(self, actor_id: str, start: datetime, end: datetime, company: str = "achi") -> PlannerEventListOut:
         actor = await self._actor(actor_id)
+        await require_company(self.session, actor, company)
         if end <= start:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "end must be after start")
         events = (await self.session.execute(
             select(AchiPlannerEvent)
             .where(
+                AchiPlannerEvent.company == company,
                 AchiPlannerEvent.deleted_at.is_(None),
                 AchiPlannerEvent.status == "scheduled",
                 or_(
@@ -314,6 +317,7 @@ class PlannerService:
         a task's workflow nor invents a second task record.
         """
         actor = await self._actor(actor_id)
+        await require_company(self.session, actor, "achi")
         scheduled_block_counts = Counter((await self.session.execute(
             select(AchiPlannerEvent.related_task_id).where(
                 AchiPlannerEvent.deleted_at.is_(None),
@@ -343,6 +347,7 @@ class PlannerService:
 
     async def schedule_task_block(self, actor_id: str, data: PlannerTaskBlockCreateIn) -> PlannerEventOut:
         actor = await self._actor(actor_id)
+        await require_company(self.session, actor, "achi")
         if not self._can_write(actor):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has read-only Planner access")
         # Reuse the existing Team Task visibility rules before creating only a
@@ -415,7 +420,7 @@ class PlannerService:
         # Availability remains visible, but a private item's details stay private.
         if event.visibility == "private" and event.organizer_user_id != actor_id:
             return PlannerEventOut(
-                id=event.id, title="Busy", description="", event_type="appointment",
+                id=event.id, company=event.company, title="Busy", description="", event_type="appointment",
                 status=event.status, visibility="private", start_at=shown_start,
                 end_at=shown_end, all_day=event.all_day, timezone=event.timezone,
                 location="", meeting_url="", organizer_user_id=event.organizer_user_id,
@@ -426,7 +431,7 @@ class PlannerService:
                 created_at=event.created_at, updated_at=event.updated_at,
             )
         return PlannerEventOut(
-            id=event.id, title=event.title, description=event.description,
+            id=event.id, company=event.company, title=event.title, description=event.description,
             event_type=event.event_type, status=event.status, visibility=event.visibility,
             start_at=shown_start, end_at=shown_end, all_day=event.all_day,
             timezone=event.timezone, location=event.location, meeting_url=event.meeting_url,
@@ -443,7 +448,9 @@ class PlannerService:
         actor = await self._actor(actor_id)
         if not self._can_write(actor):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has read-only Planner access")
+        await require_company(self.session, actor, data.company)
         event = AchiPlannerEvent(
+            company=data.company,
             title=data.title, description=data.description, event_type=data.event_type,
             start_at=data.start_at, end_at=data.end_at, all_day=data.all_day,
             timezone=data.timezone, location=data.location, meeting_url=data.meeting_url,
@@ -471,6 +478,7 @@ class PlannerService:
         if not self._can_write(actor):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has read-only Planner access")
         event = await self._event(event_id, lock=True)
+        await require_company(self.session, actor, event.company)
         if event.organizer_user_id != str(actor.id) and not self._can_manage(actor):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the organizer or a supervisor can edit this event")
         changes = data.model_dump(exclude_unset=True)
@@ -506,6 +514,7 @@ class PlannerService:
     async def rsvp(self, actor_id: str, event_id: str, data: PlannerRsvpIn) -> PlannerEventOut:
         actor = await self._actor(actor_id)
         event = await self._event(event_id, lock=True)
+        await require_company(self.session, actor, event.company)
         attendee = (await self.session.execute(
             select(AchiPlannerEventAttendee).where(
                 AchiPlannerEventAttendee.event_id == event.id,
@@ -564,6 +573,7 @@ class PlannerService:
         if not self._can_write(actor):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has read-only Planner access")
         event = await self._event(event_id, lock=True)
+        await require_company(self.session, actor, event.company)
         if event.organizer_user_id != str(actor.id) and not self._can_manage(actor):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the organizer or a supervisor can delete this event")
         event.deleted_at = _now()

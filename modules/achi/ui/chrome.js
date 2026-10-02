@@ -52,15 +52,37 @@
   // Company: Achi Scaffolding or ARARA, picked in the sidebar and remembered
   // per browser. It decides which modules the menu shows, and the HR and
   // Projects pages read it (window.araraCompany) to load that company's data.
+  // Which companies an account may open comes from the server (/hr/me,
+  // company_access.py: admins both; others the companies HR links them to;
+  // unlinked accounts Achi only). It is cached per sign-in so the menu is
+  // right on the first paint; the APIs enforce it either way.
   var COMPANIES = [['achi', 'Achi Scaffolding', 'AC'], ['arara', 'ARARA', 'AR']];
   var COMPANY_KEY = 'arara_company';
+  var ACCESS_KEY = 'arara_company_access';
+  function companyToken() {
+    try { return localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (e) { return ''; }
+  }
+  // Tie the cache to this sign-in without keeping a second copy of the token.
+  function tokenTag() { var t = companyToken(); return t ? t.slice(-24) : ''; }
+  function allowedCompanies() {
+    try {
+      var o = JSON.parse(localStorage.getItem(ACCESS_KEY) || 'null');
+      if (o && o.tag === tokenTag() && o.companies && o.companies.length) return o.companies;
+    } catch (e) {}
+    return null;   // not known yet
+  }
+  function mayOpen(c) { var a = allowedCompanies(); return !a || a.indexOf(c) >= 0; }
   function currentCompany() {
     // A page that belongs to one company (opened from a bookmark or a shared
-    // link) switches to that company, so the menu and the page's data agree.
+    // link) switches to that company, so the menu and the page's data agree,
+    // unless this account may not open it.
     var owner = pageOwner();
-    if (owner) { storeCompany(owner); return owner; }
-    try { var c = localStorage.getItem(COMPANY_KEY); if (c === 'achi' || c === 'arara') return c; } catch (e) {}
-    return 'achi';
+    if (owner && mayOpen(owner)) { storeCompany(owner); return owner; }
+    var c = null;
+    try { c = localStorage.getItem(COMPANY_KEY); } catch (e) {}
+    if ((c === 'achi' || c === 'arara') && mayOpen(c)) return c;
+    var a = allowedCompanies();
+    return a ? a[0] : 'achi';
   }
   function samePage(href) { return href.split('?')[0].replace(/\/+$/, '') === location.pathname.replace(/\/+$/, ''); }
   function pageOwner() {
@@ -154,6 +176,9 @@ var LINKS = [
     + '.achi-company select:focus-visible{outline:2px solid #fff;outline-offset:1px}'
     + '.achi-company option{color:#17223b;background:#fff}'
     + '.achi-co-short{display:none}'
+    + '.achi-co-only{display:none;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.1);font-size:12.5px;font-weight:600}'
+    + '.achi-company.is-single select{display:none}.achi-company.is-single .achi-co-only{display:block}'
+    + '.achi-chrome:not(.achi-expanded) .achi-company.is-single .achi-co-only{display:none}'
     + '.achi-chrome:not(.achi-expanded) .achi-company{margin:0 16px 10px}'
     + '.achi-chrome:not(.achi-expanded) .achi-co-label,.achi-chrome:not(.achi-expanded) .achi-company select{display:none}'
     + '.achi-chrome:not(.achi-expanded) .achi-co-short{display:grid;place-items:center;width:32px;height:24px;border-radius:6px;background:rgba(255,255,255,.16);font-size:10px;font-weight:800;letter-spacing:.05em}'
@@ -206,10 +231,70 @@ var LINKS = [
     + '<rect x="16.9" y="26" width="30.2" height="12" rx="6" fill="none" stroke="#fff" stroke-width="3.9"/>'
     + '</svg>';
 
+  function applyCompanyAccess(side, companies) {
+    if (!companies) return;
+    var box = side.querySelector('.achi-company');
+    var select = side.querySelector('#achi-company');
+    Array.prototype.slice.call(select.options).forEach(function (o) {
+      if (companies.indexOf(o.value) < 0) o.remove();
+    });
+    var only = companies.length === 1;
+    box.classList.toggle('is-single', only);
+    if (only) {
+      var c = COMPANIES.filter(function (x) { return x[0] === companies[0]; })[0];
+      box.querySelector('.achi-co-only').textContent = c ? c[1] : companies[0];
+    }
+  }
+
+  function noCompanyAccess(company) {
+    if (document.getElementById('achi-no-company')) return;
+    var name = (COMPANIES.filter(function (x) { return x[0] === company; })[0] || [company, company])[1];
+    // Send them to the first page of a company they can open.
+    var allowed = allowedCompanies() || ['achi'];
+    var homeCo = allowed[0];
+    var home = LINKS.filter(function (l) { return l.co === homeCo || l.co === 'both'; })[0] || LINKS[0];
+    var homeName = (COMPANIES.filter(function (x) { return x[0] === homeCo; })[0] || [homeCo, homeCo])[1];
+    var box = document.createElement('div');
+    box.id = 'achi-no-company';
+    box.setAttribute('role', 'alert');
+    box.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:20px;'
+      + 'background:#f4f6f9;font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#44546e';
+    box.innerHTML = '<div style="max-width:420px;padding:20px 22px;border:1px solid #b9c5d8;border-radius:6px;background:#fff;text-align:center">'
+      + '<div style="margin-bottom:6px;color:#1f3f80;font-size:15px;font-weight:800">No access to ' + name + '</div>'
+      + 'Your account can’t open ' + name + ' pages. An admin can give access by linking you to ' + name + '’s HR.'
+      + '<div style="margin-top:12px"><a href="' + home.href + '" style="color:#284f9e;font-weight:700">← Go to ' + homeName + '</a></div></div>';
+    document.body.appendChild(box);
+  }
+
+  function refreshCompanyAccess(side) {
+    var tok = companyToken();
+    if (!tok) return;
+    var owner = pageOwner();
+    var known = allowedCompanies();
+    if (owner && known && known.indexOf(owner) < 0) noCompanyAccess(owner);
+    fetch('/api/v1/achi/hr/me', { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (me) {
+        if (!me || !me.companies || !me.companies.length) return;
+        try { localStorage.setItem(ACCESS_KEY, JSON.stringify({ tag: tokenTag(), companies: me.companies })); } catch (e) {}
+        applyCompanyAccess(side, me.companies);
+        if (owner && me.companies.indexOf(owner) < 0) { noCompanyAccess(owner); return; }
+        // The menu was drawn for a company this account may not open (first
+        // visit, or access changed): switch to an allowed one. Only when the
+        // choice could be saved, or the reload would draw the same menu again.
+        if (me.companies.indexOf(side.getAttribute('data-company')) < 0 && allowedCompanies()) {
+          storeCompany(me.companies[0]);
+          location.reload();
+        }
+      })
+      .catch(function () {});
+  }
+
   function build(title) {
     var side = document.createElement('nav');
     side.className = 'achi-chrome';
     var company = currentCompany();
+    side.setAttribute('data-company', company);
     var shown = LINKS.filter(function (l) { return l.co === 'both' || l.co === company; });
     var short = COMPANIES.filter(function (c) { return c[0] === company; })[0][2];
     // The ARARA logo, then the product name (hidden while collapsed).
@@ -218,9 +303,10 @@ var LINKS = [
       + '<span class="achi-mark" aria-hidden="true">' + LOGO + '</span>'
       + '<div><b>ARARA</b></div></div>'
       + '<div class="achi-company"><label class="achi-co-label" for="achi-company">Company</label>'
-      + '<select id="achi-company">' + COMPANIES.map(function (c) {
+      + '<select id="achi-company">' + COMPANIES.filter(function (c) { return mayOpen(c[0]); }).map(function (c) {
           return '<option value="' + c[0] + '"' + (c[0] === company ? ' selected' : '') + '>' + c[1] + '</option>';
         }).join('') + '</select>'
+      + '<span class="achi-co-only"></span>'
       + '<span class="achi-co-short" title="Company">' + short + '</span></div>'
       + '<div class="achi-sep"></div>'
       + '<div class="achi-nav">'
@@ -256,6 +342,9 @@ var LINKS = [
       var first = LINKS.filter(function (l) { return l.co === next; })[0];
       location.assign(first ? first.href : location.href);
     });
+
+    applyCompanyAccess(side, allowedCompanies());
+    refreshCompanyAccess(side);
 
     var top = document.createElement('div');
     top.className = 'achi-top';

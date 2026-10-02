@@ -68,6 +68,7 @@ def _validate_reminder_minutes(value: list[int]) -> list[int]:
 
 
 class PlannerEventCreateIn(PlannerInput):
+    company: Literal["achi", "arara"] = "achi"
     title: str = Field(min_length=1, max_length=255)
     description: str = Field(default="", max_length=20_000)
     event_type: PlannerEventType = "event"
@@ -244,6 +245,7 @@ class PlannerEventOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    company: str = "achi"
     title: str
     description: str
     event_type: PlannerEventType

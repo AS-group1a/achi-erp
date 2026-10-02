@@ -1,7 +1,7 @@
 """HR routes, mounted under /api/v1/achi/hr by router.py.
 
-Everyone signed in may read a company's employee list (Projects assigns work
-from it); only managers and admins may change it.
+Anyone who may open a company (company_access.py) may read its employee list
+(Projects assigns work from it); only managers and admins may change it.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from app.dependencies import CurrentUserId, SessionDep
 from app.modules.users.models import User
 
+from .company_access import active_user, allowed_companies, require_company
 from .hr_models import COMPANIES, AchiHrEmployee
 from .project_models import AchiProjectTask
 
@@ -85,19 +86,8 @@ class EmployeeOut(BaseModel):
     open_tasks: int = 0
 
 
-async def _user(session, user_id: str) -> User:
-    try:
-        uid = uuid.UUID(str(user_id))
-    except (TypeError, ValueError):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid authenticated user") from None
-    user = (await session.execute(select(User).where(User.id == uid, User.is_active.is_(True)))).scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
-    return user
-
-
 async def _require_manager(session, user_id: str) -> User:
-    user = await _user(session, user_id)
+    user = await active_user(session, user_id)
     if (user.role or "").strip().lower() not in _MANAGER_ROLES:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only managers and admins can change HR records")
     return user
@@ -168,16 +158,19 @@ async def list_companies() -> list[dict[str, str]]:
 
 @hr_router.get("/me")
 async def hr_me(session: SessionDep, user_id: CurrentUserId) -> dict:
-    """Who is asking and whether they may edit HR records."""
-    user = await _user(session, user_id)
+    """Who is asking, which companies they may open, and whether they may edit HR."""
+    user = await active_user(session, user_id)
     role = (user.role or "").strip().lower()
-    return {"user_id": str(user.id), "role": role, "can_manage": role in _MANAGER_ROLES}
+    return {
+        "user_id": str(user.id), "role": role, "can_manage": role in _MANAGER_ROLES,
+        "companies": await allowed_companies(session, user),
+    }
 
 
 @hr_router.get("/users")
 async def list_login_users(session: SessionDep, user_id: CurrentUserId) -> list[dict[str, str]]:
     """Active login accounts an employee can be linked to."""
-    await _user(session, user_id)
+    await active_user(session, user_id)
     users = (await session.execute(
         select(User).where(User.is_active.is_(True)).order_by(User.full_name, User.email)
     )).scalars().all()
@@ -191,7 +184,7 @@ async def list_employees(
     company: Annotated[Company, Query()],
     include_inactive: Annotated[bool, Query()] = False,
 ) -> list[EmployeeOut]:
-    await _user(session, user_id)
+    await require_company(session, await active_user(session, user_id), company)
     query = select(AchiHrEmployee).where(AchiHrEmployee.company == company)
     if not include_inactive:
         query = query.where(AchiHrEmployee.active.is_(True))
@@ -201,7 +194,7 @@ async def list_employees(
 
 @hr_router.post("/employees", response_model=EmployeeOut, status_code=status.HTTP_201_CREATED)
 async def create_employee(data: EmployeeIn, session: SessionDep, user_id: CurrentUserId) -> EmployeeOut:
-    await _require_manager(session, user_id)
+    await require_company(session, await _require_manager(session, user_id), data.company)
     await _check_login(session, data.user_id)
     row = AchiHrEmployee(**data.model_dump())
     session.add(row)
@@ -214,10 +207,11 @@ async def create_employee(data: EmployeeIn, session: SessionDep, user_id: Curren
 async def update_employee(
     employee_id: str, data: EmployeeUpdate, session: SessionDep, user_id: CurrentUserId,
 ) -> EmployeeOut:
-    await _require_manager(session, user_id)
+    user = await _require_manager(session, user_id)
     row = await session.get(AchiHrEmployee, employee_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Employee not found")
+    await require_company(session, user, row.company)
     changes = data.model_dump(exclude_unset=True)
     if "user_id" in changes:
         changes["user_id"] = changes["user_id"] or None
@@ -235,10 +229,11 @@ async def update_employee(
 async def delete_employee(employee_id: str, session: SessionDep, user_id: CurrentUserId) -> Response:
     """Remove someone added by mistake. People with tasks are deactivated instead,
     so the tasks keep showing who did them."""
-    await _require_manager(session, user_id)
+    user = await _require_manager(session, user_id)
     row = await session.get(AchiHrEmployee, employee_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Employee not found")
+    await require_company(session, user, row.company)
     has_tasks = (await session.execute(
         select(AchiProjectTask.id).where(AchiProjectTask.assignee_employee_id == employee_id).limit(1)
     )).first()

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -11,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.users.models import User
 
+from .company_access import active_user, allowed_companies, require_company
 from .hr_models import COMPANIES, AchiHrEmployee
 from .project_models import AchiProject, AchiProjectTask
 from .project_schemas import (
@@ -44,16 +44,7 @@ class ProjectService:
     # ── people and permissions ──────────────────────────────────────────────
 
     async def actor(self, user_id: str) -> User:
-        try:
-            uid = uuid.UUID(str(user_id))
-        except (TypeError, ValueError):
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid authenticated user") from None
-        user = (await self.session.execute(
-            select(User).where(User.id == uid, User.is_active.is_(True))
-        )).scalar_one_or_none()
-        if user is None:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
-        return user
+        return await active_user(self.session, user_id)
 
     @staticmethod
     def role(user: User) -> str:
@@ -74,7 +65,10 @@ class ProjectService:
     async def access(self, user_id: str) -> dict:
         user = await self.actor(user_id)
         role = self.role(user)
-        return {"role": role, "can_write": role in _WRITER_ROLES, "can_manage": role in _MANAGER_ROLES}
+        return {
+            "role": role, "can_write": role in _WRITER_ROLES, "can_manage": role in _MANAGER_ROLES,
+            "companies": await allowed_companies(self.session, user),
+        }
 
     async def _employee(self, employee_id: str | None, company: str) -> AchiHrEmployee | None:
         if not employee_id:
@@ -138,7 +132,7 @@ class ProjectService:
         ]
 
     async def list_projects(self, user_id: str, company: str) -> list[ProjectOut]:
-        await self.actor(user_id)
+        await require_company(self.session, await self.actor(user_id), company)
         order = case({"active": 0, "planned": 1, "on_hold": 2, "done": 3}, value=AchiProject.status, else_=4)
         rows = (await self.session.execute(
             select(AchiProject)
@@ -149,6 +143,7 @@ class ProjectService:
 
     async def create_project(self, user_id: str, data: ProjectIn) -> ProjectOut:
         user = await self.require_writer(user_id)
+        await require_company(self.session, user, data.company)
         await self._employee(data.lead_employee_id, data.company)
         row = AchiProject(
             **data.model_dump(),
@@ -161,8 +156,9 @@ class ProjectService:
         return (await self._project_out([row]))[0]
 
     async def update_project(self, user_id: str, project_id: str, data: ProjectUpdate) -> ProjectOut:
-        await self.require_writer(user_id)
+        user = await self.require_writer(user_id)
         row = await self._project(project_id)
+        await require_company(self.session, user, row.company)
         changes = data.model_dump(exclude_unset=True)
         if "lead_employee_id" in changes:
             changes["lead_employee_id"] = changes["lead_employee_id"] or None
@@ -181,8 +177,9 @@ class ProjectService:
 
     async def delete_project(self, user_id: str, project_id: str) -> None:
         """Soft delete: the project and its tasks disappear but stay recoverable."""
-        await self.require_manager(user_id)
+        user = await self.require_manager(user_id)
         row = await self._project(project_id)
+        await require_company(self.session, user, row.company)
         now = _now()
         row.deleted_at = now
         await self.session.execute(
@@ -238,7 +235,7 @@ class ProjectService:
         return float(top or 0) + 1
 
     async def list_tasks(self, user_id: str, company: str, project_id: str | None) -> list[TaskOut]:
-        await self.actor(user_id)
+        await require_company(self.session, await self.actor(user_id), company)
         query = (
             select(AchiProjectTask)
             .join(AchiProject, AchiProject.id == AchiProjectTask.project_id)
@@ -257,6 +254,7 @@ class ProjectService:
 
     async def create_task(self, user_id: str, data: TaskIn) -> TaskOut:
         user = await self.require_writer(user_id)
+        await require_company(self.session, user, data.company)
         await self._project(data.project_id, data.company)
         await self._employee(data.assignee_employee_id, data.company)
         row = AchiProjectTask(
@@ -272,8 +270,9 @@ class ProjectService:
         return (await self._task_out([row]))[0]
 
     async def update_task(self, user_id: str, task_id: str, data: TaskUpdate) -> TaskOut:
-        await self.require_writer(user_id)
+        user = await self.require_writer(user_id)
         row = await self._task(task_id)
+        await require_company(self.session, user, row.company)
         changes = data.model_dump(exclude_unset=True)
         if changes.get("project_id"):
             await self._project(changes["project_id"], row.company)
@@ -299,7 +298,8 @@ class ProjectService:
         return (await self._task_out([row]))[0]
 
     async def delete_task(self, user_id: str, task_id: str) -> None:
-        await self.require_writer(user_id)
+        user = await self.require_writer(user_id)
         row = await self._task(task_id)
+        await require_company(self.session, user, row.company)
         row.deleted_at = _now()
         await self.session.commit()

@@ -137,6 +137,7 @@ table.pj-table { width:100%; min-width:860px; border-collapse:collapse; font-siz
 .pj-full { grid-column:1 / -1; }
 .pj-field input,.pj-field select,.pj-field textarea { width:100%; border:1px solid #cbd7e9; border-radius:7px; padding:9px 10px; background:#fff; color:var(--pj-ink); font:inherit; font-size:14px; font-weight:400; }
 .pj-field textarea { resize:vertical; }
+.pj-field small { color:var(--pj-muted); font-size:11px; font-weight:400; line-height:1.4; }
 .pj-field :disabled { background:var(--pj-sunk); color:#4b5a74; }
 .pj-swatches { border:0; padding:0; }
 .pj-swatches legend { padding:0; margin-bottom:6px; }

@@ -21,6 +21,7 @@ class AchiPlannerEvent(Base):
     __tablename__ = "achi_planner_event"
     __table_args__ = (
         Index("ix_achi_planner_event_window", "start_at", "end_at"),
+        Index("ix_achi_planner_event_company_window", "company", "start_at"),
         Index("ix_achi_planner_event_organizer_window", "organizer_user_id", "start_at"),
         Index("ix_achi_planner_event_task", "related_task_id"),
         Index("ix_achi_planner_event_record", "related_record_type", "related_record_id"),
@@ -29,6 +30,9 @@ class AchiPlannerEvent(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
+    # Achi Scaffolding and ARARA keep separate calendars. Rows from before the
+    # split get "achi" from the server default when the column is added.
+    company: Mapped[str] = mapped_column(String(16), nullable=False, default="achi", server_default="achi")
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(
         Text, nullable=False, default="", server_default=""

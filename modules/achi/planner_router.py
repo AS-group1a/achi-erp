@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
@@ -53,8 +53,9 @@ async def list_planner_events(
     user_id: CurrentUserId,
     start: Annotated[datetime, Query()],
     end: Annotated[datetime, Query()],
+    company: Annotated[Literal["achi", "arara"], Query()] = "achi",
 ) -> PlannerEventListOut:
-    return await PlannerService(session).list_events(user_id, start, end)
+    return await PlannerService(session).list_events(user_id, start, end, company)
 
 
 @planner_router.get("/tasks/unscheduled", response_model=PlannerTaskListOut)

@@ -36,7 +36,8 @@
         <datalist id="hr-teams"></datalist>
         <label class="pj-field">Email<input id="hr-email" type="email" maxlength="255" autocomplete="off"></label>
         <label class="pj-field">Phone<input id="hr-phone" maxlength="64" autocomplete="off"></label>
-        <label class="pj-field">Login account<select id="hr-user"></select></label>
+        <label class="pj-field">Login account<select id="hr-user"></select>
+          <small>Decides which company this person can open: they get each company that lists them here. Admins open both; accounts linked to no one open Achi Scaffolding only.</small></label>
         <label class="pj-field">Status<select id="hr-active"><option value="1">Active</option><option value="0">Inactive</option></select></label>
         <label class="pj-field pj-full">Notes<textarea id="hr-notes" rows="3" maxlength="5000"></textarea></label>
         <p class="pj-form-error pj-full" id="hr-error" role="alert" hidden></p>
