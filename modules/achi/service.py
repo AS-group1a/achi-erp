@@ -1012,7 +1012,7 @@ class ContactFileService:
         In Progress); a finished or cancelled one doesn't block a new visit.
         Added to the caller's transaction — committed together with the stage.
         """
-        from .survey_service import OPEN_SITE_VISIT_STATUSES, _next_survey_number
+        from .survey_service import OPEN_SITE_VISIT_STATUSES, _next_survey_number, enquiry_code
 
         open_visit = (
             await self.session.execute(
@@ -1025,16 +1025,23 @@ class ContactFileService:
             return
         contact = await self.session.get(Contact, f.contact_id) if f.contact_id else None
         typed_name = " ".join(p for p in (f.lead_first_name, f.lead_last_name) if p).strip()
+        name = _display_name(contact) or typed_name or f.lead_company or None
+        company = (contact.company_name if contact else None) or f.lead_company
         self.session.add(SiteSurvey(
             survey_number=await _next_survey_number(self.session),
             status="Draft",
             file_id=f.id,
             contact_id=f.contact_id,
-            lead_name=_display_name(contact) or typed_name or f.lead_company or None,
-            lead_company=(contact.company_name if contact else None) or f.lead_company,
+            # The workspace's Assignment fields, pre-filled from the enquiry.
+            customer=(company or None) and company[:255],
+            contact=(name or None) and name[:255],
+            lead=enquiry_code(f.file_number) or None,
+            lead_name=name,
+            lead_company=company,
             lead_mobile=((contact.primary_phone if contact else None) or f.lead_mobile or "")[:32] or None,
             country=f.country, district=f.district, city=f.city, street=f.street,
             site_location=f.site_location, maps_url=f.maps_url,
+            google_maps_url=(f.maps_url or "")[:1000] or None,
         ))
         logger.info("achi: file %s moved to site visit -> draft visit opened", f.file_number)
 
@@ -1260,6 +1267,17 @@ class ContactFileService:
         await self.session.commit()
         await self.session.refresh(att)
 
+        return att
+
+    async def rename_attachment(self, att: LogAttachment, filename: str) -> LogAttachment:
+        """Rename an attached file. A name typed without an extension keeps the
+        old one, so the file still opens with the right program."""
+        old_ext = att.filename.rsplit(".", 1)[1] if "." in att.filename.strip(".") else ""
+        if old_ext and "." not in filename.strip("."):
+            filename = f"{filename}.{old_ext}"[:255]
+        att.filename = filename
+        await self.session.commit()
+        await self.session.refresh(att)
         return att
 
     async def read_attachment(self, att: LogAttachment) -> bytes:

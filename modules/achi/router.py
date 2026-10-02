@@ -11,7 +11,7 @@ from urllib.parse import quote, urlparse
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -33,6 +33,7 @@ from . import access
 from .manifest import manifest as MANIFEST
 from .schemas import (
     AttachmentDeliverablesUpdate,
+    AttachmentRename,
     AttachmentOut,
     ContactFileCreate,
     ContactFileListOut,
@@ -170,20 +171,21 @@ def general_log_ui() -> HTMLResponse:
 
 @router.get(
     "/site-visit/ui",
-    response_class=HTMLResponse,
     include_in_schema=False,
-    summary="Site Visit page",
+    summary="Site Visit page (redirects to /survey/ui)",
 )
-def site_visit_ui() -> HTMLResponse:
-    """The Site Visit page: every site visit (a SiteSurvey row) with its SV code.
+def site_visit_ui(request: Request) -> RedirectResponse:
+    """The Site Visit pages live at /survey/ui (list) and /survey/ui?id=…
+    (workspace) — see survey_router.survey_ui. The sidebars still link here,
+    so keep this address working and send it on, query string included.
 
     Visits are opened automatically when an enquiry moves into the Site visit
-    stage (ContactFileService._open_site_visit) and can be added by hand. Same
-    look as the CRM page: it loads crm.css, then site_visit.css for its grid.
-    Data: GET/POST /site-visits/, PATCH and DELETE /surveys/{id}.
+    stage (ContactFileService._open_site_visit) and by "+ New visit".
     """
-    return HTMLResponse(
-        (_UI_DIR / "site_visit.html").read_text(encoding="utf-8"),
+    query = request.url.query
+    return RedirectResponse(
+        "/api/v1/achi/survey/ui" + (f"?{query}" if query else ""),
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -1867,6 +1869,24 @@ async def update_attachment_deliverables(
     )
 
     return AttachmentOut.model_validate(att)
+
+@router.patch(
+    "/attachments/{attachment_id}",
+    response_model=AttachmentOut,
+    summary="Rename an attached file",
+)
+async def rename_attachment(
+    attachment_id: str,
+    data: AttachmentRename,
+    session: SessionDep,
+    _user_id: CurrentUserId,
+) -> AttachmentOut:
+    svc = ContactFileService(session)
+    att = await svc.get_attachment(attachment_id)
+    if att is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    return AttachmentOut.model_validate(await svc.rename_attachment(att, data.filename))
+
 
 @router.delete(
     "/attachments/{attachment_id}",

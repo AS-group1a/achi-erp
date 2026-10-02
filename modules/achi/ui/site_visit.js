@@ -6,6 +6,8 @@
   // Data: GET/POST /site-visits/, PATCH /surveys/{id} (status), DELETE /surveys/{id}.
 
   const API = '/api/v1/achi';
+  // The workspace for one visit: /survey/ui?id=… (survey.html).
+  const WORKSPACE_URL = `${API}/survey/ui`;
   const $ = id => document.getElementById(id);
   const esc = value => String(value == null ? '' : value).replace(
     /[&<>"']/g,
@@ -113,9 +115,9 @@
   // Site visit statuses (schemas.SURVEY_STATUSES), with the CRM status pill colours.
   const STATUSES = ['Draft', 'Scheduled', 'In Progress', 'Completed', 'Cancelled'];
   const STATUS_STYLE = {
-    Draft:         'background-color:#f4f6f9;color:#44546e',
+    Draft:         'background-color:#e5eeff;color:#1f3f80',
     Scheduled:     'background-color:#fff4e0;color:#8a5a08',
-    'In Progress': 'background-color:#eaf1ff;color:#1F3F80',
+    'In Progress': 'background-color:#f3edfb;color:#5b21b6',
     Completed:     'background-color:#dcefe2;color:#14532d',
     Cancelled:     'background-color:#fbeaea;color:#b91c1c',
   };
@@ -211,7 +213,8 @@
     const contact = v.contact_name || '';
     const sub = v.company && v.company !== contact ? `<div class="nm-sub">${esc(v.company)}</div>` : '';
     return `<div class="row${state.sel.has(v.id) ? ' sel' : ''}" data-id="${esc(v.id)}">`
-      + `<div><button type="button" class="sv-code code" data-act="select" title="Select ${esc(v.code)}">${esc(v.code)}</button></div>`
+      + `<div class="sv-codecell"><button type="button" class="sv-check" data-act="select" aria-label="Select ${esc(v.code)}" title="Select"></button>`
+      + `<a class="code sv-open" href="${WORKSPACE_URL}?id=${encodeURIComponent(v.id)}" title="Open ${esc(v.code)}">${esc(v.code)}</a></div>`
       + `<div class="mut num c2">${esc(fmtDMY(v.survey_date))}</div>`
       + `<div>${statusCell(v)}</div>`
       + `<div>${v.enq_code ? `<span class="code">${esc(v.enq_code)}</span>` : ''}</div>`
@@ -234,7 +237,7 @@
       body.innerHTML = list.map(rowHTML).join('');
     }
     $('sv-foot').innerHTML = `<span>${list.length} of ${state.rows.length} site visits</span>`
-      + '<span style="flex:1"></span><span>click a code to select it — status changes inline</span>';
+      + '<span style="flex:1"></span><span>click a code to open the visit — tick the box to select it</span>';
     syncSelectAll();                                // shown rows changed: re-check the header box
   }
 
@@ -326,44 +329,11 @@
   }
 
   // ── + New visit ────────────────────────────────────────────────────────────
-  function openForm() {
-    $('sv-form').reset();
-    $('sv-form-error').textContent = '';
-    $('sv-form-status').innerHTML = STATUSES.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-    $('sv-modal').hidden = false;
-    const first = $('sv-form').elements.contact_name;
-    if (first) first.focus();
-  }
-  function closeForm() { $('sv-modal').hidden = true; }
-
-  async function submitForm(event) {
-    event.preventDefault();
-    const form = $('sv-form');
-    const val = name => (form.elements[name] ? form.elements[name].value.trim() : '');
-    if (!val('contact_name')) {
-      $('sv-form-error').textContent = 'Enter the contact.';
-      return;
-    }
-    const payload = {
-      contact_name: val('contact_name'),
-      mobile: val('mobile') || null,
-      site: val('site') || null,
-      survey_date: val('survey_date') || null,
-      assigned_to: val('assigned_to') || null,
-      status: val('status') || 'Draft',
-    };
-    const save = $('sv-form-save');
-    save.disabled = true;
-    try {
-      const created = await request(`${API}/site-visits/`, { method: 'POST', body: payload });
-      closeForm();
-      showToast(`Site visit ${created && created.code ? created.code : ''} added.`.replace('  ', ' '));
-      await load({ quiet: true });
-    } catch (error) {
-      $('sv-form-error').textContent = error.message || 'Could not add the site visit.';
-    } finally {
-      save.disabled = false;
-    }
+  // Create the visit first (Draft, next SV code from the backend), then fill it
+  // in the workspace — no form up front.
+  // Opens an empty, unsaved form; the visit is only created when Save is pressed.
+  function createVisit() {
+    window.location.href = `${WORKSPACE_URL}?id=new`;
   }
 
   // ── Events ─────────────────────────────────────────────────────────────────
@@ -404,12 +374,7 @@
 
   $('sv-refresh').addEventListener('click', () => load().then(() => showToast('Site visits refreshed.')));
   $('sv-delete').addEventListener('click', deleteSelected);
-  $('sv-new').addEventListener('click', openForm);
-  $('sv-modal-close').addEventListener('click', closeForm);
-  $('sv-form-cancel').addEventListener('click', closeForm);
-  $('sv-form').addEventListener('submit', submitForm);
-  $('sv-modal').addEventListener('click', event => { if (event.target === $('sv-modal')) closeForm(); });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('sv-modal').hidden) closeForm(); });
+  $('sv-new').addEventListener('click', createVisit);
 
   // ── Boot ───────────────────────────────────────────────────────────────────
   if (!accessToken) {

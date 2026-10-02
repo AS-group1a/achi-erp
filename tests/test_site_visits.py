@@ -97,6 +97,8 @@ class OpenSiteVisitTests(unittest.TestCase):
         self.assertEqual(visit.lead_name, "Rami Haddad")
         self.assertEqual(visit.lead_mobile, "+961 3 999 000")
         self.assertEqual((visit.city, visit.site_location), ("Jounieh", "Kaslik tower"))
+        # The workspace's Assignment fields come pre-filled from the enquiry.
+        self.assertEqual((visit.customer, visit.contact, visit.lead), ("Zerock", "Rami Haddad", "ENQ-00042"))
 
     def test_no_duplicate_while_a_visit_is_open(self) -> None:
         session = FakeSession(open_visit=True)
@@ -134,6 +136,39 @@ class SiteVisitRowTests(unittest.TestCase):
         self.assertEqual(_phone_for_row(contact([{"label": "Office", "number": "01 5"}]), None), ("01 5", "mobile"))
         self.assertEqual(_phone_for_row(None, "76 9"), ("76 9", "mobile"))
         self.assertEqual(_phone_for_row(None, None), (None, ""))
+
+
+@unittest.skipUnless(HAS_APP_TEST_ENV, "requires the ACHI application test environment")
+class SiteVisitRoutingTests(unittest.TestCase):
+    """One address: /survey/ui is the list, /survey/ui?id=… the workspace, and
+    the sidebars' old /site-visit/ui link redirects there (query kept)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from modules.achi.router import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api/v1/achi")
+        cls.client = TestClient(app)
+
+    def test_survey_ui_is_the_list_without_id(self) -> None:
+        page = self.client.get("/api/v1/achi/survey/ui").text
+        self.assertIn('id="sv-rows"', page)          # site_visit.html
+
+    def test_survey_ui_with_id_is_the_workspace(self) -> None:
+        page = self.client.get("/api/v1/achi/survey/ui?id=abc").text
+        self.assertIn('id="side-h"', page)           # survey.html
+        self.assertIn("All site visits", page)
+
+    def test_site_visit_ui_redirects_keeping_the_query(self) -> None:
+        r = self.client.get("/api/v1/achi/site-visit/ui", follow_redirects=False)
+        self.assertEqual(r.status_code, 307)
+        self.assertEqual(r.headers["location"], "/api/v1/achi/survey/ui")
+        r = self.client.get("/api/v1/achi/site-visit/ui?id=abc", follow_redirects=False)
+        self.assertEqual(r.headers["location"], "/api/v1/achi/survey/ui?id=abc")
 
 
 if __name__ == "__main__":

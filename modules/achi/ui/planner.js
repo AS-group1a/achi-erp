@@ -6,15 +6,35 @@
   // ACHI API routes authenticate with the token held by the upstream login UI.
   // Planner is a standalone page, so it must attach that token itself rather
   // than relying on a cookie-only request.
-  const apiFetch = (url, options={}) => {
-    let token = '';
-    try { token = localStorage.getItem('oe_access_token') || sessionStorage.getItem('oe_access_token') || ''; } catch (_error) {}
+  // The access token is short-lived: on a 401, trade the stored refresh token
+  // for a new one once and retry (same as log-core.js / the Files page).
+  const stored = key => { try { return localStorage.getItem(key) || sessionStorage.getItem(key) || ''; } catch (_error) { return ''; } };
+  let refreshing = null;
+  const refreshToken = () => {
+    if (refreshing) return refreshing;
+    const refresh = stored('oe_refresh_token');
+    if (!refresh) return Promise.resolve(false);
+    refreshing = fetch('/api/v1/users/auth/refresh/', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({refresh_token:refresh})})
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d || !d.access_token) return false;
+        try { localStorage.setItem('oe_access_token', d.access_token); if (d.refresh_token) localStorage.setItem('oe_refresh_token', d.refresh_token); } catch (_error) {}
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => { refreshing = null; });
+    return refreshing;
+  };
+  const apiFetch = async (url, options={}, retried=false) => {
+    const token = stored('oe_access_token');
     const headers = new Headers(options.headers || {});
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    return fetch(url, {...options, headers, credentials:'same-origin'});
+    const response = await fetch(url, {...options, headers, credentials:'same-origin'});
+    if (response.status === 401 && !retried && await refreshToken()) return apiFetch(url, options, true);
+    return response;
   };
   const weekdays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const eventTypes = {meeting:'Meeting',appointment:'Appointment',event:'Event',reminder:'Reminder',time_block:'Work block',task_block:'Task block',site_visit:'Site visit',call:'Call',follow_up:'Follow-up',deadline:'Deadline'};
+  const eventTypes = {meeting:'Meeting',appointment:'Appointment',event:'Event',reminder:'Reminder',time_block:'Work block',task_block:'Task block',site_visit:'Site visit',call:'Call',follow_up:'Follow-up',deadline:'Deadline',task:'Task',note:'Note',job:'Job'};
   const pad = n => String(n).padStart(2, '0');
   const isoLocal = date => `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   const dayKey = date => `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
@@ -117,7 +137,62 @@
   function render() { $('planner-period-label').textContent=displayPeriod(); document.querySelectorAll('[data-planner-view]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.plannerView===state.view))); if(state.view==='month')renderMonth(); else if(state.view==='agenda')renderAgenda(); else renderTimeline(); }
   function defaultWindow(date = state.cursor) { const start=new Date(date); start.setHours(9,0,0,0); const end=new Date(start); end.setHours(10,0,0,0); return [start,end]; }
   function openDialog(event, date) { const dialog=$('planner-dialog'); state.editingId=event?.id || null; const [fallbackStart,fallbackEnd]=defaultWindow(date); $('planner-dialog-title').textContent=event?'Edit event':'New event'; $('planner-title').value=event?.title || ''; $('planner-type').value=event?.event_type || 'event'; $('planner-visibility').value=event?.visibility || 'team'; $('planner-start').value=isoLocal(event?new Date(event.start_at):fallbackStart); $('planner-end').value=isoLocal(event?new Date(event.end_at):fallbackEnd); $('planner-all-day').checked=Boolean(event?.all_day); $('planner-repeat').value=repeatFrequency(event); $('planner-repeat-until').value=event?.recurrence_end_at?isoLocal(new Date(event.recurrence_end_at)):''; $('planner-location').value=event?.location || ''; $('planner-meeting-url').value=event?.meeting_url || ''; $('planner-description').value=event?.description || ''; setRelatedRecord(event?.related_record_id?{record_type:event.related_record_type,record_id:event.related_record_id,label:event.related_record_label,stage:'existing record'}:null); document.querySelectorAll('[name="planner-reminder"]').forEach(input=>{input.checked=(event?.reminder_minutes||[]).includes(Number(input.value));}); const selected=new Set((event?.attendees||[]).filter(row=>row.user_id).map(row=>row.user_id)); $('planner-attendees').innerHTML=state.users.map(user=>`<label><input type="checkbox" data-planner-attendee value="${esc(user.user_id)}" ${selected.has(user.user_id)?'checked':''}> ${esc(user.display_name)}</label>`).join('')||'<span>No team members are available.</span>'; $('planner-external-attendees').value=externalAttendeesText(event?.attendees||[]); const mine=(event?.attendees||[]).find(row=>row.user_id===state.me?.user_id); const response=mine?.response_status||''; $('planner-rsvp').hidden=!mine; $('planner-rsvp').dataset.eventId=event?.id||''; $('planner-rsvp').dataset.currentResponse=response; document.querySelectorAll('[data-rsvp]').forEach(button=>button.classList.toggle('is-selected',button.dataset.rsvp===response)); $('planner-conflicts').hidden=true; $('planner-cancel-event').hidden=!event; $('planner-delete').hidden=!event; dialog.showModal(); }
-  function closeDialog(){ $('planner-dialog').close(); state.editingId=null; }
+  // Clicking an empty day / time slot opens a quick add with only a description;
+  // clicking an event opens the same box to edit just its description.
+let quickStart=null, quickEvent=null;
+function showQuick(text){
+  const box=$('planner-quick-text');
+  box.value=text; box.required=!quickEvent; box.placeholder=quickEvent?quickEvent.title||'':'';
+  $('planner-quick-error').hidden=true; $('planner-quick-delete').hidden=!quickEvent;
+  $('planner-quick').showModal(); box.focus();
+}
+function openQuick(date){
+  quickEvent=null; quickStart=new Date(date); quickStart.setMinutes(0,0,0);
+  showQuick('');
+}
+function openQuickEdit(ev){ quickEvent=ev; showQuick(ev.description||''); }
+async function deleteQuick(){
+  if(!quickEvent||!window.confirm('Delete this Planner event?')) return;
+  try{
+    const response=await apiFetch(`${api}/events/${quickEvent.id}`,{method:'DELETE'});
+    if(!response.ok) throw new Error('Could not delete event.');
+    closeQuick(); await load();
+  }catch(error){ const e=$('planner-quick-error'); e.textContent=error.message; e.hidden=false; }
+}
+function closeQuick(){ $('planner-quick').close(); }
+async function saveQuick(event){
+  event.preventDefault();
+  const text=$('planner-quick-text').value.trim();
+  if(quickEvent){ await saveQuickEdit(text); return; }
+  if(!text){ $('planner-quick-text').focus(); return; }
+  const end=new Date(quickStart); end.setHours(end.getHours()+1);
+  // The API needs a title: the first line of the description stands in for it.
+  const body={title:text.split('\n')[0].slice(0,255),description:text,event_type:'event',visibility:'team',
+    start_at:quickStart.toISOString(),end_at:end.toISOString(),all_day:false,
+    timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Beirut'};
+  const btn=$('planner-quick-save'); btn.disabled=true;
+  try{
+    const response=await apiFetch(`${api}/events`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!response.ok) throw new Error((await response.json().catch(()=>({}))).detail||'Could not save.');
+    closeQuick(); await load();
+  }catch(error){ const e=$('planner-quick-error'); e.textContent=typeof error.message==='string'?error.message:'Could not save.'; e.hidden=false; }
+  finally{ btn.disabled=false; }
+}
+// Edit an event's description only (PATCH). A title that was taken from the
+// old description's first line follows the new one; a typed title is kept.
+async function saveQuickEdit(text){
+  const ev=quickEvent, oldFirst=String(ev.description||'').trim().split('\n')[0].slice(0,255);
+  const body={description:text};
+  if(text&&(!ev.title||ev.title===oldFirst)) body.title=text.split('\n')[0].slice(0,255);
+  const btn=$('planner-quick-save'); btn.disabled=true;
+  try{
+    const response=await apiFetch(`${api}/events/${ev.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!response.ok) throw new Error((await response.json().catch(()=>({}))).detail||'Could not save.');
+    closeQuick(); await load();
+  }catch(error){ const e=$('planner-quick-error'); e.textContent=typeof error.message==='string'?error.message:'Could not save.'; e.hidden=false; }
+  finally{ btn.disabled=false; }
+}
+function closeDialog(){ $('planner-dialog').close(); state.editingId=null; }
   async function cancelEvent(){ if(!state.editingId||!window.confirm('Cancel this Planner event?'))return; try{const response=await apiFetch(`${api}/events/${state.editingId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'cancelled'})});if(!response.ok)throw new Error((await response.json().catch(()=>({}))).detail||'Could not cancel event.');closeDialog();await load();}catch(error){msg(error.message||'Could not cancel event.');}}
   function dateFromKey(key,hour=9){ const [y,m,d]=key.split('-').map(Number); return new Date(y,m-1,d,hour); }
   async function checkConflicts({show=false}={}) {
@@ -142,7 +217,7 @@
   async function moveEvent(item, dateKey, hour) { const original=new Date(item.start_at), start=dateFromKey(dateKey, hour===undefined?original.getHours():Number(hour)); start.setMinutes(hour===undefined?original.getMinutes():0,0,0); const end=new Date(start.getTime()+(new Date(item.end_at).getTime()-original.getTime())); const body={start_at:start.toISOString(),end_at:end.toISOString()}; try { const response=await apiFetch(`${api}/events/${item.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(!response.ok)throw new Error((await response.json().catch(()=>({}))).detail||'Could not move event.'); await load(); } catch(error) { msg(error.message||'Could not move event.'); await load(); } }
   async function resizeEvent(item, dateKey, hour) { if(hour===undefined){msg('Use Week or Day view to resize an event.');return;} const start=new Date(item.start_at), end=dateFromKey(dateKey,Number(hour)+1); if(end<=start){msg('The event end must be after its start time.');return;} try { const response=await apiFetch(`${api}/events/${item.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({end_at:end.toISOString()})}); if(!response.ok)throw new Error((await response.json().catch(()=>({}))).detail||'Could not resize event.'); await load(); } catch(error) { msg(error.message||'Could not resize event.'); await load(); } }
   function move(direction){ if(state.view==='month')state.cursor.setMonth(state.cursor.getMonth()+direction);else if(state.view==='week')state.cursor=addDays(state.cursor,7*direction);else if(state.view==='day')state.cursor=addDays(state.cursor,direction);else state.cursor=addDays(state.cursor,30*direction);load(); }
-  document.addEventListener('click', event=>{ const related=event.target.closest('[data-related-record]');if(related){setRelatedRecord(JSON.parse(related.dataset.relatedRecord));return;} const sourceItem=event.target.closest('[data-source-item]');if(sourceItem){msg(sourceItem.dataset.source==='site_visit'?'This Site Visit is source-backed. Edit its scheduled date in Site Survey.':'This CRM follow-up is source-backed. Edit its date and notes in Log or CRM.');return;} const view=event.target.closest('[data-planner-view]');if(view){state.view=view.dataset.plannerView;load();return;} const item=event.target.closest('[data-event-id]');if(item){openDialog(state.events.find(row=>eventKey(row)===item.dataset.eventId));return;} const day=event.target.closest('[data-new-date]');if(day&&!event.target.closest('button'))openDialog(null,dateFromKey(day.dataset.newDate,Number(day.dataset.newHour||9))); });
+  document.addEventListener('click', event=>{ const related=event.target.closest('[data-related-record]');if(related){setRelatedRecord(JSON.parse(related.dataset.relatedRecord));return;} const sourceItem=event.target.closest('[data-source-item]');if(sourceItem){msg(sourceItem.dataset.source==='site_visit'?'This Site Visit is source-backed. Edit its scheduled date in Site Survey.':'This CRM follow-up is source-backed. Edit its date and notes in Log or CRM.');return;} const view=event.target.closest('[data-planner-view]');if(view){state.view=view.dataset.plannerView;load();return;} const item=event.target.closest('[data-event-id]');if(item){const found=state.events.find(row=>eventKey(row)===item.dataset.eventId);if(found)openQuickEdit(found);return;} const day=event.target.closest('[data-new-date]');if(day&&!event.target.closest('button'))openQuick(dateFromKey(day.dataset.newDate,Number(day.dataset.newHour||9))); });
   document.addEventListener('change', event=>{ const source=event.target.closest('[data-planner-source]'); if(source){state.sources[source.dataset.plannerSource]=source.checked;render();return;} const member=event.target.closest('[data-planner-member]'); if(member){if(member.checked)state.selectedMemberIds.add(member.dataset.plannerMember);else state.selectedMemberIds.delete(member.dataset.plannerMember);render();} });
   document.addEventListener('dragstart', event=>{ const resize=event.target.closest('[data-resize-event]'); if(resize){state.resizingEvent=state.events.find(row=>eventKey(row)===resize.dataset.resizeEvent)||null; if(state.resizingEvent){event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',state.resizingEvent.id);}return;} const task=event.target.closest('[data-task-id]'); if(task){state.draggingTask=task.dataset.taskId; event.dataTransfer.effectAllowed='copy'; event.dataTransfer.setData('text/plain',state.draggingTask); return;} const item=event.target.closest('[data-event-id]'); if(item){state.draggingEvent=state.events.find(row=>eventKey(row)===item.dataset.eventId)||null; if(state.draggingEvent){event.dataTransfer.effectAllowed='move'; event.dataTransfer.setData('text/plain',state.draggingEvent.id);}} });
   document.addEventListener('dragover', event=>{ const target=event.target.closest('[data-new-date]'); if(!target||(!state.draggingTask&&!state.draggingEvent&&!state.resizingEvent))return; event.preventDefault(); event.dataTransfer.dropEffect=state.draggingTask?'copy':'move'; target.classList.add('is-drop-target'); });
@@ -151,5 +226,5 @@
   document.addEventListener('dragend', ()=>{document.querySelectorAll('.is-drop-target').forEach(node=>node.classList.remove('is-drop-target'));state.draggingTask=null;state.draggingEvent=null;state.resizingEvent=null;});
   $('planner-search').addEventListener('input',event=>{state.query=event.target.value.trim().toLowerCase();render();});
   $('planner-cancel-event').addEventListener('click',cancelEvent);
-  let relatedSearchTimer, conflictCheckTimer; $('planner-related-search').addEventListener('input',()=>{clearTimeout(relatedSearchTimer); relatedSearchTimer=setTimeout(searchRelatedRecords,220);}); ['planner-start','planner-end','planner-attendees'].forEach(id=>$(id).addEventListener('change',()=>{clearTimeout(conflictCheckTimer);conflictCheckTimer=setTimeout(()=>checkConflicts({show:true}),180);})); $('planner-new').addEventListener('click',()=>{const menu=$('planner-new-options');menu.hidden=!menu.hidden;$('planner-new').setAttribute('aria-expanded',String(!menu.hidden));}); document.querySelectorAll('[data-planner-new-type]').forEach(button=>button.addEventListener('click',()=>{ $('planner-new-options').hidden=true; $('planner-new').setAttribute('aria-expanded','false'); openDialog(); $('planner-type').value=button.dataset.plannerNewType; })); document.querySelector('[data-planner-new-task]').addEventListener('click',()=>{window.location.assign('/api/v1/achi/tasks/ui');}); $('planner-prev').addEventListener('click',()=>move(-1)); $('planner-next').addEventListener('click',()=>move(1)); $('planner-today').addEventListener('click',()=>{state.cursor=new Date();load();}); $('planner-close').addEventListener('click',closeDialog); $('planner-cancel').addEventListener('click',closeDialog); $('planner-delete').addEventListener('click',remove); $('planner-form').addEventListener('submit',save); document.querySelectorAll('[data-rsvp]').forEach(button=>button.addEventListener('click',()=>rsvp(button.dataset.rsvp))); setInterval(()=>{if(state.view==='week'||state.view==='day')render();},60_000); loadDirectory().finally(load);
+  let relatedSearchTimer, conflictCheckTimer; $('planner-related-search').addEventListener('input',()=>{clearTimeout(relatedSearchTimer); relatedSearchTimer=setTimeout(searchRelatedRecords,220);}); ['planner-start','planner-end','planner-attendees'].forEach(id=>$(id).addEventListener('change',()=>{clearTimeout(conflictCheckTimer);conflictCheckTimer=setTimeout(()=>checkConflicts({show:true}),180);})); $('planner-new').addEventListener('click',()=>{const menu=$('planner-new-options');menu.hidden=!menu.hidden;$('planner-new').setAttribute('aria-expanded',String(!menu.hidden));}); document.querySelectorAll('[data-planner-new-type]').forEach(button=>button.addEventListener('click',()=>{ $('planner-new-options').hidden=true; $('planner-new').setAttribute('aria-expanded','false'); openDialog(); $('planner-type').value=button.dataset.plannerNewType; })); document.querySelector('[data-planner-new-task]').addEventListener('click',()=>{window.location.assign('/api/v1/achi/tasks/ui');}); $('planner-prev').addEventListener('click',()=>move(-1)); $('planner-next').addEventListener('click',()=>move(1)); $('planner-today').addEventListener('click',()=>{state.cursor=new Date();load();}); $('planner-close').addEventListener('click',closeDialog); $('planner-cancel').addEventListener('click',closeDialog); $('planner-delete').addEventListener('click',remove); $('planner-form').addEventListener('submit',save); $('planner-quick-form').addEventListener('submit',saveQuick); $('planner-quick-cancel').addEventListener('click',closeQuick); $('planner-quick-delete').addEventListener('click',deleteQuick); document.querySelectorAll('[data-rsvp]').forEach(button=>button.addEventListener('click',()=>rsvp(button.dataset.rsvp))); setInterval(()=>{if(state.view==='week'||state.view==='day')render();},60_000); loadDirectory().finally(load);
 })();

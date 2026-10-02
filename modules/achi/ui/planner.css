@@ -1,7 +1,6 @@
 :root { --planner-ink:#17223b; --planner-muted:#6b7891; --planner-border:#dbe3f0; --planner-panel:#fff; --planner-accent:#2955b8; --planner-soft:#eef4ff; }
 * { box-sizing:border-box; }
 .planner-page { padding:28px; color:var(--planner-ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
-.planner-page-header { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin-bottom:22px; }
 .planner-breadcrumb { margin:0 0 7px; color:#2955b8; font-size:11px; font-weight:800; letter-spacing:.11em; }
 .planner-page h1 { margin:0; font-size:34px; line-height:1.1; letter-spacing:-.035em; }
 .planner-subtitle { margin:7px 0 0; color:var(--planner-muted); }
@@ -69,3 +68,183 @@
 .planner-related-results { overflow:auto; max-height:180px; border:1px solid #cbd7e9; border-radius:7px; background:#fff; }.planner-related-results button { display:grid; width:100%; gap:2px; padding:8px 10px; border:0; border-bottom:1px solid #edf1f6; background:#fff; color:var(--planner-ink); text-align:left; font:inherit; cursor:pointer; }.planner-related-results button:hover { background:#edf4ff; }.planner-related-results small { color:var(--planner-muted); }
 @media (max-width:900px) { .planner-workspace{grid-template-columns:1fr}.planner-task-backlog{position:static;max-height:none}.planner-task-backlog-list{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));} }
 @media (max-width:760px) { .planner-page{padding:18px}.planner-page-header,.planner-toolbar{align-items:flex-start;flex-direction:column}.planner-toolbar h2{min-width:0}.planner-view-switch{width:100%;justify-content:space-between}.planner-search,.planner-search input{width:100%}.planner-form-grid{grid-template-columns:1fr}.planner-field-full{grid-column:auto}.planner-day{min-height:105px}.planner-agenda-item{grid-template-columns:1fr;gap:5px} }
+
+/* ══ Same look as the Contacts / Log / CRM pages ═══════════════════════════
+   Barlow 13px on the #f4f6f9 canvas, one white title banner (title left,
+   controls right, 26px controls), white panels with a thin #b9c5d8 border,
+   8.5px heavy uppercase headers. Loaded last so it wins over the rules above. */
+:root { --planner-ink:#1d1d1f; --planner-muted:#44546e; --planner-border:#b9c5d8; --planner-accent:#284F9E; --planner-soft:#eaf1ff;
+  --pl-soft:#7f95b8; --pl-line-soft:#dbe2ed; --pl-row:#eef2f8; --pl-head:#e6ebf3; --pl-navy-d:#1F3F80; }
+body[data-achi-title="Planner"] { margin:0; min-width:320px; background:#f4f6f9 !important; color:var(--planner-ink);
+  font:13px/1.45 Barlow,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+/* chrome.js's white title bar: hidden like on Contacts / CRM; on narrow screens
+   it keeps the sidebar burger but drops its duplicate title. */
+body[data-achi-title="Planner"] .achi-top { display:none; }
+@media (max-width:900px) {
+  body[data-achi-title="Planner"] .achi-top { display:flex; padding:6px 12px; }
+  body[data-achi-title="Planner"] .achi-top h1 { display:none; }
+}
+.planner-page { padding:10px 12px 30px; font-family:inherit; }
+.planner-page button,.planner-page input,.planner-page select { font-family:inherit; }
+
+/* ── banner ── */
+.planner-page-header { display:flex; align-items:center; justify-content:flex-start; flex-wrap:wrap; gap:8px; min-height:0; margin-bottom:7px;
+  padding:6px 10px; border:1px solid var(--planner-border); border-radius:5px; background:#fff; }
+.planner-page .planner-page-header h1 { margin:0; font-size:15px; font-weight:800; line-height:1.45; letter-spacing:0; }
+.planner-header-controls { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-left:auto; }
+.planner-header-controls .planner-search { position:relative; display:inline-flex; }
+.planner-header-controls .planner-search svg { position:absolute; top:6px; left:7px; width:13px; height:13px; fill:none; stroke:var(--pl-soft); stroke-width:2; pointer-events:none; }
+.planner-header-controls .planner-search input { width:220px; height:26px; padding:3px 8px 3px 24px; border:1px solid var(--planner-border); border-radius:4px; background:#fff; font-size:12px; }
+.planner-header-controls .planner-search input:focus { outline:none; border-color:var(--planner-accent); }
+/* Day | Week | Month | List = the CRM .seg control */
+.planner-header-controls .planner-view-switch { display:inline-flex; gap:0; height:26px; padding:0; border:1px solid var(--planner-border); border-radius:4px; overflow:hidden; background:#fff; }
+.planner-header-controls .planner-view-switch button { height:auto; margin:0; padding:0 12px; border:0; border-right:1px solid var(--pl-line-soft); border-radius:0; background:transparent; color:var(--planner-muted); box-shadow:none; font-size:11px; font-weight:700; white-space:nowrap; }
+.planner-header-controls .planner-view-switch button:last-child { border-right:0; }
+.planner-header-controls .planner-view-switch button:hover { background:var(--planner-soft); color:var(--planner-accent); }
+.planner-header-controls .planner-view-switch button[aria-selected="true"] { background:var(--planner-accent); color:#fff; box-shadow:none; font-weight:700; }
+/* Filters & tasks = .mini; + New = .mini.solid */
+.planner-filters-btn { display:inline-flex; align-items:center; height:26px; padding:3px 9px; border:1px solid #93c5fd; border-radius:4px; background:var(--planner-soft); color:var(--planner-accent); font-size:11px; font-weight:700; white-space:nowrap; cursor:pointer; }
+.planner-filters-btn:hover { background:#dce9ff; }
+.planner-filters-btn[aria-expanded="true"] { background:var(--planner-accent); border-color:var(--pl-navy-d); color:#fff; }
+.planner-header-controls .planner-primary { min-height:0; height:26px; padding:3px 10px; border:1px solid var(--pl-navy-d); border-radius:4px; background:var(--planner-accent); color:#fff; font-size:11px; font-weight:700; white-space:nowrap; }
+.planner-header-controls .planner-primary:hover { background:var(--pl-navy-d); }
+.planner-new-options { top:calc(100% + 4px); min-width:150px; padding:4px; border-color:var(--planner-border); border-radius:5px; box-shadow:0 10px 26px rgba(29,29,31,.14); }
+.planner-new-options button { padding:6px 9px; font-size:12px; }
+.planner-new-options button:hover { background:var(--planner-soft); color:var(--planner-accent); }
+
+/* ── side panel and calendar: white boxes with the thin border ── */
+/* The calendar takes the full width; Filters & tasks opens the side panel as
+   a popup over the calendar's right side. */
+.planner-workspace { position:relative; display:block; }
+.planner-page .planner-task-backlog { position:absolute; z-index:20; top:0; right:8px; width:min(300px,calc(100vw - 24px)); max-height:calc(100vh - 70px);
+  overflow:auto; padding:0 10px 10px; box-shadow:0 12px 30px rgba(29,29,31,.18); }
+.planner-pop-head { position:sticky; top:0; z-index:1; display:flex; align-items:center; justify-content:space-between; margin:0 -10px 8px; padding:7px 10px;
+  border-bottom:1px solid var(--pl-line-soft); background:#fff; }
+.planner-pop-head strong { font-size:12px; font-weight:800; }
+.planner-pop-close { width:22px; height:22px; padding:0; border:1px solid var(--planner-border); border-radius:4px; background:#fff; color:var(--planner-muted); font-size:15px; line-height:1; cursor:pointer; }
+.planner-pop-close:hover { background:var(--planner-soft); color:var(--planner-accent); }
+.planner-task-backlog,.planner-shell { border:1px solid var(--planner-border); border-radius:5px; box-shadow:none; }
+.planner-page .planner-breadcrumb { margin:0 0 2px; color:var(--planner-muted); font-size:8.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.planner-sources h2,.planner-backlog-heading h2 { font-size:13px; font-weight:800; }
+.planner-sources { gap:6px; padding-bottom:10px; margin-bottom:10px; border-bottom-color:var(--pl-line-soft); }
+.planner-sources label { font-size:11.5px; color:var(--planner-ink); }
+.planner-source-members { border-top-color:var(--pl-row); }
+.planner-reminder-queue { padding-bottom:10px; margin-bottom:10px; border-bottom-color:var(--pl-line-soft); }
+.planner-count { min-width:20px; height:20px; color:var(--planner-accent); font-size:10.5px; }
+.planner-backlog-help { margin:6px 0 9px; font-size:10.5px; }
+.planner-task-card { padding:7px 8px; border-color:var(--pl-line-soft); border-radius:4px; }
+.planner-task-card:hover { border-color:#93c5fd; background:var(--planner-soft); }
+.planner-task-number { color:var(--planner-accent); font-family:ui-monospace,Menlo,monospace; font-size:10px; }
+.planner-task-card strong { font-size:12px; }
+.planner-task-meta { margin-top:4px; font-size:10.5px; }
+.planner-toolbar { gap:8px; padding:6px 10px; border-bottom-color:var(--planner-border); }
+.planner-toolbar .planner-button { min-height:0; height:26px; padding:3px 9px; border-radius:4px; border-color:var(--planner-border); color:var(--planner-muted); font-size:11px; font-weight:700; }
+.planner-toolbar .planner-button:hover { background:#f4f6f9; }
+.planner-toolbar h2 { min-width:0; margin-left:6px; font-size:13px; font-weight:800; }
+.planner-weekday,.planner-timeline-head span { padding:8px; background:var(--pl-head); color:var(--planner-muted); font-size:8.5px; font-weight:800; letter-spacing:.06em; }
+.planner-weekday { border-bottom-color:var(--planner-border); }
+.planner-timeline-head { background:var(--pl-head); border-bottom-color:var(--planner-border); }
+.planner-day { min-height:118px; padding:6px; border-color:var(--pl-line-soft); }
+.planner-day-number { width:22px; height:22px; font-size:11px; }
+.planner-time-label { font-size:10px; border-bottom-color:var(--pl-row); }
+.planner-time-slot { border-color:var(--pl-row); }
+.planner-agenda-day { font-size:11px; font-weight:800; border-bottom-color:var(--pl-line-soft); }
+.planner-agenda-item { padding:8px 6px; border-bottom-color:var(--pl-row); }
+.planner-agenda-item strong { font-size:12px; }
+.planner-agenda-time,.planner-agenda-item p { font-size:11.5px; }
+.planner-message { margin:8px 10px 0; border-radius:4px; font-size:12px; }
+@media (max-width:760px) {
+  .planner-page { padding:8px; }
+  .planner-page-header { flex-direction:row; align-items:center; }
+  .planner-header-controls { width:100%; margin-left:0; }
+  .planner-header-controls .planner-search { flex:1 1 100%; }
+  .planner-header-controls .planner-search input { width:100%; }
+  .planner-header-controls .planner-view-switch { width:auto; justify-content:flex-start; }
+}
+.planner-task-backlog[hidden] { display:none; }
+
+/* ══ Modern calendar ════════════════════════════════════════════════════════
+   The banner stays the shared Contacts / Log design; the calendar, the
+   Filters & tasks popup and the list view get a lighter, rounder look:
+   soft hairlines, rounded cards, coloured event chips with a dot, a clear
+   "today", round navigation buttons. */
+:root { --pl-hair:#e9edf4; --pl-hover:#f7f9fd; }
+.planner-shell { border-color:var(--pl-line-soft); border-radius:12px; box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.05); }
+
+/* toolbar: ‹ Today ›  period */
+.planner-toolbar { padding:10px 14px; border-bottom-color:var(--pl-hair); }
+.planner-toolbar-group { gap:6px; }
+.planner-toolbar #planner-prev,.planner-toolbar #planner-next { width:30px; height:30px; padding:0; border-radius:50%; border-color:var(--pl-line-soft); font-size:17px; line-height:1; color:var(--planner-ink); }
+.planner-toolbar #planner-today { height:30px; padding:0 14px; border-radius:999px; border-color:var(--pl-line-soft); color:var(--planner-accent); }
+.planner-toolbar #planner-prev:hover,.planner-toolbar #planner-next:hover,.planner-toolbar #planner-today:hover { background:var(--planner-soft); border-color:#c9d8f5; }
+.planner-toolbar h2 { margin-left:10px; font-size:16px; font-weight:700; letter-spacing:-.01em; }
+
+/* month */
+.planner-weekday { padding:9px 10px; background:#fff; color:var(--pl-soft); font-size:10px; font-weight:700; letter-spacing:.08em; border-bottom:1px solid var(--pl-hair); }
+.planner-day { min-height:122px; padding:6px 7px; border-color:var(--pl-hair); transition:background .12s; }
+.planner-day:hover { background:var(--pl-hover); }
+.planner-day.is-outside { background:#fbfcfe; color:#b3bdcc; }
+.planner-day.is-outside .planner-event { opacity:.6; }
+.planner-day.is-today { background:#f5f8ff; box-shadow:inset 0 2px 0 var(--planner-accent); }
+.planner-day-number { width:24px; height:24px; font-size:11.5px; font-weight:700; }
+.planner-day.is-today .planner-day-number { box-shadow:0 2px 6px rgba(40,79,158,.35); }
+
+/* event chips: tinted, rounded, with a coloured dot */
+.planner-event { --planner-event-color:#3b6fd8; display:flex; align-items:center; gap:5px; margin-top:4px; padding:4px 7px; border:0; border-radius:6px;
+  background:color-mix(in srgb, var(--planner-event-color) 11%, #fff); color:#1f2a44; font-size:11px; font-weight:500; transition:transform .1s, box-shadow .12s; }
+.planner-event::before { content:""; flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--planner-event-color); }
+.planner-event:hover { filter:none; outline:0; box-shadow:0 2px 8px rgba(16,24,40,.12); transform:translateY(-1px); }
+.planner-event-time { flex:0 0 auto; margin-right:0; color:color-mix(in srgb, var(--planner-event-color) 70%, #1f2a44); font-weight:700; }
+.planner-event-resize { order:9; margin-left:auto; }
+.planner-event[data-type="meeting"] { --planner-event-color:#7c3aed; background:color-mix(in srgb,#7c3aed 10%,#fff); }
+.planner-event[data-type="appointment"] { --planner-event-color:#db2777; background:color-mix(in srgb,#db2777 9%,#fff); }
+.planner-event[data-type="call"],.planner-event[data-type="follow_up"] { --planner-event-color:#0284c7; background:color-mix(in srgb,#0284c7 10%,#fff); }
+.planner-event[data-type="time_block"] { --planner-event-color:#4f46e5; background:color-mix(in srgb,#4f46e5 9%,#fff); }
+.planner-event[data-type="site_visit"] { --planner-event-color:#0f9b8e; background:color-mix(in srgb,#0f9b8e 10%,#fff); }
+.planner-event[data-type="reminder"],.planner-event[data-type="deadline"] { --planner-event-color:#d97706; background:color-mix(in srgb,#d97706 11%,#fff); }
+.planner-event[data-private="true"] { --planner-event-color:#64748b; background:#f1f4f8; }
+
+/* week / day timeline */
+.planner-timeline { padding:0 14px 16px; }
+.planner-timeline-head { background:#fff; border-bottom-color:var(--pl-hair); }
+.planner-timeline-head span { padding:10px 8px; background:#fff; color:var(--pl-soft); font-size:10px; font-weight:700; letter-spacing:.06em; }
+.planner-time-label { padding-top:0; color:var(--pl-soft); font-size:10px; font-weight:600; border-bottom:0; }
+.planner-time-slot { padding:3px; border-color:var(--pl-hair); transition:background .12s; }
+.planner-time-slot:hover { background:var(--pl-hover); outline:0; }
+.planner-time-slot.is-current-time { background:#f8faff; }
+.planner-day.is-drop-target,.planner-time-slot.is-drop-target { background:var(--planner-soft); outline:2px dashed #8ca9dd; outline-offset:-3px; }
+.planner-all-day-row { border-top-color:var(--pl-hair); }
+.planner-all-day-row strong { color:var(--pl-soft); font-size:10px; font-weight:700; }
+
+/* list view: one rounded row per event */
+.planner-agenda { padding:4px 14px 16px; }
+.planner-agenda-day { padding:14px 2px 6px; border-bottom:0; color:var(--pl-soft); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+.planner-agenda-item { width:100%; align-items:center; margin-bottom:6px; padding:9px 12px; border:1px solid var(--pl-hair); border-radius:10px; background:#fff;
+  color:inherit; font:inherit; text-align:left; cursor:pointer; transition:border-color .12s, box-shadow .12s; }
+.planner-agenda-item:hover { border-color:#c9d8f5; box-shadow:0 2px 10px rgba(16,24,40,.07); }
+.planner-agenda-time { display:inline-flex; justify-content:center; padding:3px 8px; border-radius:999px; background:var(--planner-soft); color:var(--planner-accent); font-size:11px; font-weight:700; white-space:nowrap; }
+.planner-empty { padding:46px 16px; color:var(--pl-soft); }
+
+/* Filters & tasks popup */
+.planner-page .planner-task-backlog { top:6px; border-color:var(--pl-line-soft); border-radius:12px; box-shadow:0 18px 40px rgba(16,24,40,.16),0 2px 6px rgba(16,24,40,.06); }
+.planner-pop-head { padding:10px 12px; margin:0 -10px 10px; border-bottom-color:var(--pl-hair); border-radius:12px 12px 0 0; }
+.planner-pop-head strong { font-size:13px; }
+.planner-pop-close { border-radius:50%; border-color:transparent; font-size:17px; }
+.planner-task-card { border-color:var(--pl-hair); border-radius:8px; transition:border-color .12s, box-shadow .12s; }
+.planner-task-card:hover { border-color:#c9d8f5; background:#fff; box-shadow:0 2px 8px rgba(16,24,40,.08); }
+.planner-reminder-item { border-radius:8px; }
+.planner-sources input[type="checkbox"],.planner-source-members input[type="checkbox"] { accent-color:var(--planner-accent); }
+.planner-count { background:var(--planner-soft); }
+/* Day | Week | Month | List: buttons fill the group's full height, so the
+   active view's blue covers the whole button (an older rule centred them). */
+.planner-header-controls .planner-view-switch { align-items:stretch; }
+.planner-header-controls .planner-view-switch button { display:flex; align-items:center; height:100%; }
+
+/* Quick add (click on an empty day / time slot): description only. */
+.planner-quick { width:min(420px,calc(100vw - 30px)); border-radius:12px; }
+.planner-quick-body { display:grid; gap:8px; padding:14px 16px; }
+.planner-quick-body textarea { width:100%; min-height:96px; padding:8px 10px; border:1px solid var(--planner-border); border-radius:8px; color:var(--planner-ink); font:inherit; font-size:13px; font-weight:400; resize:vertical; }
+.planner-quick-body textarea:focus { outline:none; border-color:var(--planner-accent); box-shadow:0 0 0 3px rgba(40,79,158,.12); }
+.planner-quick-error { margin:0; color:#b42318; font-size:12px; }
+.planner-quick .planner-dialog-footer { padding:10px 16px; }
+.planner-quick .planner-button,.planner-quick .planner-primary,.planner-quick .planner-danger { min-height:30px; border-radius:6px; font-size:12px; }

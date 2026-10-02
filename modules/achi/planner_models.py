@@ -35,7 +35,7 @@ class AchiPlannerEvent(Base):
     )
 
     # meeting | appointment | event | reminder | time_block | task_block |
-    # site_visit | call | follow_up | deadline
+    # site_visit | call | follow_up | deadline | task | note | job
     event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="event", server_default="event")
     # scheduled | cancelled
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="scheduled", server_default="scheduled")

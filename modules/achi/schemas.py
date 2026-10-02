@@ -243,6 +243,21 @@ class FileLogUpdate(BaseModel):
     # the service from the payload, never trusted from the client.
     drawing: str | None = None
 
+class AttachmentRename(BaseModel):
+    """New display name for an attached file (the Files page). Only the name
+    changes; the stored bytes and their storage key do not."""
+
+    filename: str = Field(min_length=1, max_length=255)
+
+    @field_validator("filename")
+    @classmethod
+    def _clean_filename(cls, value: str) -> str:
+        name = " ".join(value.split())               # no control characters / newlines
+        if not name or name in {".", ".."} or "/" in name or "\\" in name:
+            raise ValueError("Enter a file name without / or \\")
+        return name
+
+
 class AttachmentDeliverablesUpdate(BaseModel):
     """Deliverable classifications selected for one attached file."""
 
@@ -867,6 +882,7 @@ class SurveyCreate(BaseModel):
     customer: str | None = Field(default=None, max_length=255)
     lead: str | None = Field(default=None, max_length=255)
     contact: str | None = Field(default=None, max_length=255)
+    lead_mobile: str | None = Field(default=None, max_length=32)   # the Contact phone on the form
     site_location: str | None = Field(default=None, max_length=255)
     google_maps_url: str | None = Field(default=None, max_length=1000)
     site_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_SITE_TYPES))
@@ -889,6 +905,7 @@ class SurveyUpdate(BaseModel):
     customer: str | None = Field(default=None, max_length=255)
     lead: str | None = Field(default=None, max_length=255)
     contact: str | None = Field(default=None, max_length=255)
+    lead_mobile: str | None = Field(default=None, max_length=32)   # the Contact phone on the form
     site_location: str | None = Field(default=None, max_length=255)
     google_maps_url: str | None = Field(default=None, max_length=1000)
     site_type: str | None = Field(default=None, pattern="^(%s)$" % "|".join(SURVEY_SITE_TYPES))
@@ -918,12 +935,15 @@ class SurveyOut(BaseModel):
 
     id: str
     survey_number: str
+    # The enquiry this visit was opened from (moved to Site visit in the CRM).
+    file_id: str | None = None
     status: str = "Draft"
     survey_date: date | None = None
     assigned_to: str | None = None
     customer: str | None = None
     lead: str | None = None
     contact: str | None = None
+    lead_mobile: str | None = None
     site_location: str | None = None
     google_maps_url: str | None = None
     site_type: str | None = None
@@ -979,19 +999,6 @@ class SurveyRowOut(BaseModel):
 # ── Site Visit page ───────────────────────────────────────────────────────
 # A site visit is a SiteSurvey row. Most are opened automatically when an
 # enquiry moves into the Site visit stage; "+ New visit" adds one by hand.
-
-
-class SiteVisitCreate(BaseModel):
-    """"+ New visit" on the Site Visit page (no enquiry behind it)."""
-
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    contact_name: str = Field(min_length=1, max_length=255)
-    mobile: str | None = Field(default=None, max_length=32)
-    site: str | None = Field(default=None, max_length=255)
-    survey_date: date | None = None
-    assigned_to: str | None = Field(default=None, max_length=255)
-    status: str = Field(default="Draft", pattern="^(%s)$" % "|".join(SURVEY_STATUSES))
 
 
 class SiteVisitRowOut(BaseModel):
