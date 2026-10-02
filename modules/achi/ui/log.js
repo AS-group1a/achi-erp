@@ -46,6 +46,8 @@ async function rxSaveAll(keepOpen){
   if(emailsChanged){ try{ await rxSaveEmails(r); }catch(e){ failed++; } }
   if(relatedChanged){ try{ await rxSaveRelated(r); }catch(e){ failed++; } }
   rxBusy(false);
+  // On a stage module, an enquiry moved to another stage must leave this list.
+  if(window.ACHI_BUSINESS_CODE&&changed.some(el=>el.dataset.k==='stage')) load();
   if(failed){ st.textContent=`${failed} field(s) failed`; st.className='rx-status bad'; }
   else {
     st.textContent='Saved'; st.className='rx-status ok'; setTimeout(()=>{ if($('rx-status'))$('rx-status').textContent=''; },2000);
@@ -2125,7 +2127,7 @@ function openEditor(td){
       td.dataset.val=nv; clearErr(); stats();
       // A stage change re-codes this row's "#" and may renumber its bucket
       // siblings server-side; refetch so the General Log shows the new codes.
-      if(field==='stage' && window.ACHI_GENERAL_LOG===true){ load(); return; }
+      if(field==='stage' && (window.ACHI_GENERAL_LOG===true||window.ACHI_BUSINESS_CODE)){ load(); return; }
     }catch(e){ fail(e.message); } }
     refreshCell(td);
     if(advance){ const nx=nextEditableInRow(td); if(nx){ nx.scrollIntoView({inline:'center',block:'nearest'}); openEditor(nx); } }

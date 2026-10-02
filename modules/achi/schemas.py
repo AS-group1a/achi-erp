@@ -80,12 +80,12 @@ class PersonIn(BaseModel):
     socials: list[SocialIn] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _require_a_name(self) -> "PersonIn":
-        if self.is_company:
-            if not (self.company_name or "").strip():
-                raise ValueError("company_name is required when is_company is true")
-        elif not ((self.first_name or "").strip() or (self.last_name or "").strip()):
-            raise ValueError("first_name or last_name is required when is_company is false")
+    def _company_needs_a_name(self) -> "PersonIn":
+        # A person may be left blank: a log can be written before anyone is
+        # known, and the file keeps whatever was typed. A company row, though,
+        # is nothing without its name.
+        if self.is_company and not (self.company_name or "").strip():
+            raise ValueError("company_name is required when is_company is true")
         return self
 
 

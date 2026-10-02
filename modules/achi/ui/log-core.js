@@ -1674,6 +1674,13 @@ const BUSINESS_CODE=(typeof window!=='undefined'&&typeof window.ACHI_BUSINESS_CO
   ?window.ACHI_BUSINESS_CODE.trim():'';
 function formatBusinessCode(r,rowNumber){
   const displayNumber=String(rowNumber);
+  // A stage module (DRAW, M/T, BOQ, Quotation…) numbers its own records
+  // CODE-1, CODE-2…, whatever the column layout. The rank comes from the API
+  // over the page's fixed stage scope, never from the visual row position.
+  if(BUSINESS_CODE){
+    const sequence=Number(r.module_sequence);
+    if(Number.isInteger(sequence)&&sequence>0) return `${BUSINESS_CODE}-${sequence}`;
+  }
   if(COMPACT_STANDARD_LOG){
   const raw = String(r.log_code || '').trim();
 
@@ -3164,7 +3171,7 @@ function rxReferenceContactHTML(src,val){
       ${rxContactPhotoCard('person',initials,true)}
       <div class="rx-contact-fields">
         <div class="rx-ref-field"><span class="rx-ref-label">Pre</span><select class="rx-in" id="rx-prefix" data-rx-select="prefix" data-k="prefix">${prefixOptions}</select></div>
-        <div class="rx-ref-field"><span class="rx-ref-label">First <i>*</i></span><input class="rx-in" data-k="first" value="${esc(first)}" placeholder="Type to search contacts..."></div>
+        <div class="rx-ref-field"><span class="rx-ref-label">First</span><input class="rx-in" data-k="first" value="${esc(first)}" placeholder="Type to search contacts..."></div>
         <div class="rx-ref-field"><span class="rx-ref-label">Middle</span><input class="rx-in" data-rx-contact-middle value="${esc(src.middle_name||'')}" placeholder="Middle name"></div>
         <div class="rx-ref-field"><span class="rx-ref-label">Last</span><input class="rx-in" data-k="last" value="${esc(last)}" placeholder="Type to search contacts..."></div>
         <div class="rx-ref-field"><span class="rx-ref-label">Father’s name</span><input class="rx-in" data-rx-contact-father placeholder="Father’s name"></div>
@@ -3813,7 +3820,7 @@ function rxCollectNew(){
   const eml=(rxCollectEmails()[0]||{}).address||null;  // full lists are saved right after create
   const person=isCo
     ? {is_company:true, company_name:company, company_type:v.company_type||null, mobile:mob, email:eml, socials}
-    : {is_company:false, prefix:v.prefix||null, first_name:first||null, last_name:last||null,
+    : {is_company:false, prefix:(first||last)?(v.prefix||null):null, first_name:first||null, last_name:last||null,
        company_name:company||null, role:v.role||null, company_type:v.company_type||null,
        mobile:mob, email:eml, socials};
   const hasSite=v.country||v.district||v.city||v.street||v.maps||v.location||v.no||v.bldg||v.floor;
@@ -3869,9 +3876,12 @@ function rxBusy(on){
 async function rxCreateNew(keepOpen){
   const st=$('rx-status');
   const payload=rxCollectNew();
-  // A file needs an identity — the same rule the grid enforces before saving.
-  if(!(payload.person.first_name||payload.person.last_name||payload.person.company_name)){
-    st.textContent='Enter at least a name or company'; st.className='rx-status bad'; return null;
+  // A log can be written before anyone is known: the subject or notes alone are
+  // enough. Only a completely empty sheet is refused.
+  const plain=v=>String(v||'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').trim();
+  const who=payload.person;
+  if(!(plain(payload.subject)||plain(payload.description)||who.first_name||who.last_name||who.company_name||who.mobile||who.email)){
+    st.textContent='Write something first'; st.className='rx-status bad'; return null;
   }
   const badEmail=rxFirstInvalidEmail();
   if(badEmail){

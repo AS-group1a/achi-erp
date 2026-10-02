@@ -245,12 +245,9 @@ async function saveDeliverablePicker(picker){
     let logId = currentLogId();
 
     // New unsaved log — silently save it first so we have a log_id to attach to.
+    // No name is needed: the file itself is what is being logged.
     if(!logId){
       const payload = rxCollectNew();
-      if(!(payload.person.first_name || payload.person.last_name || payload.person.company_name)){
-        alert('Enter at least a name or company before attaching files.');
-        return;
-      }
       const st = $('rx-status');
       rxBusy(true);
       st.textContent = 'Saving…'; st.className = 'rx-status';

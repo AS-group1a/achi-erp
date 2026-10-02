@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import json
 import re
@@ -236,6 +237,57 @@ def crm_ui() -> HTMLResponse:
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+def _stage_module_page(title: str, code: str, scope: dict) -> str:
+    """The Log page as one CRM stage module (DRAW, M/T, BOQ, Quotation).
+
+    An enquiry appears here while its CRM stage is in ``scope["stages"]`` and is
+    numbered CODE-1, CODE-2… in the order it entered — the API ranks rows over
+    this fixed scope (module_sequence) and log-core.js prints the code. Built
+    from general_log.html at request time so every module wears the current Log
+    design with no copy to keep in step; a missing anchor fails loudly instead
+    of silently serving the unscoped Log.
+    """
+    page = (_UI_DIR / "general_log.html").read_text(encoding="utf-8")
+    config = (
+        "<script>\n"
+        f"  window.ACHI_BUSINESS_CODE = {json.dumps(code)};\n"
+        f"  window.ACHI_LOG_FILTER = {json.dumps(scope)};\n"
+        "</script>\n"
+    )
+    edits = (
+        ("<title>Log ·", f"<title>{title} ·"),
+        ('<body class="log-page" data-achi-title="Log">',
+         f'<body class="log-page" data-achi-title="{title}">'),
+        ('<h1 id="log-overview-title">Log</h1>', f'<h1 id="log-overview-title">{title}</h1>'),
+        ('<script src="/api/v1/achi/ui/log-core.js', config + '<script src="/api/v1/achi/ui/log-core.js'),
+    )
+    for old, new in edits:
+        if old not in page:
+            raise RuntimeError(f"general_log.html changed: cannot find {old!r} for the {title} page")
+        page = page.replace(old, new, 1)
+    return page
+
+
+# CRM stage -> module. Quotation matches the CRM's Quotation column (costing,
+# pricing, quotation) and keeps tracking each quotation through its outcome.
+STAGE_MODULES: dict[str, tuple[str, str, dict]] = {
+    "draw": ("DRAW", "DRAW", {"create": {"origin": "crm", "stage": "drawing"}, "stages": ["drawing"]}),
+    "mt": ("M/T", "M/T", {"create": {"origin": "crm", "stage": "takeoff"}, "stages": ["takeoff"]}),
+    "boq": ("BOQ", "BOQ", {"create": {"origin": "crm", "stage": "boq"}, "stages": ["boq"]}),
+    "quotation": ("Quotation", "QUO", {
+        "create": {"origin": "quotation", "stage": "quotation"},
+        "stages": ["costing", "pricing", "quotation", "negotiation", "accepted", "cancelled"],
+    }),
+}
+
+
+def _stage_module_response(key: str) -> HTMLResponse:
+    return HTMLResponse(
+        _stage_module_page(*STAGE_MODULES[key]),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
 @router.get(
     "/quotation/ui",
     response_class=HTMLResponse,
@@ -248,10 +300,7 @@ def quotation_workspace_ui() -> HTMLResponse:
     It reads the same Log rows as the other workspaces. The page-level stage
     filter limits its visible rows to quotation workflow stages.
     """
-    return HTMLResponse(
-        (_UI_DIR / "quotation_workspace.html").read_text(encoding="utf-8"),
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
+    return _stage_module_response("quotation")
 
 @router.get(
     "/boq/ui",
@@ -265,10 +314,7 @@ def boq_workspace_ui() -> HTMLResponse:
     This follows CRM, PROSP, and Quotation: the page uses shared Log data and
     behavior, initially filtered to records in the BOQ stage.
     """
-    return HTMLResponse(
-        (_UI_DIR / "boq_workspace.html").read_text(encoding="utf-8"),
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
+    return _stage_module_response("boq")
 
 
 @router.get(
@@ -283,10 +329,7 @@ def mt_workspace_ui() -> HTMLResponse:
     It follows the other stage workspaces and initially shows records in the
     resources workflow stage.
     """
-    return HTMLResponse(
-        (_UI_DIR / "mt_workspace.html").read_text(encoding="utf-8"),
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
+    return _stage_module_response("mt")
 
 
 @router.get(
@@ -297,10 +340,7 @@ def mt_workspace_ui() -> HTMLResponse:
 )
 def draw_workspace_ui() -> HTMLResponse:
     """Serve the standalone drawing-stage workspace."""
-    return HTMLResponse(
-        (_UI_DIR / "draw_workspace.html").read_text(encoding="utf-8"),
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
+    return _stage_module_response("draw")
 
 
 @router.get(
