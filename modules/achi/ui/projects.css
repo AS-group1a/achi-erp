@@ -12,9 +12,13 @@
 /* No browser margin around the page, and the shared top bar's title without
    its default heading margins: both only showed as empty space. */
 body { margin:0; }
+/* Full-bleed pages: plain background instead of the shared dotted one, and
+   the panels meet the edges, so no empty background shows anywhere. The class
+   outranks chrome.js's injected body rule. */
+body.pj-body { background-image:none; background-color:var(--pj-panel); }
 .achi-top h1 { margin:0; }
 .sr-only { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
-.pj-page { padding:12px; color:var(--pj-ink); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif; }
+.pj-page { padding:0; color:var(--pj-ink); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif; }
 .pj-crumb { margin:0 0 3px; color:var(--pj-accent); font-size:11px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
 .pj-actions { display:flex; gap:8px; margin-left:auto; }
 .pj-title { display:grid; margin:0 4px 0 2px; font-size:16px; line-height:1.2; }
@@ -26,12 +30,12 @@ body { margin:0; }
 .pj-icon { width:34px; padding:0; font-size:22px; line-height:1; }
 button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px solid var(--pj-accent); outline-offset:2px; }
 
-.pj-work { display:grid; grid-template-columns:240px minmax(0,1fr); gap:12px; align-items:start; }
-.pj-side { position:sticky; top:12px; display:grid; align-content:start; gap:8px; padding:10px; background:var(--pj-panel); border:1px solid var(--pj-border); border-radius:12px; box-shadow:0 8px 24px rgba(28,49,91,.05); }
+.pj-work { display:grid; grid-template-columns:240px minmax(0,1fr); gap:0; align-items:start; }
+.pj-side { position:sticky; top:0; display:grid; align-content:start; gap:8px; padding:10px; background:var(--pj-sunk); border-right:1px solid var(--pj-border); }
 .pj-side-head h2 { margin:0; font-size:16px; }
 .pj-project-list { display:grid; gap:4px; }
 .pj-proj { display:grid; grid-template-columns:auto 1fr auto; gap:3px 8px; align-items:center; width:100%; padding:6px 8px; border:1px solid transparent; border-radius:8px; background:none; color:var(--pj-ink); font:inherit; text-align:left; cursor:pointer; }
-.pj-proj:hover { background:var(--pj-sunk); }
+.pj-proj:hover { background:#e9eef7; }
 .pj-proj.is-on { background:var(--pj-soft); border-color:#c8d6f1; }
 .pj-proj .dot { width:10px; height:10px; border-radius:3px; background:var(--c); }
 .pj-proj .nm { font-size:13px; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -41,7 +45,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .pj-proj .edit { grid-column:2 / -1; justify-self:start; padding:0; border:0; background:none; color:var(--pj-accent); font:inherit; font-size:11px; cursor:pointer; }
 .pj-side-empty { margin:0; color:var(--pj-muted); font-size:13px; line-height:1.45; }
 
-.pj-main { min-width:0; background:var(--pj-panel); border:1px solid var(--pj-border); border-radius:12px; box-shadow:0 8px 24px rgba(28,49,91,.06); overflow:hidden; }
+.pj-main { min-width:0; background:var(--pj-panel); overflow:hidden; }
 .pj-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 10px; border-bottom:1px solid var(--pj-border); }
 .pj-tabs { display:flex; gap:3px; padding:3px; border-radius:9px; background:#f0f4fa; }
 .pj-tabs button { border:0; border-radius:6px; background:transparent; color:var(--pj-muted); padding:7px 13px; font:inherit; font-size:13px; cursor:pointer; }
@@ -167,9 +171,8 @@ table.pj-table { width:100%; min-width:860px; border-collapse:collapse; font-siz
   .pj-board { height:100%; }
   .pj-col { min-height:0; overflow-y:auto; }
 }
-@media (max-width:980px) { .pj-work { grid-template-columns:1fr; } .pj-side { position:static; } .pj-project-list { grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); } }
+@media (max-width:980px) { .pj-work { grid-template-columns:1fr; } .pj-side { position:static; border-right:0; border-bottom:1px solid var(--pj-border); } .pj-project-list { grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); } }
 @media (max-width:640px) {
-  .pj-page { padding:10px; }
   .pj-filters,.pj-filters input,.pj-filters select { width:100%; }
   .pj-actions { margin-left:0; }
   .pj-form { grid-template-columns:1fr; }
