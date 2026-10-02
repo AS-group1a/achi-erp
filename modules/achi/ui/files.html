@@ -74,6 +74,11 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
 .dpanel[hidden]{display:none}
 .dph{display:flex;align-items:center;gap:8px;background:linear-gradient(#305FB8,#284F9E);color:#fff;padding:6px 10px;flex:0 0 auto}
 .dph b{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Editable file name in the panel header: reads as the title, edits in place. */
+.dph-name{flex:1;min-width:0;height:22px;padding:0 6px;border:1px solid transparent;border-radius:4px;background:transparent;color:#fff;font:inherit;font-size:12px;font-weight:800;text-overflow:ellipsis}
+.dph-name:hover{border-color:rgba(255,255,255,.45);cursor:text}
+.dph-name:focus{outline:none;border-color:#fff;background:#fff;color:#1d1d1f}
+.dph-name:disabled{opacity:.7}
 .dpx{width:22px;height:22px;border:1px solid rgba(255,255,255,.4);border-radius:4px;background:rgba(255,255,255,.1);color:#fff;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:0 0 auto}
 .dpx:hover{background:rgba(255,255,255,.22)}
 .dpb{overflow-y:auto;flex:1 1 auto;min-height:0;padding:8px;display:grid;grid-template-columns:1fr;gap:7px;align-items:start;align-content:start;scrollbar-width:thin}
@@ -518,7 +523,7 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
     if (!sf) { revokePreview(); panel.hidden = true; panel.innerHTML = ''; return; }
     var href = recordHref(sf);
     panel.innerHTML =
-      '<div class="dph"><b>' + esc(sf.name) + '</b><span style="flex:1"></span>'
+      '<div class="dph"><input class="dph-name" id="dp-name" value="' + esc(sf.name) + '" maxlength="255" title="Click to rename" aria-label="File name">'
       + '<button type="button" class="dpx" id="dp-close" title="Close">✕</button></div>'
       + '<div class="prev"><div class="bx" style="' + extStyle(sf.ext) + '">' + esc(sf.ext) + '</div></div>'
       + '<div style="display:flex;gap:6px;padding:0 8px 2px">'
@@ -544,6 +549,34 @@ a{color:#284F9E;text-decoration:none}a:hover{color:#1F3F80}
       + '</div>';
     panel.hidden = false;
     $('dp-close').addEventListener('click', function () { state.sel = null; render(); });
+    // Rename: Enter or leaving the box saves (PATCH /attachments/{id}); Esc undoes.
+    var nameEl = $('dp-name');
+    nameEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+      else if (e.key === 'Escape') { nameEl.value = sf.name; nameEl.blur(); }
+    });
+    nameEl.addEventListener('blur', function () {
+      var next = nameEl.value.trim();
+      if (!next || next === sf.name) { nameEl.value = sf.name; return; }
+      nameEl.disabled = true;
+      authFetch('/attachments/' + encodeURIComponent(sf.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: next })
+      }).then(function (r) {
+        if (!r.ok) return r.json().catch(function () { return {}; }).then(function (b) {
+          var d = b && b.detail; throw new Error(Array.isArray(d) ? (d[0] && d[0].msg) || 'HTTP ' + r.status : d || 'HTTP ' + r.status);
+        });
+        return r.json();
+      }).then(function (att) {
+        sf.name = att.filename || next;      // the server may add back the extension
+        sf.ext = extOf(sf.name);
+        renderTypeOptions(); render();
+      }).catch(function (e) {
+        nameEl.disabled = false; nameEl.value = sf.name;
+        showError('Rename failed: ' + (e && e.message ? e.message : e));
+      });
+    });
     $('dp-del').addEventListener('click', function () {
       if (!window.confirm('Delete "' + sf.name + '" permanently? This cannot be undone.')) return;
       var btn = $('dp-del');

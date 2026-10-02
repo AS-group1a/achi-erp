@@ -5,110 +5,207 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Site Visit · Achi Scaffolding ERP</title>
 <style>
-  /* ACHI palette, same as the call log. The survey is filled in on a phone while
-     standing on the site, so the layout is a single readable column of steps with
-     large touch targets rather than a grid. */
+  /* Site Visit workspace — /survey/ui?id=<survey id>.
+     Same design as the Add Log / "+ contact" popups (log.css .rx-*, contact_info.css
+     .pp-*): blue 46px header, 12px text, 26px fields with 92px labels beside them,
+     sections with a thin #eef2f8 title strip, quiet × buttons, blue text links. */
   :root{
-    --navy:#284F9E; --navy-d:#1F3F80; --navy-2:#305FB8; --light:#E3EDFB;
-    --bd:#dfe4ec; --hair:#eef1f6; --tx:#1d1d1f; --tx-2:#5b5e66; --tx-3:#8a8f98;
+    --ink:#1d1d1f; --mut:#44546e; --soft:#8a95a8; --strip-t:#486077;
+    --navy:#284f9e; --navy-d:#1f3f80; --blue-soft:#eaf1ff; --hi:#dce7fa;
+    --page:#f4f6f9; --strip:#eef2f8; --box:#fbfcff;
+    --line:#b9c5d8; --line-soft:#dbe2ed; --row:#eef2f8;
+    --red:#b91c1c;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--tx);background:#f5f5f7}
-  .err{background:#fde8e8;color:#ba0517;border:1px solid #f5a0a0;padding:10px 14px;border-radius:8px;margin:12px 16px;display:none}
+  [hidden]{display:none!important}
+  body{font:12px/1.45 var(--font);color:var(--ink);background:var(--page)!important}
+  button,input,select,textarea{font:inherit;color:inherit}
+  a{color:var(--navy);text-decoration:none}
+  /* chrome.js's white title bar: hidden like the other ACHI pages; on narrow
+     screens it keeps the sidebar burger but drops its duplicate title. */
+  body[data-achi-title="Site Visit"] .achi-top{display:none}
+  @media (max-width:900px){
+    body[data-achi-title="Site Visit"] .achi-top{display:flex;padding:6px 12px}
+    body[data-achi-title="Site Visit"] .achi-top h1{display:none}
+  }
 
-  .nav{display:flex;align-items:center;gap:12px;background:var(--navy);padding:11px 16px;flex-wrap:wrap}
-  .nav h1{color:#fff;font-size:15px;font-weight:700;letter-spacing:.01em}
-  .nav .sp{flex:1}
-  .btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:0;border-radius:99px;background:#fff;color:var(--navy);font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.22)}
-  .btn:hover{background:#eaf1ff}
-  .btn svg{width:14px;height:14px}
-  .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.5);box-shadow:none}
-  .btn-ghost:hover{background:rgba(255,255,255,.22)}
-  .search{height:32px;width:190px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12.5px;padding:0 12px;outline:none}
-  .search::placeholder{color:rgba(255,255,255,.45)}
+  .page{padding:10px 12px 30px}
 
-  .wrap{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px;align-items:start}
-  @media (max-width:900px){ .wrap{grid-template-columns:1fr} }
+  /* ── header = the white CRM / Contacts banner (.bar-title) ──────────── */
+  .tb{display:flex;align-items:center;gap:8px;min-height:40px;padding:6px 10px;margin-bottom:10px;
+      background:#fff;border:1px solid var(--line);border-radius:5px;color:var(--ink)}
+  .tb-back{color:var(--navy);font-size:11.5px;font-weight:700;text-decoration:underline;white-space:nowrap}
+  .tb-back:hover{color:var(--navy-d)}
+  .tb h1{font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap}
+  .tb-save{font-size:11px;color:var(--soft);white-space:nowrap}
+  .tb-save.is-error{color:var(--red);font-weight:700}
+  .tb-sp{flex:1}
+  /* search = the CRM / Contacts .srch */
+  .tb-search{height:26px;width:260px;padding:3px 8px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);font-size:12px}
+  .tb-search::placeholder{color:var(--soft)}
+  .tb-search:focus{outline:none;border-color:var(--navy)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:26px;padding:0 10px;border:1px solid var(--line);
+       border-radius:4px;background:#fff;color:var(--navy-d);font-size:11.5px;font-weight:700;white-space:nowrap;cursor:pointer}
+  .btn:hover{background:var(--blue-soft)}
+  .btn:disabled{opacity:.6;cursor:default}
+  .tb .btn-new{border-color:var(--navy);color:var(--navy)}            /* blue outline on the white banner */
+  .btn-danger{height:28px;padding:0 14px;border-color:#e3a9a9;color:var(--red);font-size:12px}
+  .btn-danger:hover{background:#fbeaea}
+  .btn-icon{width:28px;padding:0}
+  .btn-icon svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+  .tb .btn-icon{border-color:var(--line);background:#fff;color:var(--navy)}
+  .tb-drawer{display:none}
 
-  /* survey list */
-  .list{background:#fff;border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(40,79,158,.07)}
-  .list-head{padding:11px 14px;border-bottom:1px solid var(--hair);font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--tx-3)}
-  .sv{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--hair);background:#fff;padding:11px 14px;cursor:pointer;font:inherit}
-  .sv:hover{background:#f4f8ff}
-  .sv.on{background:#eaf1ff;box-shadow:inset 3px 0 0 var(--navy)}
-  .sv .n{font-variant-numeric:tabular-nums;font-size:11px;font-weight:700;color:var(--navy)}
-  .sv .who{font-weight:700;color:#111827;margin-top:1px}
-  .sv .where{font-size:12px;color:var(--tx-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sv .meta{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap}
-  .empty{padding:22px 14px;text-align:center;color:#9ca3af;font-size:13px}
+  .err{display:none;margin:0 0 10px;padding:6px 10px;border:1px solid #e7a49e;border-left:4px solid #b9342a;border-radius:5px;background:#fff1ef;color:#8f241b;font-size:12px;font-weight:700}
 
-  /* steps */
-  .step{background:#fff;border:1px solid var(--bd);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 4px 18px rgba(40,79,158,.07)}
-  .step-h{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--hair);background:#fbfcff}
-  .step-n{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:800;flex:0 0 auto}
-  .step-t{font-size:13.5px;font-weight:800;color:#111827}
-  .step-s{font-size:11.5px;color:var(--tx-3)}
-  .step-b{padding:14px 16px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-  label.f{display:block}
-  label.f span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tx-3);margin-bottom:4px}
-  input,select,textarea{width:100%;font:inherit;font-size:13.5px;border:1px solid #cfd9e8;border-radius:8px;padding:9px 10px;background:#fff;color:var(--tx)}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(40,79,158,.13)}
-  textarea{min-height:96px;resize:vertical}
+  /* ── sidebar | main ──────────────────────────────────────────────────── */
+  .ws{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:start}
 
-  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;text-transform:capitalize;border:1px solid transparent}
-  .b-draft{background:#f3f4f6;color:#4b5563;border-color:#d1d5db}
-  .b-scheduled{background:#e8f4fd;color:#014486;border-color:#b0d4f1}
-  .b-in-progress{background:#fff4e0;color:#8a5a12;border-color:#f0d9a8}
-  .b-completed{background:#eff9ef;color:#2e6b3e;border-color:#95d5a0}
-  .b-cancelled{background:#f3f3f3;color:#706e6b;border-color:#c9c7c5}
-  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:600}
+  /* sidebar: CRM / Contacts list density */
+  .side{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow-y:auto;background:#fff;
+        border:1px solid var(--line);border-radius:6px;scrollbar-width:thin}
+  .side-h{position:sticky;top:0;z-index:1;padding:4px 10px;background:var(--strip);border-bottom:1px solid var(--line-soft);
+          color:var(--strip-t);font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:20px}
+  .sv{display:block;width:100%;padding:5px 9px 6px 8px;border:0;border-left:3px solid transparent;border-bottom:1px solid var(--row);
+      background:#fff;text-align:left;cursor:pointer}
+  .sv:hover{background:#f7f9fc}
+  .sv.on{background:var(--blue-soft);border-left-color:var(--navy)}
+  .sv-code{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;color:var(--navy)}
+  .sv-who{overflow:hidden;color:var(--ink);font-size:11.5px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+  .sv-where{overflow:hidden;color:var(--mut);font-size:10.5px;text-overflow:ellipsis;white-space:nowrap}
+  .sv-tags{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:3px}
+  .tag{display:inline-flex;align-items:center;padding:0 6px;border:1px solid var(--line-soft);border-radius:99px;background:var(--strip);color:var(--navy);font-size:8.5px;font-weight:700}
+  .side-empty{padding:16px 9px;color:var(--soft);font-size:11px;text-align:center}
 
-  .measurement-row{display:grid;grid-template-columns:minmax(180px,2fr) minmax(100px,1fr) minmax(100px,1fr) auto;gap:8px;align-items:center;margin-bottom:8px}
-  .measurement-row .danger{padding:8px 11px}
-  @media(max-width:700px){.measurement-row{grid-template-columns:1fr 1fr}.measurement-row input:first-child{grid-column:1/-1}}
+  /* status pills = the CRM .st badges */
+  .pill{display:inline-flex;align-items:center;padding:1px 6px;border-radius:3px;font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+  .p-draft{background:#e5eeff;color:#1f3f80}
+  .p-scheduled{background:#fff4e0;color:#8a5a08}
+  .p-in-progress{background:#f3edfb;color:#5b21b6}
+  .p-completed{background:#dcefe2;color:#14532d}
+  .p-cancelled{background:#fbeaea;color:#b91c1c}
 
-  /* photos */
-  .drop{border:2px dashed #cfd9e8;border-radius:12px;padding:16px;text-align:center;color:var(--tx-3);font-size:13px;cursor:pointer;background:#fbfcff}
-  .drop:hover{border-color:var(--navy);color:var(--navy)}
-  .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
-  .shot{position:relative;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:#f8fafc}
-  .shot img{width:100%;height:96px;object-fit:cover;display:block}
-  .shot .doc{display:flex;align-items:center;justify-content:center;height:96px;color:var(--navy);font-size:11px;font-weight:700;padding:6px;text-align:center;word-break:break-word}
-  .shot .nm{font-size:10.5px;color:var(--tx-2);padding:5px 6px;border-top:1px solid var(--hair);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .shot .x{position:absolute;top:4px;right:4px;width:22px;height:22px;border:0;border-radius:6px;background:rgba(255,255,255,.92);color:#c0392b;font-weight:900;cursor:pointer;line-height:1}
-  .shot .x:hover{background:#fde8e8}
+  /* ── sections = .pp-company with a .pp-sec-t strip ──────────────────── */
+  .main{min-width:0}
+  .panel{margin-bottom:12px;overflow:hidden;background:var(--box);border:1px solid var(--line);border-radius:6px}
+  .panel-h{display:flex;align-items:center;gap:7px;padding:4px 8px;background:var(--strip);border-bottom:1px solid var(--line-soft)}
+  .panel-h>div{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}
+  .num{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:16px;height:16px;border-radius:50%;background:var(--navy);color:#fff;font-size:9.5px;font-weight:800}
+  .panel-t{color:var(--strip-t);font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .panel-s{display:flex;align-items:center;gap:5px;color:var(--soft);font-size:11px}
+  .panel-s .code{font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:700;color:var(--navy)}
+  .panel-b{padding:8px}
 
-  /* map preview (tiles — CSP blocks third-party iframes) */
-  .tilemap{position:relative;overflow:hidden;background:#e9eef4;border-radius:10px;border:1px solid var(--bd);margin-top:10px}
-  .mt-tile{position:absolute;width:256px;height:256px;display:block;max-width:none}
-  .maps-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);color:#ef4444;pointer-events:none;z-index:1}
-  .maps-pin svg{width:26px;height:26px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+  /* fields = .pp-f: 92px right-aligned label beside a 26px field */
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px 12px}
+  label.f{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:0 6px;min-width:0}
+  label.f>span:first-child{color:var(--mut);font-size:10.5px;font-weight:700;text-align:right;white-space:nowrap}
+  label.f.f-top{grid-template-columns:minmax(0,1fr);gap:3px}
+  label.f.f-top>span:first-child{text-align:left}
+  .in,label.f input,label.f select,label.f textarea{width:100%;height:26px;min-width:0;padding:2px 7px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);font-size:12px}
+  label.f textarea{height:90px;padding:6px 8px;font-size:12.5px;line-height:1.5;resize:vertical}
+  .in:focus,label.f input:focus,label.f select:focus,label.f textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(40,79,158,.14)}
+  .with-icon{position:relative;display:flex;color:var(--ink);font-size:12px;font-weight:400;text-align:left}
+  .with-icon input{padding-right:26px}
+  .with-icon a{position:absolute;right:3px;top:50%;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-top:-10px;border-radius:3px;color:var(--navy)}
+  .with-icon a:hover{background:var(--blue-soft)}
+  .with-icon a svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
-  .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--hair);background:#fbfcff}
-  .saved{font-size:12px;color:#16a34a;font-weight:700;opacity:0;transition:opacity .2s}
-  .saved.on{opacity:1}
-  .danger{background:#fde8e8;color:#b91c1c;border:1.5px solid #f5b5b5;border-radius:99px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
-  .danger:hover{background:#fbd5d5}
-  .muted{color:var(--tx-3)}
-  .has-drawing{background:#eaf1ff!important;border-color:var(--navy)!important;color:var(--navy)!important}
+  /* map preview from OSM tiles (CSP blocks third-party iframes) */
+  .tilemap{position:relative;overflow:hidden;margin-top:8px;border:1px solid var(--line-soft);border-radius:4px;background:#e9eef4}
+  .mt-tile{position:absolute;display:block;width:256px;height:256px;max-width:none}
+  .maps-pin{position:absolute;left:50%;top:50%;z-index:1;color:#ef4444;transform:translate(-50%,-100%);pointer-events:none}
+  .maps-pin svg{width:22px;height:22px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+
+  /* measurements = .pp-row: [Description][Value][Unit][×] */
+  .mrows{display:flex;flex-direction:column;gap:4px}
+  .mrow{display:grid;grid-template-columns:2fr 1fr 1fr 22px;gap:5px;align-items:center}
+  .m-del{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:1px solid transparent;border-radius:4px;background:transparent;color:#6b7a92;font-size:15px;line-height:1;cursor:pointer}
+  .m-del:hover{border-color:#eccaca;background:#fbeaea;color:var(--red)}
+  .m-empty{color:var(--soft);font-size:11.5px}
+  /* "+ Add measurement" = .pp-addlink */
+  .linkbtn{margin-top:6px;padding:0;border:0;background:transparent;color:var(--navy);font-size:11px;font-weight:700;cursor:pointer}
+  .linkbtn:hover{text-decoration:underline}
+
+  /* field capture */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px}
+  .sub-t{margin:10px 0 4px;color:var(--strip-t);font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  /* drop zone = the Add Log attachment drop */
+  .drop{display:flex;flex-direction:column;align-items:center;gap:1px;min-height:54px;padding:9px;border:1.5px dashed var(--line);border-radius:4px;background:#fff;color:var(--mut);text-align:center;cursor:pointer}
+  .drop:hover,.drop.is-over{border-color:var(--navy);background:#f6f9ff;color:var(--navy)}
+  .drop svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .drop b{color:var(--navy);font-size:11.5px;font-weight:700}
+  .drop small{font-size:10.5px}
+  .files{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .file{display:flex;align-items:center;gap:6px;padding:2px 4px 2px 3px;border:1px solid var(--line-soft);border-radius:4px;background:#fff;font-size:11px}
+  .file-thumb{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:26px;height:26px;overflow:hidden;border-radius:3px;background:var(--strip);color:var(--navy);font-size:8.5px;font-weight:800}
+  .file-thumb img{width:100%;height:100%;object-fit:cover}
+  .file-nm{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file-sz{color:var(--mut);white-space:nowrap}
+  .file .btn{height:22px;padding:0 7px;font-size:10.5px}
+  .file .btn-danger{height:22px;padding:0 7px;font-size:10.5px}
+  .draw-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid var(--line-soft);border-radius:4px;background:#fff}
+  .draw-txt{flex:1;color:var(--mut);font-size:11.5px}
+  .draw-txt b{color:var(--ink);font-weight:700}
+  /* Save bar: bottom of the page, stays in view while scrolling the form. */
+  .savebar{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 12px;
+    border:1px solid var(--line);border-radius:5px;background:#fff;box-shadow:0 -2px 8px rgba(29,29,31,.06)}
+  .savebar-sp{flex:1}
+  .savebar-msg{color:var(--mut);font-size:11px}
+  .btn-save{height:28px;padding:0 18px;border-color:var(--navy);background:var(--navy);color:#fff;font-size:12px;font-weight:700}
+  .btn-save:hover{background:#1f3f80}
+  .btn-save:disabled{opacity:.5}
+
+  .placeholder{padding:24px 10px;color:var(--mut);text-align:center;font-size:12px}
+
+  /* ── responsive ──────────────────────────────────────────────────────── */
+  @media (max-width:1100px){ .ws{grid-template-columns:240px minmax(0,1fr)} }
+  @media (max-width:1050px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} .tb-search{width:200px} }
+  @media (max-width:900px){
+    .ws{grid-template-columns:1fr}
+    .side{position:fixed;top:0;left:0;bottom:0;z-index:40;width:min(280px,86vw);max-height:none;border-radius:0;transform:translateX(-102%);transition:transform .18s ease}
+    body.drawer-open .side{transform:none}
+    .scrim{position:fixed;inset:0;z-index:35;background:rgba(15,23,42,.35)}
+    .tb-drawer{display:inline-flex}
+    .tb-save{display:none}
+  }
+  @media (max-width:640px){
+    .page{padding:8px}
+    .tb{flex-wrap:wrap}
+    .tb-search{width:auto;flex:1;min-width:0}
+    .grid,.two{grid-template-columns:1fr}
+    .mrow{grid-template-columns:1fr 1fr 22px}
+    .mrow .in[data-mk="label"]{grid-column:1 / -1}
+  }
+  @media (prefers-reduced-motion:reduce){ .side{transition:none} }
 </style>
 </head>
 <body data-achi-title="Site Visit">
-<div class="nav">
-  <span class="sp"></span>
-  <input class="search" id="q" placeholder="Search site, name, number…">
-  <button class="btn" id="new-survey" type="button">+ New survey</button>
-</div>
+<div class="page">
+<header class="tb">
+  <button class="btn btn-icon tb-drawer" id="drawer-btn" type="button" aria-label="Show site visits" title="Site visits">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <a class="tb-back" href="/api/v1/achi/survey/ui" id="back">‹ All site visits</a>
+  <h1>Site Visit</h1>
+  <span class="tb-save" id="save-state" aria-live="polite"></span>
+  <span class="tb-sp"></span>
+  <input class="tb-search" id="q" type="search" placeholder="Search site, name, number..." autocomplete="off" aria-label="Search site visits">
+  <button class="btn btn-new" id="new-visit" type="button">+ New visit</button>
+</header>
 <div class="err" id="err"></div>
 
-<div class="wrap">
-  <div class="list">
-    <div class="list-head" id="list-head">Surveys</div>
+<div class="ws">
+  <aside class="side" id="side" aria-label="Site visits">
+    <div class="side-h" id="side-h">Surveys</div>
     <div id="list"></div>
-  </div>
-  <div id="detail"></div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+  <main class="main" id="detail"></main>
 </div>
+</div>
+
 
 <script src="/api/v1/achi/ui/drawing.js?v=2"></script>
 <script>
@@ -118,12 +215,8 @@ function jwtPayload(t){
   try{ let p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4) p+='=';
     return JSON.parse(atob(p)); }catch(e){ return null; }
 }
-/* Both tokens this API issues are JWTs, so "looks like a JWT" cannot tell them
-   apart. The scan below walks every storage key, and a refresh token in one of
-   them would be sent as a bearer — which the API rejects, so every request 401s
-   permanently and re-signing-in does not help. The payload carries
-   type:"access"|"refresh"; anything typed "refresh" is excluded. Tokens with no
-   type claim still pass, so older sessions keep working. */
+/* Both tokens this API issues are JWTs; anything typed "refresh" is excluded so
+   a refresh token in storage is never sent as a bearer (every call would 401). */
 const isAccessJwt=s=>isJwt(s)&&(jwtPayload(s)||{}).type!=='refresh';
 function scanStorage(match){
   for(const st of [localStorage,sessionStorage]){
@@ -146,15 +239,14 @@ function getRefreshToken(){
 }
 let TOKEN=getToken();   // reassigned by refreshToken() when the access token expires
 const API='/api/v1/achi';
+const LIST_URL=`${API}/survey/ui`;            // the Site Visit list (no ?id)
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fail=m=>{const e=$('err');e.textContent=m;e.style.display='block';};
 const clearErr=()=>{$('err').style.display='none';};
 
-/* Access tokens last an hour (expires_in 3600). Leave this page open longer and
-   every call 401s. A refresh token is issued alongside, so swap it for a new
-   access token and retry once — the user sees nothing. Shared promise so a
-   burst of parallel 401s triggers one refresh, not one per request. */
+/* Access tokens last an hour: swap the refresh token for a new one and retry
+   once. Shared promise so a burst of 401s triggers one refresh. */
 let refreshing=null;
 function refreshToken(){
   if(refreshing) return refreshing;
@@ -169,8 +261,7 @@ function refreshToken(){
     .finally(()=>{ refreshing=null; });
   return refreshing;
 }
-/* Attachment upload/download need the raw Response (FormData in, blob out), so
-   they cannot go through api(). Same refresh-and-retry, without the JSON step. */
+/* Attachment upload/download need the raw Response (FormData in, blob out). */
 async function authFetch(url,opts={},retried){
   const r=await fetch(url,{...opts,headers:{Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
   if(r.status===401 && !retried && await refreshToken()) return authFetch(url,opts,true);
@@ -180,8 +271,6 @@ async function api(path,opts={},retried){
   const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});
   if(r.status===401){
     if(!retried && await refreshToken()) return api(path,opts,true);
-    // message, not "401": every caller does fail(e.message), which used to
-    // overwrite the explanation with the bare status code
     const m='Session expired — open the main app on this host, sign in, then reload.';
     fail(m); throw new Error(m); }
   if(r.status===204) return {};
@@ -189,15 +278,14 @@ async function api(path,opts={},retried){
   if(!r.ok){ const d=b.detail; throw new Error(Array.isArray(d)?d.map(x=>x.msg).join('; '):(d||r.status)); }
   return b;
 }
-const SVGpin=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
-const fmtDT=s=>{ if(!s)return ''; const d=new Date(s); if(isNaN(d))return String(s).slice(0,16).replace('T',' ');
-  const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
-const forInput=s=>{ if(!s)return ''; const d=new Date(s); if(isNaN(d))return '';
-  const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 
-/* Map preview from OSM tiles as <img>. NOT an iframe: this page is served with
-   `frame-src 'self' blob: data:` so a third-party frame renders blank, while
-   `img-src ... https:` lets tiles through. */
+const ICON={
+  ext:'<svg viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  upload:'<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+};
+const SVGpin=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+
+/* Map preview from OSM tiles as <img> (the page CSP blocks third-party frames). */
 function mapsCoords(url){
   const pats=[/@(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/\/maps\/search\/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/,/[?&]ll=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/];
   for(const p of pats){ const m=String(url||'').match(p); if(m) return {lat:parseFloat(m[1]),lng:parseFloat(m[2])}; }
@@ -214,241 +302,422 @@ function tileMap(lat,lng,W,H,z){
     }
   return `<div class="tilemap" style="width:100%;max-width:${W}px;height:${H}px">${out}<span class="maps-pin">${SVGpin}</span></div>`;
 }
+const isUrl=v=>/^https?:\/\/\S+$/i.test(String(v||'').trim());
 
-let SURVEYS=[], current=null, shots=[];
+/* ── state ── */
+let ROWS=[];          // sidebar: GET /site-visits/ (SV code, status, contact, site, counts)
+let current=null;     // the working copy of the open visit (edited on the page, saved by Save)
+let isNew=false;      // a "+ New visit" that has not been saved yet (?id=new)
+let dirty=false;      // unsaved changes on the page
+let drawingDraft=null;// sketch made since the last save (sent with Save), else null
+let shots=[];         // its attachments (saved visits)
+let pendingFiles=[];  // photos / PDFs picked on a new visit, uploaded by Save
+let drawingShapes=0;  // shapes in its sketch (for the Drawing line)
+const NEW_ID='new';
 const SURVEY_STATUSES=['Draft','Scheduled','In Progress','Completed','Cancelled'];
 const SITE_TYPES=['','Residential','Commercial','Industrial'];
 const ROOF_TYPES=['','Flat','Pitched','Mixed','N/A'];
 const MEASUREMENT_UNITS=['m','m²','m³','cm','mm','ft','in','kg','g','L','mL','pcs','units'];
-const badgeClass=s=>'b-'+String(s||'Draft').toLowerCase().replace(/\s+/g,'-');
-const opts=(items,value)=>items.map(v=>`<option value="${esc(v)}"${v===String(value||'')?' selected':''}>${esc(v)}</option>`).join('');
+// Fields Save sends (SurveyCreate / SurveyUpdate).
+const FIELDS=['status','survey_date','assigned_to','customer','lead','lead_mobile','site_location','google_maps_url','site_type','roof_type','site_area','notes','updates'];
+const pillClass=s=>'p-'+String(s||'Draft').toLowerCase().replace(/\s+/g,'-');
+const pill=s=>`<span class="pill ${pillClass(s)}">${esc(s||'Draft')}</span>`;
+const opts=(items,value)=>items.map(v=>`<option value="${esc(v)}"${v===String(value||'')?' selected':''}>${esc(v||'—')}</option>`).join('');
+/* SV-00018 from ACHI-SV-2026-00018 — same as the list and the API. */
+const svCode=n=>{ const m=String(n||'').match(/-(\d+)$/); return m?`SV-${m[1].padStart(5,'0')}`:String(n||''); };
+const urlId=()=>new URLSearchParams(location.search).get('id');
+const blankVisit=()=>({id:null,survey_number:'',status:'Draft',measurements:[],has_drawing:0});
 
-/* ── list ── */
-async function load(sel){
-  try{ SURVEYS=await api('/surveys/'); renderList();
-    if(sel) await open(sel);
-    else if(current && SURVEYS.some(s=>s.id===current.id)) await open(current.id);
-    else $('detail').innerHTML=blank();
-  }catch(e){ fail(e.message); }
+/* ── save state in the header ── */
+function setSave(kind){
+  const el=$('save-state');
+  el.className='tb-save'+(kind==='error'?' is-error':'');
+  el.textContent=kind==='saving'?'Saving…':kind==='error'?'Couldn’t save':kind==='saved'?'Saved'
+    :kind==='dirty'?'Unsaved changes':'';
 }
+function markDirty(){ if(!dirty){ dirty=true; setSave('dirty'); renderSaveBar(); } }
+/* Nothing is lost by accident: confirm before leaving unsaved changes. */
+const leaveOk=()=>!dirty||confirm('You have unsaved changes on this site visit. Leave without saving?');
+window.addEventListener('beforeunload',e=>{ if(dirty){ e.preventDefault(); e.returnValue=''; } });
+
+/* ── sidebar ── */
+async function loadRows(){ ROWS=await api('/site-visits/'); renderList(); }
+let sideTimer=null;
+function refreshSidebarSoon(){ clearTimeout(sideTimer); sideTimer=setTimeout(()=>loadRows().catch(()=>{}),400); }
 function renderList(){
   const q=$('q').value.trim().toLowerCase();
-  const rows=q?SURVEYS.filter(s=>[s.survey_number,s.assigned_to,s.customer,s.lead,s.contact,s.site_location,s.site_type,s.roof_type].some(v=>String(v||'').toLowerCase().includes(q))):SURVEYS;
-  $('list-head').textContent=`Surveys · ${rows.length}`;
-  $('list').innerHTML = rows.length ? rows.map(s=>`
-    <button class="sv ${current&&current.id===s.id?'on':''}" data-id="${s.id}" type="button">
-      <div class="n">${esc(s.survey_number)}</div>
-      <div class="who">${esc(s.customer||s.lead||s.contact||'Unnamed survey')}</div>
-      <div class="where">${esc(s.site_location||'No location yet')}</div>
-      <div class="meta">
-        <span class="badge ${badgeClass(s.status)}">${esc(s.status)}</span>
-        ${s.photo_count?`<span class="chip">${s.photo_count} file${s.photo_count>1?'s':''}</span>`:''}
-        ${s.has_drawing?`<span class="chip">sketch</span>`:''}
-        ${s.has_measurements?`<span class="chip">measurements</span>`:''}
+  const rows=q?ROWS.filter(r=>[r.code,r.survey_number,r.status,r.contact_name,r.company,r.site,r.enq_code,r.assigned_to]
+    .some(v=>String(v||'').toLowerCase().includes(q))):ROWS;
+  $('side-h').textContent=`Surveys · ${rows.length}`;
+  // An unsaved "+ New visit" sits on top, selected, until it is saved.
+  const draftRow=isNew?`<button class="sv on" type="button" aria-current="true" disabled>
+      <div class="sv-code">NEW</div>
+      <div class="sv-who">${esc(current&&current.customer||'New site visit')}</div>
+      <div class="sv-where">Not saved yet</div>
+      <div class="sv-tags">${pill(current?current.status:'Draft')}</div>
+    </button>`:'';
+  $('list').innerHTML=draftRow+(rows.length?rows.map(r=>`
+    <button class="sv${current&&current.id===r.id?' on':''}" data-id="${esc(r.id)}" type="button"${current&&current.id===r.id?' aria-current="true"':''}>
+      <div class="sv-code">${esc(r.code)}</div>
+      <div class="sv-who">${esc(r.contact_name||'Unnamed survey')}</div>
+      <div class="sv-where">${esc(r.site||'No location yet')}</div>
+      <div class="sv-tags">${pill(r.status)}
+        ${r.measurement_count?'<span class="tag">measurements</span>':''}
+        ${r.has_drawing?'<span class="tag">sketch</span>':''}
+        ${r.photo_count?`<span class="tag">${r.photo_count} file${r.photo_count===1?'':'s'}</span>`:''}
       </div>
-    </button>`).join('') : `<div class="empty">No surveys yet.<br>Raise one before you drive out.</div>`;
-  $('list').querySelectorAll('.sv').forEach(b=>b.onclick=()=>open(b.dataset.id));
+    </button>`).join(''):(isNew?'':`<div class="side-empty">${q?'No site visits match.':'No site visits yet.'}</div>`));
 }
-const blank=()=>`<div class="step"><div class="step-b muted" style="text-align:center;padding:40px 16px">
-  Pick a survey on the left, or raise a new one for the site you are visiting.</div></div>`;
+$('list').addEventListener('click',e=>{
+  const b=e.target.closest('.sv[data-id]'); if(!b) return;
+  closeDrawer();
+  if(current&&current.id===b.dataset.id) return;
+  if(!leaveOk()) return;
+  openVisit(b.dataset.id,{push:true});
+});
 
-/* ── detail: the visit, in the order it happens ── */
-async function open(id){
+
+/* ── navigation: the URL is the open visit (?id=…, or ?id=new before the
+   first save); Back/Forward follow it ── */
+function resetEditState(){ dirty=false; drawingDraft=null; drawingShapes=0; setSave(''); }
+function openNew({push=false}={}){
+  if(push) history.pushState({id:NEW_ID},'',`${LIST_URL}?id=${NEW_ID}`);
+  resetEditState();
+  isNew=true; current=blankVisit(); shots=[]; pendingFiles=[];
+  clearErr(); renderDetail(); renderList();
+  document.title='New site visit · Site Visit · Achi Scaffolding ERP';
+  window.scrollTo(0,0);
+}
+async function openVisit(id,{push=false}={}){
+  if(id===NEW_ID){ openNew({push}); return; }
+  if(push) history.pushState({id},'',`${LIST_URL}?id=${encodeURIComponent(id)}`);
+  resetEditState(); isNew=false; pendingFiles=[];
   try{
-    current=await api('/surveys/'+id);
-    shots=await api(`/surveys/${id}/attachments`);
-    renderDetail(); renderList();
-  }catch(e){ fail(e.message); }
+    const [s,att]=await Promise.all([api('/surveys/'+id),api(`/surveys/${id}/attachments`)]);
+    current=s; shots=att;
+    clearErr(); renderDetail(); renderList();
+    document.title=`${svCode(s.survey_number)} · Site Visit · Achi Scaffolding ERP`;
+    window.scrollTo(0,0);
+    if(s.has_drawing) countDrawing(id);
+  }catch(e){
+    current=null; renderList();
+    $('detail').innerHTML=`<div class="panel placeholder">This site visit could not be opened — it may have been deleted.<br><br><a href="${LIST_URL}">← Back to all site visits</a></div>`;
+  }
 }
-function renderDetail(){
-  const s=current, c=mapsCoords(s.google_maps_url);
-  $('detail').innerHTML=`
-  <div class="step">
-    <div class="step-h"><span class="step-n">1</span><div><div class="step-t">Assignment</div>
-      <div class="step-s">${esc(s.survey_number)} · <span class="badge ${badgeClass(s.status)}">${esc(s.status)}</span></div></div></div>
-    <div class="step-b">
-      <div class="grid">
-        <label class="f"><span>Status</span><select data-f="status">${opts(SURVEY_STATUSES,s.status)}</select></label>
-        <label class="f"><span>Survey Date</span><input type="date" data-f="survey_date" value="${esc(s.survey_date||'')}"></label>
-        <label class="f"><span>Surveyor</span><input data-f="assigned_to" value="${esc(s.assigned_to||'')}"></label>
-        <label class="f"><span>Customer</span><input data-f="customer" value="${esc(s.customer||'')}"></label>
-        <label class="f"><span>Lead</span><input data-f="lead" value="${esc(s.lead||'')}"></label>
-        <label class="f"><span>Contact</span><input data-f="contact" value="${esc(s.contact||'')}"></label>
-      </div>
-    </div>
-  </div>
+window.addEventListener('popstate',()=>{
+  dirty=false;                                   // the browser already moved on
+  const id=urlId();
+  if(id) openVisit(id); else location.replace(LIST_URL);   // back to the list page
+});
+$('back').addEventListener('click',e=>{ if(!leaveOk()) e.preventDefault(); else dirty=false; });
 
-  <div class="step">
-    <div class="step-h"><span class="step-n">2</span><div><div class="step-t">Site Info</div>
-      <div class="step-s">Physical characteristics of the survey site</div></div></div>
-    <div class="step-b">
-      <div class="grid" style="margin-top:12px">
-        <label class="f"><span>Site Location</span><input data-f="site_location" value="${esc(s.site_location||'')}"></label>
-        <label class="f"><span>Maps</span><input data-f="google_maps_url" value="${esc(s.google_maps_url||'')}" placeholder="Paste a Google Maps link"></label>
+/* ── editor ── */
+function rowFor(id){ return ROWS.find(r=>r.id===id)||null; }
+function renderDetail(){
+  const s=current, row=s.id?rowFor(s.id):null, c=mapsCoords(s.google_maps_url);
+  const enq=row&&row.enq_code?row.enq_code:(s.file_id?s.lead:'');
+  const hasSketch=drawingDraft!==null?drawingShapes>0:Boolean(s.has_drawing);
+  const ref=isNew?'<span class="code">New — not saved yet</span>':`<span class="code">${esc(svCode(s.survey_number))}</span>`;
+  $('detail').innerHTML=`
+  <section class="panel">
+    <div class="panel-h"><span class="num">1</span><div><div class="panel-t">Assignment</div>
+      <div class="panel-s">${ref}·${pill(s.status)}</div></div></div>
+    <div class="panel-b grid">
+      <label class="f"><span>Status</span><select data-f="status">${opts(SURVEY_STATUSES,s.status)}</select></label>
+      <label class="f"><span>Survey Date</span><input type="date" data-f="survey_date" value="${esc(s.survey_date||'')}"></label>
+      <label class="f"><span>Surveyor</span><input data-f="assigned_to" value="${esc(s.assigned_to||'')}"></label>
+      <label class="f"><span>Customer</span><input data-f="customer" value="${esc(s.customer||'')}"></label>
+      <label class="f"><span>Lead</span><input data-f="lead" value="${esc(s.lead||enq||'')}" placeholder="ENQ / lead reference"></label>
+      <label class="f"><span>Contact</span><input type="tel" inputmode="tel" maxlength="32" data-f="lead_mobile" value="${esc(s.lead_mobile||'')}" placeholder="Phone number"></label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-h"><span class="num">2</span><div><div class="panel-t">Site Info</div>
+      <div class="panel-s">Physical characteristics of the survey site</div></div></div>
+    <div class="panel-b">
+      <div class="grid">
+        <label class="f"><span>Site Location</span><input data-f="site_location" value="${esc(s.site_location||'')}" placeholder="Area, street, building"></label>
+        <label class="f"><span>Maps</span><span class="with-icon"><input data-f="google_maps_url" value="${esc(s.google_maps_url||'')}" placeholder="Paste a Google Maps link">${isUrl(s.google_maps_url)?`<a href="${esc(s.google_maps_url)}" target="_blank" rel="noreferrer" title="Open in Maps" aria-label="Open in Maps">${ICON.ext}</a>`:''}</span></label>
         <label class="f"><span>Site Type</span><select data-f="site_type">${opts(SITE_TYPES,s.site_type)}</select></label>
         <label class="f"><span>Roof Type</span><select data-f="roof_type">${opts(ROOF_TYPES,s.roof_type)}</select></label>
         <label class="f"><span>Area (m²)</span><input type="number" min="0" step="any" data-f="site_area" value="${esc(s.site_area??'')}"></label>
       </div>
-      ${c?tileMap(c.lat,c.lng,520,190,16):''}
-      ${s.google_maps_url?`<div style="margin-top:8px"><a href="${esc(s.google_maps_url)}" target="_blank" rel="noreferrer" style="color:var(--navy);font-weight:700;font-size:13px">Open in Maps ↗</a></div>`:''}
+      ${c?tileMap(c.lat,c.lng,520,170,16):''}
     </div>
-  </div>
+  </section>
 
-  <div class="step">
-    <div class="step-h"><span class="step-n">3</span><div><div class="step-t">Measurements</div>
-      <div class="step-s">Description, value and unit — matching the Frappe child table</div></div></div>
-    <div class="step-b">
-      <div id="measurements">${(s.measurements||[]).map((m,i)=>`
-        <div class="measurement-row" data-mi="${i}">
-          <input data-mk="label" value="${esc(m.label||'')}" placeholder="Description">
-          <input data-mk="value" type="number" step="any" value="${esc(m.value??'')}" placeholder="Value">
-          <select data-mk="unit">${opts(MEASUREMENT_UNITS,m.unit)}</select>
-          <button class="danger" type="button" data-md="${i}" title="Remove measurement">&times;</button>
-        </div>`).join('')}</div>
-      <button class="btn btn-ghost" id="add-measurement" type="button">+ Add measurement</button>
+  <section class="panel">
+    <div class="panel-h"><span class="num">3</span><div><div class="panel-t">Measurements</div>
+      <div class="panel-s">Description, value and unit — matching the Frappe child table</div></div></div>
+    <div class="panel-b">
+      <div class="mrows" id="measurements">${(s.measurements||[]).length?s.measurements.map((m,i)=>`
+        <div class="mrow measurement-row" data-mi="${i}">
+          <input class="in" data-mk="label" value="${esc(m.label||'')}" placeholder="Description">
+          <input class="in" data-mk="value" type="number" step="any" value="${esc(m.value??'')}" placeholder="Value">
+          <select class="in" data-mk="unit">${opts(MEASUREMENT_UNITS,m.unit)}</select>
+          <button class="m-del" type="button" data-md="${i}" title="Remove measurement" aria-label="Remove measurement">&times;</button>
+        </div>`).join(''):'<div class="m-empty">No measurements yet.</div>'}</div>
+      <button class="linkbtn" id="add-measurement" type="button">+ Add measurement</button>
     </div>
-  </div>
+  </section>
 
-  <div class="step">
-    <div class="step-h"><span class="step-n">4</span><div><div class="step-t">Field Capture</div>
-      <div class="step-s">Notes, updates, drawing, photos and files</div></div></div>
-    <div class="step-b">
-      <label class="f"><span>Site Notes</span><textarea data-f="notes">${esc(s.notes||'')}</textarea></label>
-      <label class="f" style="margin-top:12px"><span>Updates</span><textarea data-f="updates">${esc(s.updates||'')}</textarea></label>
-      <div class="drop" id="drop" style="margin-top:14px">Tap to add photos or a PDF — or drop files here</div>
-      <input type="file" id="file" multiple accept="image/*,application/pdf" style="display:none">
-      <div class="shots" id="shots"></div>
-      <button class="btn btn-ghost ${s.has_drawing?'has-drawing':''}" id="draw" type="button" style="margin-top:12px;color:var(--navy);border-color:var(--bd);background:#fff">
-        ${s.has_drawing?'Edit drawing':'Add drawing'}</button>
+  <section class="panel">
+    <div class="panel-h"><span class="num">4</span><div><div class="panel-t">Field Capture</div>
+      <div class="panel-s">Notes, updates, drawing, photos and files</div></div></div>
+    <div class="panel-b">
+      <div class="two">
+        <label class="f f-top"><span>Site Notes</span><textarea data-f="notes" placeholder="Add notes about the site...">${esc(s.notes||'')}</textarea></label>
+        <label class="f f-top"><span>Updates</span><textarea data-f="updates">${esc(s.updates||'')}</textarea></label>
+      </div>
+      <div class="sub-t">Photos and files</div>
+      <div class="drop" id="drop" role="button" tabindex="0">${ICON.upload}<b>Tap to add photos or a PDF</b><small>${isNew?'or drop files here — uploaded when you save':'or drop files here'}</small></div>
+      <input type="file" id="file" multiple accept="image/*,application/pdf" hidden>
+      <div class="files" id="shots"></div>
+      <div class="sub-t">Drawing</div>
+      <div class="draw-row"><span class="draw-txt" id="draw-txt">${drawingText(hasSketch)}</span>
+        <button class="btn" id="draw" type="button">${hasSketch?'Edit drawing':'Add drawing'}</button></div>
     </div>
-    <div class="row-actions">
-      <span class="sp" style="flex:1"></span>
-      <span class="saved" id="saved">Saved</span>
-      <button class="danger" id="del" type="button">Delete survey</button>
-    </div>
-  </div>`;
-  wireDetail(); renderShots();
+  </section>
+
+  <div class="savebar" id="savebar"></div>`;
+  wireDetail(); renderShots(); renderSaveBar();
+}
+function drawingText(hasSketch){
+  if(drawingDraft!==null) return hasSketch?`<b>Sketch ready</b> · ${drawingShapes} shape${drawingShapes===1?'':'s'} — saved with the visit`:'No drawing yet';
+  if(!hasSketch) return 'No drawing yet';
+  return drawingShapes?`<b>Sketch saved</b> · ${drawingShapes} shape${drawingShapes===1?'':'s'}`:'<b>Sketch saved</b>';
+}
+const shapesIn=json=>{ let doc=null; try{ doc=JSON.parse(json||'null'); }catch(e){}
+  return (Array.isArray(doc)?doc:(doc&&Array.isArray(doc.shapes)?doc.shapes:[])).length; };
+async function countDrawing(id){
+  try{
+    const d=await api(`/surveys/${id}/drawing`);
+    drawingShapes=shapesIn(d.drawing);
+    if(current&&current.id===id&&drawingDraft===null&&$('draw-txt')) $('draw-txt').innerHTML=drawingText(true);
+  }catch(e){}
 }
 
-/* Autosave: each field saves when you leave it. On a site you do not get to
-   press Save at the end — you get interrupted. */
+/* The bar at the bottom: Save (creates a new visit / saves edits), plus
+   Cancel for a new one or Delete survey for a saved one. */
+function renderSaveBar(){
+  const bar=$('savebar'); if(!bar) return;
+  bar.innerHTML=`${isNew
+      ? '<button class="btn" id="cancel-new" type="button">Cancel</button>'
+      : '<button class="btn btn-danger" id="del" type="button">Delete survey</button>'}
+    <span class="savebar-sp"></span>
+    <span class="savebar-msg">${dirty?'Unsaved changes':isNew?'Not saved yet':''}</span>
+    <button class="btn btn-save" id="save" type="button"${!dirty&&!isNew?' disabled':''}>${isNew?'Save visit':'Save'}</button>`;
+  $('save').onclick=saveVisit;
+  if(isNew) $('cancel-new').onclick=()=>{ if(leaveOk()){ dirty=false; location.href=LIST_URL; } };
+  else $('del').onclick=async()=>{
+    if(!confirm(`Delete ${svCode(current.survey_number)}? This cannot be undone.`)) return;
+    try{ await api('/surveys/'+current.id,{method:'DELETE'}); dirty=false; location.href=LIST_URL; }catch(e){ fail(e.message); }
+  };
+}
+
+/* Edits change the working copy only; Save sends them. */
 function wireDetail(){
   $('detail').querySelectorAll('[data-f]').forEach(el=>{
-    const commit=async()=>{
+    const take=()=>{
       const f=el.dataset.f; let v=el.value;
       if(f==='site_area') v=v===''?null:Number(v);
       if((current[f]??'')===(v??'')) return;
-      try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({[f]:v===''?null:v})});
-        clearErr(); flash(); renderList();
-      }catch(e){ fail(e.message); }
+      current[f]=v===''?null:v;
+      markDirty();
+      // the status pill / map link / map preview follow these fields
+      if(f==='status'||f==='google_maps_url'){ renderDetail(); if(isNew) renderList(); }
+      else if(isNew&&f==='customer') renderList();
     };
-    el.addEventListener('change',commit);
-    el.addEventListener('blur',commit);
+    el.addEventListener('input',()=>{ if(el.tagName!=='SELECT') markDirty(); });
+    el.addEventListener('change',take);
+    el.addEventListener('blur',take);
   });
-  const saveMeasurements=async()=>{
-    const measurements=[...$('measurements').querySelectorAll('.measurement-row')].map(row=>{
-      const get=k=>row.querySelector(`[data-mk="${k}"]`).value;
-      return {label:get('label')||null,value:get('value')===''?null:Number(get('value')),unit:get('unit')||null};
-    });
-    try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({measurements})});
-      clearErr(); flash(); renderList();
-    }catch(e){ fail(e.message); }
-  };
-  $('measurements').querySelectorAll('input,select').forEach(el=>{
-    el.addEventListener('change',saveMeasurements);
-    el.addEventListener('blur',saveMeasurements);
+  const readMeasurements=()=>[...$('detail').querySelectorAll('.measurement-row')].map(row=>{
+    const get=k=>row.querySelector(`[data-mk="${k}"]`).value;
+    return {label:get('label')||null,value:get('value')===''?null:Number(get('value')),unit:get('unit')||null};
   });
-  $('measurements').querySelectorAll('[data-md]').forEach(b=>b.onclick=async()=>{
-    const measurements=current.measurements
-      .filter((_,i)=>i!==+b.dataset.md)
-      .map(m=>({label:m.label||null,value:m.value??null,unit:m.unit||null}));
-    try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({measurements})});
-      clearErr(); flash(); renderDetail(); renderList();
-    }catch(e){ fail(e.message); }
+  const takeMeasurements=()=>{ current.measurements=readMeasurements(); markDirty(); };
+  $('detail').querySelectorAll('.measurement-row input,.measurement-row select').forEach(el=>{
+    el.addEventListener('input',markDirty);
+    el.addEventListener('change',takeMeasurements);
+  });
+  $('detail').querySelectorAll('[data-md]').forEach(b=>b.onclick=()=>{
+    current.measurements=readMeasurements().filter((_,i)=>i!==+b.dataset.md);
+    markDirty(); renderDetail();
   });
   $('add-measurement').onclick=()=>{
-    current.measurements.push({label:'',value:null,unit:'m'});
-    renderDetail();
-    const rows=$('measurements').querySelectorAll('.measurement-row');
+    current.measurements=[...readMeasurements(),{label:null,value:null,unit:'m'}];
+    markDirty(); renderDetail();
+    const rows=$('detail').querySelectorAll('.measurement-row');
     rows[rows.length-1]?.querySelector('[data-mk="label"]')?.focus();
   };
-  $('drop').onclick=()=>$('file').click();
-  $('drop').addEventListener('dragover',e=>{e.preventDefault();});
-  $('drop').addEventListener('drop',e=>{e.preventDefault(); upload(e.dataTransfer.files);});
-  $('file').onchange=e=>upload(e.target.files);
-  $('del').onclick=async()=>{
-    if(!confirm(`Delete ${current.survey_number}? This cannot be undone.`)) return;
-    try{ await api('/surveys/'+current.id,{method:'DELETE'}); current=null; await load(); }catch(e){ fail(e.message); }
-  };
+  const drop=$('drop');
+  if(drop){
+    drop.onclick=()=>$('file').click();
+    drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('file').click(); } };
+    drop.addEventListener('dragover',e=>{e.preventDefault(); drop.classList.add('is-over');});
+    drop.addEventListener('dragleave',()=>drop.classList.remove('is-over'));
+    drop.addEventListener('drop',e=>{e.preventDefault(); drop.classList.remove('is-over'); upload(e.dataTransfer.files);});
+    $('file').onchange=e=>{ upload(e.target.files); e.target.value=''; };
+  }
   $('draw').onclick=async()=>{
     if(typeof achi_drawing==='undefined'){ fail('Drawing tool did not load.'); return; }
-    let initial='';
-    try{ initial=(await api(`/surveys/${current.id}/drawing`)).drawing||''; }catch(e){}
-    achi_drawing.open({ title:`Sketch — ${current.survey_number}`, initial,
-      onSave:async json=>{ try{ current=await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify({drawing:json})}); flash(); renderDetail(); renderList(); }catch(e){ fail(e.message); } } });
+    let initial=drawingDraft!==null?drawingDraft:'';
+    if(drawingDraft===null&&current.id){ try{ initial=(await api(`/surveys/${current.id}/drawing`)).drawing||''; }catch(e){} }
+    const name=isNew?'new site visit':svCode(current.survey_number);
+    achi_drawing.open({ title:`Sketch — ${name}`, initial,
+      onSave:json=>{ drawingDraft=json; drawingShapes=shapesIn(json); markDirty(); renderDetail(); } });
   };
 }
-function flash(){ const el=$('saved'); if(!el)return; el.classList.add('on'); setTimeout(()=>el.classList.remove('on'),1200); }
 
-/* ── photos and PDFs ── */
+/* ── Save: POST /surveys/ for a new visit, PATCH /surveys/{id} for edits ── */
+async function saveVisit(){
+  // take whatever is in a field that still has focus
+  if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
+  const m=[...$('detail').querySelectorAll('.measurement-row')].map(row=>{
+    const get=k=>row.querySelector(`[data-mk="${k}"]`).value;
+    return {label:get('label')||null,value:get('value')===''?null:Number(get('value')),unit:get('unit')||null};
+  });
+  const body={measurements:m};
+  FIELDS.forEach(f=>{
+    const v=current[f];
+    body[f]=v===''||v===undefined?null:v;
+  });
+  if(!body.status) body.status='Draft';
+  if(drawingDraft!==null) body.drawing=drawingDraft;
+  const btn=$('save'); if(btn) btn.disabled=true;
+  setSave('saving');
+  try{
+    const saved=isNew
+      ? await api('/surveys/',{method:'POST',body:JSON.stringify(body)})
+      : await api('/surveys/'+current.id,{method:'PATCH',body:JSON.stringify(body)});
+    if(isNew){
+      const failed=await uploadPending(saved.id);
+      dirty=false;
+      if(!failed.length){ location.href=LIST_URL; return; }   // back to the table, with the new visit in it
+      // The visit is saved but some files were not: stay on it so they can be re-added.
+      fail(`Saved, but these files did not upload: ${failed.join(', ')}`);
+      shots=await api(`/surveys/${saved.id}/attachments`).catch(()=>[]);
+    }
+    const wasNew=isNew;
+    current=saved; isNew=false; dirty=false; drawingDraft=null; pendingFiles=[];
+    if(wasNew){
+      history.replaceState({id:saved.id},'',`${LIST_URL}?id=${encodeURIComponent(saved.id)}`);
+      document.title=`${svCode(saved.survey_number)} · Site Visit · Achi Scaffolding ERP`;
+    } else clearErr();
+    setSave('saved');
+    await loadRows().catch(()=>{});
+    renderDetail(); renderList();
+    if(saved.has_drawing) countDrawing(saved.id);
+  }catch(e){
+    setSave('error'); fail(e.message);
+    if(btn) btn.disabled=false;
+  }
+}
+
+/* ── photos and PDFs (existing attachment endpoints). On a saved visit they
+   upload straight away; on a new one they wait here until Save. ── */
+async function sendFile(id,f){
+  const fd=new FormData(); fd.append('file',f,f.name);
+  const r=await authFetch(`${API}/surveys/${id}/attachments`,{method:'POST',body:fd});
+  if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||`Could not upload ${f.name}`); }
+}
+async function uploadPending(id){
+  const failed=[];
+  for(const p of pendingFiles){ try{ await sendFile(id,p.file); }catch(e){ failed.push(p.file.name); } }
+  pendingFiles.forEach(p=>p.url&&URL.revokeObjectURL(p.url));
+  return failed;
+}
 async function upload(files){
   if(!files||!files.length) return;
   clearErr();
+  if(isNew){
+    for(const f of files) pendingFiles.push({file:f,url:f.type.startsWith('image/')?URL.createObjectURL(f):null});
+    markDirty(); renderShots(); return;
+  }
   for(const f of files){
-    try{
-      const fd=new FormData(); fd.append('file',f,f.name);
-      const r=await authFetch(`${API}/surveys/${current.id}/attachments`,{method:'POST',body:fd});
-      if(!r.ok){ const b=await r.json().catch(()=>({})); throw new Error(b.detail||`Could not upload ${f.name}`); }
-    }catch(e){ fail(e.message); }
+    try{ await sendFile(current.id,f); }catch(e){ fail(e.message); }
   }
   shots=await api(`/surveys/${current.id}/attachments`);
-  renderShots(); load();
+  renderShots(); refreshSidebarSoon();
+}
+const fmtSize=b=>{ b=+b||0; return b>=1048576?(b/1048576).toFixed(1)+' MB':b>=1024?Math.round(b/1024)+' KB':b+' B'; };
+async function openAttachment(a,download){
+  try{ const r=await authFetch(`${API}/survey-attachments/${a.id}/download`);
+    if(!r.ok) return;
+    const url=URL.createObjectURL(await r.blob());
+    if(download){ const link=document.createElement('a'); link.href=url; link.download=a.filename||'file'; link.click(); }
+    else window.open(url,'_blank');
+  }catch(e){}
 }
 function renderShots(){
   const el=$('shots'); if(!el) return;
-  el.innerHTML=shots.map(a=>`<div class="shot" data-id="${a.id}">
-      ${a.content_type.startsWith('image/')?`<img data-src="${a.id}" alt="${esc(a.label||a.filename)}">`:`<div class="doc">${esc(a.filename.split('.').pop().toUpperCase())}<br>document</div>`}
-      <div class="nm" title="${esc(a.label||a.filename)}">${esc(a.label||a.filename)}</div>
-      <button class="x" data-del="${a.id}" title="Remove">&times;</button>
-    </div>`).join('');
-  // The download route is bearer-only, so an <img src> would 401. Fetch the bytes
-  // with the token and hand the browser a blob instead.
+  const pending=pendingFiles.map((p,i)=>{
+    const ext=String(p.file.name).split('.').pop().toUpperCase().slice(0,4);
+    return `<div class="file">
+      <span class="file-thumb">${p.url?`<img src="${esc(p.url)}" alt="">`:esc(ext||'FILE')}</span>
+      <span class="file-nm" title="${esc(p.file.name)}">${esc(p.file.name)}</span>
+      <span class="file-sz">${fmtSize(p.file.size)} · not uploaded yet</span>
+      <button class="btn btn-danger" type="button" data-unpick="${i}" title="Remove">Remove</button>
+    </div>`; }).join('');
+  el.innerHTML=pending+shots.map(a=>{
+    const img=String(a.content_type||'').startsWith('image/');
+    const ext=String(a.filename||'').split('.').pop().toUpperCase().slice(0,4);
+    return `<div class="file" data-id="${esc(a.id)}">
+      <span class="file-thumb">${img?`<img data-src="${esc(a.id)}" alt="">`:esc(ext||'FILE')}</span>
+      <span class="file-nm" title="${esc(a.label||a.filename)}">${esc(a.label||a.filename)}</span>
+      <span class="file-sz">${fmtSize(a.size_bytes)}</span>
+      <button class="btn" type="button" data-open="${esc(a.id)}">Open</button>
+      <button class="btn" type="button" data-dl="${esc(a.id)}" title="Download">Download</button>
+      <button class="btn btn-danger" type="button" data-del="${esc(a.id)}" title="Remove">Remove</button>
+    </div>`; }).join('');
+  // The download route is bearer-only, so an <img src> would 401: fetch with
+  // the token and hand the browser a blob.
   el.querySelectorAll('img[data-src]').forEach(async img=>{
-    try{
-      const r=await authFetch(`${API}/survey-attachments/${img.dataset.src}/download`);
-      if(r.ok) img.src=URL.createObjectURL(await r.blob());
-    }catch(e){}
+    try{ const r=await authFetch(`${API}/survey-attachments/${img.dataset.src}/download`);
+      if(r.ok) img.src=URL.createObjectURL(await r.blob()); }catch(e){}
   });
+  el.querySelectorAll('[data-unpick]').forEach(b=>b.onclick=()=>{
+    const [p]=pendingFiles.splice(+b.dataset.unpick,1);
+    if(p&&p.url) URL.revokeObjectURL(p.url);
+    renderShots();
+  });
+  const find=id=>shots.find(x=>x.id===id);
+  el.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ const a=find(b.dataset.open); if(a) openAttachment(a,false); });
+  el.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{ const a=find(b.dataset.dl); if(a) openAttachment(a,true); });
   el.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
-    try{ await api(`/survey-attachments/${b.dataset.del}`,{method:'DELETE'});
-      shots=await api(`/surveys/${current.id}/attachments`); renderShots(); load();
+    const a=find(b.dataset.del);
+    if(!a||!confirm(`Remove ${a.label||a.filename}?`)) return;
+    try{ await api(`/survey-attachments/${a.id}`,{method:'DELETE'});
+      shots=await api(`/surveys/${current.id}/attachments`); renderShots(); refreshSidebarSoon();
     }catch(e){ fail(e.message); }
-  });
-  el.querySelectorAll('.shot').forEach(s=>s.onclick=async e=>{
-    if(e.target.closest('[data-del]')) return;
-    const a=shots.find(x=>x.id===s.dataset.id); if(!a) return;
-    try{ const r=await authFetch(`${API}/survey-attachments/${a.id}/download`);
-      if(r.ok) window.open(URL.createObjectURL(await r.blob()),'_blank');
-    }catch(err){}
   });
 }
 
-/* ── new survey ── */
-$('new-survey').onclick=async()=>{
-  const location=prompt('Site location for the new survey');
-  if(location===null) return;
-  try{
-    const today=new Date().toISOString().slice(0,10);
-    const s=await api('/surveys/',{method:'POST',body:JSON.stringify({status:'Draft',survey_date:today,site_location:location.trim()||null})});
-    await load(s.id);
-  }catch(e){ fail(e.message); }
+/* ── + New visit: an empty form — nothing is created until Save ── */
+$('new-visit').onclick=()=>{
+  if(isNew) return;
+  if(!leaveOk()) return;
+  openNew({push:true});
 };
 $('q').oninput=renderList;
 
-if(!TOKEN) fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.');
-/* ?id=<survey> opens that survey straight away, so the table can hand a row
-   over to this form without the user hunting for it in the list. */
-else load(new URLSearchParams(location.search).get('id')||undefined);
+/* ── phone: the sidebar is a drawer ── */
+function closeDrawer(){ document.body.classList.remove('drawer-open'); $('scrim').hidden=true; }
+$('drawer-btn').onclick=()=>{ document.body.classList.add('drawer-open'); $('scrim').hidden=false; };
+$('scrim').onclick=closeDrawer;
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
+
+/* ── boot ── */
+(async()=>{
+  if(!TOKEN){ fail('Not signed in on this host. Open the main app at THIS address, sign in, then reload.'); return; }
+  const id=urlId();
+  if(!id){ location.replace(LIST_URL); return; }      // no visit chosen: the list
+  history.replaceState({id},'',location.href);
+  try{ await loadRows(); }catch(e){ fail(e.message); }
+  await openVisit(id);
+})();
 </script>
 <script src="/api/v1/achi/ui/chrome.js?v=43"></script>
 <script src="/api/v1/achi/ui/comment.js?v=15"></script>

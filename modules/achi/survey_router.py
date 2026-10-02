@@ -21,7 +21,6 @@ from app.modules.contacts.models import Contact
 from .models import ContactFile, SiteSurvey
 from .schemas import (
     LEGACY_SURVEY_STATUSES,
-    SiteVisitCreate,
     SiteVisitRowOut,
     SurveyAttachmentOut,
     SurveyCreate,
@@ -32,7 +31,6 @@ from .schemas import (
 from .service import CONTACT_INFO_TAG, _display_name
 from .survey_service import (
     SiteSurveyService,
-    _next_survey_number,
     enquiry_code,
     site_visit_code,
 )
@@ -51,20 +49,22 @@ _MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
     include_in_schema=False,
     summary="Site Survey UI",
 )
-def survey_ui(id: str | None = Query(default=None, description="Open one survey in the form")) -> HTMLResponse:
-    """Site Survey. The table by default; the step-by-step form for one survey.
+def survey_ui(id: str | None = Query(default=None, description="Open one survey in the workspace")) -> HTMLResponse:
+    """Site Visit. One URL, two views:
 
-    Serving the table from this URL — not only from /surveys/table — is
-    deliberate. achi-nav.js is cached CacheFirst by a service worker, so a
-    browser can hold an old copy whose Site Survey entry still points here. If
-    this route served the form, that stale nav would keep showing the form no
-    matter what the sidebar was changed to. Answering with the table means the
-    sidebar lands on it whichever nav version the browser is running.
+    * ``/survey/ui`` — the Site Visit list (site_visit.html): every visit with
+      its SV code, status, ENQ, contact, site…; "+ New visit" creates a Draft
+      and opens it.
+    * ``/survey/ui?id=<survey id>`` — the Site Visit workspace (survey.html):
+      survey sidebar + the editor (assignment, site info, measurements, field
+      capture). It switches between visits client-side, keeping ``?id=`` in
+      the URL so refresh and Back/Forward restore the open visit.
 
-    ``?id=`` still opens the form for that survey, which is how the table's
-    survey-number link hands a row over to the on-site view.
+    The list is served here (not only from /site-visit/ui, which redirects
+    here) because achi-nav.js is cached CacheFirst by a service worker: an old
+    copy whose Site Visit entry still points at this URL lands on the list.
     """
-    page = "survey.html" if id else "survey_table.html"
+    page = "survey.html" if id else "site_visit.html"
     return HTMLResponse(
         (_UI_DIR / page).read_text(encoding="utf-8"),
         headers={"Cache-Control": "no-store, max-age=0"},
@@ -132,9 +132,10 @@ async def list_site_visits(
     limit: int = Query(default=1000, ge=1, le=2000),
 ) -> list[SiteVisitRowOut]:
     """Every site visit with its SV code and, for one opened from an enquiry,
-    the ENQ code. Contact, mobile and site are read from the linked enquiry /
-    directory contact so they stay current; a hand-added visit shows what was
-    typed on it."""
+    the ENQ code. Contact, customer and site are the visit's own fields (edited
+    in the workspace; copied from the enquiry when it was opened), falling back
+    to the linked enquiry / directory contact when empty. Mobile is read live
+    from the contact, so its WhatsApp label shows."""
     svc = SiteSurveyService(session)
     visits = await svc.list(limit=limit)
     photos = await svc.photo_counts([v.id for v in visits])
@@ -157,10 +158,16 @@ async def list_site_visits(
         f = files.get(v.file_id) if v.file_id else None
         c = contacts.get(str((f.contact_id if f else None) or v.contact_id or ""))
         typed = " ".join(p for p in ((f.lead_first_name, f.lead_last_name) if f else ()) if p).strip()
-        name = _display_name(c) or typed or v.lead_name or (f.lead_company if f else None)
+        name = v.contact or v.customer or _display_name(c) or typed or v.lead_name or (f.lead_company if f else None)
         mobile, kind = _phone_for_row(c, (f.lead_mobile if f else None) or v.lead_mobile)
-        city = (f.city if f else None) or v.city
-        location = (f.site_location if f else None) or v.site_location
+        # The phone typed in the visit's Contact field wins over the directory's.
+        # (A visit opened from the CRM starts with the directory's primary phone;
+        # that one still shows as the directory's pick, WhatsApp first.)
+        typed_phone = (v.lead_mobile or "").strip()
+        if typed_phone and typed_phone not in ((mobile or "").strip(), (getattr(c, "primary_phone", None) or "").strip()):
+            mobile, kind = typed_phone, "mobile"
+        city = v.city or (f.city if f else None)
+        location = v.site_location or (f.site_location if f else None)
         out.append(SiteVisitRowOut(
             id=v.id,
             code=site_visit_code(v.survey_number),
@@ -170,7 +177,7 @@ async def list_site_visits(
             file_id=v.file_id,
             enq_code=enquiry_code(f.file_number) if f else None,
             contact_name=name,
-            company=(c.company_name if c else None) or v.lead_company or (f.lead_company if f else None),
+            company=v.customer or (c.company_name if c else None) or v.lead_company or (f.lead_company if f else None),
             mobile=mobile,
             mobile_kind=kind,
             site=" — ".join(p for p in (city, location) if p) or None,
@@ -181,35 +188,6 @@ async def list_site_visits(
             created_at=v.created_at,
         ))
     return out
-
-
-@survey_router.post(
-    "/site-visits/",
-    response_model=SiteVisitRowOut,
-    status_code=status.HTTP_201_CREATED,
-    summary="Add a site visit by hand (\"+ New visit\")",
-)
-async def create_site_visit(data: SiteVisitCreate, session: SessionDep, user_id: CurrentUserId) -> SiteVisitRowOut:
-    visit = SiteSurvey(
-        survey_number=await _next_survey_number(session),
-        status=data.status,
-        survey_date=data.survey_date,
-        assigned_to=data.assigned_to,
-        lead_name=data.contact_name,
-        lead_mobile=data.mobile,
-        site_location=data.site,
-        owner_user_id=user_id,
-        tenant_id=user_id,
-    )
-    session.add(visit)
-    await session.commit()
-    await session.refresh(visit)
-    return SiteVisitRowOut(
-        id=visit.id, code=site_visit_code(visit.survey_number), survey_number=visit.survey_number,
-        status=visit.status, survey_date=visit.survey_date, contact_name=visit.lead_name,
-        mobile=visit.lead_mobile, mobile_kind="mobile" if visit.lead_mobile else "",
-        site=visit.site_location, assigned_to=visit.assigned_to, created_at=visit.created_at,
-    )
 
 
 @survey_router.post(
