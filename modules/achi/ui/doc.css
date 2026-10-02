@@ -1,0 +1,210 @@
+/* Document editors and their printed pages: quotations and invoices.
+   Screen: an editable "paper" per printed page. Print / preview: .qp pages,
+   A4, page 2 (conditions or payment terms) on its own sheet. */
+:root{--navy:#284F9E;--navy-soft:#eef2fb;--ink:#17223b;--muted:#5b6b85;--line:#dfe4ec;--soft:#f6f8fb;--bad:#ba0517;--ok:#15803d;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+/* Layout rules (display:flex/grid) must never un-hide an element marked hidden. */
+[hidden]{display:none !important}
+body{margin:0;font:14px/1.5 var(--font);color:var(--ink)}
+/* chrome.js paints a dotted page; a document editor reads better on flat grey. */
+body.qe-body{background-image:none;background-color:#eef1f6}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* ── action bar ─────────────────────────────────────────────────────────── */
+.qe-bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 18px;background:#fff;border-bottom:1px solid var(--line)}
+@media (min-width:901px){ body.qe-body .achi-top{display:none} }
+@media (max-width:900px){ .qe-bar{position:static} }
+.qe-back{color:var(--navy);text-decoration:none;font-weight:600;font-size:13px;padding:6px 8px;border-radius:8px}
+.qe-back:hover{background:var(--navy-soft)}
+.qe-id{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.qe-crumb{font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.qe-id h1{margin:0;font-size:17px;font-weight:800;color:var(--navy);white-space:nowrap}
+.qe-sp{flex:1}
+.qe-msg{font-size:12.5px;color:var(--muted)}
+.qe-msg.ok{color:var(--ok)} .qe-msg.bad{color:var(--bad)} .qe-msg.dirty{color:#a15c00}
+.qe-status{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.qe-status select{height:34px;border:1px solid #cbd5e1;border-radius:8px;padding:0 8px;background:#fff;text-transform:capitalize}
+.qe-btn,.qe-primary,.qe-danger{height:34px;padding:0 14px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+.qe-btn{border:1px solid #cbd5e1;background:#fff;color:var(--ink)}
+.qe-btn:hover{border-color:var(--navy);color:var(--navy)}
+.qe-primary{border:1px solid var(--navy);background:var(--navy);color:#fff}
+.qe-primary:hover{background:#1f3f80}
+.qe-danger{border:1px solid #f1c3c3;background:#fff;color:var(--bad)}
+.qe-danger:hover{background:#fdeeee}
+button:disabled{opacity:.55;cursor:default}
+:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
+
+.qe-wrap{max-width:1320px;margin:0 auto;padding:16px 16px 40px}
+.qe-err{margin:0 0 12px;padding:10px 14px;border-radius:8px;background:#fde8e8;color:var(--bad);border:1px solid #f5a0a0}
+.qe-note{margin:0 0 12px;padding:10px 14px;border-radius:8px;background:#fff8e6;color:#7a5200;border:1px solid #f2d48a;font-size:13px}
+
+/* ── the two "pages" ───────────────────────────────────────────────────── */
+.qe-paper{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 22px 20px;margin-bottom:16px;box-shadow:0 1px 2px rgba(23,34,59,.05)}
+.qe-paper-tag{position:absolute;top:-10px;left:18px;background:var(--navy);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:99px}
+.qe-grid{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+@media (max-width:820px){ .qe-grid{grid-template-columns:1fr} }
+.qe-card{border:1px solid var(--line);border-radius:10px;padding:12px 14px 14px;margin:0;min-width:0}
+.qe-card legend{padding:0 6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
+.qe-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qe-fields .qe-full{grid-column:1/-1}
+@media (max-width:520px){ .qe-fields{grid-template-columns:1fr} }
+.qe-field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+.qe-field input,.qe-field select,.qe-field textarea,#qe-conditions{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;background:#fff;font-size:13.5px;font-weight:400;color:var(--ink)}
+.qe-field input,.qe-field select{height:36px}
+.qe-field input[readonly]{background:var(--soft);color:var(--muted)}
+textarea{resize:vertical}
+
+.qe-sec-head{display:flex;align-items:center;gap:10px;margin:20px 0 10px}
+.qe-sec-head h2{margin:0;font-size:14px;font-weight:800;color:var(--ink)}
+.qe-sec-head .qe-sp{flex:1}
+.qe-hint{margin:0;font-size:12px;font-weight:400;color:var(--muted)}
+
+/* ── lines table ───────────────────────────────────────────────────────── */
+/* relative: the screen-reader-only header label is absolutely positioned and
+   would otherwise escape the scroller and widen the page on phones. */
+.qe-table-wrap{position:relative;border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+/* Fixed layout so the narrow columns keep their width and Description takes the rest. */
+.qe-table{width:100%;border-collapse:collapse;min-width:1020px;table-layout:fixed}
+.qe-table th{background:var(--navy);color:rgba(255,255,255,.9);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:9px 8px;white-space:nowrap}
+.qe-table td{border-top:1px solid #eef1f6;padding:6px 4px;vertical-align:top}
+.qe-table tbody tr:hover{background:#fafbfe}
+.qe-table .r{text-align:right}
+.qe-n{width:30px;text-align:center;color:var(--muted);font-size:12px;padding-top:14px !important}
+.qe-in{width:100%;border:1px solid transparent;border-radius:6px;padding:7px 6px;background:transparent;font-size:13px;min-height:34px}
+.qe-in:hover{border-color:#dbe2ec}
+.qe-in:focus{border-color:var(--navy);background:#fff;outline:none;box-shadow:0 0 0 3px rgba(40,79,158,.12)}
+.qe-in.bad{border-color:var(--bad);background:#fff5f5}
+textarea.qe-in{resize:none;overflow:hidden;line-height:1.4;display:block}
+input.qe-in.r{text-align:right}
+.qe-c-n{width:32px}.qe-c-item{width:180px}.qe-c-date{width:138px}.qe-c-qty{width:78px}.qe-c-unit{width:84px}.qe-c-price{width:100px}.qe-c-tot{width:110px}.qe-c-x{width:36px}
+.qe-tot{font-weight:700;white-space:nowrap;padding:14px 8px 0 !important;font-variant-numeric:tabular-nums}
+.qe-x{width:28px;height:28px;margin-top:3px;border:0;border-radius:6px;background:transparent;color:#94a3b8;font-size:18px;line-height:1;cursor:pointer}
+.qe-x:hover{background:#fdeeee;color:var(--bad)}
+.qe-empty td{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+.qe-add-row{margin-top:8px;border:1px dashed #b8c4d8;background:#fff;color:var(--navy);border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.qe-add-row:hover{background:var(--navy-soft)}
+
+/* ── totals ────────────────────────────────────────────────────────────── */
+.qe-bottom{display:grid;grid-template-columns:1fr 340px;gap:20px;margin-top:16px;align-items:start}
+@media (max-width:820px){ .qe-bottom{grid-template-columns:1fr} }
+.qe-totals{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.qe-totals>div{display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid #eef1f6;font-size:13px}
+.qe-totals>div:first-child{border-top:0}
+.qe-totals span,.qe-totals label{flex:1;color:var(--muted);font-weight:600}
+.qe-totals b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.qe-totals input{width:96px;height:30px;border:1px solid #cbd5e1;border-radius:6px;padding:0 8px;text-align:right}
+.qe-totals input.bad{border-color:var(--bad);background:#fff5f5}
+.qe-totals .qe-grand{background:var(--navy);color:#fff;font-size:15px}
+.qe-totals .qe-grand span{color:#fff}
+
+#qe-conditions{min-height:300px;line-height:1.55;font-size:13.5px}
+
+/* ── print preview / printed document ──────────────────────────────────── */
+.qp{position:fixed;inset:0;z-index:60;background:#5d6779;overflow:auto}
+.qp[hidden]{display:none}
+.qp-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:10px 16px;background:#273142;color:#fff}
+.qp-bar .qe-sp{flex:1}
+.qp-bar .qe-btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+.qp-bar .qe-btn:hover{border-color:#fff;color:#fff}
+.qp-bar small{color:rgba(255,255,255,.7);font-size:12px}
+.qp-doc{padding:24px 12px 48px}
+.qp-page{width:210mm;max-width:100%;min-height:297mm;margin:0 auto 24px;background:#fff;padding:14mm 13mm;box-shadow:0 8px 28px rgba(0,0,0,.35);
+  color:#17223b;font:10.5pt/1.45 var(--font);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.qp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:12px;border-bottom:2.5px solid var(--navy)}
+.qp-brand b{display:block;font-size:19pt;font-weight:800;letter-spacing:.06em;color:var(--navy);line-height:1.1}
+.qp-brand span{font-size:9pt;color:#5b6b85;letter-spacing:.04em}
+.qp-title{text-align:right}
+.qp-title h1{margin:0 0 6px;font-size:20pt;font-weight:800;letter-spacing:.12em;color:#17223b}
+.qp-meta{border-collapse:collapse;margin-left:auto;font-size:9.5pt}
+.qp-meta th{text-align:left;color:#5b6b85;font-weight:600;padding:1px 12px 1px 0}
+.qp-meta td{text-align:right;font-weight:700;padding:1px 0}
+.qp-parties{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:14px 0 10px}
+.qp-parties h3{margin:0 0 4px;font-size:8pt;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--navy)}
+.qp-parties p{margin:0;white-space:pre-line}
+.qp-subject{margin:4px 0 12px;padding:7px 10px;background:#f3f6fb;border-left:3px solid var(--navy)}
+.qp-lines{width:100%;border-collapse:collapse;font-size:9.5pt}
+.qp-lines thead{display:table-header-group}
+.qp-lines th{background:var(--navy);color:#fff;font-size:8pt;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:6px 6px}
+.qp-lines td{padding:6px 6px;border-bottom:1px solid #e3e8f0;vertical-align:top}
+.qp-lines tr{break-inside:avoid}
+.qp-lines .r{text-align:right;white-space:nowrap}
+.qp-lines .qp-n{color:#5b6b85;width:22px}
+.qp-lines .qp-item{font-weight:700}
+.qp-lines .qp-desc{white-space:pre-line;color:#33415c}
+.qp-lines .qp-dates{white-space:nowrap;font-size:8.5pt;color:#33415c}
+.qp-sum{display:grid;grid-template-columns:1fr 78mm;gap:16px;margin-top:12px;break-inside:avoid}
+.qp-notes{white-space:pre-line;font-size:9.5pt;color:#33415c}
+.qp-notes h3,.qp-cond-h{margin:0 0 4px;font-size:8pt;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--navy)}
+.qp-totals{width:100%;border-collapse:collapse;font-size:10pt}
+.qp-totals td{padding:4px 8px}
+.qp-totals td:last-child{text-align:right;font-weight:700;white-space:nowrap}
+.qp-totals .qp-grand td{background:var(--navy);color:#fff;font-size:11.5pt;font-weight:800;padding:7px 8px}
+.qp-head2{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:2.5px solid var(--navy);margin-bottom:14px}
+.qp-head2 b{font-size:13pt;font-weight:800;letter-spacing:.06em;color:var(--navy)}
+.qp-head2 span{font-size:9.5pt;color:#5b6b85;font-weight:600}
+.qp-page h2{margin:0 0 10px;font-size:14pt;font-weight:800}
+.qp-cond{white-space:pre-wrap;font-size:9.8pt;line-height:1.6}
+.qp-sign{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:28px;break-inside:avoid}
+.qp-sign h3{margin:0 0 14px;font-size:8.5pt;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
+.qp-sign p{margin:0 0 16px;font-size:9.5pt;color:#5b6b85;border-bottom:1px solid #9aa6ba;padding-bottom:2px}
+
+@page{size:A4;margin:12mm 11mm}
+@media print{
+  body,body.qe-body{padding:0 !important;background:#fff !important}
+  .achi-chrome,.achi-top,.qe-bar,.qe-wrap,.qp-bar{display:none !important}
+  .qp,.qp[hidden]{display:block !important;position:static;background:#fff;overflow:visible}
+  .qp-doc{padding:0}
+  .qp-page{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}
+  .qp-page + .qp-page{break-before:page}
+}
+
+/* ── invoices ─────────────────────────────────────────────────────────── */
+.qe-pill{display:inline-block;margin-left:8px;padding:2px 9px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;background:#eef2f7;color:#475569}
+.qe-pill.unpaid{background:#e8f4fd;color:#014486}
+.qe-pill.partly_paid{background:#fff4e0;color:#8a5300}
+.qe-pill.paid{background:#e7f6ec;color:#15803d}
+.qe-pill.overdue{background:#fde8e8;color:#ba0517}
+.qe-pill.void{background:#f1f1f1;color:#6b7280}
+.qe-links{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+.qe-links a{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:#fff;border:1px solid var(--line);color:var(--navy);font-weight:700;text-decoration:none}
+.qe-links a:hover{border-color:var(--navy)}
+.qe-ok{margin:0 0 12px;padding:10px 14px;border-radius:8px;background:#e7f6ec;color:#14532d;border:1px solid #a7dcb8;font-size:13px}
+.qe-pay{margin-top:16px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.qe-pay h3{margin:0;padding:9px 14px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);background:var(--soft);border-bottom:1px solid var(--line)}
+.qe-pay table{width:100%;border-collapse:collapse;font-size:13px}
+.qe-pay td{padding:8px 14px;border-top:1px solid #eef1f6}
+.qe-pay tr:first-child td{border-top:0}
+.qe-pay .r{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.qe-pay .none{color:var(--muted)}
+.qe-totals .qe-paidrow b{color:var(--ok)}
+.qe-totals .qe-duerow{background:#fff8e6}
+.qe-totals .qe-duerow b{color:#8a5300}
+.qe-fields select{height:36px}
+.qe-rate{display:flex;align-items:center;gap:6px;font-weight:400;color:var(--muted);font-size:12px}
+.qe-rate input{width:110px}
+/* An issued invoice reads, it is not edited. */
+.qe-wrap.is-locked .qe-in,.qe-wrap.is-locked .qe-field input,.qe-wrap.is-locked .qe-field select,
+.qe-wrap.is-locked .qe-field textarea,.qe-wrap.is-locked .qe-totals input,.qe-wrap.is-locked #qe-conditions{background:var(--soft);border-color:transparent;color:var(--ink)}
+.qe-wrap.is-locked .qe-x,.qe-wrap.is-locked .qe-add-row,.qe-wrap.is-locked #qe-std{display:none}
+
+/* dialog (record a payment) */
+.qe-dialog{width:min(520px,calc(100vw - 24px));padding:0;border:0;border-radius:14px;color:var(--ink);box-shadow:0 22px 70px rgba(19,32,57,.28)}
+.qe-dialog::backdrop{background:rgba(20,32,54,.44)}
+.qe-dialog form{margin:0}
+.qe-dialog header,.qe-dialog footer{display:flex;align-items:center;gap:10px;padding:14px 18px}
+.qe-dialog header{border-bottom:1px solid var(--line)}
+.qe-dialog header h2{margin:0;font-size:17px}
+.qe-dialog footer{border-top:1px solid var(--line);justify-content:flex-end}
+.qe-dialog .qe-fields{padding:16px 18px}
+
+/* printed letterhead and invoice extras */
+.qp-brand small{display:block;margin-top:4px;font-size:8.5pt;line-height:1.45;color:#5b6b85;white-space:pre-line}
+.qp-bank{margin-top:12px;padding:8px 10px;border:1px solid #e3e8f0;border-radius:6px;font-size:9pt;white-space:pre-line;break-inside:avoid}
+.qp-bank b{display:block;margin-bottom:2px;font-size:8pt;letter-spacing:.1em;text-transform:uppercase;color:var(--navy)}
+.qp-totals .qp-paid td{color:#15803d}
+.qp-totals .qp-due td{font-weight:800;border-top:1.5px solid #17223b}
+.qp-stamp{display:inline-block;margin-top:6px;padding:3px 10px;border:2px solid #15803d;border-radius:6px;color:#15803d;font-size:11pt;font-weight:800;letter-spacing:.2em;transform:rotate(-4deg)}
+.qp-stamp.void{border-color:#ba0517;color:#ba0517}

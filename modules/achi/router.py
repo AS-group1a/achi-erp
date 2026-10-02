@@ -66,6 +66,7 @@ from .planner_router import planner_router
 from .users_router import users_router
 from .hr_router import hr_router
 from .project_router import project_router
+from .acc_router import acc_router
 
 logger = logging.getLogger(__name__)
 # Older name-only logs are linked to contacts the first time Contacts loads.
@@ -85,6 +86,7 @@ router.include_router(planner_router)
 router.include_router(users_router)
 router.include_router(hr_router)
 router.include_router(project_router)
+router.include_router(acc_router)
 
 _UI_DIR = Path(__file__).parent / "ui"
 
@@ -854,6 +856,16 @@ def ui_drawing_js() -> PlainTextResponse:
     return PlainTextResponse(
         (_UI_DIR / "drawing.js").read_text(encoding="utf-8"),
         media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.get("/ui/doc.css", response_class=PlainTextResponse, include_in_schema=False)
+def ui_doc_css() -> PlainTextResponse:
+    """Shared look of the quotation and invoice editors and their printed pages."""
+    return PlainTextResponse(
+        (_UI_DIR / "doc.css").read_text(encoding="utf-8"),
+        media_type="text/css",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 

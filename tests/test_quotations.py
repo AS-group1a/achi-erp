@@ -104,7 +104,9 @@ class QuotationTotalsTest(unittest.TestCase):
 class QuotationEditorPageTest(unittest.TestCase):
     def test_editor_prints_conditions_on_their_own_page(self) -> None:
         html = (ACHI / "ui" / "quotation_editor.html").read_text(encoding="utf-8")
-        self.assertIn(".qp-page + .qp-page{break-before:page}", html)
+        css = (ACHI / "ui" / "doc.css").read_text(encoding="utf-8")   # shared with the invoice editor
+        self.assertIn('href="/api/v1/achi/ui/doc.css', html)
+        self.assertIn(".qp-page + .qp-page{break-before:page}", css)
         self.assertIn('src="/api/v1/achi/quotations/editor.js', html)
 
     def test_list_links_to_the_editor(self) -> None:

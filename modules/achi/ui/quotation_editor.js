@@ -258,6 +258,7 @@
     $('qe-number').textContent = q.quotation_number;
     document.title = q.quotation_number + ' · Quotation · ARARA';
     $('qe-delete').hidden = false;
+    loadInvoices();
     var legacy = !(q.lines && q.lines.length) ? estimateLines(q) : [];
     lines = (q.lines || []).map(function (l) {
       return {
@@ -350,8 +351,48 @@
     } catch (e) { showErr(e.message || 'Could not delete the quotation'); }
   }
 
+  // ── accounting: invoices made from this quotation ────────────────────────
+  // Quotations belong to Achi Scaffolding. People without Accounting access
+  // (viewers, or pages limited by an admin) simply don't see the button.
+  var ACC = API + '/accounting';
+  var canInvoice = false, letterhead = null;
+  var PAY = { draft: 'Draft', unpaid: 'Unpaid', partly_paid: 'Partly paid', paid: 'Paid', overdue: 'Overdue', void: 'Void' };
+  async function loadInvoices() {
+    if (!quoteId) return;
+    try {
+      var rows = await api('/accounting/invoices?company=achi&quotation_id=' + encodeURIComponent(quoteId));
+      canInvoice = true;
+      $('qe-links').innerHTML = rows.length ? 'Invoiced: ' + rows.map(function (i) {
+        return '<a href="' + ACC + '/invoice?id=' + encodeURIComponent(i.id) + '">' + esc(i.code) + ' · ' + esc(PAY[i.payment_status] || i.payment_status)
+          + ' · ' + esc(i.currency) + ' ' + money(Math.round(parseFloat(i.total) * 100)) + '</a>';
+      }).join('') : '';
+      $('qe-links').hidden = !rows.length;
+    } catch (e) { canInvoice = false; }
+    $('qe-invoice').hidden = !canInvoice;
+  }
+  async function createInvoice() {
+    if (dirty && !(await save())) return;
+    var already = $('qe-links').querySelectorAll('a').length;
+    if (already && !confirm('This quotation already has ' + already + ' invoice' + (already > 1 ? 's' : '') + '. Make another one (for example the balance after an advance)?')) return;
+    $('qe-invoice').disabled = true;
+    try {
+      var inv = await api('/accounting/invoices/from-quotation/' + encodeURIComponent(quoteId), { method: 'POST' });
+      dirty = false;
+      location.assign(ACC + '/invoice?id=' + encodeURIComponent(inv.id));
+    } catch (e) { showErr(e.message || 'Could not create the invoice'); }
+    finally { $('qe-invoice').disabled = false; }
+  }
+  $('qe-invoice').addEventListener('click', createInvoice);
+
   // ── printed document ──────────────────────────────────────────────────────
   function v(id) { return $(id).value.trim(); }
+  // The letterhead comes from Accounting → Settings; without it, the name alone.
+  function brandName() { return String(letterhead && letterhead.legal_name ? letterhead.legal_name : 'Achi Scaffolding').toUpperCase(); }
+  function brandDetails() {
+    if (!letterhead) return '';
+    return [letterhead.address, [letterhead.phone, letterhead.email].filter(Boolean).join(' · '),
+      letterhead.tax_number ? 'VAT no. ' + letterhead.tax_number : ''].filter(Boolean).join('\n');
+  }
   function printHtml() {
     var t = totals(), cur = $('qe-currency').value;
     var number = current ? current.quotation_number : 'Draft';
@@ -380,7 +421,7 @@
       + '<tr class="qp-grand"><td>Total ' + esc(cur) + '</td><td>' + money(t.total) + '</td></tr>';
     var notes = v('qe-notes');
     var page1 = '<article class="qp-page">'
-      + '<header class="qp-head"><div class="qp-brand"><b>ACHI SCAFFOLDING</b></div>'
+      + '<header class="qp-head"><div class="qp-brand"><b>' + esc(brandName()) + '</b>' + (brandDetails() ? '<small>' + esc(brandDetails()) + '</small>' : '') + '</div>'
       + '<div class="qp-title"><h1>QUOTATION</h1><table class="qp-meta">'
       + '<tr><th>No.</th><td>' + esc(number) + '</td></tr>'
       + '<tr><th>Date</th><td>' + esc(dmy(issueDate())) + '</td></tr>'
@@ -397,12 +438,12 @@
       + '<table class="qp-totals">' + sums + '</table></div>'
       + '</article>';
     var page2 = '<article class="qp-page">'
-      + '<header class="qp-head2"><b>ACHI SCAFFOLDING</b><span>Quotation ' + esc(number) + ' · ' + esc(dmy(issueDate())) + '</span></header>'
+      + '<header class="qp-head2"><b>' + esc(brandName()) + '</b><span>Quotation ' + esc(number) + ' · ' + esc(dmy(issueDate())) + '</span></header>'
       + '<h2>Terms &amp; Conditions</h2>'
       + '<div class="qp-cond">' + (esc(v('qe-conditions')) || '<span style="color:#5b6b85">No conditions.</span>') + '</div>'
       + '<section class="qp-sign">'
       + '<div><h3>Accepted by the client</h3><p>Name</p><p>Signature</p><p>Date</p></div>'
-      + '<div><h3>For Achi Scaffolding</h3><p>Name</p><p>Signature</p><p>Date</p></div>'
+      + '<div><h3>For ' + esc(letterhead && letterhead.legal_name ? letterhead.legal_name : 'Achi Scaffolding') + '</h3><p>Name</p><p>Signature</p><p>Date</p></div>'
       + '</section></article>';
     return page1 + page2;
   }
@@ -446,6 +487,7 @@
   async function init() {
     if (!token()) { showErr('Not signed in on this address. Open the main app here, sign in, then reload.'); return; }
     try { defaults = Object.assign(defaults, await api('/quotations/defaults')); } catch (e) { /* the built-ins will do */ }
+    try { letterhead = await api('/accounting/letterhead?company=achi'); } catch (e) { /* print the name alone */ }
     if (quoteId) {
       try { fill(await api('/quotations/' + encodeURIComponent(quoteId))); }
       catch (e) { showErr(e.message || 'Could not open the quotation'); $('qe-save').disabled = true; $('qe-preview').disabled = true; }

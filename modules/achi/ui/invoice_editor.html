@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice · ARARA</title>
+<link rel="stylesheet" href="/api/v1/achi/ui/doc.css?v=1">
+</head>
+<body class="qe-body" data-achi-title="Invoice">
+<header class="qe-bar">
+  <a class="qe-back" id="qe-back" href="/api/v1/achi/accounting/ui#invoices">← Invoices</a>
+  <div class="qe-id"><span class="qe-crumb" id="qe-crumb">Invoice</span><h1><span id="qe-number">New invoice</span><span class="qe-pill" id="qe-pill" hidden></span></h1></div>
+  <span class="qe-sp"></span>
+  <span class="qe-msg" id="qe-msg" role="status" aria-live="polite"></span>
+  <button class="qe-danger" id="qe-delete" type="button" hidden>Delete draft</button>
+  <button class="qe-danger" id="qe-void" type="button" hidden>Void</button>
+  <button class="qe-btn" id="qe-pay" type="button" hidden>Record payment</button>
+  <button class="qe-btn" id="qe-preview" type="button">Preview &amp; print</button>
+  <button class="qe-btn" id="qe-save" type="button">Save draft</button>
+  <button class="qe-primary" id="qe-issue" type="button">Issue invoice</button>
+</header>
+
+<main class="qe-wrap" id="qe-wrap">
+  <p class="qe-err" id="qe-err" role="alert" hidden></p>
+  <p class="qe-ok" id="qe-locked" hidden>This invoice is issued and posted to the accounts, so it can no longer be edited. To change it, void it and issue a new one.</p>
+  <div class="qe-links" id="qe-links" hidden></div>
+
+  <section class="qe-paper" aria-labelledby="qe-p1">
+    <span class="qe-paper-tag" id="qe-p1">Invoice</span>
+    <div class="qe-grid">
+      <fieldset class="qe-card">
+        <legend>Bill to</legend>
+        <div class="qe-fields">
+          <label class="qe-field">Name<input id="qe-name" maxlength="255" autocomplete="off" list="qe-customers"></label>
+          <label class="qe-field">Company<input id="qe-company" maxlength="255" autocomplete="off" list="qe-customers"></label>
+          <label class="qe-field">Mobile<input id="qe-mobile" maxlength="32" autocomplete="off" inputmode="tel"></label>
+          <label class="qe-field">Email<input id="qe-email" maxlength="255" autocomplete="off" type="email"></label>
+          <label class="qe-field qe-full">Address<input id="qe-address" maxlength="2000" autocomplete="off"></label>
+          <label class="qe-field">VAT / tax number<input id="qe-taxno" maxlength="64" autocomplete="off"></label>
+        </div>
+        <datalist id="qe-customers"></datalist>
+      </fieldset>
+      <fieldset class="qe-card">
+        <legend>Invoice</legend>
+        <div class="qe-fields">
+          <label class="qe-field">Invoice date<input id="qe-date" type="date" required></label>
+          <label class="qe-field">Due date<input id="qe-due" type="date"></label>
+          <label class="qe-field">Currency
+            <select id="qe-currency"><option>USD</option><option>EUR</option><option>LBP</option></select>
+          </label>
+          <label class="qe-field" id="qe-rate-wrap" hidden>Exchange rate
+            <span class="qe-rate">1 <span id="qe-base">USD</span> =<input id="qe-rate" inputmode="decimal" autocomplete="off"><span id="qe-rate-cur">LBP</span></span>
+          </label>
+          <label class="qe-field qe-full">Subject / project<input id="qe-subject" maxlength="1000" autocomplete="off" placeholder="e.g. Façade scaffolding — Building B, October hire"></label>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="qe-sec-head">
+      <h2>Products &amp; services</h2>
+      <span class="qe-sp"></span>
+      <span class="qe-hint">Total = quantity × price per unit · the account decides where the income is booked</span>
+    </div>
+    <div class="qe-table-wrap">
+      <table class="qe-table">
+        <colgroup>
+          <col class="qe-c-n"><col class="qe-c-item"><col><col class="qe-c-date"><col class="qe-c-date">
+          <col class="qe-c-qty"><col class="qe-c-unit"><col class="qe-c-price"><col class="qe-c-tot"><col class="qe-c-x">
+        </colgroup>
+        <thead><tr>
+          <th>#</th><th>Product / service</th><th>Description</th><th>From</th><th>To</th>
+          <th class="r">Qty</th><th>Unit</th><th class="r">Price / unit</th><th class="r">Total</th><th><span class="sr-only">Remove</span></th>
+        </tr></thead>
+        <tbody id="qe-lines"></tbody>
+      </table>
+    </div>
+    <datalist id="qe-item-list">
+      <option value="Scaffolding hire"><option value="Erection"><option value="Dismantling">
+      <option value="Erection &amp; dismantling"><option value="Transport"><option value="Safety netting">
+    </datalist>
+    <button class="qe-add-row" id="qe-add" type="button">+ Add line</button>
+
+    <div class="qe-bottom">
+      <div>
+        <label class="qe-field"><span>Notes <span class="qe-hint">· printed under the table</span></span>
+          <textarea id="qe-notes" rows="3" maxlength="20000"></textarea>
+        </label>
+        <label class="qe-field" style="margin-top:12px"><span>Payment terms <span class="qe-hint">· printed at the bottom</span></span>
+          <textarea id="qe-terms" rows="3" maxlength="20000"></textarea>
+        </label>
+      </div>
+      <div class="qe-totals" aria-label="Totals">
+        <div><span>Items total</span><b id="qe-t-items">0.00</b></div>
+        <div><label for="qe-discount">Discount</label><input id="qe-discount" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
+        <div><span>Subtotal</span><b id="qe-t-sub">0.00</b></div>
+        <div><label for="qe-vat">VAT %</label><input id="qe-vat" inputmode="decimal" autocomplete="off" placeholder="0"><b id="qe-t-vat">0.00</b></div>
+        <div class="qe-grand"><span>Total</span><b id="qe-t-total">0.00</b></div>
+        <div class="qe-paidrow" id="qe-paid-row" hidden><span>Paid</span><b id="qe-t-paid">0.00</b></div>
+        <div class="qe-duerow" id="qe-due-row" hidden><span>Balance due</span><b id="qe-t-due">0.00</b></div>
+      </div>
+    </div>
+
+    <div class="qe-pay" id="qe-payments" hidden>
+      <h3>Payments received</h3>
+      <table><tbody id="qe-pay-rows"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<dialog class="qe-dialog" id="pay-dialog" aria-labelledby="pay-title">
+  <form id="pay-form" method="dialog">
+    <header><h2 id="pay-title">Record a payment</h2></header>
+    <div class="qe-fields">
+      <label class="qe-field">Date received<input id="pay-date" type="date" required></label>
+      <label class="qe-field">Amount<input id="pay-amount" inputmode="decimal" autocomplete="off" required></label>
+      <label class="qe-field">Method
+        <select id="pay-method"><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option>
+          <option value="cheque">Cheque</option><option value="card">Card</option><option value="other">Other</option></select>
+      </label>
+      <label class="qe-field">Received into<select id="pay-account"></select></label>
+      <label class="qe-field" id="pay-rate-wrap" hidden>Exchange rate today
+        <span class="qe-rate">1 <span id="pay-base">USD</span> =<input id="pay-rate" inputmode="decimal" autocomplete="off"><span id="pay-cur">LBP</span></span>
+      </label>
+      <label class="qe-field">Reference<input id="pay-ref" maxlength="128" autocomplete="off" placeholder="Cheque no., transfer ref."></label>
+      <p class="qe-err qe-full" id="pay-err" role="alert" hidden></p>
+    </div>
+    <footer>
+      <button class="qe-btn" type="button" data-close>Cancel</button>
+      <button class="qe-primary" id="pay-save" type="submit">Save payment</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="qe-dialog" id="void-dialog" aria-labelledby="void-title">
+  <form id="void-form" method="dialog">
+    <header><h2 id="void-title">Void this invoice?</h2></header>
+    <div class="qe-fields">
+      <p class="qe-hint qe-full" style="margin:0">Voiding posts a reversing entry, so the books show both the invoice and its cancellation. The invoice number is kept and marked VOID.</p>
+      <label class="qe-field">Void date<input id="void-date" type="date" required></label>
+      <label class="qe-field qe-full">Reason<input id="void-reason" maxlength="1000" autocomplete="off" placeholder="e.g. issued to the wrong customer"></label>
+      <p class="qe-err qe-full" id="void-err" role="alert" hidden></p>
+    </div>
+    <footer>
+      <button class="qe-btn" type="button" data-close>Cancel</button>
+      <button class="qe-danger" id="void-save" type="submit">Void invoice</button>
+    </footer>
+  </form>
+</dialog>
+
+<div class="qp" id="qp" hidden>
+  <div class="qp-bar">
+    <button class="qe-btn" id="qp-back" type="button">← Back</button>
+    <span class="qe-sp"></span>
+    <small>Choose “Save as PDF” in the print window to get a PDF.</small>
+    <button class="qe-primary" id="qp-print" type="button">Print / Save as PDF</button>
+  </div>
+  <div class="qp-doc" id="qp-doc"></div>
+</div>
+
+<script src="/api/v1/achi/ui/chrome.js?v=52"></script>
+<script src="/api/v1/achi/accounting/invoice.js?v=1"></script>
+</body>
+</html>

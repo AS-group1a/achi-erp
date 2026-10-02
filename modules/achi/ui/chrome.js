@@ -56,6 +56,8 @@
   // company_access.py: admins both; others the companies HR links them to;
   // unlinked accounts Achi only). It is cached per sign-in so the menu is
   // right on the first paint; the APIs enforce it either way.
+  // The release people see in the sidebar footer. Bump it with each release.
+  var APP_VERSION = 'V 1.1';
   var COMPANIES = [['achi', 'Achi Scaffolding', 'AC'], ['arara', 'ARARA', 'AR']];
   var COMPANY_KEY = 'arara_company';
   var ACCESS_KEY = 'arara_company_access';
@@ -113,6 +115,7 @@ var LINKS = [
   { label: 'Quotation', co: 'achi', href: '/api/v1/achi/quotation/ui', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
   { label: 'Files', co: 'achi', href: '/api/v1/achi/files/ui', icon: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' },
   { label: 'Projects', co: 'arara', href: '/api/v1/achi/projects/ui', icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/><path d="M13 8h4M13 12h4M13 16h2"/>' },
+  { label: 'Accounting', co: 'both', href: '/api/v1/achi/accounting/ui', icon: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h4"/>' },
   { label: 'HR', co: 'both', href: '/api/v1/achi/hr/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M16 11h6"/><rect x="15" y="15" width="7" height="6" rx="1"/>' },
   { label: 'Users', co: 'both', href: '/api/v1/achi/users/ui', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' }
   ];
@@ -329,7 +332,7 @@ var LINKS = [
       + '</div>'
       // Licence, from upstream's own footer. /api/source is the AGPL source
       // offer — it is a licence notice, so it is reproduced, not restyled away.
-      + '<div class="achi-foot">'
+      + '<div class="achi-foot"><span>' + APP_VERSION + '</span><span aria-hidden="true">·</span>'
       + '<a href="/api/source" target="_blank" rel="noopener noreferrer">AGPL-3.0</a></div>';
 
     // Switching company: stay on this page when the other company has it too

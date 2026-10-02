@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accounting · ARARA</title>
+  <link rel="stylesheet" href="/api/v1/achi/projects/projects.css?v=3">
+  <link rel="stylesheet" href="/api/v1/achi/accounting/accounting.css?v=1">
+</head>
+<body class="pj-body" data-achi-title="Accounting">
+  <main class="pj-page">
+    <div class="pj-work">
+      <aside class="pj-side ac-side" aria-labelledby="ac-side-title">
+        <div class="pj-side-head"><p class="pj-crumb" id="ac-company">Accounting</p><h2 id="ac-side-title">Accounting</h2></div>
+        <nav class="ac-nav" id="ac-nav" aria-label="Accounting sections">
+          <a href="#overview">Overview</a>
+          <p>Sales</p>
+          <a href="#invoices">Invoices <span class="n" id="ac-n-overdue" hidden></span></a>
+          <a href="#payments">Payments received</a>
+          <p>Spending</p>
+          <a href="#expenses">Expenses</a>
+          <p>Books</p>
+          <a href="#journal">Journal</a>
+          <a href="#accounts">Chart of accounts</a>
+          <p>Reports</p>
+          <a href="#pl">Profit &amp; loss</a>
+          <a href="#bs">Balance sheet</a>
+          <a href="#tb">Trial balance</a>
+          <a href="#gl">General ledger</a>
+          <a href="#ar">Customer balances</a>
+          <a href="#vat">VAT</a>
+          <p>Setup</p>
+          <a href="#settings">Settings</a>
+        </nav>
+      </aside>
+      <section class="pj-main" aria-label="Accounting">
+        <div class="pj-toolbar" id="ac-toolbar"></div>
+        <p class="pj-msg" id="ac-msg" role="status" hidden></p>
+        <div class="pj-view" id="ac-view"></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog class="pj-dialog ac-dialog" id="ac-dialog" aria-labelledby="ac-dialog-title">
+    <form id="ac-dialog-form" method="dialog">
+      <header class="pj-dialog-head">
+        <div><p class="pj-crumb" id="ac-dialog-crumb"></p><h2 id="ac-dialog-title"></h2></div>
+        <button class="pj-icon" type="button" data-close aria-label="Close">×</button>
+      </header>
+      <div class="pj-form" id="ac-dialog-body"></div>
+      <footer class="pj-dialog-foot">
+        <p class="pj-form-error" id="ac-dialog-error" role="alert" hidden></p>
+        <span></span>
+        <button class="pj-btn" type="button" data-close>Cancel</button>
+        <button class="pj-primary" id="ac-dialog-ok" type="submit">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="/api/v1/achi/ui/chrome.js?v=52"></script>
+  <script src="/api/v1/achi/accounting/accounting.js?v=1"></script>
+</body>
+</html>
